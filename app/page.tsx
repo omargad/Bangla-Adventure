@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { lessons, levelBands, type CurriculumLevel } from "./curriculum";
 import LessonExperience from "./components/LessonExperience";
 import FourSkillDiagnostic from "./components/FourSkillDiagnostic";
+import LoginModal from "./components/LoginModal";
 
 type Language = "en" | "bn";
 type LessonStep = "start" | "learn" | "practice" | "watch" | "check";
@@ -17,6 +18,7 @@ type ModalState =
   | { type: "lesson"; id: string }
   | { type: "placement" }
   | { type: "grownups" }
+  | { type: "login" }
   | null;
 
 const copy = {
@@ -426,6 +428,7 @@ type AmbienceNodes = {
 
 export default function Home() {
   const [language, setLanguage] = useState<Language>("en");
+  const [loginOpen, setLoginOpen] = useState(false);
   const [stars, setStars] = useState(0);
   const [completed, setCompleted] = useState<string[]>([]);
   const [modal, setModal] = useState<ModalState>(null);
@@ -1127,6 +1130,9 @@ export default function Home() {
               বাংলা
             </button>
           </div>
+          <button className="login-header-button" type="button" onClick={() => setLoginOpen(true)}>
+            Sign in
+          </button>
           <button className="grownups-button" type="button" onClick={() => setModal({ type: "grownups" })}>
             {t.grownups}
           </button>
@@ -1438,6 +1444,11 @@ export default function Home() {
         <div><strong>{t.sourceTitle}</strong><p>{t.sourceText}</p></div>
         <div className="footer-links"><Link href="/topics">{language === "en" ? "Classroom topics — history, festivals & literature" : "শ্রেণিকক্ষের বিষয় — ইতিহাস, উৎসব ও সাহিত্য"}</Link><Link href="/library">{language === "en" ? "NCTB textbook library" : "এনসিটিবি পাঠ্যবই লাইব্রেরি"}</Link><Link href="/learn">{language === "en" ? "All activities — alphabet, stories, games & more" : "সব কার্যক্রম — বর্ণমালা, গল্প, খেলা ও আরও"}</Link><Link href="/explore">{language === "en" ? "Explore Bangladesh" : "বাংলাদেশ ঘুরে দেখো"}</Link><a href="https://whc.unesco.org/en/statesparties/bd" target="_blank" rel="noreferrer">UNESCO places</a><a href="https://www.unesco.org/en/days/mother-language" target="_blank" rel="noreferrer">Mother Language Day</a><button type="button" onClick={() => setModal({ type: "grownups" })}>{t.privacy}</button></div>
       </footer>
+
+      <LoginModal
+        open={loginOpen}
+        onClose={() => setLoginOpen(false)}
+      />
 
       {modal && (
         <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) { stopNarration(); setModal(null); } }}>
