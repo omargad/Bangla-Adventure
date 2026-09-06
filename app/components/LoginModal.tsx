@@ -1,6 +1,8 @@
 "use client";
 
+import Image from "next/image";
 import { useState } from "react";
+import AuthCard from "../grown-ups/AuthCard";
 
 type LoginRole = "student" | "parent" | "teacher";
 
@@ -9,54 +11,101 @@ type LoginModalProps = {
   onClose: () => void;
 };
 
+const roleContent = {
+  student: {
+    label: "Student",
+    short: "Learn & play",
+    eyebrow: "Student adventure",
+    title: "Ready to explore?",
+    text: "Use your student or class code to continue your Bangla adventure.",
+    image: "/login-icons/student-login.png",
+  },
+  parent: {
+    label: "Parent",
+    short: "View progress",
+    eyebrow: "Family space",
+    title: "See how they’re growing.",
+    text: "Sign in to follow learning progress and access family tools.",
+    image: "/login-icons/parent-login.png",
+  },
+  teacher: {
+    label: "Teacher",
+    short: "Manage classes",
+    eyebrow: "Teacher workspace",
+    title: "Welcome back, teacher.",
+    text: "Sign in to manage learners, activities, quizzes and progress.",
+    image: "/login-icons/teacher-login.png",
+  },
+} satisfies Record<LoginRole, {
+  label: string;
+  short: string;
+  eyebrow: string;
+  title: string;
+  text: string;
+  image: string;
+}>;
+
 export default function LoginModal({
   open,
   onClose,
 }: LoginModalProps) {
   const [role, setRole] = useState<LoginRole>("student");
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [message, setMessage] = useState("");
+  const [studentCode, setStudentCode] = useState("");
+  const [studentMessage, setStudentMessage] = useState("");
+  const [studentError, setStudentError] = useState(false);
 
-  if (!open) {
-    return null;
-  }
+  if (!open) return null;
+
+  const activeRole = roleContent[role];
+  const destination = role === "teacher" ? "/teach" : "/family";
 
   function selectRole(selectedRole: LoginRole) {
     setRole(selectedRole);
-    setUsername("");
-    setPassword("");
-    setMessage("");
+    setStudentCode("");
+    setStudentMessage("");
+    setStudentError(false);
   }
 
-  function handleLogin(event: React.FormEvent<HTMLFormElement>) {
+  function handleStudentLogin(
+    event: React.FormEvent<HTMLFormElement>
+  ) {
     event.preventDefault();
 
-    if (!username.trim() || !password.trim()) {
-      setMessage("Please complete all fields.");
+    const code = studentCode.trim();
+
+    if (!code) {
+      setStudentMessage("Please enter your student or class code.");
+      setStudentError(true);
       return;
     }
 
-    /*
-      Authentication will be connected to the backend later.
+    setStudentError(false);
 
-      Planned access:
-      Student -> learning/class area
-      Parent  -> /family
-      Teacher -> /teach
-    */
+    try {
+      window.localStorage.setItem(
+        "bangla-adventures-student-code",
+        code
+      );
 
-    setMessage(
-      `${
-        role.charAt(0).toUpperCase() + role.slice(1)
-      } login is ready for authentication integration.`
-    );
+      window.localStorage.setItem(
+        "bangla-adventures-selected-role",
+        "student"
+      );
+    } catch {
+      // Continue even if localStorage is unavailable.
+    }
+
+    setStudentMessage("Adventure pass ready! Opening your student space…");
+
+    window.setTimeout(() => {
+      onClose();
+      window.location.href = "/student";
+    }, 500);
   }
 
   return (
     <div
-      className="login-modal-backdrop"
+      className="kid-login-backdrop"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) {
           onClose();
@@ -64,213 +113,191 @@ export default function LoginModal({
       }}
     >
       <section
-        className="login-modal-card"
+        className="kid-login-modal"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="login-modal-title"
+        aria-labelledby="kid-login-title"
       >
+        <span className="kid-login-star kid-login-star-one" aria-hidden="true">✦</span>
+        <span className="kid-login-star kid-login-star-two" aria-hidden="true">✦</span>
+        <span className="kid-login-dot kid-login-dot-one" aria-hidden="true" />
+        <span className="kid-login-dot kid-login-dot-two" aria-hidden="true" />
+
         <button
           type="button"
-          className="login-modal-close"
+          className="kid-login-close"
           onClick={onClose}
-          aria-label="Close login"
+          aria-label="Close sign in"
         >
           ×
         </button>
 
-        <div className="login-modal-heading">
-          <div className="login-modal-logo" aria-hidden="true">
-            বা
-          </div>
-
-          <p className="login-modal-kicker">Welcome back 👋</p>
-
-          <h2 id="login-modal-title">
-            Sign in to Bangla Adventures
-          </h2>
-
-          <p>
-            Choose your account type and continue your learning journey.
-          </p>
-        </div>
-
-        <div className="login-role-options">
-          <button
-            type="button"
-            className={`login-role-card ${
-              role === "student" ? "active" : ""
-            }`}
-            onClick={() => selectRole("student")}
-          >
-            <span className="login-role-icon" aria-hidden="true">
-              🧒
-            </span>
-
-            <span>
-              <strong>Student</strong>
-              <small>Learn, play and complete activities</small>
-            </span>
-          </button>
-
-          <button
-            type="button"
-            className={`login-role-card ${
-              role === "parent" ? "active" : ""
-            }`}
-            onClick={() => selectRole("parent")}
-          >
-            <span className="login-role-icon" aria-hidden="true">
-              👨‍👩‍👧
-            </span>
-
-            <span>
-              <strong>Parent</strong>
-              <small>View your child's learning progress</small>
-            </span>
-          </button>
-
-          <button
-            type="button"
-            className={`login-role-card ${
-              role === "teacher" ? "active" : ""
-            }`}
-            onClick={() => selectRole("teacher")}
-          >
-            <span className="login-role-icon" aria-hidden="true">
-              👩‍🏫
-            </span>
-
-            <span>
-              <strong>Teacher</strong>
-              <small>Manage classes, quizzes and results</small>
-            </span>
-          </button>
-        </div>
-
-        <form className="login-form" onSubmit={handleLogin}>
-          {role === "student" ? (
-            <label className="login-field">
-              <span>Student / Class Code</span>
-
-              <input
-                type="text"
-                value={username}
-                onChange={(event) =>
-                  setUsername(event.target.value)
-                }
-                placeholder="Enter your student code"
-                autoComplete="username"
-              />
-            </label>
-          ) : (
-            <label className="login-field">
-              <span>Email Address</span>
-
-              <input
-                type="email"
-                value={username}
-                onChange={(event) =>
-                  setUsername(event.target.value)
-                }
-                placeholder="name@example.com"
-                autoComplete="email"
-              />
-            </label>
-          )}
-
-          <label className="login-field">
-            <span>Password</span>
-
-            <div className="login-password-field">
-              <input
-                type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={(event) =>
-                  setPassword(event.target.value)
-                }
-                placeholder="Enter your password"
-                autoComplete="current-password"
-              />
-
-              <button
-                type="button"
-                onClick={() =>
-                  setShowPassword((current) => !current)
-                }
-              >
-                {showPassword ? "Hide" : "Show"}
-              </button>
+        <div className="kid-login-header">
+          <div className="kid-login-brand">
+            <div className="kid-login-brand-badge">বা</div>
+            <div>
+              <strong>Bangla Adventures</strong>
+              <small>Learn · Explore · Belong</small>
             </div>
-          </label>
-
-          <div className="login-helper-row">
-            <label className="remember-login">
-              <input type="checkbox" />
-              <span>Remember me</span>
-            </label>
-
-            {role !== "student" && (
-              <button
-                type="button"
-                className="forgot-password"
-              >
-                Forgot password?
-              </button>
-            )}
           </div>
 
-          <button
-            type="submit"
-            className="login-main-button"
-          >
-            {role === "student" && "Start learning"}
-            {role === "parent" && "Parent sign in"}
-            {role === "teacher" && "Teacher sign in"}
-          </button>
+          <div className="kid-login-title-wrap">
+            <div className="kid-login-bagh">
+              <Image
+                src="/login-icons/bagh-login.png"
+                width={116}
+                height={116}
+                alt=""
+                priority
+              />
+            </div>
 
-          {message && (
-            <p className="login-message" role="status">
-              {message}
-            </p>
-          )}
-        </form>
-
-        <div className="login-role-information">
-          {role === "student" && (
-            <>
-              <strong>Student access</strong>
-              <p>
-                Complete lessons, quizzes and activities and
-                view your own learning progress.
+            <div>
+              <p className="kid-login-kicker">Hi there, adventurer!</p>
+              <h2 id="kid-login-title">Where are you heading today?</h2>
+              <p className="kid-login-subtitle">
+                Choose your space and continue your Bangla journey.
               </p>
-            </>
-          )}
+            </div>
+          </div>
+        </div>
 
-          {role === "parent" && (
-            <>
-              <strong>Parent access</strong>
-              <p>
-                Follow your child's progress, activities and
-                learning journey.
-              </p>
-            </>
-          )}
+        <div className="kid-login-role-grid">
+          {(Object.keys(roleContent) as LoginRole[]).map((item) => {
+            const content = roleContent[item];
+            const selected = role === item;
 
-          {role === "teacher" && (
-            <>
-              <strong>Teacher access</strong>
-              <p>
-                Manage classes, quizzes, activities,
-                submissions and student results.
-              </p>
-            </>
+            return (
+              <button
+                key={item}
+                type="button"
+                className={`kid-login-role kid-login-role-${item} ${
+                  selected ? "is-active" : ""
+                }`}
+                onClick={() => selectRole(item)}
+                aria-pressed={selected}
+              >
+                <span className="kid-login-role-image">
+                  <Image
+                    src={content.image}
+                    width={92}
+                    height={92}
+                    alt=""
+                  />
+                </span>
+
+                <span className="kid-login-role-copy">
+                  <strong>{content.label}</strong>
+                  <small>{content.short}</small>
+                </span>
+
+                <span className="kid-login-role-status" aria-hidden="true">
+                  {selected ? "✓" : ""}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className={`kid-login-panel kid-login-panel-${role}`}>
+          <div className="kid-login-panel-top">
+            <div>
+              <p>{activeRole.eyebrow}</p>
+              <h3>{activeRole.title}</h3>
+              <span>{activeRole.text}</span>
+            </div>
+
+            <Image
+              className="kid-login-active-art"
+              src={activeRole.image}
+              width={150}
+              height={150}
+              alt=""
+            />
+          </div>
+
+          {role === "student" ? (
+            <form
+              className={`kid-login-form ${
+                studentError ? "has-error" : ""
+              }`}
+              onSubmit={handleStudentLogin}
+            >
+              <label className="kid-login-label">
+                <span>Your student or class code</span>
+
+                <div className="kid-login-input-wrap">
+                  <Image
+                    src="/login-icons/student-id.png"
+                    width={44}
+                    height={44}
+                    alt=""
+                  />
+
+                  <input
+                    type="text"
+                    value={studentCode}
+                    onChange={(event) => {
+                      setStudentCode(event.target.value);
+
+                      if (studentError) {
+                        setStudentError(false);
+                        setStudentMessage("");
+                      }
+                    }}
+                    placeholder="Example: TIGER-204"
+                    autoComplete="off"
+                    aria-invalid={studentError}
+                  />
+                </div>
+              </label>
+
+              <button type="submit" className="kid-login-primary">
+                <span>Start my adventure</span>
+                <span className="kid-login-arrow" aria-hidden="true">→</span>
+              </button>
+
+              {studentMessage && (
+                <p
+                  className={`kid-login-message ${
+                    studentError ? "error" : "success"
+                  }`}
+                  role="status"
+                >
+                  {studentMessage}
+                </p>
+              )}
+
+              <div className="kid-login-helper">
+                <span aria-hidden="true">💡</span>
+                Your teacher will give you your student or class code.
+              </div>
+            </form>
+          ) : (
+            <div className="kid-login-auth-wrap">
+              <AuthCard
+                returnTo={destination}
+                language="en"
+              />
+            </div>
           )}
         </div>
 
-        <p className="login-privacy-note">
-          🔒 Your account details should only be used to
-          provide access to the appropriate learning area.
-        </p>
+        <div className="kid-login-trust">
+          <Image
+            src="/login-icons/secure-login.png"
+            width={48}
+            height={48}
+            alt=""
+          />
+          <div>
+            <strong>Safe and secure</strong>
+            <p>
+              Parent and teacher accounts use the existing Bangla Adventures
+              authentication system.
+            </p>
+          </div>
+        </div>
       </section>
     </div>
   );
