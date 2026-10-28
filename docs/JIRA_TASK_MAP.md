@@ -129,7 +129,7 @@ The following mappings have explicit limits. Their original Jira status and owne
 | [SCRUM-35](#scrum-35) | implemented-after-import | Built after the import: generateTemporaryPassword() in lib/password.ts and importStudents() in lib/enrollments.ts provision the uploaded students with random temporary passwords. |
 | [SCRUM-44](#scrum-44) | implemented-after-import | Built after the import: a valid upload creates every student account, roster row and class enrollment in one transaction; nothing is created when any row is invalid. |
 | [SCRUM-45](#scrum-45) | implemented-after-import | Built after the import: each provisioned student gets a random temporary password, shown to the teacher once and flagged for replacement at first sign-in. |
-| [SCRUM-51](#scrum-51) | implemented-after-import | Built after the import: administrators review every class's results at /admin/results, export them as CSV and reset submissions, with resets audited; teachers stay limited to their own classes; administrators can also open and manage any class from the teacher workspace, and every reset is audited. |
+| [SCRUM-51](#scrum-51) | implemented-after-import | Built after the import: administrators review, export and reset results in every class at /admin/results, and can open and manage any class from the teacher workspace; every reset is audited, and teachers stay limited to their own classes. |
 | [SCRUM-54](#scrum-54) | related-area-only | The Jira title is the historical Vercel deployment task. No Vercel deployment configuration was located; the current documented target is Linux/systemd behind Caddy with persistent SQLite/media, plus a Compose alternative. These are the corresponding current deployment areas, not evidence of a Vercel deployment. |
 | [SCRUM-56](#scrum-56) | related-area-only | No standalone student/teacher/admin wireframe artifact was located in the repository. These are the resulting portal interface areas only; their presence must not be presented as the original wireframes or evidence of their author. |
 | [SCRUM-59](#scrum-59) | related-area-only | These documents record or prepare client requirements, meetings, draft communication and acceptance evidence. They are related coordination artifacts; they do not prove that a draft message was sent, a meeting occurred, or a client approved a change. |
@@ -139,7 +139,7 @@ The following mappings have explicit limits. Their original Jira status and owne
 | [SCRUM-69](#scrum-69) | implemented-after-import | Built after the import: a valid upload creates the student accounts automatically, with roster rows and class enrollments, in one transaction. |
 | [SCRUM-70](#scrum-70) | implemented-after-import | Built after the import: each student receives a randomly generated temporary password (generateTemporaryPassword) that must be replaced at first sign-in. |
 | [SCRUM-71](#scrum-71) | implemented-after-import | Built after the import: a student signed in with a temporary password must choose their own at /student/password (POST /api/student/password) before learning pages or student APIs open. |
-| [SCRUM-74](#scrum-74) | implemented-after-import | Built after the import: administrators manage results in every class from /admin/results (review, CSV export, audited reset); teachers stay limited to their own classes; administrators can also open and manage any class from the teacher workspace, and every reset is audited. |
+| [SCRUM-74](#scrum-74) | implemented-after-import | Built after the import: administrators manage results in every class, from /admin/results (review, CSV export, reset) and from the teacher workspace; every reset is audited, and teachers stay limited to their own classes. |
 | [SCRUM-75](#scrum-75) | implemented-after-import | Built after the import: built together with SCRUM-80, which Jira marks as the active story for this work: CSV upload, validation errors, automatic accounts and temporary passwords. |
 | [SCRUM-80](#scrum-80) | implemented-after-import | Built after the import: valid CSV upload, line-numbered validation errors, automatic account creation and temporary passwords, covered by unit, integration and browser tests. |
 | [SCRUM-91](#scrum-91) | related-area-only | Current shared UI/styles and responsive regression checks are related implementation areas. No separately attributed before/after review package or independent child-usability approval for this task was located; retain the Jira review assignment without asserting that evidence. |
@@ -1202,7 +1202,7 @@ Recorded contributor: **BAHAA GHAZI**. GitHub assignee: [@bahaa11-prog](https://
 
 Parent: [SCRUM-9](#scrum-9) / [GitHub #16](https://github.com/omargad/Bangla-Adventure/issues/16).
 
-Mapping: **implemented-after-import**. Built after the import: administrators review every class's results at /admin/results, export them as CSV and reset submissions, with resets audited; teachers stay limited to their own classes; administrators can also open and manage any class from the teacher workspace, and every reset is audited.
+Mapping: **implemented-after-import**. Built after the import: administrators review, export and reset results in every class at /admin/results, and can open and manage any class from the teacher workspace; every reset is audited, and teachers stay limited to their own classes.
 
 Import commit: none; this item's feature was missing from the package and was built after the import by `omargad` on 28 October 2026 in [`4b04977`](https://github.com/omargad/Bangla-Adventure/commit/4b04977b3f0b6606d88690e516af6a758e1ac492), [`952d6c9`](https://github.com/omargad/Bangla-Adventure/commit/952d6c99ba135a4f53c96007bb78f1a579e47d4a).
 
@@ -1700,7 +1700,7 @@ Recorded contributor: **BAHAA GHAZI**. GitHub assignee: [@bahaa11-prog](https://
 
 Parent: [SCRUM-7](#scrum-7) / [GitHub #14](https://github.com/omargad/Bangla-Adventure/issues/14).
 
-Mapping: **implemented-after-import**. Built after the import: administrators manage results in every class from /admin/results (review, CSV export, audited reset); teachers stay limited to their own classes; administrators can also open and manage any class from the teacher workspace, and every reset is audited.
+Mapping: **implemented-after-import**. Built after the import: administrators manage results in every class, from /admin/results (review, CSV export, reset) and from the teacher workspace; every reset is audited, and teachers stay limited to their own classes.
 
 Import commit: none; this item's feature was missing from the package and was built after the import by `omargad` on 28 October 2026 in [`4b04977`](https://github.com/omargad/Bangla-Adventure/commit/4b04977b3f0b6606d88690e516af6a758e1ac492), [`952d6c9`](https://github.com/omargad/Bangla-Adventure/commit/952d6c99ba135a4f53c96007bb78f1a579e47d4a).
 

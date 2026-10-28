@@ -2813,7 +2813,7 @@
       "githubState": "closed",
       "jiraRemoteLinkCreated": true,
       "coverage": "implemented-after-import",
-      "mappingNote": "Built after the import: administrators review every class's results at /admin/results, export them as CSV and reset submissions, with resets audited; teachers stay limited to their own classes; administrators can also open and manage any class from the teacher workspace, and every reset is audited.",
+      "mappingNote": "Built after the import: administrators review, export and reset results in every class at /admin/results, and can open and manage any class from the teacher workspace; every reset is audited, and teachers stay limited to their own classes.",
       "parts": [
         {
           "path": "app/teach/page.tsx",
@@ -3990,7 +3990,7 @@
       "githubState": "closed",
       "jiraRemoteLinkCreated": true,
       "coverage": "implemented-after-import",
-      "mappingNote": "Built after the import: administrators manage results in every class from /admin/results (review, CSV export, audited reset); teachers stay limited to their own classes; administrators can also open and manage any class from the teacher workspace, and every reset is audited.",
+      "mappingNote": "Built after the import: administrators manage results in every class, from /admin/results (review, CSV export, reset) and from the teacher workspace; every reset is audited, and teachers stay limited to their own classes.",
       "parts": [
         {
           "path": "app/teach/TeacherDashboard.tsx",
