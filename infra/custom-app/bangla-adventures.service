@@ -1,0 +1,38 @@
+[Unit]
+Description=Bangla Adventures custom learning application
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=bangla-adventures
+Group=bangla-adventures
+WorkingDirectory=/opt/bangla-adventures/current
+EnvironmentFile=/etc/bangla-adventures/app.env
+ExecStartPre=/usr/bin/test -f /opt/bangla-adventures/current/.next/BUILD_ID
+ExecStart=/usr/bin/node node_modules/next/dist/bin/next start --hostname 127.0.0.1 --port 3300
+Restart=always
+RestartSec=5s
+TimeoutStopSec=30s
+StateDirectory=bangla-adventures
+StateDirectoryMode=0750
+CacheDirectory=bangla-adventures
+CacheDirectoryMode=0750
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/bangla-adventures /var/cache/bangla-adventures
+# The release must already contain .next/cache as a bind-mount target.
+BindPaths=/var/cache/bangla-adventures:/opt/bangla-adventures/current/.next/cache
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+
+[Install]
+WantedBy=multi-user.target

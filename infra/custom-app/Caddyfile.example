@@ -1,0 +1,7 @@
+# Replace this example hostname with the client-approved public domain.
+# Add this block to the existing configuration; do not replace other sites.
+# Native service upstream is 3300. Compose defaults to 127.0.0.1:3000 instead.
+learning.example.org {
+    encode zstd gzip
+    reverse_proxy 127.0.0.1:3300
+}
