@@ -1,0 +1,68 @@
+# Review routing based on the Jira responsibilities in CONTRIBUTIONS.md.
+# GitHub identities and write access checked on 2026-10-28.
+# CODEOWNERS does not establish historical authorship or human acceptance.
+# Required reviews depend on repository rules; this file does not enable them.
+# The last matching rule wins. Keep shared owners together on the same line.
+
+# Repository owner handles technical escalation and otherwise unmatched paths.
+# Student content, admin management and architecture/UI review retain their
+# documented role owners; their GitHub identity mappings are still pending.
+* @omargad
+
+# Omar Gad: repository controls, database, security and operations.
+/.github/ @omargad
+/db/ @omargad
+/drizzle/ @omargad
+/infra/ @omargad
+/scripts/ @omargad
+/Dockerfile @omargad
+/compose.yaml @omargad
+/app/api/auth/ @omargad
+/app/api/account/ @omargad
+/lib/auth.ts @omargad
+/lib/student-auth.ts @omargad
+/lib/session-status.ts @omargad
+/lib/password.ts @omargad
+/lib/roles.ts @omargad
+/lib/request-security.ts @omargad
+/lib/rate-limit.ts @omargad
+/proxy.ts @omargad
+
+# Dilsha Nishadya: shared presentation, responsive navigation and landing page.
+/app/welcome/ @104985376
+/app/globals.css @104985376
+/app/portal.css @104985376
+/app/components/PortalShell.tsx @104985376
+/app/components/PortalFrame.tsx @104985376
+/app/components/LearningLayout.tsx @104985376
+
+# Mohammed Alajmi: teacher workflows and staff class allocation.
+# Omar co-reviews shared data/access-control implementations.
+/app/teach/ @MohammedAlAjmi24
+/app/components/ClassAllocation.tsx @MohammedAlAjmi24
+/app/api/classes/ @MohammedAlAjmi24 @omargad
+/lib/classroom.ts @MohammedAlAjmi24 @omargad
+/lib/classroom-server.ts @MohammedAlAjmi24 @omargad
+/lib/enrollments.ts @MohammedAlAjmi24 @omargad
+/tests/classroom.test.mjs @MohammedAlAjmi24 @omargad
+/tests/integration/classroom-flow.test.mjs @MohammedAlAjmi24 @omargad
+
+# Bahaa Ghazi: project coordination, requirements, acceptance evidence and QA.
+/CONTRIBUTIONS.md @bahaa11-prog @omargad
+/README.md @bahaa11-prog @omargad
+/docs/atlassian-role-mapping.json @bahaa11-prog @omargad
+/docs/PROJECT_PACK.md @bahaa11-prog
+/docs/FIRST_MEETING_AGENDA.md @bahaa11-prog
+/docs/CLIENT_EMAIL_DRAFT.md @bahaa11-prog
+/docs/CLIENT_REQUIREMENTS_2026-08-10.md @bahaa11-prog
+/docs/ACCEPTANCE.md @bahaa11-prog @omargad
+/docs/HANDOVER.md @bahaa11-prog @omargad
+/docs/VERIFICATION.md @bahaa11-prog @omargad
+/tests/e2e/ @bahaa11-prog @omargad
+
+# Admin grades/results belong to Bahaa; teacher grades/results to Alajmi.
+# These implementations are shared, so both are routed for review. Admin shell,
+# users and content management remain Turki's documented responsibility.
+/app/teach/TeacherDashboard.tsx @MohammedAlAjmi24 @bahaa11-prog
+/app/api/classes/*/grades/ @MohammedAlAjmi24 @bahaa11-prog @omargad
+/app/api/classes/*/submissions/ @MohammedAlAjmi24 @bahaa11-prog @omargad

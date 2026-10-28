@@ -27,8 +27,28 @@ These are responsibility and contribution-area records based on Jira tasks. The 
 ## Identity and attribution
 
 - Mohammed Alqahtani and Mohammed Ali A Alqahtani are separate active Jira accounts with different assignments.
-- The authenticated repository owner is [Omar Gad (@omargad)](https://github.com/omargad). Other GitHub usernames were not present in the retrieved Jira evidence and must be verified before GitHub issue assignment, collaborator invitations or CODEOWNERS rules can be enabled for those people.
+- GitHub identity matches and access checks are recorded below. Only verified mappings are enabled in issue assignments and CODEOWNERS. Unknown mappings stay pending; the repository owner handles technical escalation for unmatched paths.
 - Use the existing Jira account identities for task ownership. Check assignment eligibility in a new Jira project before assigning work there.
 - New commits should use the actual author identity. Add co-author trailers only for verified contributors to that specific commit; role allocation alone does not establish commit authorship.
 - Jira status records are not independent release validation. Preserve any release checks and review gates documented in the supplied project.
+
+## GitHub assignments
+
+Verified on 28 October 2026 against the repository's issue-assignee selector and collaborator-permission checks. Jira remains the delivery record; these GitHub issues track ownership review, maintenance and handover rather than duplicate completed implementation tasks.
+
+| Team member | GitHub account | Ownership review | Assignment status |
+| --- | --- | --- | --- |
+| BAHAA GHAZI | [@bahaa11-prog](https://github.com/bahaa11-prog) | [#2](https://github.com/omargad/Bangla-Adventure/issues/2) | Assigned |
+| Omar Gad | [@omargad](https://github.com/omargad) | [#3](https://github.com/omargad/Bangla-Adventure/issues/3) | Assigned |
+| Mohammed Ali A Alqahtani | Pending identity confirmation | [#4](https://github.com/omargad/Bangla-Adventure/issues/4) | Unassigned until username is confirmed |
+| Mohammed Alajmi | [@MohammedAlAjmi24](https://github.com/MohammedAlAjmi24) | [#5](https://github.com/omargad/Bangla-Adventure/issues/5) | Assigned |
+| Turki Alahzmi | Pending identity confirmation | [#6](https://github.com/omargad/Bangla-Adventure/issues/6) | Unassigned until username is confirmed |
+| Dilsha Nishadya | [@104985376](https://github.com/104985376) | [#7](https://github.com/omargad/Bangla-Adventure/issues/7) | Assigned |
+| Mohammed Alqahtani | Pending identity confirmation | [#8](https://github.com/omargad/Bangla-Adventure/issues/8) | Unassigned until username is confirmed |
+
+The selector currently exposes six human accounts: `omargad`, `104985376`, `bahaa11-prog`, `MAQ022`, `MohammedAlAjmi24` and `Tlm0v`. The five non-owner accounts have write access; Omar has admin access. `MAQ022` and `Tlm0v` have not yet been matched to a Jira person. The seventh team's GitHub account is not visible in this selector; invitation acceptance/status was not available from this check.
+
+Identity evidence: `104985376` displays “Dilsha Nishadya”; `bahaa11-prog` displays “Bahaa”; `MohammedAlAjmi24` uniquely matches the teacher-platform team member's full name; `omargad` is the authenticated repository owner. Neither Alqahtani identity is inferred from the `MAQ022` initials.
+
+[.github/CODEOWNERS](.github/CODEOWNERS) routes review for the four verified identities. Shared teacher/admin results code routes to Mohammed Alajmi and Bahaa, with Omar on the shared results API. The remaining roles retain their Jira responsibility; the default Omar rule is technical escalation while their GitHub identities are unresolved. CODEOWNERS does not establish historical authorship, human acceptance, or mandatory review enforcement. Branch protection and repository permissions were not changed.
 

@@ -9,8 +9,8 @@
       "accountId": "712020:f1af4c4a-45ec-4a94-b770-7c13975af34c",
       "responsibility": "Project coordination, requirements, Jira management and QA; admin grades/results",
       "detail": "Coordinates project scope, client feedback, sprint reporting and verification; owns admin grades/results. SCRUM-60 explicitly identifies Bahaa as the single Jira manager.",
-      "githubLogin": null,
-      "githubIdentityBasis": "Not present in Jira evidence",
+      "githubLogin": "bahaa11-prog",
+      "githubIdentityBasis": "Repository assignee selector displays Bahaa; unique Bahaa in the Jira team; write permission verified on 2026-10-28",
       "evidence": [
         {
           "key": "SCRUM-10",
@@ -44,7 +44,12 @@
           "key": "SCRUM-92",
           "url": "https://ictprojectb26.atlassian.net/browse/SCRUM-92"
         }
-      ]
+      ],
+      "githubAssignmentStatus": "assigned",
+      "githubOwnershipIssue": {
+        "number": 2,
+        "url": "https://github.com/omargad/Bangla-Adventure/issues/2"
+      }
     },
     {
       "displayName": "Omar Gad",
@@ -52,7 +57,7 @@
       "responsibility": "Repository, technical architecture, security, deployment and regression testing",
       "detail": "Owns repository setup, final architecture/database, authentication and access control, deployment, end-to-end regression testing and recovery-code review.",
       "githubLogin": "omargad",
-      "githubIdentityBasis": "Authenticated GitHub profile observed by parent agent",
+      "githubIdentityBasis": "Authenticated repository owner; admin permission verified on 2026-10-28",
       "evidence": [
         {
           "key": "SCRUM-25",
@@ -78,7 +83,12 @@
           "key": "SCRUM-90",
           "url": "https://ictprojectb26.atlassian.net/browse/SCRUM-90"
         }
-      ]
+      ],
+      "githubAssignmentStatus": "assigned",
+      "githubOwnershipIssue": {
+        "number": 3,
+        "url": "https://github.com/omargad/Bangla-Adventure/issues/3"
+      }
     },
     {
       "displayName": "Mohammed Ali A Alqahtani",
@@ -86,7 +96,7 @@
       "responsibility": "Student learning platform and educational references",
       "detail": "Owns student learning content, quizzes/activities, results/progress, learning dashboard refinement and visible educational sources.",
       "githubLogin": null,
-      "githubIdentityBasis": "Not present in Jira evidence",
+      "githubIdentityBasis": "Pending: no verified GitHub-to-Jira identity match",
       "evidence": [
         {
           "key": "SCRUM-26",
@@ -112,15 +122,20 @@
           "key": "SCRUM-88",
           "url": "https://ictprojectb26.atlassian.net/browse/SCRUM-88"
         }
-      ]
+      ],
+      "githubAssignmentStatus": "pending-identity-confirmation",
+      "githubOwnershipIssue": {
+        "number": 4,
+        "url": "https://github.com/omargad/Bangla-Adventure/issues/4"
+      }
     },
     {
       "displayName": "Mohammed Alajmi",
       "accountId": "712020:516d9597-276a-4196-a63c-5856675e6ba5",
       "responsibility": "Teacher platform and student provisioning",
       "detail": "Owns teacher dashboard/authentication, CSV student import, temporary-password provisioning, teacher grades/results and class allocation.",
-      "githubLogin": null,
-      "githubIdentityBasis": "Not present in Jira evidence",
+      "githubLogin": "MohammedAlAjmi24",
+      "githubIdentityBasis": "Full-name GitHub handle uniquely matches Mohammed Alajmi in this team; present in repository assignee selector; write permission verified on 2026-10-28",
       "evidence": [
         {
           "key": "SCRUM-33",
@@ -142,7 +157,12 @@
           "key": "SCRUM-86",
           "url": "https://ictprojectb26.atlassian.net/browse/SCRUM-86"
         }
-      ]
+      ],
+      "githubAssignmentStatus": "assigned",
+      "githubOwnershipIssue": {
+        "number": 5,
+        "url": "https://github.com/omargad/Bangla-Adventure/issues/5"
+      }
     },
     {
       "displayName": "Turki Alahzmi",
@@ -150,7 +170,7 @@
       "responsibility": "Admin platform and portal organisation",
       "detail": "Owns the admin shell/navigation, user management, content management and updates, plus teacher portal section organisation. Admin grades/results remain Bahaa's responsibility under SCRUM-47.",
       "githubLogin": null,
-      "githubIdentityBasis": "Not present in Jira evidence",
+      "githubIdentityBasis": "Pending: no verified GitHub-to-Jira identity match",
       "evidence": [
         {
           "key": "SCRUM-47",
@@ -172,15 +192,20 @@
           "key": "SCRUM-87",
           "url": "https://ictprojectb26.atlassian.net/browse/SCRUM-87"
         }
-      ]
+      ],
+      "githubAssignmentStatus": "pending-identity-confirmation",
+      "githubOwnershipIssue": {
+        "number": 6,
+        "url": "https://github.com/omargad/Bangla-Adventure/issues/6"
+      }
     },
     {
       "displayName": "Dilsha Nishadya",
       "accountId": "712020:9954ccea-1517-463e-a742-8168cf942352",
       "responsibility": "Child-friendly UX, visual design and shared navigation",
       "detail": "Owns child-friendly UX research and presentation, animations/gamified feedback, landing page, wireframes, responsiveness and shared portal layout/navigation.",
-      "githubLogin": null,
-      "githubIdentityBasis": "Not present in Jira evidence",
+      "githubLogin": "104985376",
+      "githubIdentityBasis": "Repository assignee selector displays Dilsha Nishadya; write permission verified on 2026-10-28",
       "evidence": [
         {
           "key": "SCRUM-18",
@@ -210,7 +235,12 @@
           "key": "SCRUM-85",
           "url": "https://ictprojectb26.atlassian.net/browse/SCRUM-85"
         }
-      ]
+      ],
+      "githubAssignmentStatus": "assigned",
+      "githubOwnershipIssue": {
+        "number": 7,
+        "url": "https://github.com/omargad/Bangla-Adventure/issues/7"
+      }
     },
     {
       "displayName": "Mohammed Alqahtani",
@@ -218,7 +248,7 @@
       "responsibility": "Technology research, initial architecture and UI review",
       "detail": "Owns technology-stack research, initial system architecture and review of UI alignment, child-friendly presentation and responsive consistency.",
       "githubLogin": null,
-      "githubIdentityBasis": "Not present in Jira evidence",
+      "githubIdentityBasis": "Pending: no verified GitHub-to-Jira identity match",
       "evidence": [
         {
           "key": "SCRUM-22",
@@ -232,7 +262,12 @@
           "key": "SCRUM-91",
           "url": "https://ictprojectb26.atlassian.net/browse/SCRUM-91"
         }
-      ]
+      ],
+      "githubAssignmentStatus": "pending-identity-confirmation",
+      "githubOwnershipIssue": {
+        "number": 8,
+        "url": "https://github.com/omargad/Bangla-Adventure/issues/8"
+      }
     }
   ],
   "notes": [
@@ -240,5 +275,26 @@
     "All seven accounts are assignable in SCRUM; assignment eligibility must be checked again for a newly created project.",
     "No commit history was included in the supplied ZIP; do not manufacture historical commits or co-author records.",
     "Task status Done is copied only as a Jira record, not independent proof that the imported release is production-ready."
-  ]
+  ],
+  "githubAccessVerification": {
+    "asOf": "2026-10-28",
+    "observedHumanAssigneeLogins": [
+      "omargad",
+      "104985376",
+      "bahaa11-prog",
+      "MAQ022",
+      "MohammedAlAjmi24",
+      "Tlm0v"
+    ],
+    "unmappedWriteCollaborators": [
+      "MAQ022",
+      "Tlm0v"
+    ],
+    "unresolvedPeople": [
+      "Mohammed Ali A Alqahtani",
+      "Turki Alahzmi",
+      "Mohammed Alqahtani"
+    ],
+    "note": "Six human accounts were visible in the repository assignee selector. A seventh account and invitation status could not be established. Unmapped collaborators are not assigned to a Jira person by inference."
+  }
 }
