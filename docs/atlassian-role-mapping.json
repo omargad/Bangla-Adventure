@@ -1,0 +1,244 @@
+{
+  "asOf": "2026-10-28",
+  "site": "https://ictprojectb26.atlassian.net",
+  "sourceProject": "SCRUM",
+  "basis": "Jira task ownership and issue descriptions. This records responsibility; it does not establish authorship of individual source lines or commits.",
+  "people": [
+    {
+      "displayName": "BAHAA GHAZI",
+      "accountId": "712020:f1af4c4a-45ec-4a94-b770-7c13975af34c",
+      "responsibility": "Project coordination, requirements, Jira management and QA; admin grades/results",
+      "detail": "Coordinates project scope, client feedback, sprint reporting and verification; owns admin grades/results. SCRUM-60 explicitly identifies Bahaa as the single Jira manager.",
+      "githubLogin": null,
+      "githubIdentityBasis": "Not present in Jira evidence",
+      "evidence": [
+        {
+          "key": "SCRUM-10",
+          "url": "https://ictprojectb26.atlassian.net/browse/SCRUM-10"
+        },
+        {
+          "key": "SCRUM-51",
+          "url": "https://ictprojectb26.atlassian.net/browse/SCRUM-51"
+        },
+        {
+          "key": "SCRUM-58",
+          "url": "https://ictprojectb26.atlassian.net/browse/SCRUM-58"
+        },
+        {
+          "key": "SCRUM-59",
+          "url": "https://ictprojectb26.atlassian.net/browse/SCRUM-59"
+        },
+        {
+          "key": "SCRUM-60",
+          "url": "https://ictprojectb26.atlassian.net/browse/SCRUM-60"
+        },
+        {
+          "key": "SCRUM-61",
+          "url": "https://ictprojectb26.atlassian.net/browse/SCRUM-61"
+        },
+        {
+          "key": "SCRUM-62",
+          "url": "https://ictprojectb26.atlassian.net/browse/SCRUM-62"
+        },
+        {
+          "key": "SCRUM-92",
+          "url": "https://ictprojectb26.atlassian.net/browse/SCRUM-92"
+        }
+      ]
+    },
+    {
+      "displayName": "Omar Gad",
+      "accountId": "712020:6cfe61f4-d37f-4702-b2d9-a6e9c659b57b",
+      "responsibility": "Repository, technical architecture, security, deployment and regression testing",
+      "detail": "Owns repository setup, final architecture/database, authentication and access control, deployment, end-to-end regression testing and recovery-code review.",
+      "githubLogin": "omargad",
+      "githubIdentityBasis": "Authenticated GitHub profile observed by parent agent",
+      "evidence": [
+        {
+          "key": "SCRUM-25",
+          "url": "https://ictprojectb26.atlassian.net/browse/SCRUM-25"
+        },
+        {
+          "key": "SCRUM-52",
+          "url": "https://ictprojectb26.atlassian.net/browse/SCRUM-52"
+        },
+        {
+          "key": "SCRUM-53",
+          "url": "https://ictprojectb26.atlassian.net/browse/SCRUM-53"
+        },
+        {
+          "key": "SCRUM-54",
+          "url": "https://ictprojectb26.atlassian.net/browse/SCRUM-54"
+        },
+        {
+          "key": "SCRUM-89",
+          "url": "https://ictprojectb26.atlassian.net/browse/SCRUM-89"
+        },
+        {
+          "key": "SCRUM-90",
+          "url": "https://ictprojectb26.atlassian.net/browse/SCRUM-90"
+        }
+      ]
+    },
+    {
+      "displayName": "Mohammed Ali A Alqahtani",
+      "accountId": "712020:c7109495-6932-4030-9a7c-945ac20a1773",
+      "responsibility": "Student learning platform and educational references",
+      "detail": "Owns student learning content, quizzes/activities, results/progress, learning dashboard refinement and visible educational sources.",
+      "githubLogin": null,
+      "githubIdentityBasis": "Not present in Jira evidence",
+      "evidence": [
+        {
+          "key": "SCRUM-26",
+          "url": "https://ictprojectb26.atlassian.net/browse/SCRUM-26"
+        },
+        {
+          "key": "SCRUM-40",
+          "url": "https://ictprojectb26.atlassian.net/browse/SCRUM-40"
+        },
+        {
+          "key": "SCRUM-41",
+          "url": "https://ictprojectb26.atlassian.net/browse/SCRUM-41"
+        },
+        {
+          "key": "SCRUM-42",
+          "url": "https://ictprojectb26.atlassian.net/browse/SCRUM-42"
+        },
+        {
+          "key": "SCRUM-84",
+          "url": "https://ictprojectb26.atlassian.net/browse/SCRUM-84"
+        },
+        {
+          "key": "SCRUM-88",
+          "url": "https://ictprojectb26.atlassian.net/browse/SCRUM-88"
+        }
+      ]
+    },
+    {
+      "displayName": "Mohammed Alajmi",
+      "accountId": "712020:516d9597-276a-4196-a63c-5856675e6ba5",
+      "responsibility": "Teacher platform and student provisioning",
+      "detail": "Owns teacher dashboard/authentication, CSV student import, temporary-password provisioning, teacher grades/results and class allocation.",
+      "githubLogin": null,
+      "githubIdentityBasis": "Not present in Jira evidence",
+      "evidence": [
+        {
+          "key": "SCRUM-33",
+          "url": "https://ictprojectb26.atlassian.net/browse/SCRUM-33"
+        },
+        {
+          "key": "SCRUM-34",
+          "url": "https://ictprojectb26.atlassian.net/browse/SCRUM-34"
+        },
+        {
+          "key": "SCRUM-35",
+          "url": "https://ictprojectb26.atlassian.net/browse/SCRUM-35"
+        },
+        {
+          "key": "SCRUM-36",
+          "url": "https://ictprojectb26.atlassian.net/browse/SCRUM-36"
+        },
+        {
+          "key": "SCRUM-86",
+          "url": "https://ictprojectb26.atlassian.net/browse/SCRUM-86"
+        }
+      ]
+    },
+    {
+      "displayName": "Turki Alahzmi",
+      "accountId": "712020:9af156e3-d75c-401c-b92c-2d2e69f32c9f",
+      "responsibility": "Admin platform and portal organisation",
+      "detail": "Owns the admin shell/navigation, user management, content management and updates, plus teacher portal section organisation. Admin grades/results remain Bahaa's responsibility under SCRUM-47.",
+      "githubLogin": null,
+      "githubIdentityBasis": "Not present in Jira evidence",
+      "evidence": [
+        {
+          "key": "SCRUM-47",
+          "url": "https://ictprojectb26.atlassian.net/browse/SCRUM-47"
+        },
+        {
+          "key": "SCRUM-48",
+          "url": "https://ictprojectb26.atlassian.net/browse/SCRUM-48"
+        },
+        {
+          "key": "SCRUM-49",
+          "url": "https://ictprojectb26.atlassian.net/browse/SCRUM-49"
+        },
+        {
+          "key": "SCRUM-50",
+          "url": "https://ictprojectb26.atlassian.net/browse/SCRUM-50"
+        },
+        {
+          "key": "SCRUM-87",
+          "url": "https://ictprojectb26.atlassian.net/browse/SCRUM-87"
+        }
+      ]
+    },
+    {
+      "displayName": "Dilsha Nishadya",
+      "accountId": "712020:9954ccea-1517-463e-a742-8168cf942352",
+      "responsibility": "Child-friendly UX, visual design and shared navigation",
+      "detail": "Owns child-friendly UX research and presentation, animations/gamified feedback, landing page, wireframes, responsiveness and shared portal layout/navigation.",
+      "githubLogin": null,
+      "githubIdentityBasis": "Not present in Jira evidence",
+      "evidence": [
+        {
+          "key": "SCRUM-18",
+          "url": "https://ictprojectb26.atlassian.net/browse/SCRUM-18"
+        },
+        {
+          "key": "SCRUM-19",
+          "url": "https://ictprojectb26.atlassian.net/browse/SCRUM-19"
+        },
+        {
+          "key": "SCRUM-37",
+          "url": "https://ictprojectb26.atlassian.net/browse/SCRUM-37"
+        },
+        {
+          "key": "SCRUM-55",
+          "url": "https://ictprojectb26.atlassian.net/browse/SCRUM-55"
+        },
+        {
+          "key": "SCRUM-56",
+          "url": "https://ictprojectb26.atlassian.net/browse/SCRUM-56"
+        },
+        {
+          "key": "SCRUM-57",
+          "url": "https://ictprojectb26.atlassian.net/browse/SCRUM-57"
+        },
+        {
+          "key": "SCRUM-85",
+          "url": "https://ictprojectb26.atlassian.net/browse/SCRUM-85"
+        }
+      ]
+    },
+    {
+      "displayName": "Mohammed Alqahtani",
+      "accountId": "712020:25b86f88-12a2-4bf2-8e21-87615edf03bd",
+      "responsibility": "Technology research, initial architecture and UI review",
+      "detail": "Owns technology-stack research, initial system architecture and review of UI alignment, child-friendly presentation and responsive consistency.",
+      "githubLogin": null,
+      "githubIdentityBasis": "Not present in Jira evidence",
+      "evidence": [
+        {
+          "key": "SCRUM-22",
+          "url": "https://ictprojectb26.atlassian.net/browse/SCRUM-22"
+        },
+        {
+          "key": "SCRUM-23",
+          "url": "https://ictprojectb26.atlassian.net/browse/SCRUM-23"
+        },
+        {
+          "key": "SCRUM-91",
+          "url": "https://ictprojectb26.atlassian.net/browse/SCRUM-91"
+        }
+      ]
+    }
+  ],
+  "notes": [
+    "Mohammed Alqahtani and Mohammed Ali A Alqahtani are distinct active Jira accounts and must remain separate.",
+    "All seven accounts are assignable in SCRUM; assignment eligibility must be checked again for a newly created project.",
+    "No commit history was included in the supplied ZIP; do not manufacture historical commits or co-author records.",
+    "Task status Done is copied only as a Jira record, not independent proof that the imported release is production-ready."
+  ]
+}

@@ -1,0 +1,12 @@
+[Unit]
+Description=Renew the Bangla Adventures IP certificate
+After=network-online.target caddy.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/bangla-certbot/bin/certbot renew --non-interactive --no-random-sleep-on-renew --config-dir /etc/letsencrypt-bangla --work-dir /var/lib/bangla-acme-work --logs-dir /var/log/bangla-acme --deploy-hook "/bin/sh /etc/caddy/bangla-cert-deploy.sh"
+TimeoutStartSec=300
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true

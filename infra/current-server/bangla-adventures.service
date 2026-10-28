@@ -1,0 +1,46 @@
+[Unit]
+Description=Bangla Adventures learning platform
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=bangla-adventures
+Group=bangla-adventures
+WorkingDirectory=/opt/bangla-adventures-app
+Environment=NODE_ENV=production
+Environment=PLATFORM_MODE=legacy
+Environment=NEXT_DIST_DIR=.next-student-nav-20261028
+Environment=NEXT_TELEMETRY_DISABLED=1
+Environment=PUBLIC_ORIGIN=https://31.56.120.148
+Environment=DATABASE_PATH=/var/lib/bangla-adventures/bangla-adventures.db
+Environment=MEDIA_ROOT=/var/lib/bangla-adventures/media
+ExecStart=/usr/bin/node node_modules/next/dist/bin/next start --hostname 127.0.0.1 --port 3300
+Restart=always
+RestartSec=10s
+TimeoutStopSec=30s
+StateDirectory=bangla-adventures
+StateDirectoryMode=0750
+CacheDirectory=bangla-adventures
+CacheDirectoryMode=0750
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=tmpfs
+InaccessiblePaths=/opt/bangla-adventures-app/.git /opt/bangla-adventures-app/.data -/opt/bangla-adventures-app/.env -/opt/bangla-adventures-app/.env.local -/opt/bangla-adventures-app/.env.production -/opt/bangla-adventures-app/.env.production.local
+BindReadOnlyPaths=/root/Platform-for-kids-who-speak-Bangla-as-a-second-language-main:/opt/bangla-adventures-app
+BindPaths=/var/cache/bangla-adventures:/opt/bangla-adventures-app/.next-student-nav-20261028/cache
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+LockPersonality=true
+MemoryMax=768M
+TasksMax=128
+
+[Install]
+WantedBy=multi-user.target

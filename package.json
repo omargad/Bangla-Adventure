@@ -1,0 +1,55 @@
+{
+  "name": "bangla-adventures",
+  "version": "1.0.0",
+  "private": true,
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build --webpack",
+    "start": "next start",
+    "lint": "eslint .",
+    "test": "node --import tsx --test tests/*.test.mjs",
+    "typecheck": "tsc --noEmit",
+    "admin:grant": "tsx scripts/grant-admin.ts",
+    "test:integration": "node --test tests/integration/*.test.mjs",
+    "test:e2e": "playwright test",
+    "db:generate": "drizzle-kit generate",
+    "audio:generate": "node scripts/generate-voice-assets.cjs",
+    "verify:media": "node scripts/verify-media.mjs",
+    "verify:links": "node scripts/verify-links.mjs",
+    "verify:moodle-pilot": "node scripts/verify-moodle-pilot.mjs",
+    "verify:moodle-release": "node scripts/verify-moodle-pilot.mjs --release",
+    "verify:moodle-plugin": "node scripts/verify-moodle-plugin.mjs",
+    "verify:moodle-infra": "node scripts/verify-moodle-infra.mjs",
+    "moodle:package": "node scripts/package-moodle-plugin.mjs",
+    "fetch:nctb": "node scripts/fetch-nctb.mjs",
+    "crawl:nctb": "node scripts/crawl-nctb.mjs"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.10.0",
+    "drizzle-orm": "^0.45.2",
+    "next": "16.3.8",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1",
+    "@tailwindcss/postcss": "^4.2.1",
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/node": "^22.19.19",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "drizzle-kit": "^0.31.10",
+    "eslint": "^9.39.4",
+    "eslint-config-next": "16.3.8",
+    "pdf-parse": "^2.4.5",
+    "tailwindcss": "^4.2.1",
+    "text2wav": "^0.0.14",
+    "tsx": "4.20.6",
+    "typescript": "^5.9.3"
+  },
+  "type": "module",
+  "displayName": "Bangla Adventures"
+}

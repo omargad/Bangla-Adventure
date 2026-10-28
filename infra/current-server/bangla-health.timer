@@ -1,0 +1,11 @@
+[Unit]
+Description=Monitor Bangla Adventures every minute
+
+[Timer]
+OnBootSec=90s
+OnUnitActiveSec=60s
+AccuracySec=10s
+Unit=bangla-health.service
+
+[Install]
+WantedBy=timers.target

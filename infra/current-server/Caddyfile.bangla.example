@@ -1,0 +1,20 @@
+http://31.56.120.148 {
+	handle /.well-known/acme-challenge/* {
+		root * /var/lib/bangla-acme-webroot
+		file_server
+	}
+	handle {
+		redir https://31.56.120.148{uri} permanent
+	}
+}
+
+https://31.56.120.148 {
+	tls /etc/letsencrypt-bangla/live/bangla-ip/fullchain.pem /etc/letsencrypt-bangla/live/bangla-ip/privkey.pem
+	encode gzip
+	request_body {
+		max_size 15MB
+	}
+	reverse_proxy 127.0.0.1:3300 {
+		header_up X-Forwarded-For {remote_host}
+	}
+}

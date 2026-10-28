@@ -1,0 +1,8 @@
+[Unit]
+Description=Recover an unresponsive Bangla Adventures process
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/systemctl try-restart bangla-adventures.service
+NoNewPrivileges=true
+ProtectHome=true

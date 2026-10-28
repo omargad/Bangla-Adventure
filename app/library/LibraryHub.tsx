@@ -1,0 +1,214 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useLanguage } from "../../lib/use-language";
+import { libraryBooks, NCTB_PORTAL_URL } from "../library-content";
+import type { LibraryBook } from "../library-content";
+
+type CatalogBook = LibraryBook & { downloadUrl?: string; customised?: boolean };
+
+const levels: Array<{ id: "primary" | "secondary" | "higher-secondary"; en: string; bn: string; note: { en: string; bn: string } }> = [
+  {
+    id: "primary",
+    en: "Pre-primary & primary (prep–Class 5)",
+    bn: "প্রাক-প্রাথমিক ও প্রাথমিক (প্রেপ–৫ম শ্রেণি)",
+    note: {
+      en: "Prep and Class 1 focus mostly on learning to read; the culture and history material grows from Class 3.",
+      bn: "প্রেপ ও ১ম শ্রেণি মূলত পড়তে শেখার; সংস্কৃতি ও ইতিহাসের উপকরণ বাড়ে ৩য় শ্রেণি থেকে।",
+    },
+  },
+  {
+    id: "secondary",
+    en: "Secondary level (Classes 6–10)",
+    bn: "মাধ্যমিক স্তর (৬ষ্ঠ–১০ম শ্রেণি)",
+    note: {
+      en: "Richer history, literature and arts — several of these books also come in official English versions.",
+      bn: "গভীর ইতিহাস, সাহিত্য ও শিল্পকলা — এর কয়েকটি বইয়ের সরকারি ইংরেজি সংস্করণও আছে।",
+    },
+  },
+  {
+    id: "higher-secondary",
+    en: "Higher secondary (Classes 11–12)",
+    bn: "উচ্চ মাধ্যমিক (একাদশ–দ্বাদশ শ্রেণি)",
+    note: {
+      en: "For the oldest students in the client's prep-to-year-12 scope — mainly the senior literature readers.",
+      bn: "ক্লায়েন্টের প্রেপ-থেকে-দ্বাদশ পরিসরের সবচেয়ে বড় শিক্ষার্থীদের জন্য — মূলত সাহিত্যের বই।",
+    },
+  },
+];
+
+export default function LibraryHub() {
+  const [language, toggleLanguage] = useLanguage();
+  const s = (en: string, bn: string) => (language === "bn" ? bn : en);
+  const [books, setBooks] = useState<CatalogBook[]>(libraryBooks);
+
+  useEffect(() => {
+    // The static catalog renders immediately; teacher-maintained overrides
+    // (yearly links, added books) merge in from the knowledge-sources API.
+    let cancelled = false;
+    fetch("/api/library")
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data: { books?: CatalogBook[] } | null) => {
+        if (!cancelled && data?.books?.length) setBooks(data.books);
+      })
+      .catch(() => {
+        // Offline or API unavailable — the static baseline stays up.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return (
+    <main className="adult-app library-app" lang={language}>
+      <header className="adult-header">
+        <Link className="adult-brand" href="/">
+          <span>বা</span>
+          <span>
+            <strong>Bangla Adventures</strong>
+            <small>{s("Textbook library", "পাঠ্যবই লাইব্রেরি")}</small>
+          </span>
+        </Link>
+        <nav aria-label="Sections">
+          <Link href="/topics">{s("Classroom topics", "শ্রেণিকক্ষের বিষয়")}</Link>
+          <Link className="active" href="/library">{s("Library", "লাইব্রেরি")}</Link>
+          <Link href="/books">{s("Source audit", "উৎস নিরীক্ষা")}</Link>
+          <Link href="/resources">{s("More resources", "আরও সম্পদ")}</Link>
+        </nav>
+        <div className="adult-account">
+          <button type="button" className="explore-lang" onClick={toggleLanguage}>
+            {s("বাংলায় দেখুন", "View in English")}
+          </button>
+        </div>
+      </header>
+
+      <div className="adult-content">
+        <section className="adult-hero">
+          <div>
+            <p className="adult-eyebrow">{s("Our source of truth", "আমাদের তথ্যের উৎস")}</p>
+            <h1>{s("The government sources being checked for each candidate topic.", "প্রতিটি সম্ভাব্য বিষয়ের জন্য যাচাই করা সরকারি উৎস।")}</h1>
+            <p>
+              {s(
+                "Bangladesh's National Curriculum and Textbook Board (NCTB) publishes official school textbooks and offers them free on its website. At the client's direction, these records are the starting evidence base for culture, history and literature. A source link is not lesson approval: every adaptation still needs an exact edition/page decision plus language, cultural, age, rights and accessibility review. Stories and poems are not republished unless that evidence is recorded.",
+                "বাংলাদেশের জাতীয় শিক্ষাক্রম ও পাঠ্যপুস্তক বোর্ড (এনসিটিবি) সরকারি পাঠ্যবই প্রকাশ করে এবং ওয়েবসাইটে বিনামূল্যে দেয়। ক্লায়েন্টের নির্দেশনায় এই নথিগুলো সংস্কৃতি, ইতিহাস ও সাহিত্যের প্রাথমিক প্রমাণভিত্তি। উৎসের লিংক পাঠের অনুমোদন নয়: প্রতিটি অভিযোজনে সঠিক সংস্করণ/পৃষ্ঠা এবং ভাষা, সংস্কৃতি, বয়স, স্বত্ব ও প্রবেশযোগ্যতার পর্যালোচনা দরকার। সেই প্রমাণ নথিভুক্ত না হলে গল্প-কবিতা পুনঃপ্রকাশ করা হয় না।",
+              )}
+            </p>
+            <a className="primary-button" href={NCTB_PORTAL_URL} target="_blank" rel="noreferrer">
+              {s("Open the official NCTB website ↗", "সরকারি এনসিটিবি ওয়েবসাইট খুলুন ↗")}
+            </a>
+          </div>
+        </section>
+
+        {levels.map((level) => (
+          <section className="resources-section" key={level.id} aria-label={language === "bn" ? level.bn : level.en}>
+            <h2>{language === "bn" ? level.bn : level.en}</h2>
+            <p className="resources-note">{level.note[language]}</p>
+            <div className="library-grid">
+              {books
+                .filter((book) => book.level === level.id)
+                .map((book) => (
+                  <article className="library-card" key={book.id} id={book.id}>
+                    <header>
+                      <strong lang="bn">{book.titleBn}</strong>
+                      <small>{book.titleEn}</small>
+                    </header>
+                    <div className="library-chips">
+                      <span>{book.classes[language]}</span>
+                      <span>{book.subjectArea[language]}</span>
+                      {book.hasEnglishVersion && (
+                        <span className="library-chip-en">{s("English version available", "ইংরেজি সংস্করণ আছে")}</span>
+                      )}
+                      {book.status === "confirm" && (
+                        <span className="library-chip-confirm">{s("Edition to confirm with school", "সংস্করণ স্কুলের সঙ্গে মিলিয়ে নিন")}</span>
+                      )}
+                    </div>
+                    <p>{book.covers[language]}</p>
+                    <p className="library-why">
+                      <em>{book.whyItMatters[language]}</em>
+                    </p>
+                    {book.chapterMaps?.map((map) => (
+                      <details className="library-chapters" key={map.volume.en}>
+                        <summary>
+                          {s("What's inside", "ভেতরে যা আছে")} — {map.volume[language]}
+                          {map.verified ? (
+                            <span className="library-chip-en"> {s("read from the book", "বই থেকে পড়া")}</span>
+                          ) : (
+                            <span className="library-chip-confirm"> {s("to confirm", "মিলিয়ে নেওয়া হবে")}</span>
+                          )}
+                        </summary>
+                        <p className="library-chapters-note">{map.note[language]}</p>
+                        <ol>
+                          {map.chapters.map((chapter) => (
+                            <li key={chapter.title.en}>
+                              {chapter.title[language]}
+                              {chapter.topicId && (
+                                <Link href="/topics" className="library-chapter-topic">
+                                  {s("read it here →", "এখানে পড়ো →")}
+                                </Link>
+                              )}
+                            </li>
+                          ))}
+                        </ol>
+                      </details>
+                    ))}
+                    <a href={book.downloadUrl ?? NCTB_PORTAL_URL} target="_blank" rel="noreferrer">
+                      {book.downloadUrl
+                        ? s("Download this year's edition ↗", "এ বছরের সংস্করণ নামান ↗")
+                        : s("Download from NCTB ↗", "এনসিটিবি থেকে নামান ↗")}
+                    </a>
+                  </article>
+                ))}
+            </div>
+          </section>
+        ))}
+
+        <section className="library-policy">
+          <h2>{s("How we keep this trustworthy", "আস্থা ধরে রাখার নিয়ম")}</h2>
+          <ul>
+            <li>
+              {s(
+                "Yearly refresh: NCTB issues new textbook editions each academic year (books are handed out on 1 January). We re-check this list against the new editions every year, as agreed with the client.",
+                "বার্ষিক হালনাগাদ: এনসিটিবি প্রতি শিক্ষাবর্ষে নতুন সংস্করণ দেয় (১ জানুয়ারি বই উৎসব)। ক্লায়েন্টের সঙ্গে সিদ্ধান্ত অনুযায়ী আমরা প্রতি বছর নতুন সংস্করণের সঙ্গে তালিকা মিলিয়ে দেখি।",
+              )}
+            </li>
+            <li>
+              {s(
+                "Government source first: these books define the first review queue. Reviewers must still confirm that each platform statement is supported and may use current authoritative evidence where a textbook claim needs context or correction; unreviewed websites never enter a lesson.",
+                "সরকারি উৎসই প্রথম: এই বইগুলো প্রাথমিক পর্যালোচনার তালিকা ঠিক করে। তবু পর্যালোচককে নিশ্চিত করতে হবে যে প্ল্যাটফর্মের প্রতিটি বক্তব্য উৎসে সমর্থিত; পাঠ্যবইয়ের দাবিতে প্রেক্ষাপট বা সংশোধন দরকার হলে বর্তমান নির্ভরযোগ্য প্রমাণ ব্যবহার করা যাবে। অযাচাই করা ওয়েবসাইট কোনো পাঠে ঢোকে না।",
+              )}
+            </li>
+            <li>
+              {s(
+                "Anything beyond NCTB — a university course, an academy collection — is used only after the client approves it. Suggestions live on the resources page until then.",
+                "এনসিটিবির বাইরের কিছু — বিশ্ববিদ্যালয়ের কোর্স, একাডেমির সংগ্রহ — ক্লায়েন্টের অনুমোদনের পরই ব্যবহার হয়। তার আগে প্রস্তাবগুলো থাকে সম্পদ পাতায়।",
+              )}
+            </li>
+            <li>
+              {s(
+                "Original and accessible: we write our own kid-friendly summaries, activities and quizzes. A short literary excerpt is used only when the legal or permission basis, source citation and accessibility review are recorded.",
+                "মৌলিক ও প্রবেশযোগ্য: আমরা নিজেরা শিশু-উপযোগী সারমর্ম, কার্যক্রম ও কুইজ লিখি। ছোট কোনো সাহিত্যিক উদ্ধৃতি কেবল তখনই ব্যবহার করা হয়, যখন আইনি বা অনুমতির ভিত্তি, উৎস-উল্লেখ এবং প্রবেশযোগ্যতা পর্যালোচনা নথিভুক্ত থাকে।",
+              )}
+            </li>
+            <li>
+              {s(
+                "Accessible by design: most NCTB PDFs are image scans that screen readers cannot read, so this platform never embeds them as lessons — every reading here is real, accessible HTML text, and the PDFs stay as downloads for those who want the original book.",
+                "সহজগম্যতার নকশা: এনসিটিবির বেশির ভাগ পিডিএফ ছবি-স্ক্যান, স্ক্রিন রিডার পড়তে পারে না — তাই এই প্ল্যাটফর্ম পিডিএফ কখনো পাঠ হিসেবে বসায় না; এখানকার প্রতিটি পাঠ প্রকৃত, সহজগম্য এইচটিএমএল লেখা, আর মূল বই চাইলে পিডিএফ ডাউনলোডে থাকে।",
+              )}
+            </li>
+          </ul>
+        </section>
+
+        <section className="resources-disclaimer">
+          <span aria-hidden="true">☂</span>
+          <p>
+            {s(
+              "The NCTB website is an external government site and is mostly in Bangla; textbook PDFs download free of charge. This page sends nothing to it until you click a link.",
+              "এনসিটিবি ওয়েবসাইট একটি বাইরের সরকারি সাইট, মূলত বাংলায়; পাঠ্যবইয়ের পিডিএফ বিনামূল্যে নামানো যায়। লিংকে ক্লিক না করা পর্যন্ত এই পাতা সেখানে কিছুই পাঠায় না।",
+            )}
+          </p>
+        </section>
+      </div>
+    </main>
+  );
+}
