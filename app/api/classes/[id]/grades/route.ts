@@ -3,8 +3,9 @@ import { getDb } from "@/db";
 import { activitySubmissions, classActivities, classStudents, classes } from "@/db/schema";
 import { getSessionAdult } from "@/lib/auth";
 import { canTeach } from "@/lib/roles";
+import { managedClass } from "@/lib/class-access";
 import { csvCell, scorePercent } from "@/lib/classroom";
-import { managedClass } from "@/lib/grades";
+import { attachmentDisposition } from "@/lib/csv";
 
 export const dynamic = "force-dynamic";
 
@@ -52,7 +53,7 @@ export async function GET(request: Request, context: RouteContext) {
       return new Response(csv, {
         headers: {
           "Content-Type": "text/csv; charset=utf-8",
-          "Content-Disposition": `attachment; filename="${classroom.name.replace(/[^a-z0-9-]+/gi, "-").toLowerCase()}-grades.csv"`,
+          "Content-Disposition": attachmentDisposition(classroom.name, "-grades.csv", "class"),
         },
       });
     }

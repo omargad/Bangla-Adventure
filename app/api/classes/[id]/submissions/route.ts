@@ -1,7 +1,8 @@
 import { getDb } from "@/db";
 import { classes } from "@/db/schema";
 import { getSessionAdult } from "@/lib/auth";
-import { managedClass, resetSubmission } from "@/lib/grades";
+import { managedClass } from "@/lib/class-access";
+import { resetSubmission } from "@/lib/grades";
 import { canTeach } from "@/lib/roles";
 
 export const dynamic = "force-dynamic";

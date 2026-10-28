@@ -149,10 +149,18 @@ test("an administrator resets a submission in any class and the reset is audited
   assert.deepEqual((await (await send(`/api/classes/${classId}/grades`, "GET", undefined, teacherCookie)).json()).rows, []);
 });
 
-test("the owning teacher keeps managing results after an administrator reset", async () => {
+test("the owning teacher keeps managing results after an administrator reset, also audited", async () => {
   assert.equal((await submit()).status, 200, "the student can submit again");
   const { rows } = await (await send(`/api/classes/${classId}/grades`, "GET", undefined, teacherCookie)).json();
   assert.equal(rows.length, 1);
   assert.equal((await send(`/api/classes/${classId}/submissions`, "DELETE", { submissionId: rows[0].submissionId }, teacherCookie)).status, 200);
   assert.ok(!submissionExists(rows[0].submissionId));
+  fixture((db) => {
+    const teacherId = db.prepare("SELECT id FROM adults WHERE email = ?").get("results-teacher@example.com").id;
+    const audit = db.prepare("SELECT * FROM user_audit_events WHERE action = 'submission-reset' AND actor_id = ?").all(teacherId);
+    assert.equal(audit.length, 1);
+    assert.equal(audit[0].target_type, "student");
+    assert.equal(audit[0].target_id, studentId);
+    assert.deepEqual(JSON.parse(audit[0].details_json), { classId, submissionId: rows[0].submissionId });
+  });
 });

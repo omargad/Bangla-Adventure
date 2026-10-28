@@ -1,14 +1,14 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { desc, eq, inArray } from "drizzle-orm";
 import { getDb } from "../../../../db";
 import {
   activitySubmissions,
   classActivities,
   classAnnouncements,
   classStudents,
-  classes,
 } from "../../../../db/schema";
 import { getSessionAdult } from "@/lib/auth";
 import { canTeach } from "@/lib/roles";
+import { deleteClass, findManagedClass } from "@/lib/class-access";
 import type { QuizQuestion } from "@/lib/classroom";
 
 export const dynamic = "force-dynamic";
@@ -22,10 +22,11 @@ export async function GET(_request: Request, context: RouteContext) {
 
   try {
     const { id } = await context.params;
-    const db = await getDb();
-    const [ownedClass] = await db.select().from(classes).where(and(eq(classes.id, id), eq(classes.teacherId, user.id))).limit(1);
-    if (!ownedClass) return Response.json({ error: "Class not found." }, { status: 404 });
+    // Administrators manage every class; teachers only their own.
+    const classroom = await findManagedClass(user, id);
+    if (!classroom) return Response.json({ error: "Class not found." }, { status: 404 });
 
+    const db = await getDb();
     const students = await db.select({ id: classStudents.id, displayName: classStudents.displayName, createdAt: classStudents.createdAt }).from(classStudents).where(eq(classStudents.classId, id)).orderBy(desc(classStudents.createdAt));
     const activities = await db.select().from(classActivities).where(eq(classActivities.classId, id)).orderBy(desc(classActivities.createdAt));
     const announcements = await db.select().from(classAnnouncements).where(eq(classAnnouncements.classId, id)).orderBy(desc(classAnnouncements.createdAt));
@@ -35,7 +36,7 @@ export async function GET(_request: Request, context: RouteContext) {
       : [];
 
     return Response.json({
-      class: ownedClass,
+      class: classroom,
       students,
       announcements,
       activities: activities.map((activity) => ({
@@ -64,9 +65,7 @@ export async function DELETE(_request: Request, context: RouteContext) {
 
   try {
     const { id } = await context.params;
-    const db = await getDb();
-    const [removed] = await db.delete(classes).where(and(eq(classes.id, id), eq(classes.teacherId, user.id))).returning();
-    if (!removed) return Response.json({ error: "Class not found." }, { status: 404 });
+    if (!(await deleteClass(user, id))) return Response.json({ error: "Class not found." }, { status: 404 });
     return Response.json({ ok: true });
   } catch (error) {
     return databaseError(error);

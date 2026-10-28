@@ -1,6 +1,6 @@
-import { desc, eq, inArray } from "drizzle-orm";
+import { desc, eq, getTableColumns, inArray } from "drizzle-orm";
 import { getDb } from "../../../db";
-import { activitySubmissions, classActivities, classStudents, classes } from "../../../db/schema";
+import { activitySubmissions, adults, classActivities, classStudents, classes } from "../../../db/schema";
 import { getSessionAdult } from "@/lib/auth";
 import { canTeach } from "@/lib/roles";
 import { generateJoinCode } from "@/lib/classroom";
@@ -16,7 +16,10 @@ export async function GET(request: Request) {
     const db = await getDb();
     const all = new URL(request.url).searchParams.get("scope") === "all";
     if (all && user.role !== "admin") return Response.json({ error: "Administrator access required." }, { status: 403 });
-    const teacherClasses = await db.select().from(classes).where(all ? undefined : eq(classes.teacherId, user.id)).orderBy(desc(classes.createdAt));
+    // Administrators see every class with the owning teacher's name; teachers see their own.
+    const teacherClasses: Array<typeof classes.$inferSelect & { teacherName?: string }> = all
+      ? await db.select({ ...getTableColumns(classes), teacherName: adults.displayName }).from(classes).innerJoin(adults, eq(classes.teacherId, adults.id)).orderBy(desc(classes.createdAt))
+      : await db.select().from(classes).where(eq(classes.teacherId, user.id)).orderBy(desc(classes.createdAt));
     const classIds = teacherClasses.map((item) => item.id);
     const students = classIds.length ? await db.select().from(classStudents).where(inArray(classStudents.classId, classIds)) : [];
     const activities = classIds.length ? await db.select().from(classActivities).where(inArray(classActivities.classId, classIds)) : [];

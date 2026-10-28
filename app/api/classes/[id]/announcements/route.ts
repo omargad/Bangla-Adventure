@@ -1,18 +1,13 @@
 import { and, eq } from "drizzle-orm";
 import { getDb } from "../../../../../db";
-import { classAnnouncements, classes } from "../../../../../db/schema";
+import { classAnnouncements } from "../../../../../db/schema";
 import { getSessionAdult } from "@/lib/auth";
 import { canTeach } from "@/lib/roles";
+import { findManagedClass } from "@/lib/class-access";
 
 export const dynamic = "force-dynamic";
 
 type RouteContext = { params: Promise<{ id: string }> };
-
-async function ownedClass(userId: string, classId: string) {
-  const db = await getDb();
-  const [row] = await db.select().from(classes).where(and(eq(classes.id, classId), eq(classes.teacherId, userId))).limit(1);
-  return row ?? null;
-}
 
 export async function POST(request: Request, context: RouteContext) {
   const user = await getSessionAdult();
@@ -21,7 +16,7 @@ export async function POST(request: Request, context: RouteContext) {
 
   try {
     const { id } = await context.params;
-    if (!(await ownedClass(user.id, id))) return Response.json({ error: "Class not found." }, { status: 404 });
+    if (!(await findManagedClass(user, id))) return Response.json({ error: "Class not found." }, { status: 404 });
 
     const payload = (await request.json().catch(() => ({}))) as { body?: unknown };
     const body = typeof payload.body === "string" ? payload.body.trim().slice(0, 500) : "";
@@ -45,7 +40,7 @@ export async function DELETE(request: Request, context: RouteContext) {
 
   try {
     const { id } = await context.params;
-    if (!(await ownedClass(user.id, id))) return Response.json({ error: "Class not found." }, { status: 404 });
+    if (!(await findManagedClass(user, id))) return Response.json({ error: "Class not found." }, { status: 404 });
 
     const payload = (await request.json().catch(() => ({}))) as { announcementId?: unknown };
     const announcementId = typeof payload.announcementId === "string" ? payload.announcementId : "";

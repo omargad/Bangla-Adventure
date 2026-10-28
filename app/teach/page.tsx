@@ -8,5 +8,5 @@ export const dynamic = "force-dynamic";
 export default async function TeachPage() {
   const user = await requireAdult("/teach");
   if (!canTeach(user)) return <TeacherAccess name={user.displayName} status={user.teacherStatus} />;
-  return <TeacherDashboard teacherName={user.displayName} isAdmin={user.role === "admin"} />;
+  return <TeacherDashboard teacherName={user.displayName} userId={user.id} isAdmin={user.role === "admin"} />;
 }

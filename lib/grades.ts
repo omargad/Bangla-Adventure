@@ -1,10 +1,8 @@
 import { and, count, desc, eq, sum } from "drizzle-orm";
 import { getDb } from "../db";
 import { activitySubmissions, adults, classActivities, classStudents, classes, studentClassEnrollments, userAuditEvents } from "../db/schema";
+import { managedClass, type Staff } from "./class-access";
 import { scorePercent } from "./classroom";
-import { canManageUsers, type AccountAccess } from "./roles";
-
-type Staff = AccountAccess & { id: string };
 
 export type ClassResultsSummary = {
   id: string;
@@ -19,18 +17,10 @@ export type ClassResultsSummary = {
 };
 
 /**
- * Which class a staff member may manage grades and results for: administrators
- * any class, teachers only the classes they own. Callers check canTeach first.
- */
-export function managedClass(actor: Staff, classId: string) {
-  return canManageUsers(actor) ? eq(classes.id, classId) : and(eq(classes.id, classId), eq(classes.teacherId, actor.id));
-}
-
-/**
  * Delete one submission so the student can attempt the activity again. Returns
- * false when it is not a submission in a class this actor manages. Administrator
- * resets are audited against the student's account (or, for a legacy class-code
- * learner without one, the roster row).
+ * false when it is not a submission in a class this actor manages. Every reset,
+ * by a teacher or an administrator, is audited against the student's account
+ * (or, for a legacy class-code learner without one, the roster row).
  */
 export async function resetSubmission(actor: Staff, classId: string, submissionId: string): Promise<boolean> {
   const db = await getDb();
@@ -43,15 +33,13 @@ export async function resetSubmission(actor: Staff, classId: string, submissionI
       .get();
     if (!submission) return false;
     tx.delete(activitySubmissions).where(eq(activitySubmissions.id, submission.id)).run();
-    if (canManageUsers(actor)) {
-      const enrollment = tx.select({ studentId: studentClassEnrollments.studentId }).from(studentClassEnrollments)
-        .where(eq(studentClassEnrollments.classStudentId, submission.rosterId)).get();
-      tx.insert(userAuditEvents).values({
-        id: crypto.randomUUID(), actorId: actor.id, targetId: enrollment?.studentId ?? submission.rosterId,
-        targetType: enrollment ? "student" : "class-student", action: "submission-reset",
-        detailsJson: JSON.stringify({ classId, submissionId: submission.id }),
-      }).run();
-    }
+    const enrollment = tx.select({ studentId: studentClassEnrollments.studentId }).from(studentClassEnrollments)
+      .where(eq(studentClassEnrollments.classStudentId, submission.rosterId)).get();
+    tx.insert(userAuditEvents).values({
+      id: crypto.randomUUID(), actorId: actor.id, targetId: enrollment?.studentId ?? submission.rosterId,
+      targetType: enrollment ? "student" : "class-student", action: "submission-reset",
+      detailsJson: JSON.stringify({ classId, submissionId: submission.id }),
+    }).run();
     return true;
   });
 }

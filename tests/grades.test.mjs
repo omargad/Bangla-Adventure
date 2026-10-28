@@ -70,13 +70,20 @@ test("the administrator listing covers every class with its teacher, counts and 
   assert.ok(!JSON.stringify(listing).includes("test-only"), "no password hashes");
 });
 
-test("teachers reset submissions only in their own classes", async () => {
+test("teachers reset submissions only in their own classes and their resets are audited", async () => {
   assert.equal(await resetSubmission(teacherB, "class-a", "s1"), false, "another teacher's class");
   assert.equal(await resetSubmission(teacherB, "class-b", "s1"), false, "a submission from a different class");
   assert.ok(submissionExists("s1"));
+  assert.equal(resetAudits().length, 0, "a refused reset is not audited");
   assert.equal(await resetSubmission(teacherA, "class-a", "s1"), true);
   assert.ok(!submissionExists("s1"));
   assert.equal(await resetSubmission(teacherA, "class-a", "s1"), false, "already reset");
+  const audits = resetAudits();
+  assert.equal(audits.length, 1, "one audit for the one reset");
+  assert.equal(audits[0].actorId, "teacher-a");
+  assert.equal(audits[0].targetType, "student");
+  assert.equal(audits[0].targetId, "child-a");
+  assert.deepEqual(JSON.parse(audits[0].detailsJson), { classId: "class-a", submissionId: "s1" });
 });
 
 test("administrators reset submissions in any class and every reset is audited", async () => {
@@ -85,8 +92,9 @@ test("administrators reset submissions in any class and every reset is audited",
   assert.equal(await resetSubmission(admin, "class-b", "sb"), true);
   assert.ok(!submissionExists("sb"));
   assert.equal(await resetSubmission(admin, "class-a", "s-legacy"), true);
-  const audits = resetAudits();
-  assert.equal(audits.length, 2, "only the administrator's resets");
+  assert.equal(resetAudits().length, 3, "the teacher's reset and both administrator resets");
+  const audits = resetAudits().filter((event) => event.actorId === "admin");
+  assert.equal(audits.length, 2);
   const [account, legacy] = ["sb", "s-legacy"].map((id) => audits.find((event) => JSON.parse(event.detailsJson).submissionId === id));
   assert.equal(account.actorId, "admin");
   assert.equal(account.targetType, "student");

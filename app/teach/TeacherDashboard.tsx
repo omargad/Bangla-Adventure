@@ -14,6 +14,9 @@ type ClassSummary = {
   name: string;
   joinCode: string;
   createdAt: string;
+  teacherId: string;
+  /** Only in an administrator's all-classes listing. */
+  teacherName?: string;
   studentCount: number;
   activityCount: number;
   submissionCount: number;
@@ -43,7 +46,7 @@ type ActivityDetail = {
 };
 
 type ClassDetail = {
-  class: { id: string; name: string; joinCode: string };
+  class: { id: string; name: string; joinCode: string; teacherId: string };
   students: Array<{ id: string; displayName: string; createdAt: string }>;
   announcements: Array<{ id: string; body: string; createdAt: string }>;
   activities: ActivityDetail[];
@@ -70,7 +73,7 @@ async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
   return data as T;
 }
 
-export default function TeacherDashboard({ teacherName, isAdmin = false }: { teacherName: string; isAdmin?: boolean }) {
+export default function TeacherDashboard({ teacherName, userId, isAdmin = false }: { teacherName: string; userId?: string; isAdmin?: boolean }) {
   const [language, toggleLanguage] = useLanguage();
   const s = (en: string, bn: string) => (language === "bn" ? bn : en);
 
@@ -87,7 +90,11 @@ export default function TeacherDashboard({ teacherName, isAdmin = false }: { tea
   const [passwordsOnScreen, setPasswordsOnScreen] = useState(false);
   const canLeaveClass = () => !passwordsOnScreen || confirmDiscardPasswords(language);
   const totals = classList.reduce((total, item) => ({ students: total.students + item.studentCount, activities: total.activities + item.activityCount, submissions: total.submissions + item.submissionCount }), { students: 0, activities: 0, submissions: 0 });
-  const visibleClasses = classList.filter((item) => item.name.toLowerCase().includes(classQuery.toLowerCase()));
+  const visibleClasses = classList.filter((item) => [item.name, item.teacherName ?? ""].some((text) => text.toLowerCase().includes(classQuery.toLowerCase())));
+  // Administrators work in every class: name the teacher of each class they do not own.
+  const otherTeacher = (item?: ClassSummary) => (isAdmin && item && item.teacherId !== userId ? item.teacherName : undefined);
+  const detailTeacher = detail ? otherTeacher(classList.find((item) => item.id === detail.class.id)) : undefined;
+  const classesLabel = isAdmin ? s("All classes", "সব ক্লাস") : s("Your classes", "আপনার ক্লাস");
 
   const [newClassName, setNewClassName] = useState("");
   const [announcement, setAnnouncement] = useState("");
@@ -100,11 +107,11 @@ export default function TeacherDashboard({ teacherName, isAdmin = false }: { tea
 
   const loadClasses = useCallback(async () => {
     try {
-      const data = await requestJson<{ classes: ClassSummary[] }>("/api/classes");
+      const data = await requestJson<{ classes: ClassSummary[] }>(isAdmin ? "/api/classes?scope=all" : "/api/classes");
       setClassList(data.classes);
     } catch (error) { setMessage(error instanceof Error ? error.message : "Could not load classes."); }
     finally { setLoading(false); }
-  }, []);
+  }, [isAdmin]);
 
   const loadSources = useCallback(async () => {
     try {
@@ -168,10 +175,15 @@ export default function TeacherDashboard({ teacherName, isAdmin = false }: { tea
 
   const removeClass = async (id: string) => {
     if (!canLeaveClass()) return;
-    if (!window.confirm(s("Delete this class, its activities and submissions?", "এই ক্লাস, কার্যক্রম ও জমাগুলো মুছে ফেলবেন?"))) return;
+    const owner = otherTeacher(classList.find((item) => item.id === id));
+    const question = owner
+      ? s(`Delete ${owner}'s class, its activities and submissions?`, `${owner}-এর ক্লাস, কার্যক্রম ও জমাগুলো মুছে ফেলবেন?`)
+      : s("Delete this class, its activities and submissions?", "এই ক্লাস, কার্যক্রম ও জমাগুলো মুছে ফেলবেন?");
+    if (!window.confirm(question)) return;
     const response = await request(`/api/classes/${id}`, { method: "DELETE" });
     if (response.ok) {
       setDetail(null);
+      setSection("classes");
       await loadClasses();
     }
   };
@@ -310,7 +322,7 @@ export default function TeacherDashboard({ teacherName, isAdmin = false }: { tea
   return (
     <PortalShell role={isAdmin ? "admin" : "teacher"} name={teacherName} language={language} toggleLanguage={toggleLanguage} active={section} items={[
       ...[
-        ["classes", s("My classes", "আমার ক্লাস")],
+        ["classes", isAdmin ? s("All classes", "সব ক্লাস") : s("My classes", "আমার ক্লাস")],
         ["students", s("Students", "শিক্ষার্থী")],
         ["activities", s("Activities & quizzes", "কার্যক্রম ও কুইজ")],
         ["results", s("Results", "ফলাফল")],
@@ -361,17 +373,17 @@ export default function TeacherDashboard({ teacherName, isAdmin = false }: { tea
         </section>
 
         <section className="workspace-stats" aria-label={s("Teaching overview", "পড়ানোর সারসংক্ষেপ")}>
-          <div><small>{s("Your classes", "আপনার ক্লাস")}</small><strong>{loading ? "—" : classList.length}</strong></div>
+          <div><small>{classesLabel}</small><strong>{loading ? "—" : classList.length}</strong></div>
           <div><small>{s("Enrolments", "ভর্তি")}</small><strong>{loading ? "—" : totals.students}</strong></div>
           <div><small>{s("Activities", "কার্যক্রম")}</small><strong>{loading ? "—" : totals.activities}</strong></div>
           <div><small>{s("Submissions", "জমা কাজ")}</small><strong>{loading ? "—" : totals.submissions}</strong></div>
         </section>
 
-        {!["classes", "sources"].includes(section) && <label className="portal-field">{s("Choose a class", "ক্লাস বেছে নিন")}<select value={detail?.class.id ?? ""} onChange={(event) => { if (event.target.value !== detail?.class.id && !canLeaveClass()) return; void openClass(event.target.value); }}><option value="">{s("Select a class", "ক্লাস নির্বাচন")}</option>{classList.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>}
+        {!["classes", "sources"].includes(section) && <label className="portal-field">{s("Choose a class", "ক্লাস বেছে নিন")}<select value={detail?.class.id ?? ""} onChange={(event) => { if (event.target.value !== detail?.class.id && !canLeaveClass()) return; void openClass(event.target.value); }}><option value="">{s("Select a class", "ক্লাস নির্বাচন")}</option>{classList.map((item) => <option key={item.id} value={item.id}>{otherTeacher(item) ? `${item.name} — ${otherTeacher(item)}` : item.name}</option>)}</select></label>}
         {!detail && (
           <>
-            <section hidden={section !== "classes"} className="teach-panel" aria-label={s("Your classes", "আপনার ক্লাস")}>
-              <h2>{s("Your classes", "আপনার ক্লাস")}</h2>
+            <section hidden={section !== "classes"} className="teach-panel" aria-label={classesLabel}>
+              <h2>{classesLabel}</h2>
               <form className="teach-inline-form" onSubmit={createClass}>
                 <input
                   value={newClassName}
@@ -385,14 +397,15 @@ export default function TeacherDashboard({ teacherName, isAdmin = false }: { tea
                   {s("Create class", "ক্লাস তৈরি করুন")}
                 </button>
               </form>
-              <label className="teach-search">{s("Find a class", "ক্লাস খুঁজুন")}<input type="search" value={classQuery} onChange={(event) => setClassQuery(event.target.value)} placeholder={s("Search your classes…", "আপনার ক্লাস খুঁজুন…")} /></label>
-              {loading ? <p role="status">{s("Loading your classes…", "আপনার ক্লাস লোড হচ্ছে…")}</p> : classList.length === 0 ? (
-                <p className="teach-empty">{s("No classes yet — create your first one above.", "এখনো কোনো ক্লাস নেই — উপরে প্রথমটি তৈরি করুন।")}</p>
+              <label className="teach-search">{s("Find a class", "ক্লাস খুঁজুন")}<input type="search" value={classQuery} onChange={(event) => setClassQuery(event.target.value)} placeholder={isAdmin ? s("Search classes or teachers…", "ক্লাস বা শিক্ষক খুঁজুন…") : s("Search your classes…", "আপনার ক্লাস খুঁজুন…")} /></label>
+              {loading ? <p role="status">{isAdmin ? s("Loading all classes…", "সব ক্লাস লোড হচ্ছে…") : s("Loading your classes…", "আপনার ক্লাস লোড হচ্ছে…")}</p> : classList.length === 0 ? (
+                <p className="teach-empty">{isAdmin ? s("No teacher has created a class yet.", "এখনো কোনো শিক্ষক ক্লাস তৈরি করেননি।") : s("No classes yet — create your first one above.", "এখনো কোনো ক্লাস নেই — উপরে প্রথমটি তৈরি করুন।")}</p>
               ) : visibleClasses.length === 0 ? <p className="teach-empty">{s("No class matches your search.", "খোঁজ অনুযায়ী কোনো ক্লাস নেই।")}</p> : (
                 <div className="teach-class-grid">
                   {visibleClasses.map((item) => (
                     <button type="button" className="teach-class-card" key={item.id} onClick={() => openClass(item.id)}>
                       <strong>{item.name}</strong>
+                      {otherTeacher(item) && <small>{s("Teacher", "শিক্ষক")}: {otherTeacher(item)}</small>}
                       <small>
                         {item.studentCount} {s("students", "শিক্ষার্থী")} · {item.activityCount} {s("activities", "কার্যক্রম")} · {item.submissionCount} {s("submissions", "জমা")}
                       </small>
@@ -434,6 +447,7 @@ export default function TeacherDashboard({ teacherName, isAdmin = false }: { tea
               </button>
               <div className="teach-class-title">
                 <h2>{detail.class.name}</h2>
+                {detailTeacher && <p>{s("Teacher", "শিক্ষক")}: <strong>{detailTeacher}</strong></p>}
                 <p>
                   {s("Students see allocated classes in My Learning. No class code is required.", "শিক্ষার্থীরা ড্যাশবোর্ডে বরাদ্দ ক্লাস দেখে। কোনো কোড লাগে না।")}
                 </p>
