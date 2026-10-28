@@ -1,9 +1,10 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { getDb } from "@/db";
 import { activitySubmissions, classActivities, classStudents, classes } from "@/db/schema";
 import { getSessionAdult } from "@/lib/auth";
 import { canTeach } from "@/lib/roles";
-import { csvCell } from "@/lib/classroom";
+import { csvCell, scorePercent } from "@/lib/classroom";
+import { managedClass } from "@/lib/grades";
 
 export const dynamic = "force-dynamic";
 
@@ -17,8 +18,9 @@ export async function GET(request: Request, context: RouteContext) {
   try {
     const { id } = await context.params;
     const db = await getDb();
-    const [ownedClass] = await db.select().from(classes).where(and(eq(classes.id, id), eq(classes.teacherId, user.id))).limit(1);
-    if (!ownedClass) return Response.json({ error: "Class not found." }, { status: 404 });
+    // Administrators manage results in every class; teachers only in their own.
+    const [classroom] = await db.select().from(classes).where(managedClass(user, id)).limit(1);
+    if (!classroom) return Response.json({ error: "Class not found." }, { status: 404 });
 
     const activities = await db.select().from(classActivities).where(eq(classActivities.classId, id));
     const activityIds = activities.map((activity) => activity.id);
@@ -28,12 +30,15 @@ export async function GET(request: Request, context: RouteContext) {
       const activity = activities.find((item) => item.id === submission.activityId);
       const student = students.find((item) => item.id === submission.studentId);
       return {
-        className: ownedClass.name,
+        submissionId: submission.id,
+        activityId: submission.activityId,
+        studentId: submission.studentId,
+        className: classroom.name,
         activityTitle: activity?.title ?? "Activity",
         studentName: student?.displayName ?? "Unknown student",
         score: submission.score,
         total: submission.total,
-        percent: submission.total ? Math.round((submission.score / submission.total) * 100) : 0,
+        percent: scorePercent(submission.score, submission.total),
         submittedAt: submission.submittedAt,
       };
     });
@@ -47,12 +52,12 @@ export async function GET(request: Request, context: RouteContext) {
       return new Response(csv, {
         headers: {
           "Content-Type": "text/csv; charset=utf-8",
-          "Content-Disposition": `attachment; filename="${ownedClass.name.replace(/[^a-z0-9-]+/gi, "-").toLowerCase()}-grades.csv"`,
+          "Content-Disposition": `attachment; filename="${classroom.name.replace(/[^a-z0-9-]+/gi, "-").toLowerCase()}-grades.csv"`,
         },
       });
     }
 
-    return Response.json({ class: ownedClass, rows });
+    return Response.json({ class: classroom, rows });
   } catch (error) {
     return databaseError(error);
   }

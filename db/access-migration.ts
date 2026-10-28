@@ -15,6 +15,9 @@ export function migrateAccessControl(sqlite: Database.Database): void {
     if (!studentColumns.some((column) => column.name === "status")) {
       sqlite.exec("ALTER TABLE students ADD COLUMN status text NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'suspended'))");
     }
+    if (!studentColumns.some((column) => column.name === "must_change_password")) {
+      sqlite.exec("ALTER TABLE students ADD COLUMN must_change_password integer NOT NULL DEFAULT 0");
+    }
     sqlite.exec(`CREATE TABLE IF NOT EXISTS user_audit_events (
       id text PRIMARY KEY NOT NULL,
       actor_id text,

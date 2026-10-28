@@ -203,6 +203,8 @@ export const students = sqliteTable(
     displayName: text("display_name").notNull(),
     passwordHash: text("password_hash").notNull(),
     status: text("status", { enum: ["active", "suspended"] }).notNull().default("active"),
+    // Set for teacher-provisioned accounts until the student replaces the temporary password.
+    mustChangePassword: integer("must_change_password", { mode: "boolean" }).notNull().default(false),
     createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   },
   (table) => [uniqueIndex("students_username_unique").on(table.username)],

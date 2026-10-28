@@ -1,14 +1,17 @@
 import { getSessionAdult } from "@/lib/auth";
-import { getSessionStudent } from "@/lib/student-auth";
+import { getSessionStudent, passwordChangeRequired } from "@/lib/student-auth";
 import { getCatalog, topicReferences } from "@/lib/curriculum-catalog";
 import { getDb } from "@/db";
 import { studentTopicProgress } from "@/db/schema";
 import { eq } from "drizzle-orm";
 export const dynamic = "force-dynamic";
 export async function GET() {
-  const student = await getSessionStudent();
+  const session = await getSessionStudent();
   const adult = await getSessionAdult();
-  if (!student && !adult) return Response.json({ error: "Sign in to view learning topics." }, { status: 401 });
+  if (!session && !adult) return Response.json({ error: "Sign in to view learning topics." }, { status: 401 });
+  if (session?.mustChangePassword && !adult) return passwordChangeRequired();
+  // A student still on a temporary password never has their progress read or recorded here.
+  const student = session?.mustChangePassword ? null : session;
   try {
     const catalog = await getCatalog();
     const db = await getDb();

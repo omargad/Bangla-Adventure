@@ -1,13 +1,13 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { getDb } from "@/db";
 import { activitySubmissions, adults, classActivities, classes, studentClassEnrollments } from "@/db/schema";
-import { getSessionStudent } from "@/lib/student-auth";
+import { getStudentAccess } from "@/lib/student-auth";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const student = await getSessionStudent();
-  if (!student) return Response.json({ error: "Student sign in required." }, { status: 401 });
+  const student = await getStudentAccess();
+  if (student instanceof Response) return student;
 
   try {
     const db = await getDb();

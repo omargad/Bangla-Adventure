@@ -75,3 +75,14 @@
 }
 @media(prefers-reduced-motion:reduce) { .portal-sidebar { transition:none; } }
 @media print { .portal-shell { display:block; } .portal-sidebar,.portal-topbar { display:none; } .portal-content { padding:0; } }
+.student-import-errors { margin:10px 0 0; padding-left:20px; }
+.student-import-errors li { margin:4px 0; overflow-wrap:anywhere; }
+.student-import-actions { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:12px 0; }
+.student-import-sheet code { font-size:1rem; letter-spacing:.04em; }
+/* While a sign-in sheet is on screen, printing shows only the sheet. */
+@media print {
+ body:has(.student-import-sheet) * { visibility:hidden; }
+ .student-import-sheet,.student-import-sheet * { visibility:visible; }
+ .student-import-sheet { position:absolute; left:0; top:0; width:100%; overflow:visible; }
+}
+.portal-content .student-password-card { max-width:520px; margin:20px 0; }

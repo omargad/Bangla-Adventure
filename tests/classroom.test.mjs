@@ -9,6 +9,7 @@ const {
   gradeAnswers,
   JOIN_CODE_LENGTH,
   csvCell,
+  scorePercent,
 } = await import("../lib/classroom.ts");
 
 test("CSV export treats formula-like learner names as text", () => {
@@ -67,4 +68,12 @@ test("gradeAnswers scores strictly and tolerates junk input", () => {
   assert.deepEqual(gradeAnswers(questions, [0]), { score: 0, total: 2, picked: [0, -1] });
   assert.deepEqual(gradeAnswers(questions, "junk").score, 0);
   assert.equal(gradeAnswers(questions, [1, "x"]).score, 1);
+});
+
+test("scorePercent rounds to whole percentages and survives an empty quiz", () => {
+  assert.equal(scorePercent(2, 2), 100);
+  assert.equal(scorePercent(1, 3), 33);
+  assert.equal(scorePercent(2, 3), 67);
+  assert.equal(scorePercent(0, 5), 0);
+  assert.equal(scorePercent(0, 0), 0);
 });

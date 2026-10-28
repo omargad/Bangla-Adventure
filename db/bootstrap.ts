@@ -157,6 +157,7 @@ CREATE TABLE IF NOT EXISTS students (
   username text NOT NULL,
   display_name text NOT NULL,
   password_hash text NOT NULL,
+  must_change_password integer DEFAULT 0 NOT NULL,
   created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 CREATE UNIQUE INDEX IF NOT EXISTS students_username_unique ON students (username);

@@ -5,15 +5,11 @@ import { randomInt } from "node:crypto";
  * quiz validation). Database access stays in the API routes.
  */
 
+export { csvCell } from "./csv";
+
 // Same unambiguous alphabet as recovery codes: no 0/O, 1/I/L.
 const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 export const JOIN_CODE_LENGTH = 6;
-
-export function csvCell(cell: string | number): string {
-  const value = String(cell);
-  const prefix = typeof cell === "string" && /^\s*[-=+@]/.test(value) ? "'" : "";
-  return `"${prefix}${value.replaceAll('"', '""')}"`;
-}
 
 export function generateJoinCode(): string {
   let code = "";
@@ -70,6 +66,11 @@ export function validateQuizQuestions(input: unknown): { questions: QuizQuestion
     questions.push({ prompt, options, answer });
   }
   return { questions };
+}
+
+/** Whole-number percentage of a score; 0 when there were no questions. */
+export function scorePercent(score: number, total: number): number {
+  return total > 0 ? Math.round((score / total) * 100) : 0;
 }
 
 /** Grades submitted answer indexes against the stored questions. */

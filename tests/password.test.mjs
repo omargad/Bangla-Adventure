@@ -8,6 +8,8 @@ const {
   hashSessionToken,
   generateRecoveryCode,
   normalizeRecoveryCode,
+  generateTemporaryPassword,
+  hashPasswordAsync,
 } = await import("../lib/password.ts");
 
 test("hashed passwords verify and reject wrong input", () => {
@@ -51,4 +53,28 @@ test("session tokens are unique and hash deterministically", () => {
   assert.ok(a.length >= 40);
   assert.equal(hashSessionToken(a), hashSessionToken(a));
   assert.notEqual(hashSessionToken(a), hashSessionToken(b));
+});
+
+test("temporary passwords are readable aloud, unambiguous and meet the student policy", () => {
+  const seen = new Set();
+  const counts = new Map();
+  for (let i = 0; i < 2000; i += 1) {
+    const password = generateTemporaryPassword();
+    assert.match(password, /^[a-hj-kmnp-z2-9]{4}-[a-hj-kmnp-z2-9]{4}-[a-hj-kmnp-z2-9]{2}$/, password);
+    assert.doesNotMatch(password, /[ilo01]/, "no look-alike characters");
+    assert.ok(password.length >= 8 && password.replaceAll("-", "").length >= 10, "at least 10 random characters");
+    seen.add(password);
+    for (const char of password.replaceAll("-", "")) counts.set(char, (counts.get(char) ?? 0) + 1);
+  }
+  assert.equal(seen.size, 2000, "no repeats");
+  // 20,000 draws over 31 symbols: every symbol appears, none wildly over- or under-represented.
+  assert.equal(counts.size, 31);
+  for (const [char, count] of counts) assert.ok(count > 400 && count < 900, `${char} appeared ${count} times`);
+});
+
+test("async hashing matches the synchronous format and verifies", async () => {
+  const hash = await hashPasswordAsync("kp7m-x3qa-9t");
+  assert.match(hash, /^scrypt:16384:[0-9a-f]{32}:[0-9a-f]{128}$/);
+  assert.ok(verifyPassword("kp7m-x3qa-9t", hash));
+  assert.ok(!verifyPassword("kp7m-x3qa-9u", hash));
 });

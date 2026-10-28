@@ -9,9 +9,12 @@ import PortalShell from "../components/PortalShell";
 type Activity = { id: string; title: string; instructions: string; topicId: string | null; status: string; questions: { prompt: string; options: string[] }[]; submission: { score: number; total: number; submittedAt: string } | null };
 type Feed = { metrics: { enrolledClasses: number; assignedActivities: number; completedActivities: number; averagePercent: number }; classes: { id: string; name: string; teacherName: string; announcements: { id: string; body: string; createdAt: string }[]; activities: Activity[] }[] };
 type Catalog = { topics: CatalogTopic[]; readTopicIds: string[] };
+const PASSWORD_PATH = "/student/password";
 async function request<T>(url: string, data?: object): Promise<T> {
   const response = await fetch(url, data ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) } : { cache: "no-store" });
   const payload = await response.json();
+  // Learning APIs refuse a temporary password until the student has chosen their own.
+  if (response.status === 403 && payload.mustChangePassword) window.location.replace(PASSWORD_PATH);
   if (!response.ok) throw new Error(payload.error ?? "Please try again.");
   return payload as T;
 }
@@ -54,8 +57,11 @@ export default function StudentPortal({ initialStudent, destination = "/student"
     if (busy) return;
     setBusy(true); setError("");
     try {
-      const data = await request<{ student: Student }>(`/api/student/${mode}`, { username, displayName, password });
-      setStudent(data.student); setPassword("");
+      const data = await request<{ student: Student; mustChangePassword?: boolean }>(`/api/student/${mode}`, { username, displayName, password });
+      // Leave before rendering My Learning, which would load data the temporary password cannot use.
+      setPassword("");
+      if (data.mustChangePassword) { window.location.replace(PASSWORD_PATH); return; }
+      setStudent(data.student);
       window.location.replace(destination);
     } catch (error) { setError(error instanceof Error ? error.message : "Could not sign in."); }
     finally { setBusy(false); }

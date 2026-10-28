@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { getSessionStudent } from "@/lib/student-auth";
+import { getSessionStudent, redirectIfPasswordChangeRequired } from "@/lib/student-auth";
 import StudentPortal from "./StudentPortal";
 import { redirect } from "next/navigation";
 import { learningReturnPath } from "@/lib/learning-policy";
@@ -15,6 +15,7 @@ export default async function StudentPage({ searchParams }: { searchParams: Prom
   const { returnTo, mode, section } = await searchParams;
   const destination = returnTo && returnTo !== "/" ? learningReturnPath(returnTo) : "/student";
   const student = await getSessionStudent();
+  redirectIfPasswordChangeRequired(student);
   if (student && destination !== "/student") redirect(destination);
   return <StudentPortal initialStudent={student} destination={destination} initialMode={mode === "sign-up" ? "sign-up" : "sign-in"} initialSection={section} />;
 }

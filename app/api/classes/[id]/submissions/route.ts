@@ -1,7 +1,7 @@
-import { and, eq } from "drizzle-orm";
 import { getDb } from "@/db";
-import { activitySubmissions, classActivities, classes } from "@/db/schema";
+import { classes } from "@/db/schema";
 import { getSessionAdult } from "@/lib/auth";
+import { managedClass, resetSubmission } from "@/lib/grades";
 import { canTeach } from "@/lib/roles";
 
 export const dynamic = "force-dynamic";
@@ -16,22 +16,15 @@ export async function DELETE(request: Request, context: RouteContext) {
   try {
     const { id } = await context.params;
     const db = await getDb();
-    const [ownedClass] = await db.select({ id: classes.id }).from(classes).where(and(eq(classes.id, id), eq(classes.teacherId, user.id))).limit(1);
-    if (!ownedClass) return Response.json({ error: "Class not found." }, { status: 404 });
+    // Administrators manage results in every class; teachers only in their own.
+    const [classroom] = await db.select({ id: classes.id }).from(classes).where(managedClass(user, id)).limit(1);
+    if (!classroom) return Response.json({ error: "Class not found." }, { status: 404 });
 
     const body = (await request.json().catch(() => ({}))) as { submissionId?: unknown };
     const submissionId = typeof body.submissionId === "string" ? body.submissionId : "";
     if (!submissionId) return Response.json({ error: "Choose a submission to reset." }, { status: 400 });
 
-    const [submission] = await db
-      .select({ id: activitySubmissions.id })
-      .from(activitySubmissions)
-      .innerJoin(classActivities, eq(activitySubmissions.activityId, classActivities.id))
-      .where(and(eq(activitySubmissions.id, submissionId), eq(classActivities.classId, id)))
-      .limit(1);
-    if (!submission) return Response.json({ error: "Submission not found." }, { status: 404 });
-
-    await db.delete(activitySubmissions).where(eq(activitySubmissions.id, submission.id));
+    if (!(await resetSubmission(user, id, submissionId))) return Response.json({ error: "Submission not found." }, { status: 404 });
     return Response.json({ ok: true });
   } catch (error) {
     return databaseError(error);

@@ -7,6 +7,7 @@ import type { Topic } from "../topics-content";
 import { NCTB_PORTAL_URL } from "../library-content";
 import PortalShell from "../components/PortalShell";
 import ClassAllocation from "../components/ClassAllocation";
+import { confirmDiscardPasswords } from "../components/StudentImport";
 
 type ClassSummary = {
   id: string;
@@ -82,6 +83,9 @@ export default function TeacherDashboard({ teacherName, isAdmin = false }: { tea
   const [loading, setLoading] = useState(true);
   const [classQuery, setClassQuery] = useState("");
   const [section, setSection] = useState("classes");
+  // Temporary passwords from a CSV upload exist only on screen: ask before closing or switching the class.
+  const [passwordsOnScreen, setPasswordsOnScreen] = useState(false);
+  const canLeaveClass = () => !passwordsOnScreen || confirmDiscardPasswords(language);
   const totals = classList.reduce((total, item) => ({ students: total.students + item.studentCount, activities: total.activities + item.activityCount, submissions: total.submissions + item.submissionCount }), { students: 0, activities: 0, submissions: 0 });
   const visibleClasses = classList.filter((item) => item.name.toLowerCase().includes(classQuery.toLowerCase()));
 
@@ -163,6 +167,7 @@ export default function TeacherDashboard({ teacherName, isAdmin = false }: { tea
   };
 
   const removeClass = async (id: string) => {
+    if (!canLeaveClass()) return;
     if (!window.confirm(s("Delete this class, its activities and submissions?", "এই ক্লাস, কার্যক্রম ও জমাগুলো মুছে ফেলবেন?"))) return;
     const response = await request(`/api/classes/${id}`, { method: "DELETE" });
     if (response.ok) {
@@ -311,9 +316,9 @@ export default function TeacherDashboard({ teacherName, isAdmin = false }: { tea
         ["results", s("Results", "ফলাফল")],
         ["announcements", s("Announcements", "ঘোষণা")],
         ["sources", s("Manage sources", "উৎস পরিচালনা")],
-      ].map(([id, label]) => ({ id, label, onClick: () => { setSection(id); setMessage(""); if (id === "classes" || id === "sources") { setDetail(null); void loadClasses(); } else if (detail) void openClass(detail.class.id); } })),
+      ].map(([id, label]) => ({ id, label, onClick: () => { if ((id === "classes" || id === "sources") && detail && !canLeaveClass()) return; setSection(id); setMessage(""); if (id === "classes" || id === "sources") { setDetail(null); void loadClasses(); } else if (detail) void openClass(detail.class.id); } })),
       { id: "studio", label: s("Content review", "কনটেন্ট পর্যালোচনা"), href: "/studio" },
-      ...(isAdmin ? [{ id: "users", label: s("Manage users", "ব্যবহারকারী পরিচালনা"), href: "/admin" }] : []),
+      ...(isAdmin ? [{ id: "users", label: s("Manage users", "ব্যবহারকারী পরিচালনা"), href: "/admin" }, { id: "all-results", label: s("All class results", "সব ক্লাসের ফলাফল"), href: "/admin/results" }] : []),
     ]}>
     <main className="adult-app teach-app" lang={language}>
       <header className="adult-header">
@@ -362,7 +367,7 @@ export default function TeacherDashboard({ teacherName, isAdmin = false }: { tea
           <div><small>{s("Submissions", "জমা কাজ")}</small><strong>{loading ? "—" : totals.submissions}</strong></div>
         </section>
 
-        {!["classes", "sources"].includes(section) && <label className="portal-field">{s("Choose a class", "ক্লাস বেছে নিন")}<select value={detail?.class.id ?? ""} onChange={(event) => void openClass(event.target.value)}><option value="">{s("Select a class", "ক্লাস নির্বাচন")}</option>{classList.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>}
+        {!["classes", "sources"].includes(section) && <label className="portal-field">{s("Choose a class", "ক্লাস বেছে নিন")}<select value={detail?.class.id ?? ""} onChange={(event) => { if (event.target.value !== detail?.class.id && !canLeaveClass()) return; void openClass(event.target.value); }}><option value="">{s("Select a class", "ক্লাস নির্বাচন")}</option>{classList.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>}
         {!detail && (
           <>
             <section hidden={section !== "classes"} className="teach-panel" aria-label={s("Your classes", "আপনার ক্লাস")}>
@@ -424,7 +429,7 @@ export default function TeacherDashboard({ teacherName, isAdmin = false }: { tea
         {detail && (
           <>
             <section className="teach-panel teach-class-head" aria-label={detail.class.name}>
-              <button type="button" className="topics-back" onClick={() => { setDetail(null); setSection("classes"); void loadClasses(); }}>
+              <button type="button" className="topics-back" onClick={() => { if (!canLeaveClass()) return; setDetail(null); setSection("classes"); void loadClasses(); }}>
                 ← {s("All classes", "সব ক্লাস")}
               </button>
               <div className="teach-class-title">
@@ -438,7 +443,8 @@ export default function TeacherDashboard({ teacherName, isAdmin = false }: { tea
               </button>
             </section>
 
-            {section === "students" && <ClassAllocation key={detail.class.id} classId={detail.class.id} language={language} onChange={() => { void loadClasses(); void openClass(detail.class.id); }} />}
+            {/* Hidden rather than unmounted, so moving between sections keeps an upload's temporary passwords. */}
+            <div hidden={section !== "students"}><ClassAllocation key={detail.class.id} classId={detail.class.id} language={language} onPasswordsChange={setPasswordsOnScreen} onChange={() => { void loadClasses(); void openClass(detail.class.id); }} /></div>
             <section hidden={section !== "students"} className="teach-panel" aria-label={s("Students", "শিক্ষার্থী")}>
               <h3>{s("Students", "শিক্ষার্থী")} ({detail.students.length})</h3>
               {detail.students.length === 0 ? (

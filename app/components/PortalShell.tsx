@@ -14,6 +14,7 @@ export default function PortalShell({ role, name, language, toggleLanguage, acti
   const defaults: Item[] = role === "admin" ? [
     { id: "users", label: s("Users", "ব্যবহারকারী"), href: "/admin" },
     { id: "classes", label: s("Class allocation", "ক্লাস বরাদ্দ"), href: "/admin/classes" },
+    { id: "results", label: s("Grades & results", "গ্রেড ও ফলাফল"), href: "/admin/results" },
     { id: "curriculum", label: s("Curriculum", "পাঠ্যক্রম"), href: "/admin/curriculum" },
     { id: "teach", label: s("Teacher workspace", "শিক্ষকের কর্মক্ষেত্র"), href: "/teach" },
   ] : role === "student" ? [
@@ -27,7 +28,7 @@ export default function PortalShell({ role, name, language, toggleLanguage, acti
   ] : [{ id: "family", label: s("My children", "আমার সন্তান"), href: "/family" }];
   const primary = items ?? defaults;
   const topics = role === "student" ? defaults.filter((item) => item.id === "topics" && !primary.some((entry) => entry.id === item.id)) : [];
-  const navigation = [...primary, ...topics, { id: "references", label: s("Sources & references", "উৎস ও তথ্যসূত্র"), href: "/references" }, ...(role === "student" ? [] : [{ id: "account", label: s("Account & recovery", "অ্যাকাউন্ট ও পুনরুদ্ধার"), href: "/account" }])];
+  const navigation = [...primary, ...topics, { id: "references", label: s("Sources & references", "উৎস ও তথ্যসূত্র"), href: "/references" }, ...(role === "student" ? [{ id: "password", label: s("Change password", "পাসওয়ার্ড বদলাও"), href: "/student/password" }] : [{ id: "account", label: s("Account & recovery", "অ্যাকাউন্ট ও পুনরুদ্ধার"), href: "/account" }])];
   return <div className="portal-shell" lang={language}>
     <a className="skip-link" href="#portal-main">{s("Skip to content", "মূল অংশে যান")}</a>
     <aside className={`portal-sidebar ${open ? "is-open" : ""}`}>

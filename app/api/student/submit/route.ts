@@ -4,7 +4,7 @@ import { activitySubmissions, classActivities, studentClassEnrollments } from "@
 import type { QuizQuestion } from "@/lib/classroom";
 import { gradeAnswers } from "@/lib/classroom";
 import { checkRateLimit, clientKey, tooManyRequests } from "@/lib/rate-limit";
-import { getSessionStudent } from "@/lib/student-auth";
+import { getStudentAccess } from "@/lib/student-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -12,8 +12,8 @@ export async function POST(request: Request) {
   const limit = checkRateLimit(`student-submit:${clientKey(request)}`, 60, 10 * 60 * 1000);
   if (!limit.allowed) return tooManyRequests(limit.retryAfterSeconds);
 
-  const student = await getSessionStudent();
-  if (!student) return Response.json({ error: "Student sign in required." }, { status: 401 });
+  const student = await getStudentAccess();
+  if (student instanceof Response) return student;
 
   try {
     const body = (await request.json().catch(() => ({}))) as { activityId?: unknown; answers?: unknown };

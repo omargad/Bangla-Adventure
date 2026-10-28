@@ -31,7 +31,13 @@ name for this mode; it does not mean the running portals are retired.
 
 - Students use My Learning, learning topics, allocated classes, activities and results.
 - Teachers require administrator approval and allocate students without class codes.
-- Administrators manage accounts, family links, class allocation and topic-reading updates.
+  They can also upload a CSV class list (`name`, optional `username`; up to 200 rows):
+  accounts are created with one-time temporary passwords, and each student must
+  choose their own password at first sign-in before My Learning, the learning pages and the
+  student APIs open. Student sign-in is rate-limited per account, so a class can sign in
+  together from one school network.
+- Administrators manage accounts, family links, class allocation and topic-reading updates,
+  and review, export and reset grades and results in every class (`/admin/results`).
 - Parents have read-only access to administrator-linked children's learning records.
 - Learning content requires sign-in. Curriculum edits retain educator-review notices;
   saving a topic is not approval of its educational accuracy, rights or age suitability.

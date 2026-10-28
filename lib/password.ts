@@ -1,4 +1,4 @@
-import { createHash, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes, randomInt, scrypt, scryptSync, timingSafeEqual } from "node:crypto";
 
 /**
  * Password hashing and session-token helpers with no framework dependencies,
@@ -12,6 +12,17 @@ export function hashPassword(password: string): string {
   const salt = randomBytes(16).toString("hex");
   const derived = scryptSync(password, salt, SCRYPT_KEYLEN, SCRYPT_OPTIONS).toString("hex");
   return `scrypt:${SCRYPT_OPTIONS.N}:${salt}:${derived}`;
+}
+
+/** Same format as hashPassword, computed on the libuv thread pool so bulk hashing does not block requests. */
+export function hashPasswordAsync(password: string): Promise<string> {
+  const salt = randomBytes(16).toString("hex");
+  return new Promise((resolve, reject) => {
+    scrypt(password, salt, SCRYPT_KEYLEN, SCRYPT_OPTIONS, (error, derived) => {
+      if (error) reject(error);
+      else resolve(`scrypt:${SCRYPT_OPTIONS.N}:${salt}:${derived.toString("hex")}`);
+    });
+  });
 }
 
 export function verifyPassword(password: string, stored: string): boolean {
@@ -40,6 +51,18 @@ export function generateRecoveryCode(): string {
     code += RECOVERY_ALPHABET[bytes[i] % RECOVERY_ALPHABET.length];
   }
   return code;
+}
+
+// Lowercase letters and digits without look-alikes (no i, l, o, 0 or 1): teachers
+// read temporary passwords aloud and children type them.
+const TEMPORARY_PASSWORD_ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789";
+const TEMPORARY_PASSWORD_GROUPS = [4, 4, 2];
+
+/** A one-time student password such as `kp7m-x3qa-9t`: 10 random characters (about 49 bits). */
+export function generateTemporaryPassword(): string {
+  return TEMPORARY_PASSWORD_GROUPS
+    .map((size) => Array.from({ length: size }, () => TEMPORARY_PASSWORD_ALPHABET[randomInt(TEMPORARY_PASSWORD_ALPHABET.length)]).join(""))
+    .join("-");
 }
 
 /** Uppercase and strip separators so hand-typed codes match regardless of format. */

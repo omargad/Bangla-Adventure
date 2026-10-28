@@ -10,13 +10,13 @@ import {
   studentClassEnrollments,
 } from "@/db/schema";
 import type { QuizQuestion } from "@/lib/classroom";
-import { getSessionStudent } from "@/lib/student-auth";
+import { getStudentAccess } from "@/lib/student-auth";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const student = await getSessionStudent();
-  if (!student) return Response.json({ error: "Student sign in required." }, { status: 401 });
+  const student = await getStudentAccess();
+  if (student instanceof Response) return student;
 
   try {
     const db = await getDb();
