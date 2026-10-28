@@ -4,6 +4,8 @@ Date: 28 October 2026. Repository: `omargad/Bangla-Adventure`.
 Baseline commit: `1655010e856569d90319d8052ea816a51b758aea`.
 This record covers the changes in the commit containing this file; it is not a live-server acceptance certificate.
 
+Commit IDs in this record predate the 28 October 2026 history rebuild that attributed the import to Jira owners. The same trees are now `3ee588b5200ea6e9d0a0da839d58fa27af81e77c` (baseline) and `77db2d4518127618ed23ce4f91ca8b361bd35daa` (implementation); the CI runs below ran on the original IDs.
+
 ## Executed locally
 
 Environment: Linux x64, Node.js 22.23.4, npm 10.9.9, Python 3.12, Chrome for Testing 151.0.7922.34.

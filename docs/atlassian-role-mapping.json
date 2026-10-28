@@ -218,8 +218,8 @@
       "accountId": "712020:c7109495-6932-4030-9a7c-945ac20a1773",
       "responsibility": "Student learning platform and educational references",
       "detail": "Owns student learning content, quizzes/activities, results/progress, learning dashboard refinement and visible educational sources.",
-      "githubLogin": null,
-      "githubIdentityBasis": "Pending: no verified GitHub-to-Jira identity match",
+      "githubLogin": "MAQ022",
+      "githubIdentityBasis": "Confirmed by the repository owner on 2026-10-28: Mohammed Ali A Alqahtani and Mohammed Alqahtani are two Jira accounts of the same person, who uses MAQ022; existing write collaborator.",
       "evidence": [
         {
           "key": "SCRUM-26",
@@ -246,7 +246,7 @@
           "url": "https://ictprojectb26.atlassian.net/browse/SCRUM-88"
         }
       ],
-      "githubAssignmentStatus": "pending-identity-confirmation",
+      "githubAssignmentStatus": "assigned",
       "githubTaskIssues": [
         {
           "jiraKey": "SCRUM-26",
@@ -565,7 +565,7 @@
       "responsibility": "Child-friendly UX, visual design and shared navigation",
       "detail": "Owns child-friendly UX research and presentation, animations/gamified feedback, landing page, wireframes, responsiveness and shared portal layout/navigation.",
       "githubLogin": "104985376",
-      "githubIdentityBasis": "Repository assignee selector displays Dilsha Nishadya; write permission verified on 2026-10-28",
+      "githubIdentityBasis": "Repository assignee selector displays Dilsha Nishadya; write permission verified on 2026-10-28; the repository owner confirmed on 2026-10-28 that Dilsha28 is also her account and chose 104985376 for commit credit",
       "evidence": [
         {
           "key": "SCRUM-18",
@@ -641,8 +641,8 @@
       "accountId": "712020:25b86f88-12a2-4bf2-8e21-87615edf03bd",
       "responsibility": "Technology research, initial architecture and UI review",
       "detail": "Owns technology-stack research, initial system architecture and review of UI alignment, child-friendly presentation and responsive consistency.",
-      "githubLogin": null,
-      "githubIdentityBasis": "Pending: no verified GitHub-to-Jira identity match",
+      "githubLogin": "MAQ022",
+      "githubIdentityBasis": "Confirmed by the repository owner on 2026-10-28: Mohammed Ali A Alqahtani and Mohammed Alqahtani are two Jira accounts of the same person, who uses MAQ022; existing write collaborator.",
       "evidence": [
         {
           "key": "SCRUM-22",
@@ -657,7 +657,7 @@
           "url": "https://ictprojectb26.atlassian.net/browse/SCRUM-91"
         }
       ],
-      "githubAssignmentStatus": "pending-identity-confirmation",
+      "githubAssignmentStatus": "assigned",
       "githubTaskIssues": [
         {
           "jiraKey": "SCRUM-22",
@@ -679,11 +679,12 @@
     }
   ],
   "notes": [
-    "Mohammed Alqahtani and Mohammed Ali A Alqahtani are distinct active Jira accounts and must remain separate.",
-    "All seven accounts are assignable in SCRUM; assignment eligibility must be checked again for a newly created project.",
-    "No commit history was included in the supplied ZIP; do not manufacture historical commits or co-author records.",
+    "Mohammed Alqahtani and Mohammed Ali A Alqahtani are two active Jira accounts of the same person (GitHub MAQ022), confirmed by the repository owner on 2026-10-28; their Jira items keep their recorded assignee names.",
+    "All seven Jira accounts are assignable in SCRUM; assignment eligibility must be checked again for a newly created project.",
+    "The supplied ZIP had no commit history. The import is recorded as one commit per Jira item, authored by the item's assignee and committed by omargad; see docs/FILE_OWNERSHIP.md. Commits after the import keep their real authorship.",
+    "Disclosure: many credited files were already in the August prototype history (omargad, 2-12 August 2026, before the Jira project began); the repository owner reports they were the credited assignees' work, committed by omargad for the group.",
     "Task status Done is copied only as a Jira record, not independent proof that the imported release is production-ready.",
-    "The seven broad ownership-review issues #2–#8 were superseded by 91 individual Jira mirrors. 65 GitHub assignments are verified, 18 await identity confirmation, and 8 epics retain their unassigned Jira state."
+    "The seven broad ownership-review issues #2–#8 were superseded by 91 individual Jira mirrors. All 83 assigned items have GitHub assignees, and 8 epics retain their unassigned Jira state."
   ],
   "githubAccessVerification": {
     "asOf": "2026-10-28",
@@ -695,14 +696,10 @@
       "MohammedAlAjmi24",
       "Tlm0v"
     ],
-    "unmappedWriteCollaborators": [
-      "MAQ022"
-    ],
-    "unresolvedPeople": [
-      "Mohammed Ali A Alqahtani",
-      "Mohammed Alqahtani"
-    ],
-    "note": "Five identities are mapped; MAQ022 is not distinguished between the two Alqahtani Jira accounts. Six human accounts were observed in the issue-assignee selector; a seventh was not established. No invitation acceptance status is inferred."
+    "unmappedWriteCollaborators": [],
+    "unresolvedPeople": [],
+    "note": "All six human write collaborators are mapped: MAQ022 holds both Alqahtani Jira accounts (owner-confirmed). No invitation acceptance status is inferred."
   },
-  "taskMapping": "docs/jira-task-mapping.json"
+  "taskMapping": "docs/jira-task-mapping.json",
+  "fileOwnership": "docs/FILE_OWNERSHIP.md"
 }

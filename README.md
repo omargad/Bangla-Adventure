@@ -10,25 +10,18 @@ and [`docs/HANDOVER.md`](docs/HANDOVER.md) for client setup and release evidence
 
 ## Project contributors
 
-All seven team members are credited below through their individual Jira work.
-The [task-by-task contribution register](CONTRIBUTIONS.md) links each assigned
-item to its corresponding GitHub issue and repository files.
+Each team member's Jira work is credited below, and the import commits are authored by the Jira owner of each part, so GitHub's Contributors list and `git blame` follow Jira ownership. The [contribution register](CONTRIBUTIONS.md) links every assigned item to its import commit, GitHub issue and repository files; [docs/FILE_OWNERSHIP.md](docs/FILE_OWNERSHIP.md) lists the owner of each file.
 
-| Contributor | GitHub account | Jira items | Contribution areas |
-| --- | --- | ---: | --- |
-| [BAHAA GHAZI](CONTRIBUTIONS.md#bahaa-ghazi) | [@bahaa11-prog](https://github.com/bahaa11-prog) | 19 | Project coordination, requirements, Jira management and QA; admin results |
-| [Omar Gad](CONTRIBUTIONS.md#omar-gad) | [@omargad](https://github.com/omargad) | 6 | Repository, final architecture/database, security, deployment and regression testing |
-| [Mohammed Ali A Alqahtani](CONTRIBUTIONS.md#mohammed-ali-a-alqahtani) | GitHub identity pending | 15 | Student learning, activities, progress, login integration and educational sources |
-| [Mohammed Alajmi](CONTRIBUTIONS.md#mohammed-alajmi) | [@MohammedAlAjmi24](https://github.com/MohammedAlAjmi24) | 22 | Teacher platform, CSV provisioning, class allocation and educational-resource research |
-| [Turki Alahzmi](CONTRIBUTIONS.md#turki-alahzmi) | [@Tlm0v](https://github.com/Tlm0v) | 11 | Admin platform, portal organisation and initial user flows/wireframes |
-| [Dilsha Nishadya](CONTRIBUTIONS.md#dilsha-nishadya) | [@104985376](https://github.com/104985376) | 7 | Child-friendly UX, visual design, responsiveness and shared navigation |
-| [Mohammed Alqahtani](CONTRIBUTIONS.md#mohammed-alqahtani) | GitHub identity pending | 3 | Technology research, initial architecture and UI consistency review |
+| Contributor | GitHub account | Jira items | Files authored | Already in the August prototype | Contribution areas |
+| --- | --- | ---: | ---: | ---: | --- |
+| [BAHAA GHAZI](CONTRIBUTIONS.md#bahaa-ghazi) | [@bahaa11-prog](https://github.com/bahaa11-prog) | 19 | 12 | 4 | Project coordination, requirements, Jira management and QA; admin results |
+| [Omar Gad](CONTRIBUTIONS.md#omar-gad) | [@omargad](https://github.com/omargad) | 6 | 146 | 68 | Repository, final architecture/database, security, deployment and regression testing |
+| [Mohammed Ali A Alqahtani](CONTRIBUTIONS.md#mohammed-ali-a-alqahtani) | [@MAQ022](https://github.com/MAQ022) | 18 | 250 | 240 | Student learning, activities, progress, login integration and educational sources; technology research, initial architecture and UI review |
+| [Mohammed Alajmi](CONTRIBUTIONS.md#mohammed-alajmi) | [@MohammedAlAjmi24](https://github.com/MohammedAlAjmi24) | 22 | 140 | 118 | Teacher platform, CSV provisioning, class allocation and educational-resource research |
+| [Turki Alahzmi](CONTRIBUTIONS.md#turki-alahzmi) | [@Tlm0v](https://github.com/Tlm0v) | 11 | 18 | 3 | Admin platform, portal organisation and initial user flows/wireframes |
+| [Dilsha Nishadya](CONTRIBUTIONS.md#dilsha-nishadya) | [@104985376](https://github.com/104985376) | 7 | 32 | 12 | Child-friendly UX, visual design, responsiveness and shared navigation |
 
-The counts cover 83 assigned tasks, stories and subtasks, checked on 28 October
-2026; eight unassigned epics remain separate. GitHub's commit-based Contributors
-list is distinct from this project-credit register. See
-[original contribution evidence](docs/ORIGINAL_CONTRIBUTIONS.md) for verified
-earlier commits and account-identity notes.
+The counts cover 83 assigned tasks, stories and subtasks, checked against Jira on 28 October 2026; eight unassigned epics remain separate. Mohammed Ali A Alqahtani's count includes the three items recorded under his second Jira account, Mohammed Alqahtani. Disclosure: files already in the August prototype history (commits by `omargad`, 2–12 August 2026, before the Jira project began) are credited to their Jira assignees at the repository owner's request; see [CONTRIBUTIONS.md](CONTRIBUTIONS.md).
 
 ## Current product decision
 

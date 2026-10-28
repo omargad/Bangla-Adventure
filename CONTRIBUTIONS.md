@@ -1,221 +1,179 @@
 # Bangla Adventures — individual contributions
 
-All seven team members are credited as project contributors through the individual
-assignments in [Jira SCRUM](https://ictprojectb26.atlassian.net/browse/SCRUM), checked
-on 28 October 2026. The register covers all 91 items: 83 assigned tasks, stories
-and subtasks plus eight unassigned epics. All 83 assigned items are recorded as
-Done in Jira; the eight epics remain To Do. These are the recorded Jira states,
-with software verification and human acceptance tracked separately.
+The team planned and tracked this project in [Jira SCRUM](https://ictprojectb26.atlassian.net/browse/SCRUM). Checked live on 28 October 2026, it holds 91 items: 83 assigned tasks, stories and subtasks, all Done, and eight unassigned epics, which remain To Do. These are the recorded Jira states; software verification and human acceptance are tracked separately.
 
-Every row below links the original Jira item to its entry in
-[the GitHub task and source map](docs/JIRA_TASK_MAP.md). Each map entry contains
-the corresponding individual GitHub issue, repository paths and mapping notes.
-This replaces the earlier broad ownership-review grouping. Where several people
-worked on the same feature at different stages, the owner of each individual
-Jira item is retained.
+## How GitHub reflects Jira ownership
+
+- **Commit authorship.** The project was built outside this repository and arrived as one ZIP package without Git history. The import is recorded as one commit per Jira item: each commit adds the files credited to that item and is authored by the item's Jira assignee through their GitHub account, with `omargad` as committer. GitHub's Contributors list and `git blame` therefore follow Jira ownership. The commits are a reconstruction from the Jira record at import time, and their messages say so; the team's day-by-day history is not part of the package.
+- **Disclosure: the August prototype.** The repository also holds the August prototype history, 47 commits by `omargad` from 2 to 12 August 2026, made before the Jira project began on 14 August. Many files credited to teammates were already in that prototype unchanged (counted in the table below, listed per file in [docs/FILE_OWNERSHIP.md](docs/FILE_OWNERSHIP.md), and stated in each import commit). The repository owner reports that this was the credited assignees' work, committed to the prototype by `omargad` for the group, and chose to have authorship follow that Jira credit.
+- **One owner per file.** Each file belongs to the single Jira item whose described deliverable it most directly implements. Shared foundation sits with the repository and architecture items, and files that no individual item covers stay with the repository owner. The complete list is in [docs/FILE_OWNERSHIP.md](docs/FILE_OWNERSHIP.md).
+- **Code owners.** [.github/CODEOWNERS](.github/CODEOWNERS) assigns each path to the same person.
+- **Items without an import commit.** Research, planning, coordination, review and testing items, and implementation items whose deliverable is not in the final package, are credited below and in their GitHub issues. The [task map](docs/JIRA_TASK_MAP.md) explains each mapping and its limits.
+- **Other history.** Deployment and backup fixes and these records were committed after the import and keep their real authorship. Original commits recovered from earlier repositories (Turki's admin work, Dilsha's UI work, Bahaa's form validation and the August prototype) are merged into `main` and described in [docs/ORIGINAL_CONTRIBUTIONS.md](docs/ORIGINAL_CONTRIBUTIONS.md). Dilsha's two original commits, made as `Dilsha28`, are credited to her `104985376` account at the repository owner's request and record their original IDs.
 
 ## Contribution summary
 
-| Contributor | GitHub account | Jira items | Contribution areas |
-| --- | --- | ---: | --- |
-| [BAHAA GHAZI](#bahaa-ghazi) | [@bahaa11-prog](https://github.com/bahaa11-prog) | 19 | Project coordination, requirements, Jira management and QA; admin results |
-| [Omar Gad](#omar-gad) | [@omargad](https://github.com/omargad) | 6 | Repository, final architecture/database, security, deployment and regression testing |
-| [Mohammed Ali A Alqahtani](#mohammed-ali-a-alqahtani) | GitHub identity pending | 15 | Student learning, activities, progress, login integration and educational sources |
-| [Mohammed Alajmi](#mohammed-alajmi) | [@MohammedAlAjmi24](https://github.com/MohammedAlAjmi24) | 22 | Teacher platform, CSV provisioning, class allocation and educational-resource research |
-| [Turki Alahzmi](#turki-alahzmi) | [@Tlm0v](https://github.com/Tlm0v) | 11 | Admin platform, portal organisation and initial user flows/wireframes |
-| [Dilsha Nishadya](#dilsha-nishadya) | [@104985376](https://github.com/104985376) | 7 | Child-friendly UX, visual design, responsiveness and shared navigation |
-| [Mohammed Alqahtani](#mohammed-alqahtani) | GitHub identity pending | 3 | Technology research, initial architecture and UI consistency review |
-
-## How credit and ownership are recorded
-
-- **Project contribution credit:** the named Jira assignments below acknowledge
-  requirements, research, design, implementation, review, testing and delivery work.
-- **Task-to-source mapping:** mapped files identify the relevant part of the
-  current repository. Research and design tasks may link related implementation
-  or documentation where the original artifact is not available; the task map
-  states those limits.
-- **Commit authorship:** GitHub's native Contributors list is based on commit
-  attribution. The imported ZIP contains no Git history. Verified earlier authored
-  commits and identity evidence are recorded in
-  [docs/ORIGINAL_CONTRIBUTIONS.md](docs/ORIGINAL_CONTRIBUTIONS.md), separately from
-  task responsibility and current review routing.
-- **Code review routing:** [.github/CODEOWNERS](.github/CODEOWNERS) routes relevant
-  changes to verified collaborator accounts. Shared files can involve several
-  contributors; neither a default review rule nor a task link establishes
-  exclusive line authorship or human release approval.
+| Contributor | GitHub account | Jira items | Import commits | Files authored | Already in the August prototype | Contribution areas |
+| --- | --- | ---: | ---: | ---: | ---: | --- |
+| [BAHAA GHAZI](#bahaa-ghazi) | [@bahaa11-prog](https://github.com/bahaa11-prog) | 19 | 6 | 12 | 4 | Project coordination, requirements, Jira management and QA; admin results |
+| [Omar Gad](#omar-gad) | [@omargad](https://github.com/omargad) | 6 | 7 | 146 | 68 | Repository, final architecture/database, security, deployment and regression testing |
+| [Mohammed Ali A Alqahtani](#mohammed-ali-a-alqahtani) | [@MAQ022](https://github.com/MAQ022) | 18 | 6 | 250 | 240 | Student learning, activities, progress, login integration and educational sources; technology research, initial architecture and UI review |
+| [Mohammed Alajmi](#mohammed-alajmi) | [@MohammedAlAjmi24](https://github.com/MohammedAlAjmi24) | 22 | 7 | 140 | 118 | Teacher platform, CSV provisioning, class allocation and educational-resource research |
+| [Turki Alahzmi](#turki-alahzmi) | [@Tlm0v](https://github.com/Tlm0v) | 11 | 4 | 18 | 3 | Admin platform, portal organisation and initial user flows/wireframes |
+| [Dilsha Nishadya](#dilsha-nishadya) | [@104985376](https://github.com/104985376) | 7 | 4 | 32 | 12 | Child-friendly UX, visual design, responsiveness and shared navigation |
 
 ## Account identities
 
-The verified current collaborator mappings are Bahaa → `bahaa11-prog`, Omar →
-`omargad`, Mohammed Alajmi → `MohammedAlAjmi24`, Turki → `Tlm0v`, and Dilsha →
-`104985376`. Turki's match is supported by original commits for this project's
-admin work. Dilsha's current account displays her full name; earlier commits under
-`Dilsha28` remain a separate account identity in the original-contribution record.
-The two handles are not treated as interchangeable without confirmation.
-
-Mohammed Ali A Alqahtani and Mohammed Alqahtani are distinct Jira accounts.
-`MAQ022` has repository write access, but the available evidence does not establish
-which of those people owns it. Their project credit is retained by full name;
-GitHub account assignment awaits the exact match.
+Bahaa → `bahaa11-prog`, Omar → `omargad`, Mohammed Alajmi → `MohammedAlAjmi24`, Turki → `Tlm0v`, Dilsha → `104985376`, and both Alqahtani Jira accounts → `MAQ022`. The repository owner confirmed on 28 October 2026 that Mohammed Ali A Alqahtani and Mohammed Alqahtani are one person, and that Dilsha's `Dilsha28` and `104985376` accounts are both hers; her credit uses `104985376`. Commits use each person's GitHub no-reply address, so they link to these accounts without exposing private email addresses.
 
 ## BAHAA GHAZI
 
-GitHub: [@bahaa11-prog](https://github.com/bahaa11-prog). **19 assigned Jira items.**
+GitHub: [@bahaa11-prog](https://github.com/bahaa11-prog). **19 assigned Jira items; 6 import commits authoring 12 files, 4 of them already in the August prototype.**
 
 Coordinates scope, requirements, client feedback and QA, and is the single Jira manager under SCRUM-60. Owns admin grades/results. Individual assignments also include student authentication (SCRUM-38), the initial student dashboard (SCRUM-39), frontend validation (SCRUM-64) and the student-results story SCRUM-79.
 
-| Jira item | Individual contribution | GitHub issue and source mapping |
-| --- | --- | --- |
-| [SCRUM-10](https://ictprojectb26.atlassian.net/browse/SCRUM-10) | Finalise Project Scope | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-10) |
-| [SCRUM-11](https://ictprojectb26.atlassian.net/browse/SCRUM-11) | Define Project Objectives | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-11) |
-| [SCRUM-12](https://ictprojectb26.atlassian.net/browse/SCRUM-12) | Identify Target Users | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-12) |
-| [SCRUM-13](https://ictprojectb26.atlassian.net/browse/SCRUM-13) | Define Functional Requirements | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-13) |
-| [SCRUM-14](https://ictprojectb26.atlassian.net/browse/SCRUM-14) | Define Non-Functional Requirements | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-14) |
-| [SCRUM-24](https://ictprojectb26.atlassian.net/browse/SCRUM-24) | Create Initial User Stories | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-24) |
-| [SCRUM-38](https://ictprojectb26.atlassian.net/browse/SCRUM-38) | Implement Student Authentication and Login | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-38) |
-| [SCRUM-39](https://ictprojectb26.atlassian.net/browse/SCRUM-39) | Implement Student Dashboard | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-39) |
-| [SCRUM-51](https://ictprojectb26.atlassian.net/browse/SCRUM-51) | Implement Admin Grades and Results Management | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-51) |
-| [SCRUM-58](https://ictprojectb26.atlassian.net/browse/SCRUM-58) | Refine Project Requirements and User Stories | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-58) |
-| [SCRUM-59](https://ictprojectb26.atlassian.net/browse/SCRUM-59) | Coordinate Client Feedback and Requirements Changes | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-59) |
-| [SCRUM-60](https://ictprojectb26.atlassian.net/browse/SCRUM-60) | Sprint Progress Tracking and Documentation | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-60) |
-| [SCRUM-61](https://ictprojectb26.atlassian.net/browse/SCRUM-61) | Conduct System Testing | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-61) |
-| [SCRUM-62](https://ictprojectb26.atlassian.net/browse/SCRUM-62) | Conduct Peer Review and Integration Testing | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-62) |
-| [SCRUM-63](https://ictprojectb26.atlassian.net/browse/SCRUM-63) | Client Review and Feedback Implementation | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-63) |
-| [SCRUM-64](https://ictprojectb26.atlassian.net/browse/SCRUM-64) | Implement Basic Frontend Form Validation | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-64) |
-| [SCRUM-74](https://ictprojectb26.atlassian.net/browse/SCRUM-74) | As an admin, I want to manage student grades and results so that performance information remains accurate. | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-74) |
-| [SCRUM-79](https://ictprojectb26.atlassian.net/browse/SCRUM-79) | As a student, I want to view my results and progress so that I can track my learning performance. | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-79) |
-| [SCRUM-92](https://ictprojectb26.atlassian.net/browse/SCRUM-92) | Clarify admin workflow and confirm curriculum updates end to end | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-92) |
+| Jira item | Individual contribution | Import commit | GitHub issue and mapping |
+| --- | --- | --- | --- |
+| [SCRUM-10](https://ictprojectb26.atlassian.net/browse/SCRUM-10) | Finalise Project Scope | [`4bc07c5`](https://github.com/omargad/Bangla-Adventure/commit/4bc07c568e9ac1debcc1b460ef4679c5c26240f6) · 1 file | [#17](https://github.com/omargad/Bangla-Adventure/issues/17) · [map](docs/JIRA_TASK_MAP.md#scrum-10) |
+| [SCRUM-11](https://ictprojectb26.atlassian.net/browse/SCRUM-11) | Define Project Objectives | — (files under [SCRUM-13](docs/JIRA_TASK_MAP.md#scrum-13), [SCRUM-10](docs/JIRA_TASK_MAP.md#scrum-10)) | [#18](https://github.com/omargad/Bangla-Adventure/issues/18) · [map](docs/JIRA_TASK_MAP.md#scrum-11) |
+| [SCRUM-12](https://ictprojectb26.atlassian.net/browse/SCRUM-12) | Identify Target Users | — (files under [SCRUM-10](docs/JIRA_TASK_MAP.md#scrum-10)) | [#19](https://github.com/omargad/Bangla-Adventure/issues/19) · [map](docs/JIRA_TASK_MAP.md#scrum-12) |
+| [SCRUM-13](https://ictprojectb26.atlassian.net/browse/SCRUM-13) | Define Functional Requirements | [`6cc2804`](https://github.com/omargad/Bangla-Adventure/commit/6cc2804ba4f8b15e387841ca1c3166e456b06233) · 1 file | [#20](https://github.com/omargad/Bangla-Adventure/issues/20) · [map](docs/JIRA_TASK_MAP.md#scrum-13) |
+| [SCRUM-14](https://ictprojectb26.atlassian.net/browse/SCRUM-14) | Define Non-Functional Requirements | — (files under [SCRUM-10](docs/JIRA_TASK_MAP.md#scrum-10)) | [#21](https://github.com/omargad/Bangla-Adventure/issues/21) · [map](docs/JIRA_TASK_MAP.md#scrum-14) |
+| [SCRUM-24](https://ictprojectb26.atlassian.net/browse/SCRUM-24) | Create Initial User Stories | — (related areas under [SCRUM-13](docs/JIRA_TASK_MAP.md#scrum-13)) | [#31](https://github.com/omargad/Bangla-Adventure/issues/31) · [map](docs/JIRA_TASK_MAP.md#scrum-24) |
+| [SCRUM-38](https://ictprojectb26.atlassian.net/browse/SCRUM-38) | Implement Student Authentication and Login | [`ef89cb8`](https://github.com/omargad/Bangla-Adventure/commit/ef89cb82b123448ea68b59ebb374fa7afc7f9cf4) · 6 files | [#45](https://github.com/omargad/Bangla-Adventure/issues/45) · [map](docs/JIRA_TASK_MAP.md#scrum-38) |
+| [SCRUM-39](https://ictprojectb26.atlassian.net/browse/SCRUM-39) | Implement Student Dashboard | [`d6c8a1f`](https://github.com/omargad/Bangla-Adventure/commit/d6c8a1f5a51cd43afdbcb8c55b723aa24ab92f0e) · 1 file | [#46](https://github.com/omargad/Bangla-Adventure/issues/46) · [map](docs/JIRA_TASK_MAP.md#scrum-39) |
+| [SCRUM-51](https://ictprojectb26.atlassian.net/browse/SCRUM-51) | Implement Admin Grades and Results Management | — | [#58](https://github.com/omargad/Bangla-Adventure/issues/58) · [map](docs/JIRA_TASK_MAP.md#scrum-51) |
+| [SCRUM-58](https://ictprojectb26.atlassian.net/browse/SCRUM-58) | Refine Project Requirements and User Stories | — (files under [SCRUM-13](docs/JIRA_TASK_MAP.md#scrum-13)) | [#65](https://github.com/omargad/Bangla-Adventure/issues/65) · [map](docs/JIRA_TASK_MAP.md#scrum-58) |
+| [SCRUM-59](https://ictprojectb26.atlassian.net/browse/SCRUM-59) | Coordinate Client Feedback and Requirements Changes | [`c46b97b`](https://github.com/omargad/Bangla-Adventure/commit/c46b97b6d708f8cd5795e2ff5fa10d550ddfc2d0) · 2 files | [#66](https://github.com/omargad/Bangla-Adventure/issues/66) · [map](docs/JIRA_TASK_MAP.md#scrum-59) |
+| [SCRUM-60](https://ictprojectb26.atlassian.net/browse/SCRUM-60) | Sprint Progress Tracking and Documentation | — | [#67](https://github.com/omargad/Bangla-Adventure/issues/67) · [map](docs/JIRA_TASK_MAP.md#scrum-60) |
+| [SCRUM-61](https://ictprojectb26.atlassian.net/browse/SCRUM-61) | Conduct System Testing | — (files under [SCRUM-62](docs/JIRA_TASK_MAP.md#scrum-62)) | [#68](https://github.com/omargad/Bangla-Adventure/issues/68) · [map](docs/JIRA_TASK_MAP.md#scrum-61) |
+| [SCRUM-62](https://ictprojectb26.atlassian.net/browse/SCRUM-62) | Conduct Peer Review and Integration Testing | [`9b71f1f`](https://github.com/omargad/Bangla-Adventure/commit/9b71f1f4c91c9339a93568d7079198e3dc3508de) · 1 file | [#69](https://github.com/omargad/Bangla-Adventure/issues/69) · [map](docs/JIRA_TASK_MAP.md#scrum-62) |
+| [SCRUM-63](https://ictprojectb26.atlassian.net/browse/SCRUM-63) | Client Review and Feedback Implementation | — (related areas under [SCRUM-13](docs/JIRA_TASK_MAP.md#scrum-13)) | [#70](https://github.com/omargad/Bangla-Adventure/issues/70) · [map](docs/JIRA_TASK_MAP.md#scrum-63) |
+| [SCRUM-64](https://ictprojectb26.atlassian.net/browse/SCRUM-64) | Implement Basic Frontend Form Validation | — | [#71](https://github.com/omargad/Bangla-Adventure/issues/71) · [map](docs/JIRA_TASK_MAP.md#scrum-64) |
+| [SCRUM-74](https://ictprojectb26.atlassian.net/browse/SCRUM-74) | As an admin, I want to manage student grades and results so that performance information remains accurate. | — | [#81](https://github.com/omargad/Bangla-Adventure/issues/81) · [map](docs/JIRA_TASK_MAP.md#scrum-74) |
+| [SCRUM-79](https://ictprojectb26.atlassian.net/browse/SCRUM-79) | As a student, I want to view my results and progress so that I can track my learning performance. | — (files under [SCRUM-39](docs/JIRA_TASK_MAP.md#scrum-39)) | [#86](https://github.com/omargad/Bangla-Adventure/issues/86) · [map](docs/JIRA_TASK_MAP.md#scrum-79) |
+| [SCRUM-92](https://ictprojectb26.atlassian.net/browse/SCRUM-92) | Clarify admin workflow and confirm curriculum updates end to end | — | [#99](https://github.com/omargad/Bangla-Adventure/issues/99) · [map](docs/JIRA_TASK_MAP.md#scrum-92) |
 
 ## Omar Gad
 
-GitHub: [@omargad](https://github.com/omargad). **6 assigned Jira items.**
+GitHub: [@omargad](https://github.com/omargad). **6 assigned Jira items; 7 import commits authoring 146 files, 68 of them already in the August prototype.** The import commit for parts not tracked by an individual Jira item, [`c36c187`](https://github.com/omargad/Bangla-Adventure/commit/c36c187b3d182469254b1ca9fbdfc147f5562bf1), adds a further 44 files.
 
-Owns repository setup, final architecture/database, authentication/access control, deployment, end-to-end regression testing and recovery-code review. SCRUM-54 retains its historical Vercel title; the mapped source explains the current native/Compose deployment.
+Owns repository setup, final architecture/database, authentication/access control, deployment, end-to-end regression testing and recovery-code review. SCRUM-54 retains its historical Vercel title; the mapped source explains the current native/Compose deployment. Files that no individual Jira item covers stay with Omar as the repository owner who imported the package.
 
-| Jira item | Individual contribution | GitHub issue and source mapping |
-| --- | --- | --- |
-| [SCRUM-25](https://ictprojectb26.atlassian.net/browse/SCRUM-25) | Set Up GitHub Repository | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-25) |
-| [SCRUM-52](https://ictprojectb26.atlassian.net/browse/SCRUM-52) | Finalise Technical Architecture and Database | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-52) |
-| [SCRUM-53](https://ictprojectb26.atlassian.net/browse/SCRUM-53) | Implement Authentication and Role-Based Access Control | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-53) |
-| [SCRUM-54](https://ictprojectb26.atlassian.net/browse/SCRUM-54) | Configure Vercel Deployment | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-54) |
-| [SCRUM-89](https://ictprojectb26.atlassian.net/browse/SCRUM-89) | Run end-to-end workflow and form-validation regression tests | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-89) |
-| [SCRUM-90](https://ictprojectb26.atlassian.net/browse/SCRUM-90) | Review teacher recovery-code flow and demonstrate its intended use cases | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-90) |
+| Jira item | Individual contribution | Import commit | GitHub issue and mapping |
+| --- | --- | --- | --- |
+| [SCRUM-25](https://ictprojectb26.atlassian.net/browse/SCRUM-25) | Set Up GitHub Repository | [`44b646b`](https://github.com/omargad/Bangla-Adventure/commit/44b646b73d3850224ef7d213fbb8ea3a696c5151) · 15 files | [#32](https://github.com/omargad/Bangla-Adventure/issues/32) · [map](docs/JIRA_TASK_MAP.md#scrum-25) |
+| [SCRUM-52](https://ictprojectb26.atlassian.net/browse/SCRUM-52) | Finalise Technical Architecture and Database | [`6cc32cd`](https://github.com/omargad/Bangla-Adventure/commit/6cc32cdc13357d27ca4c4a22df618ff8940c3d7c) · 14 files | [#59](https://github.com/omargad/Bangla-Adventure/issues/59) · [map](docs/JIRA_TASK_MAP.md#scrum-52) |
+| [SCRUM-53](https://ictprojectb26.atlassian.net/browse/SCRUM-53) | Implement Authentication and Role-Based Access Control | [`ab8d3b2`](https://github.com/omargad/Bangla-Adventure/commit/ab8d3b224bc5a3bf7171d8028fa6c91a26ad39a9) · 36 files | [#60](https://github.com/omargad/Bangla-Adventure/issues/60) · [map](docs/JIRA_TASK_MAP.md#scrum-53) |
+| [SCRUM-54](https://ictprojectb26.atlassian.net/browse/SCRUM-54) | Configure Vercel Deployment | [`d187809`](https://github.com/omargad/Bangla-Adventure/commit/d187809ad866c85d00e0cc2bacf77deac427f7f8) · 29 files | [#61](https://github.com/omargad/Bangla-Adventure/issues/61) · [map](docs/JIRA_TASK_MAP.md#scrum-54) |
+| [SCRUM-89](https://ictprojectb26.atlassian.net/browse/SCRUM-89) | Run end-to-end workflow and form-validation regression tests | [`494f03f`](https://github.com/omargad/Bangla-Adventure/commit/494f03f63097b463609978581f0b85d8085b5256) · 6 files | [#96](https://github.com/omargad/Bangla-Adventure/issues/96) · [map](docs/JIRA_TASK_MAP.md#scrum-89) |
+| [SCRUM-90](https://ictprojectb26.atlassian.net/browse/SCRUM-90) | Review teacher recovery-code flow and demonstrate its intended use cases | [`5048755`](https://github.com/omargad/Bangla-Adventure/commit/5048755ceb6dfe0d52aa6292f3fca36e8949f625) · 2 files | [#97](https://github.com/omargad/Bangla-Adventure/issues/97) · [map](docs/JIRA_TASK_MAP.md#scrum-90) |
 
 ## Mohammed Ali A Alqahtani
 
-GitHub: GitHub identity pending. **15 assigned Jira items.**
+GitHub: [@MAQ022](https://github.com/MAQ022). **18 assigned Jira items; 6 import commits authoring 250 files, 240 of them already in the August prototype.**
 
-Owns the student learning content and activity flows, results/progress, later learning-dashboard refinement, student login integration and visible educational sources. This is a distinct Jira person from Mohammed Alqahtani below; the individual Jira owner takes precedence where related tasks overlap.
+Owns the student learning content and activity flows, results/progress, later learning-dashboard refinement, student login integration and visible educational sources, plus the technology comparison, initial system architecture and later UI-alignment/responsive review. Jira records this work under two accounts, Mohammed Ali A Alqahtani and Mohammed Alqahtani; the repository owner confirmed on 28 October 2026 that both belong to the same person, who uses `MAQ022` on GitHub.
 
-| Jira item | Individual contribution | GitHub issue and source mapping |
-| --- | --- | --- |
-| [SCRUM-26](https://ictprojectb26.atlassian.net/browse/SCRUM-26) | As a student, I want to browse Bangladeshi history and culture topics so that I can learn about my heritage. | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-26) |
-| [SCRUM-27](https://ictprojectb26.atlassian.net/browse/SCRUM-27) | As a student, I want to read child-friendly educational content so that I can understand Bangladeshi history and culture. | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-27) |
-| [SCRUM-28](https://ictprojectb26.atlassian.net/browse/SCRUM-28) | As a student, I want to complete quizzes so that I can test my understanding. | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-28) |
-| [SCRUM-29](https://ictprojectb26.atlassian.net/browse/SCRUM-29) | As a student, I want to submit completed activities so that my teacher can review them. | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-29) |
-| [SCRUM-40](https://ictprojectb26.atlassian.net/browse/SCRUM-40) | Implement Learning Content Pages | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-40) |
-| [SCRUM-41](https://ictprojectb26.atlassian.net/browse/SCRUM-41) | Implement Quizzes and Activities | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-41) |
-| [SCRUM-42](https://ictprojectb26.atlassian.net/browse/SCRUM-42) | Implement Student Results and Progress | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-42) |
-| [SCRUM-65](https://ictprojectb26.atlassian.net/browse/SCRUM-65) | As a student, I want to log in to my account so that I can securely access my learning activities. | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-65) |
-| [SCRUM-71](https://ictprojectb26.atlassian.net/browse/SCRUM-71) | As a student, I want to change my temporary password so that I can secure my account. | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-71) |
-| [SCRUM-76](https://ictprojectb26.atlassian.net/browse/SCRUM-76) | As a student, I want to view my results and progress so that I can track my learning performance. | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-76) |
-| [SCRUM-77](https://ictprojectb26.atlassian.net/browse/SCRUM-77) | As a student, I want to sign in securely so that I can access my learning account. | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-77) |
-| [SCRUM-78](https://ictprojectb26.atlassian.net/browse/SCRUM-78) | As a student, I want to access learning content and interactive activities so that I can learn about Bangladesh in an engaging way. | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-78) |
-| [SCRUM-83](https://ictprojectb26.atlassian.net/browse/SCRUM-83) | Connect student login to authentication flow | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-83) |
-| [SCRUM-84](https://ictprojectb26.atlassian.net/browse/SCRUM-84) | As a student, I want a learning-focused dashboard with topic progress so that I can quickly see what to learn next. | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-84) |
-| [SCRUM-88](https://ictprojectb26.atlassian.net/browse/SCRUM-88) | Add visible sources and references to educational content | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-88) |
+| Jira item | Individual contribution | Import commit | GitHub issue and mapping |
+| --- | --- | --- | --- |
+| [SCRUM-22](https://ictprojectb26.atlassian.net/browse/SCRUM-22) (Mohammed Alqahtani) | Research and Compare Technology Stack | — | [#29](https://github.com/omargad/Bangla-Adventure/issues/29) · [map](docs/JIRA_TASK_MAP.md#scrum-22) |
+| [SCRUM-23](https://ictprojectb26.atlassian.net/browse/SCRUM-23) (Mohammed Alqahtani) | Design Initial System Architecture | [`3b6bbdd`](https://github.com/omargad/Bangla-Adventure/commit/3b6bbdd13abc208d138dd878a9e98f92bb649829) · 1 file | [#30](https://github.com/omargad/Bangla-Adventure/issues/30) · [map](docs/JIRA_TASK_MAP.md#scrum-23) |
+| [SCRUM-26](https://ictprojectb26.atlassian.net/browse/SCRUM-26) (Mohammed Ali A Alqahtani) | As a student, I want to browse Bangladeshi history and culture topics so that I can learn about my heritage. | — (files under [SCRUM-84](docs/JIRA_TASK_MAP.md#scrum-84), [SCRUM-40](docs/JIRA_TASK_MAP.md#scrum-40)) | [#33](https://github.com/omargad/Bangla-Adventure/issues/33) · [map](docs/JIRA_TASK_MAP.md#scrum-26) |
+| [SCRUM-27](https://ictprojectb26.atlassian.net/browse/SCRUM-27) (Mohammed Ali A Alqahtani) | As a student, I want to read child-friendly educational content so that I can understand Bangladeshi history and culture. | — (files under [SCRUM-40](docs/JIRA_TASK_MAP.md#scrum-40)) | [#34](https://github.com/omargad/Bangla-Adventure/issues/34) · [map](docs/JIRA_TASK_MAP.md#scrum-27) |
+| [SCRUM-28](https://ictprojectb26.atlassian.net/browse/SCRUM-28) (Mohammed Ali A Alqahtani) | As a student, I want to complete quizzes so that I can test my understanding. | — (files under [SCRUM-84](docs/JIRA_TASK_MAP.md#scrum-84), [SCRUM-41](docs/JIRA_TASK_MAP.md#scrum-41), [SCRUM-40](docs/JIRA_TASK_MAP.md#scrum-40)) | [#35](https://github.com/omargad/Bangla-Adventure/issues/35) · [map](docs/JIRA_TASK_MAP.md#scrum-28) |
+| [SCRUM-29](https://ictprojectb26.atlassian.net/browse/SCRUM-29) (Mohammed Ali A Alqahtani) | As a student, I want to submit completed activities so that my teacher can review them. | — (files under [SCRUM-84](docs/JIRA_TASK_MAP.md#scrum-84), [SCRUM-41](docs/JIRA_TASK_MAP.md#scrum-41)) | [#36](https://github.com/omargad/Bangla-Adventure/issues/36) · [map](docs/JIRA_TASK_MAP.md#scrum-29) |
+| [SCRUM-40](https://ictprojectb26.atlassian.net/browse/SCRUM-40) (Mohammed Ali A Alqahtani) | Implement Learning Content Pages | [`f96c03a`](https://github.com/omargad/Bangla-Adventure/commit/f96c03a13d65d76f0c0e92bf2c7fa401b006a5e0) · 227 files | [#47](https://github.com/omargad/Bangla-Adventure/issues/47) · [map](docs/JIRA_TASK_MAP.md#scrum-40) |
+| [SCRUM-41](https://ictprojectb26.atlassian.net/browse/SCRUM-41) (Mohammed Ali A Alqahtani) | Implement Quizzes and Activities | [`9be0aa7`](https://github.com/omargad/Bangla-Adventure/commit/9be0aa7799088d82000de03f50755770bf3026f6) · 18 files | [#48](https://github.com/omargad/Bangla-Adventure/issues/48) · [map](docs/JIRA_TASK_MAP.md#scrum-41) |
+| [SCRUM-42](https://ictprojectb26.atlassian.net/browse/SCRUM-42) (Mohammed Ali A Alqahtani) | Implement Student Results and Progress | [`3bb0d3a`](https://github.com/omargad/Bangla-Adventure/commit/3bb0d3a30ed508d7e4c97fcaf45232397263c839) · 1 file | [#49](https://github.com/omargad/Bangla-Adventure/issues/49) · [map](docs/JIRA_TASK_MAP.md#scrum-42) |
+| [SCRUM-65](https://ictprojectb26.atlassian.net/browse/SCRUM-65) (Mohammed Ali A Alqahtani) | As a student, I want to log in to my account so that I can securely access my learning activities. | — (files under [SCRUM-84](docs/JIRA_TASK_MAP.md#scrum-84)) | [#72](https://github.com/omargad/Bangla-Adventure/issues/72) · [map](docs/JIRA_TASK_MAP.md#scrum-65) |
+| [SCRUM-71](https://ictprojectb26.atlassian.net/browse/SCRUM-71) (Mohammed Ali A Alqahtani) | As a student, I want to change my temporary password so that I can secure my account. | — (not located in the package) | [#78](https://github.com/omargad/Bangla-Adventure/issues/78) · [map](docs/JIRA_TASK_MAP.md#scrum-71) |
+| [SCRUM-76](https://ictprojectb26.atlassian.net/browse/SCRUM-76) (Mohammed Ali A Alqahtani) | As a student, I want to view my results and progress so that I can track my learning performance. | — (files under [SCRUM-84](docs/JIRA_TASK_MAP.md#scrum-84), [SCRUM-42](docs/JIRA_TASK_MAP.md#scrum-42)) | [#83](https://github.com/omargad/Bangla-Adventure/issues/83) · [map](docs/JIRA_TASK_MAP.md#scrum-76) |
+| [SCRUM-77](https://ictprojectb26.atlassian.net/browse/SCRUM-77) (Mohammed Ali A Alqahtani) | As a student, I want to sign in securely so that I can access my learning account. | — (files under [SCRUM-84](docs/JIRA_TASK_MAP.md#scrum-84)) | [#84](https://github.com/omargad/Bangla-Adventure/issues/84) · [map](docs/JIRA_TASK_MAP.md#scrum-77) |
+| [SCRUM-78](https://ictprojectb26.atlassian.net/browse/SCRUM-78) (Mohammed Ali A Alqahtani) | As a student, I want to access learning content and interactive activities so that I can learn about Bangladesh in an engaging way. | — (files under [SCRUM-84](docs/JIRA_TASK_MAP.md#scrum-84), [SCRUM-40](docs/JIRA_TASK_MAP.md#scrum-40), [SCRUM-41](docs/JIRA_TASK_MAP.md#scrum-41)) | [#85](https://github.com/omargad/Bangla-Adventure/issues/85) · [map](docs/JIRA_TASK_MAP.md#scrum-78) |
+| [SCRUM-83](https://ictprojectb26.atlassian.net/browse/SCRUM-83) (Mohammed Ali A Alqahtani) | Connect student login to authentication flow | — (files under [SCRUM-84](docs/JIRA_TASK_MAP.md#scrum-84)) | [#90](https://github.com/omargad/Bangla-Adventure/issues/90) · [map](docs/JIRA_TASK_MAP.md#scrum-83) |
+| [SCRUM-84](https://ictprojectb26.atlassian.net/browse/SCRUM-84) (Mohammed Ali A Alqahtani) | As a student, I want a learning-focused dashboard with topic progress so that I can quickly see what to learn next. | [`b1ce40c`](https://github.com/omargad/Bangla-Adventure/commit/b1ce40caebe7c5d0d6a066de46cf9f5717ab4e84) · 2 files | [#91](https://github.com/omargad/Bangla-Adventure/issues/91) · [map](docs/JIRA_TASK_MAP.md#scrum-84) |
+| [SCRUM-88](https://ictprojectb26.atlassian.net/browse/SCRUM-88) (Mohammed Ali A Alqahtani) | Add visible sources and references to educational content | [`de337ac`](https://github.com/omargad/Bangla-Adventure/commit/de337accd3d12df254ea943ed64ea545add3890d) · 1 file | [#95](https://github.com/omargad/Bangla-Adventure/issues/95) · [map](docs/JIRA_TASK_MAP.md#scrum-88) |
+| [SCRUM-91](https://ictprojectb26.atlassian.net/browse/SCRUM-91) (Mohammed Alqahtani) | Review UI alignment, child-friendly presentation and responsive consistency | — | [#98](https://github.com/omargad/Bangla-Adventure/issues/98) · [map](docs/JIRA_TASK_MAP.md#scrum-91) |
 
 ## Mohammed Alajmi
 
-GitHub: [@MohammedAlAjmi24](https://github.com/MohammedAlAjmi24). **22 assigned Jira items.**
+GitHub: [@MohammedAlAjmi24](https://github.com/MohammedAlAjmi24). **22 assigned Jira items; 7 import commits authoring 140 files, 118 of them already in the August prototype.**
 
 Owns teacher authentication/dashboard, CSV student upload, automatic accounts and temporary passwords, teacher grades/results and class allocation. Historical research assignments SCRUM-15–17 cover NCTB resources, MVP-topic prioritisation and copyright/content use.
 
-| Jira item | Individual contribution | GitHub issue and source mapping |
-| --- | --- | --- |
-| [SCRUM-15](https://ictprojectb26.atlassian.net/browse/SCRUM-15) | Research NCTB and Official Educational Resources | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-15) |
-| [SCRUM-16](https://ictprojectb26.atlassian.net/browse/SCRUM-16) | Identify and Prioritise MVP Topics | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-16) |
-| [SCRUM-17](https://ictprojectb26.atlassian.net/browse/SCRUM-17) | Investigate Copyright and Content Usage | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-17) |
-| [SCRUM-30](https://ictprojectb26.atlassian.net/browse/SCRUM-30) | As a teacher, I want to create quizzes so that I can assess students. | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-30) |
-| [SCRUM-31](https://ictprojectb26.atlassian.net/browse/SCRUM-31) | As a teacher, I want to create activities so that I can provide students with different learning experiences. | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-31) |
-| [SCRUM-32](https://ictprojectb26.atlassian.net/browse/SCRUM-32) | As a teacher, I want to view student submissions so that I can review their work. | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-32) |
-| [SCRUM-33](https://ictprojectb26.atlassian.net/browse/SCRUM-33) | TEACH-1: Design Teacher Dashboard UI & Authentication. | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-33) |
-| [SCRUM-34](https://ictprojectb26.atlassian.net/browse/SCRUM-34) | TEACH-2: Implement CSV Parsing for bulk student upload. | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-34) |
-| [SCRUM-35](https://ictprojectb26.atlassian.net/browse/SCRUM-35) | TEACH-3: Build random password generator & user provisioning. | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-35) |
-| [SCRUM-36](https://ictprojectb26.atlassian.net/browse/SCRUM-36) | TEACH-4: Build Teacher Gradebook and Results UI. | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-36) |
-| [SCRUM-43](https://ictprojectb26.atlassian.net/browse/SCRUM-43) | Implement Teacher Authentication and Dashboard | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-43) |
-| [SCRUM-44](https://ictprojectb26.atlassian.net/browse/SCRUM-44) | Implement Automatic Student Account Creation | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-44) |
-| [SCRUM-45](https://ictprojectb26.atlassian.net/browse/SCRUM-45) | Implement Temporary Password Generation | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-45) |
-| [SCRUM-46](https://ictprojectb26.atlassian.net/browse/SCRUM-46) | Implement Teacher Grades and Results | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-46) |
-| [SCRUM-66](https://ictprojectb26.atlassian.net/browse/SCRUM-66) | As a teacher, I want to log in to the teacher dashboard so that I can manage my students and learning activities. | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-66) |
-| [SCRUM-68](https://ictprojectb26.atlassian.net/browse/SCRUM-68) | As a teacher, I want to upload student information using a CSV file so that I can create multiple student accounts efficiently. | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-68) |
-| [SCRUM-69](https://ictprojectb26.atlassian.net/browse/SCRUM-69) | As a teacher, I want student accounts to be created automatically after a CSV upload so that I do not have to create each account manually. | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-69) |
-| [SCRUM-70](https://ictprojectb26.atlassian.net/browse/SCRUM-70) | As a teacher, I want each student to receive a randomly generated temporary password so that students can securely access their accounts. | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-70) |
-| [SCRUM-75](https://ictprojectb26.atlassian.net/browse/SCRUM-75) | Implement CSV Student Upload | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-75) |
-| [SCRUM-80](https://ictprojectb26.atlassian.net/browse/SCRUM-80) | As a teacher, I want to manage student accounts using CSV upload so that I can create multiple student accounts efficiently. | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-80) |
-| [SCRUM-81](https://ictprojectb26.atlassian.net/browse/SCRUM-81) | As a teacher, I want to view and manage student grades and results so that I can monitor student performance. | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-81) |
-| [SCRUM-86](https://ictprojectb26.atlassian.net/browse/SCRUM-86) | As a teacher, I want to manage classes and allocate students so that young learners do not need to enter class codes. | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-86) |
+| Jira item | Individual contribution | Import commit | GitHub issue and mapping |
+| --- | --- | --- | --- |
+| [SCRUM-15](https://ictprojectb26.atlassian.net/browse/SCRUM-15) | Research NCTB and Official Educational Resources | [`b4a48ae`](https://github.com/omargad/Bangla-Adventure/commit/b4a48ae104c4f087f7543aa8e0b51123d4a8d6a6) · 119 files | [#22](https://github.com/omargad/Bangla-Adventure/issues/22) · [map](docs/JIRA_TASK_MAP.md#scrum-15) |
+| [SCRUM-16](https://ictprojectb26.atlassian.net/browse/SCRUM-16) | Identify and Prioritise MVP Topics | [`005b102`](https://github.com/omargad/Bangla-Adventure/commit/005b102c44abe1c9132a811c8f84bd3eb07ae7b9) · 1 file | [#23](https://github.com/omargad/Bangla-Adventure/issues/23) · [map](docs/JIRA_TASK_MAP.md#scrum-16) |
+| [SCRUM-17](https://ictprojectb26.atlassian.net/browse/SCRUM-17) | Investigate Copyright and Content Usage | — (files under [SCRUM-15](docs/JIRA_TASK_MAP.md#scrum-15)) | [#24](https://github.com/omargad/Bangla-Adventure/issues/24) · [map](docs/JIRA_TASK_MAP.md#scrum-17) |
+| [SCRUM-30](https://ictprojectb26.atlassian.net/browse/SCRUM-30) | As a teacher, I want to create quizzes so that I can assess students. | [`fed115d`](https://github.com/omargad/Bangla-Adventure/commit/fed115d76fd3e207a3dc577e206b477be00c6d15) · 2 files | [#37](https://github.com/omargad/Bangla-Adventure/issues/37) · [map](docs/JIRA_TASK_MAP.md#scrum-30) |
+| [SCRUM-31](https://ictprojectb26.atlassian.net/browse/SCRUM-31) | As a teacher, I want to create activities so that I can provide students with different learning experiences. | [`42f7a1d`](https://github.com/omargad/Bangla-Adventure/commit/42f7a1dbba89917fe054096f78663723204c0562) · 1 file | [#38](https://github.com/omargad/Bangla-Adventure/issues/38) · [map](docs/JIRA_TASK_MAP.md#scrum-31) |
+| [SCRUM-32](https://ictprojectb26.atlassian.net/browse/SCRUM-32) | As a teacher, I want to view student submissions so that I can review their work. | — (files under [SCRUM-43](docs/JIRA_TASK_MAP.md#scrum-43), [SCRUM-46](docs/JIRA_TASK_MAP.md#scrum-46)) | [#39](https://github.com/omargad/Bangla-Adventure/issues/39) · [map](docs/JIRA_TASK_MAP.md#scrum-32) |
+| [SCRUM-33](https://ictprojectb26.atlassian.net/browse/SCRUM-33) | TEACH-1: Design Teacher Dashboard UI & Authentication. | — (files under [SCRUM-43](docs/JIRA_TASK_MAP.md#scrum-43)) | [#40](https://github.com/omargad/Bangla-Adventure/issues/40) · [map](docs/JIRA_TASK_MAP.md#scrum-33) |
+| [SCRUM-34](https://ictprojectb26.atlassian.net/browse/SCRUM-34) | TEACH-2: Implement CSV Parsing for bulk student upload. | — (not located in the package) | [#41](https://github.com/omargad/Bangla-Adventure/issues/41) · [map](docs/JIRA_TASK_MAP.md#scrum-34) |
+| [SCRUM-35](https://ictprojectb26.atlassian.net/browse/SCRUM-35) | TEACH-3: Build random password generator & user provisioning. | — (not located in the package) | [#42](https://github.com/omargad/Bangla-Adventure/issues/42) · [map](docs/JIRA_TASK_MAP.md#scrum-35) |
+| [SCRUM-36](https://ictprojectb26.atlassian.net/browse/SCRUM-36) | TEACH-4: Build Teacher Gradebook and Results UI. | — (files under [SCRUM-43](docs/JIRA_TASK_MAP.md#scrum-43), [SCRUM-46](docs/JIRA_TASK_MAP.md#scrum-46)) | [#43](https://github.com/omargad/Bangla-Adventure/issues/43) · [map](docs/JIRA_TASK_MAP.md#scrum-36) |
+| [SCRUM-43](https://ictprojectb26.atlassian.net/browse/SCRUM-43) | Implement Teacher Authentication and Dashboard | [`62b28af`](https://github.com/omargad/Bangla-Adventure/commit/62b28af755dea02da7ddda43ca4d61171ad1043d) · 6 files | [#50](https://github.com/omargad/Bangla-Adventure/issues/50) · [map](docs/JIRA_TASK_MAP.md#scrum-43) |
+| [SCRUM-44](https://ictprojectb26.atlassian.net/browse/SCRUM-44) | Implement Automatic Student Account Creation | — (not located in the package) | [#51](https://github.com/omargad/Bangla-Adventure/issues/51) · [map](docs/JIRA_TASK_MAP.md#scrum-44) |
+| [SCRUM-45](https://ictprojectb26.atlassian.net/browse/SCRUM-45) | Implement Temporary Password Generation | — (not located in the package) | [#52](https://github.com/omargad/Bangla-Adventure/issues/52) · [map](docs/JIRA_TASK_MAP.md#scrum-45) |
+| [SCRUM-46](https://ictprojectb26.atlassian.net/browse/SCRUM-46) | Implement Teacher Grades and Results | [`b0e0fbb`](https://github.com/omargad/Bangla-Adventure/commit/b0e0fbb45edc2545fda16988a925ab660a43c8b2) · 3 files | [#53](https://github.com/omargad/Bangla-Adventure/issues/53) · [map](docs/JIRA_TASK_MAP.md#scrum-46) |
+| [SCRUM-66](https://ictprojectb26.atlassian.net/browse/SCRUM-66) | As a teacher, I want to log in to the teacher dashboard so that I can manage my students and learning activities. | — (files under [SCRUM-43](docs/JIRA_TASK_MAP.md#scrum-43)) | [#73](https://github.com/omargad/Bangla-Adventure/issues/73) · [map](docs/JIRA_TASK_MAP.md#scrum-66) |
+| [SCRUM-68](https://ictprojectb26.atlassian.net/browse/SCRUM-68) | As a teacher, I want to upload student information using a CSV file so that I can create multiple student accounts efficiently. | — (not located in the package) | [#75](https://github.com/omargad/Bangla-Adventure/issues/75) · [map](docs/JIRA_TASK_MAP.md#scrum-68) |
+| [SCRUM-69](https://ictprojectb26.atlassian.net/browse/SCRUM-69) | As a teacher, I want student accounts to be created automatically after a CSV upload so that I do not have to create each account manually. | — (not located in the package) | [#76](https://github.com/omargad/Bangla-Adventure/issues/76) · [map](docs/JIRA_TASK_MAP.md#scrum-69) |
+| [SCRUM-70](https://ictprojectb26.atlassian.net/browse/SCRUM-70) | As a teacher, I want each student to receive a randomly generated temporary password so that students can securely access their accounts. | — (not located in the package) | [#77](https://github.com/omargad/Bangla-Adventure/issues/77) · [map](docs/JIRA_TASK_MAP.md#scrum-70) |
+| [SCRUM-75](https://ictprojectb26.atlassian.net/browse/SCRUM-75) | Implement CSV Student Upload | — (not located in the package) | [#82](https://github.com/omargad/Bangla-Adventure/issues/82) · [map](docs/JIRA_TASK_MAP.md#scrum-75) |
+| [SCRUM-80](https://ictprojectb26.atlassian.net/browse/SCRUM-80) | As a teacher, I want to manage student accounts using CSV upload so that I can create multiple student accounts efficiently. | — (not located in the package) | [#87](https://github.com/omargad/Bangla-Adventure/issues/87) · [map](docs/JIRA_TASK_MAP.md#scrum-80) |
+| [SCRUM-81](https://ictprojectb26.atlassian.net/browse/SCRUM-81) | As a teacher, I want to view and manage student grades and results so that I can monitor student performance. | — (files under [SCRUM-43](docs/JIRA_TASK_MAP.md#scrum-43), [SCRUM-46](docs/JIRA_TASK_MAP.md#scrum-46)) | [#88](https://github.com/omargad/Bangla-Adventure/issues/88) · [map](docs/JIRA_TASK_MAP.md#scrum-81) |
+| [SCRUM-86](https://ictprojectb26.atlassian.net/browse/SCRUM-86) | As a teacher, I want to manage classes and allocate students so that young learners do not need to enter class codes. | [`21f86fa`](https://github.com/omargad/Bangla-Adventure/commit/21f86fa270eb82dcd9b1c6ae5a86c1c12e824d8c) · 8 files | [#93](https://github.com/omargad/Bangla-Adventure/issues/93) · [map](docs/JIRA_TASK_MAP.md#scrum-86) |
 
 ## Turki Alahzmi
 
-GitHub: [@Tlm0v](https://github.com/Tlm0v). **11 assigned Jira items.**
+GitHub: [@Tlm0v](https://github.com/Tlm0v). **11 assigned Jira items; 4 import commits authoring 18 files, 3 of them already in the August prototype.**
 
-Owns the admin shell, users and content management, curriculum updates and teacher-portal section organisation. Initial user flows and wireframes belong to Turki under SCRUM-20–21. Admin grades/results remain Bahaa's responsibility under SCRUM-47.
+Owns the admin shell, users and content management, curriculum updates and teacher-portal section organisation. Initial user flows and wireframes belong to Turki under SCRUM-20–21. Admin grades/results remain Bahaa's responsibility.
 
-| Jira item | Individual contribution | GitHub issue and source mapping |
-| --- | --- | --- |
-| [SCRUM-20](https://ictprojectb26.atlassian.net/browse/SCRUM-20) | Create Initial User Flows | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-20) |
-| [SCRUM-21](https://ictprojectb26.atlassian.net/browse/SCRUM-21) | Create Initial Wireframes | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-21) |
-| [SCRUM-47](https://ictprojectb26.atlassian.net/browse/SCRUM-47) | Implement Admin Dashboard | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-47) |
-| [SCRUM-48](https://ictprojectb26.atlassian.net/browse/SCRUM-48) | Implement User Management | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-48) |
-| [SCRUM-49](https://ictprojectb26.atlassian.net/browse/SCRUM-49) | Implement Content Management | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-49) |
-| [SCRUM-50](https://ictprojectb26.atlassian.net/browse/SCRUM-50) | Implement Educational Content Updating | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-50) |
-| [SCRUM-67](https://ictprojectb26.atlassian.net/browse/SCRUM-67) | As an admin, I want to log in to the admin dashboard so that I can manage the platform. | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-67) |
-| [SCRUM-72](https://ictprojectb26.atlassian.net/browse/SCRUM-72) | As an admin, I want to manage user accounts so that I can maintain the platform. | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-72) |
-| [SCRUM-73](https://ictprojectb26.atlassian.net/browse/SCRUM-73) | As an admin, I want to add, edit and update educational content so that learning materials can be kept up to date. | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-73) |
-| [SCRUM-82](https://ictprojectb26.atlassian.net/browse/SCRUM-82) | As an admin, I want to manage users and educational content so that the platform can be maintained without developer intervention for routine updates. | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-82) |
-| [SCRUM-87](https://ictprojectb26.atlassian.net/browse/SCRUM-87) | Organise teacher portal functions into clear pages and sidebar sections | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-87) |
+| Jira item | Individual contribution | Import commit | GitHub issue and mapping |
+| --- | --- | --- | --- |
+| [SCRUM-20](https://ictprojectb26.atlassian.net/browse/SCRUM-20) | Create Initial User Flows | — | [#27](https://github.com/omargad/Bangla-Adventure/issues/27) · [map](docs/JIRA_TASK_MAP.md#scrum-20) |
+| [SCRUM-21](https://ictprojectb26.atlassian.net/browse/SCRUM-21) | Create Initial Wireframes | — | [#28](https://github.com/omargad/Bangla-Adventure/issues/28) · [map](docs/JIRA_TASK_MAP.md#scrum-21) |
+| [SCRUM-47](https://ictprojectb26.atlassian.net/browse/SCRUM-47) | Implement Admin Dashboard | [`8cc88be`](https://github.com/omargad/Bangla-Adventure/commit/8cc88be61c933dcccf17df53b946d4936902c897) · 1 file | [#54](https://github.com/omargad/Bangla-Adventure/issues/54) · [map](docs/JIRA_TASK_MAP.md#scrum-47) |
+| [SCRUM-48](https://ictprojectb26.atlassian.net/browse/SCRUM-48) | Implement User Management | [`6c06ffc`](https://github.com/omargad/Bangla-Adventure/commit/6c06ffcd69b0922708477e78ca67dbedaa24f30d) · 5 files | [#55](https://github.com/omargad/Bangla-Adventure/issues/55) · [map](docs/JIRA_TASK_MAP.md#scrum-48) |
+| [SCRUM-49](https://ictprojectb26.atlassian.net/browse/SCRUM-49) | Implement Content Management | [`7ffbad2`](https://github.com/omargad/Bangla-Adventure/commit/7ffbad20cd76754edfb9fd9c91ca3cdb35c583cb) · 8 files | [#56](https://github.com/omargad/Bangla-Adventure/issues/56) · [map](docs/JIRA_TASK_MAP.md#scrum-49) |
+| [SCRUM-50](https://ictprojectb26.atlassian.net/browse/SCRUM-50) | Implement Educational Content Updating | [`c6fc3fb`](https://github.com/omargad/Bangla-Adventure/commit/c6fc3fbf3915bb7772b7250c610a705cab0159a7) · 4 files | [#57](https://github.com/omargad/Bangla-Adventure/issues/57) · [map](docs/JIRA_TASK_MAP.md#scrum-50) |
+| [SCRUM-67](https://ictprojectb26.atlassian.net/browse/SCRUM-67) | As an admin, I want to log in to the admin dashboard so that I can manage the platform. | — (files under [SCRUM-47](docs/JIRA_TASK_MAP.md#scrum-47)) | [#74](https://github.com/omargad/Bangla-Adventure/issues/74) · [map](docs/JIRA_TASK_MAP.md#scrum-67) |
+| [SCRUM-72](https://ictprojectb26.atlassian.net/browse/SCRUM-72) | As an admin, I want to manage user accounts so that I can maintain the platform. | — (files under [SCRUM-48](docs/JIRA_TASK_MAP.md#scrum-48)) | [#79](https://github.com/omargad/Bangla-Adventure/issues/79) · [map](docs/JIRA_TASK_MAP.md#scrum-72) |
+| [SCRUM-73](https://ictprojectb26.atlassian.net/browse/SCRUM-73) | As an admin, I want to add, edit and update educational content so that learning materials can be kept up to date. | — (files under [SCRUM-50](docs/JIRA_TASK_MAP.md#scrum-50)) | [#80](https://github.com/omargad/Bangla-Adventure/issues/80) · [map](docs/JIRA_TASK_MAP.md#scrum-73) |
+| [SCRUM-82](https://ictprojectb26.atlassian.net/browse/SCRUM-82) | As an admin, I want to manage users and educational content so that the platform can be maintained without developer intervention for routine updates. | — (files under [SCRUM-48](docs/JIRA_TASK_MAP.md#scrum-48), [SCRUM-50](docs/JIRA_TASK_MAP.md#scrum-50)) | [#89](https://github.com/omargad/Bangla-Adventure/issues/89) · [map](docs/JIRA_TASK_MAP.md#scrum-82) |
+| [SCRUM-87](https://ictprojectb26.atlassian.net/browse/SCRUM-87) | Organise teacher portal functions into clear pages and sidebar sections | — | [#94](https://github.com/omargad/Bangla-Adventure/issues/94) · [map](docs/JIRA_TASK_MAP.md#scrum-87) |
 
 ## Dilsha Nishadya
 
-GitHub: [@104985376](https://github.com/104985376). **7 assigned Jira items.**
+GitHub: [@104985376](https://github.com/104985376). **7 assigned Jira items; 4 import commits authoring 32 files, 12 of them already in the August prototype.**
 
-Owns child-friendly UX and content-presentation research, animations/feedback, landing page, later student/teacher/admin wireframes, responsive presentation and shared portal navigation. Earlier commits under `Dilsha28` are documented separately in the original-contribution evidence. This register does not merge that account with the current verified collaborator account `104985376`.
+Owns child-friendly UX and content-presentation research, animations/feedback, landing page, later student/teacher/admin wireframes, responsive presentation and shared portal navigation. Her two original commits, made from her earlier `Dilsha28` account, are credited to `104985376` in `main` and described in the original-contribution evidence.
 
-| Jira item | Individual contribution | GitHub issue and source mapping |
-| --- | --- | --- |
-| [SCRUM-18](https://ictprojectb26.atlassian.net/browse/SCRUM-18) | Research Child-Friendly Educational Platforms | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-18) |
-| [SCRUM-19](https://ictprojectb26.atlassian.net/browse/SCRUM-19) | Research Child-Friendly Content Presentation | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-19) |
-| [SCRUM-37](https://ictprojectb26.atlassian.net/browse/SCRUM-37) | Implement Child-Friendly Animations and Gamified Feedback | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-37) |
-| [SCRUM-55](https://ictprojectb26.atlassian.net/browse/SCRUM-55) | As a student, I want a child-friendly landing page so that I can engage with the platform easily. | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-55) |
-| [SCRUM-56](https://ictprojectb26.atlassian.net/browse/SCRUM-56) | Create Student/Teacher/Admin Wireframes | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-56) |
-| [SCRUM-57](https://ictprojectb26.atlassian.net/browse/SCRUM-57) | As a student, I want a responsive and visually clear platform so that I can use it comfortably on different devices. | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-57) |
-| [SCRUM-85](https://ictprojectb26.atlassian.net/browse/SCRUM-85) | Create a shared portal layout and consistent navigation pattern | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-85) |
-
-## Mohammed Alqahtani
-
-GitHub: GitHub identity pending. **3 assigned Jira items.**
-
-Owns the technology comparison, initial system architecture and later UI-alignment/responsive review. This is distinct from Mohammed Ali A Alqahtani's student-platform work; Omar owns final architecture/database and operations.
-
-| Jira item | Individual contribution | GitHub issue and source mapping |
-| --- | --- | --- |
-| [SCRUM-22](https://ictprojectb26.atlassian.net/browse/SCRUM-22) | Research and Compare Technology Stack | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-22) |
-| [SCRUM-23](https://ictprojectb26.atlassian.net/browse/SCRUM-23) | Design Initial System Architecture | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-23) |
-| [SCRUM-91](https://ictprojectb26.atlassian.net/browse/SCRUM-91) | Review UI alignment, child-friendly presentation and responsive consistency | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-91) |
+| Jira item | Individual contribution | Import commit | GitHub issue and mapping |
+| --- | --- | --- | --- |
+| [SCRUM-18](https://ictprojectb26.atlassian.net/browse/SCRUM-18) | Research Child-Friendly Educational Platforms | — (related areas under [SCRUM-55](docs/JIRA_TASK_MAP.md#scrum-55), [SCRUM-57](docs/JIRA_TASK_MAP.md#scrum-57)) | [#25](https://github.com/omargad/Bangla-Adventure/issues/25) · [map](docs/JIRA_TASK_MAP.md#scrum-18) |
+| [SCRUM-19](https://ictprojectb26.atlassian.net/browse/SCRUM-19) | Research Child-Friendly Content Presentation | — (related areas under [SCRUM-55](docs/JIRA_TASK_MAP.md#scrum-55)) | [#26](https://github.com/omargad/Bangla-Adventure/issues/26) · [map](docs/JIRA_TASK_MAP.md#scrum-19) |
+| [SCRUM-37](https://ictprojectb26.atlassian.net/browse/SCRUM-37) | Implement Child-Friendly Animations and Gamified Feedback | [`dd7fee9`](https://github.com/omargad/Bangla-Adventure/commit/dd7fee9d94c4afb4fcc47042adc267b28ae475c7) · 12 files | [#44](https://github.com/omargad/Bangla-Adventure/issues/44) · [map](docs/JIRA_TASK_MAP.md#scrum-37) |
+| [SCRUM-55](https://ictprojectb26.atlassian.net/browse/SCRUM-55) | As a student, I want a child-friendly landing page so that I can engage with the platform easily. | [`4120060`](https://github.com/omargad/Bangla-Adventure/commit/412006070ed8690e4bd2bc64b38483f2c6e5f3e6) · 3 files | [#62](https://github.com/omargad/Bangla-Adventure/issues/62) · [map](docs/JIRA_TASK_MAP.md#scrum-55) |
+| [SCRUM-56](https://ictprojectb26.atlassian.net/browse/SCRUM-56) | Create Student/Teacher/Admin Wireframes | — (related areas under [SCRUM-85](docs/JIRA_TASK_MAP.md#scrum-85)) | [#63](https://github.com/omargad/Bangla-Adventure/issues/63) · [map](docs/JIRA_TASK_MAP.md#scrum-56) |
+| [SCRUM-57](https://ictprojectb26.atlassian.net/browse/SCRUM-57) | As a student, I want a responsive and visually clear platform so that I can use it comfortably on different devices. | [`9d39bd7`](https://github.com/omargad/Bangla-Adventure/commit/9d39bd7eae7640b4369d14fe27fe3a91acabd9c8) · 1 file | [#64](https://github.com/omargad/Bangla-Adventure/issues/64) · [map](docs/JIRA_TASK_MAP.md#scrum-57) |
+| [SCRUM-85](https://ictprojectb26.atlassian.net/browse/SCRUM-85) | Create a shared portal layout and consistent navigation pattern | [`ad45a15`](https://github.com/omargad/Bangla-Adventure/commit/ad45a1569cb6ae2d76d943c8ac8415424d3074e0) · 16 files | [#92](https://github.com/omargad/Bangla-Adventure/issues/92) · [map](docs/JIRA_TASK_MAP.md#scrum-85) |
 
 ## Unassigned epics
 
-These Jira epics organise the work and currently have no named assignee. Their
-child items retain the individual contributors listed above.
+These Jira epics organise the work and have no named assignee. Their child items retain the individual contributors listed above.
 
-| Jira epic | Area | GitHub issue and source mapping |
+| Jira epic | Area | GitHub issue and mapping |
 | --- | --- | --- |
-| [SCRUM-2](https://ictprojectb26.atlassian.net/browse/SCRUM-2) | Project Planning & Requirements | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-2) |
-| [SCRUM-3](https://ictprojectb26.atlassian.net/browse/SCRUM-3) | Educational Content Research | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-3) |
-| [SCRUM-4](https://ictprojectb26.atlassian.net/browse/SCRUM-4) | UI/UX Design | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-4) |
-| [SCRUM-5](https://ictprojectb26.atlassian.net/browse/SCRUM-5) | Technology & Architecture | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-5) |
-| [SCRUM-6](https://ictprojectb26.atlassian.net/browse/SCRUM-6) | Student Platform | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-6) |
-| [SCRUM-7](https://ictprojectb26.atlassian.net/browse/SCRUM-7) | Teacher Platform | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-7) |
-| [SCRUM-8](https://ictprojectb26.atlassian.net/browse/SCRUM-8) | Testing & Quality Assurance | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-8) |
-| [SCRUM-9](https://ictprojectb26.atlassian.net/browse/SCRUM-9) | Deployment & Documentation | [Mapped part](docs/JIRA_TASK_MAP.md#scrum-9) |
+| [SCRUM-2](https://ictprojectb26.atlassian.net/browse/SCRUM-2) | Project Planning & Requirements | [#9](https://github.com/omargad/Bangla-Adventure/issues/9) · [map](docs/JIRA_TASK_MAP.md#scrum-2) |
+| [SCRUM-3](https://ictprojectb26.atlassian.net/browse/SCRUM-3) | Educational Content Research | [#10](https://github.com/omargad/Bangla-Adventure/issues/10) · [map](docs/JIRA_TASK_MAP.md#scrum-3) |
+| [SCRUM-4](https://ictprojectb26.atlassian.net/browse/SCRUM-4) | UI/UX Design | [#11](https://github.com/omargad/Bangla-Adventure/issues/11) · [map](docs/JIRA_TASK_MAP.md#scrum-4) |
+| [SCRUM-5](https://ictprojectb26.atlassian.net/browse/SCRUM-5) | Technology & Architecture | [#12](https://github.com/omargad/Bangla-Adventure/issues/12) · [map](docs/JIRA_TASK_MAP.md#scrum-5) |
+| [SCRUM-6](https://ictprojectb26.atlassian.net/browse/SCRUM-6) | Student Platform | [#13](https://github.com/omargad/Bangla-Adventure/issues/13) · [map](docs/JIRA_TASK_MAP.md#scrum-6) |
+| [SCRUM-7](https://ictprojectb26.atlassian.net/browse/SCRUM-7) | Teacher Platform | [#14](https://github.com/omargad/Bangla-Adventure/issues/14) · [map](docs/JIRA_TASK_MAP.md#scrum-7) |
+| [SCRUM-8](https://ictprojectb26.atlassian.net/browse/SCRUM-8) | Testing & Quality Assurance | [#15](https://github.com/omargad/Bangla-Adventure/issues/15) · [map](docs/JIRA_TASK_MAP.md#scrum-8) |
+| [SCRUM-9](https://ictprojectb26.atlassian.net/browse/SCRUM-9) | Deployment & Documentation | [#16](https://github.com/omargad/Bangla-Adventure/issues/16) · [map](docs/JIRA_TASK_MAP.md#scrum-9) |
