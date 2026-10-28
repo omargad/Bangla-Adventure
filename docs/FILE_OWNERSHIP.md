@@ -648,8 +648,17 @@ These files were added after the package import by the commits that created them
 - `docs/JIRA_TASK_MAP.md`
 - `docs/ORIGINAL_CONTRIBUTIONS.md`
 - `docs/VERIFICATION.md`
+- `docs/assets/readme-banner.jpg`
 - `docs/atlassian-role-mapping.json`
 - `docs/jira-task-mapping.json`
+- `docs/screenshots/admin-results.jpg`
+- `docs/screenshots/landing.jpg`
+- `docs/screenshots/mobile-student.jpg`
+- `docs/screenshots/my-learning.jpg`
+- `docs/screenshots/teacher-class.jpg`
+- `docs/screenshots/topic-reader-bn.jpg`
+- `docs/screenshots/topic-reader.jpg`
+- `docs/screenshots/topics.jpg`
 - `infra/custom-app/Caddyfile.example`
 - `infra/custom-app/README.md`
 - `infra/custom-app/app.env.example`
