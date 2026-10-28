@@ -1,0 +1,61 @@
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "react-jsx",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": [
+        "./*"
+      ]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts",
+    "**/*.mts",
+    ".next-test/types/**/*.ts",
+    ".next-test/dev/types/**/*.ts",
+    ".next-live/types/**/*.ts",
+    ".next-live/dev/types/**/*.ts",
+    ".next-release-20260920/types/**/*.ts",
+    ".next-release-20260920/dev/types/**/*.ts",
+    ".next-fix-logout-20260920/types/**/*.ts",
+    ".next-fix-logout-20260920/dev/types/**/*.ts",
+    ".next-parent-20260920/types/**/*.ts",
+    ".next-parent-20260920/dev/types/**/*.ts",
+    ".next-portals-20261018/types/**/*.ts",
+    ".next-portals-20261018/dev/types/**/*.ts",
+    ".next-portals-20261018b/types/**/*.ts",
+    ".next-portals-20261018b/dev/types/**/*.ts",
+    ".next-admin-refresh-20261028/types/**/*.ts",
+    ".next-admin-refresh-20261028/dev/types/**/*.ts",
+    ".next-student-nav-20261028/types/**/*.ts",
+    ".next-student-nav-20261028/dev/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "examples"
+  ]
+}
