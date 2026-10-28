@@ -65,6 +65,68 @@ lock; never remove a lock belonging to an active backup.
 Resume the app after the local snapshot succeeds or fails, then check its health.
 Run remote transfer after resuming service; upload time does not require downtime.
 
+## Compose deployment
+
+Use the existing `compose.yaml`, deployment directory, environment and Compose
+project name throughout. This preserves the `bangla-data` named volume and its
+configured `/app/.data` database/media paths. Do not pass the host's `/var/lib`
+paths into the container. A stopped service cannot be used with `docker exec`;
+run the backup in a disposable container using the same service configuration.
+
+Before the agreed maintenance window, check that `app` is running, no other
+container/process writes to its volume, and the current image contains these
+backup tools. Create an explicit private host directory such as
+`/var/backups/bangla-compose`, mode `0700`, owned by the container user's UID/GID
+(inspect with `docker compose exec -T app id`). Account for UID mapping when using
+rootless Docker. Confirm that user can write the directory before stopping the
+app; do not make it world-writable or use a repository directory for real data.
+
+Run the following in Bash. It checks the original running state and always
+attempts to restart that service after stopping it, including backup failure:
+
+```bash
+(
+  set -euo pipefail
+  backup_dir=/var/backups/bangla-compose
+  test -d "$backup_dir" && test ! -L "$backup_dir"
+  test "$(docker compose ps --status running --services app)" = app || {
+    echo 'App must already be running; inspect its state before maintenance.' >&2
+    exit 1
+  }
+  resume_app() {
+    result=$?
+    trap - EXIT
+    if ! docker compose start app; then
+      echo 'App restart failed; operator intervention is required.' >&2
+      exit 1
+    fi
+    exit "$result"
+  }
+  trap resume_app EXIT
+  trap 'exit 130' INT
+  trap 'exit 143' TERM
+  docker compose stop app
+  docker compose run --rm --no-deps --volume "$backup_dir:/backups" app \
+    bash scripts/backup.sh /backups 14 --application-stopped
+)
+```
+
+This does not publish an additional application port. Check `docker compose ps`
+and the normal `/api/health` endpoint after restart; a shell trap cannot recover
+from host power loss or a killed shell. The JSON archive path is inside the helper
+container: `/backups/NAME.tar.gz` corresponds to
+`/var/backups/bangla-compose/NAME.tar.gz` on the host.
+
+For a restore drill, use the host's Python tool as an authorized archive owner and
+a new private destination, following the next section. Do not mount or overwrite
+the live `bangla-data` volume for a drill:
+
+```sh
+python3 scripts/backup_restore.py verify /var/backups/bangla-compose/NAME.tar.gz
+bash scripts/restore.sh /var/backups/bangla-compose/NAME.tar.gz \
+  /private/restore-drills/bangla-compose-20261028
+```
+
 ## Restore drill into a new directory
 
 Restore deliberately refuses every existing destination, even an empty directory.

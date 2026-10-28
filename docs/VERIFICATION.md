@@ -24,11 +24,16 @@ Environment: Linux x64, Node.js 22.23.4, npm 10.9.9, Python 3.12, Chrome for Tes
 
 The first install used the environment's Node 24 and failed during native-addon setup. The documented Node 22 clean installation passed. The Playwright CDN returned an invalid download in this environment; the matching test browser was obtained from the official Google release and verified. Its missing executable bit was corrected before browser tests ran. These environment issues did not require dependency changes.
 
-## CI and remaining deployment evidence
+## GitHub Actions results and remaining deployment evidence
 
 The CI workflow runs lint, unit/backup checks, draft pilot validators, build, typecheck, API integration and the full browser suite. A separate container job validates Compose, builds the Docker image, checks non-root startup/fresh schema, and recreates a container to verify database/media persistence.
 
-No local Docker engine was available, so this record does not claim a local Docker pass. Use the actual CI run result for the final commit as container evidence; a workflow definition alone is not a successful execution.
+GitHub Actions independently passed the implementation commit `c4f91f77f136fe75ebcc54c09cf79bebc9bb8601`:
+
+- [CI run 40643790231](https://github.com/omargad/Bangla-Adventure/actions/runs/40643790231): all three jobs passed. The verify job passed lint, unit/backup checks, draft validators, build, typecheck and API integration. The browser job passed all **24 tests in one full run**. The container job built the actual image and passed fresh-database, non-root and database/media persistence checks after container recreation.
+- [Moodle integration run 40643790323](https://github.com/omargad/Bangla-Adventure/actions/runs/40643790323): the separate plugin installation, repeat seeding and hidden-course checks passed. This does not approve its pending human publication gates.
+
+No local Docker engine was available; the container evidence above comes from GitHub's runner. The subsequent documentation update adds Compose backup instructions and records these results; it does not change the tested implementation.
 
 No production database, live accounts, actual backup repository or server services were changed. The read-only request to the supplied HTTPS IP failed hostname validation in this environment, so live HTTPS/health was not verified. Production deployment, configured encrypted off-server storage/scheduling, and a restore drill with the intended data remain operator tasks requiring authorized host access and an approved destination.
 

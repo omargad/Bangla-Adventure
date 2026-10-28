@@ -57,6 +57,9 @@ Demonstrate the flow and transfer recovery material privately.
 
 ## Verification evidence
 
+See [VERIFICATION.md](VERIFICATION.md) for the recorded local and GitHub Actions
+results. Repeat the relevant checks when implementation or deployment changes.
+
 From a clean checkout without production credentials or data configured:
 
 ```sh
