@@ -9,7 +9,7 @@ The team planned and tracked this project in [Jira SCRUM](https://ictprojectb26.
 - **One owner per file.** Each file belongs to the single Jira item whose described deliverable it most directly implements. Shared foundation sits with the repository and architecture items, and files that no individual item covers stay with the repository owner. The complete list is in [docs/FILE_OWNERSHIP.md](docs/FILE_OWNERSHIP.md).
 - **Code owners.** [.github/CODEOWNERS](.github/CODEOWNERS) assigns each path to the same person.
 - **Items without an import commit.** Research, planning, coordination, review and testing items, and implementation items whose deliverable is not in the final package, are credited below and in their GitHub issues. The [task map](docs/JIRA_TASK_MAP.md) explains each mapping and its limits.
-- **Other history.** Deployment and backup fixes and these records were committed after the import and keep their real authorship. Original commits recovered from earlier repositories (Turki's admin work, Dilsha's UI work, Bahaa's form validation and the August prototype) are merged into `main` and described in [docs/ORIGINAL_CONTRIBUTIONS.md](docs/ORIGINAL_CONTRIBUTIONS.md). Dilsha's two original commits, made as `Dilsha28`, are credited to her `104985376` account at the repository owner's request and record their original IDs.
+- **Other history.** Deployment and backup fixes and these records were committed after the import and keep their real authorship. Original commits recovered from earlier repositories (Turki's admin work, Dilsha's UI work, Bahaa's form validation and the August prototype) are merged into `main` and described in [docs/ORIGINAL_CONTRIBUTIONS.md](docs/ORIGINAL_CONTRIBUTIONS.md). Dilsha's two original commits, made as `Dilsha28`, are credited to the `104985376` account at the repository owner's request and record their original IDs.
 - **Built after the import.** Features that Jira records as Done but that were missing from the package were built on 28 October 2026 by `omargad` and are linked from their Jira items below; the Jira assignees keep the task credit.
 
 ## Contribution summary
@@ -25,7 +25,7 @@ The team planned and tracked this project in [Jira SCRUM](https://ictprojectb26.
 
 ## Account identities
 
-Bahaa → `bahaa11-prog`, Omar → `omargad`, Mohammed Alajmi → `MohammedAlAjmi24`, Turki → `Tlm0v`, Dilsha → `104985376`, and both Alqahtani Jira accounts → `MAQ022`. The repository owner confirmed on 28 October 2026 that Mohammed Ali A Alqahtani and Mohammed Alqahtani are one person, and that Dilsha's `Dilsha28` and `104985376` accounts are both hers; her credit uses `104985376`. Commits use each person's GitHub no-reply address, so they link to these accounts without exposing private email addresses.
+Bahaa → `bahaa11-prog`, Omar → `omargad`, Mohammed Alajmi → `MohammedAlAjmi24`, Turki → `Tlm0v`, Dilsha → `104985376`, and both Alqahtani Jira accounts → `MAQ022`. The repository owner confirmed on 28 October 2026 that Mohammed Ali A Alqahtani and Mohammed Alqahtani are one person, and that Dilsha's `Dilsha28` and `104985376` accounts belong to the same person; the credit uses `104985376`. Commits use each person's GitHub no-reply address, so they link to these accounts without exposing private email addresses.
 
 ## BAHAA GHAZI
 
@@ -152,7 +152,7 @@ Owns the admin shell, users and content management, curriculum updates and teach
 
 GitHub: [@104985376](https://github.com/104985376). **7 assigned Jira items; 4 import commits authoring 32 files, 12 of them already in the August prototype.**
 
-Owns child-friendly UX and content-presentation research, animations/feedback, landing page, later student/teacher/admin wireframes, responsive presentation and shared portal navigation. Her two original commits, made from her earlier `Dilsha28` account, are credited to `104985376` in `main` and described in the original-contribution evidence.
+Owns child-friendly UX and content-presentation research, animations/feedback, landing page, later student/teacher/admin wireframes, responsive presentation and shared portal navigation. Dilsha's two original commits, made from the earlier `Dilsha28` account, are credited to `104985376` in `main` and described in the original-contribution evidence.
 
 | Jira item | Individual contribution | Import commit | GitHub issue and mapping |
 | --- | --- | --- | --- |

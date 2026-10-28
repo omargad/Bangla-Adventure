@@ -5,6 +5,12 @@ import type { ReactNode } from "react";
 import type { Language } from "@/lib/use-language";
 export type PortalRole = "student" | "teacher" | "admin" | "parent";
 type Item = { id: string; label: string; href?: string; onClick?: () => void };
+const roleLabels: Record<PortalRole, [string, string]> = {
+  student: ["Student", "শিক্ষার্থী"],
+  teacher: ["Teacher", "শিক্ষক"],
+  admin: ["Admin", "প্রশাসক"],
+  parent: ["Parent", "অভিভাবক"],
+};
 export default function PortalShell({ role, name, language, toggleLanguage, active, items, children }: {
   role: PortalRole; name: string; language: Language; toggleLanguage: () => void; active?: string; items?: Item[]; children: ReactNode;
 }) {
@@ -33,7 +39,7 @@ export default function PortalShell({ role, name, language, toggleLanguage, acti
     <a className="skip-link" href="#portal-main">{s("Skip to content", "মূল অংশে যান")}</a>
     <aside className={`portal-sidebar ${open ? "is-open" : ""}`}>
       <Link className="portal-brand" href={home}><span aria-hidden="true">বা</span><strong>Bangla<br />Adventures</strong></Link>
-      <p className="portal-role">{role} {s("portal", "পোর্টাল")}</p>
+      <p className="portal-role">{s(`${roleLabels[role][0]} portal`, `${roleLabels[role][1]} পোর্টাল`)}</p>
       <nav id="portal-navigation" aria-label="Portal navigation">{navigation.map((item, index) => item.href
         ? <Link key={`${item.id}-${index}`} href={item.href} aria-current={active === item.id ? "page" : undefined} onClick={() => setOpen(false)}>{item.label}</Link>
         : <button key={`${item.id}-${index}`} aria-current={active === item.id ? "page" : undefined} onClick={() => { item.onClick?.(); setOpen(false); }}>{item.label}</button>)}</nav>

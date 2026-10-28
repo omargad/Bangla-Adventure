@@ -4974,7 +4974,7 @@
     "method": "One import commit per Jira item, authored by the item's Jira assignee (GitHub no-reply address) and committed by omargad; each file of the 28 October 2026 package belongs to exactly one item. Files outside every individual item's described scope are in one omargad import commit.",
     "identityNotes": [
       "Mohammed Ali A Alqahtani and Mohammed Alqahtani are two Jira accounts of one person (MAQ022), confirmed by the repository owner on 2026-10-28.",
-      "Dilsha Nishadya is credited to 104985376; the repository owner confirmed on 2026-10-28 that Dilsha28 is also her account."
+      "Dilsha Nishadya is credited to 104985376; the repository owner confirmed on 2026-10-28 that Dilsha28 is also Dilsha's account."
     ],
     "prototypeDisclosure": "Files counted in importCommit.filesAlreadyInPrototype were already, unchanged, in the August prototype history (omargad, 2-12 August 2026, before the Jira project began). The repository owner reports they were the credited assignee's work, committed to the prototype by omargad for the group.",
     "untrackedImportCommit": "c36c187b3d182469254b1ca9fbdfc147f5562bf1",

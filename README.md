@@ -2,9 +2,9 @@
 
 <div align="center">
 
-<img src="docs/assets/readme-banner.jpg" alt="Bangla Adventures — Bagh the tiger cub waves beside a hand-painted river map of Bangladesh. Tagline: Learn. Discover. Belong." width="100%">
+<p><img src="docs/assets/readme-banner.jpg" alt="Bangla Adventures — Bagh the tiger cub waves beside a hand-painted river map of Bangladesh. Tagline: Learn. Discover. Belong." width="100%"></p>
 
-**Bangladesh's culture, history and literature for heritage children growing up outside Bangladesh — in English and Bangla.**
+Bangladesh's culture, history and literature for Bangladeshi-heritage children outside Bangladesh, in English and Bangla.
 
 [![CI](https://github.com/omargad/Bangla-Adventure/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/omargad/Bangla-Adventure/actions/workflows/ci.yml)
 [![Moodle plugin integration](https://github.com/omargad/Bangla-Adventure/actions/workflows/moodle-plugin.yml/badge.svg?branch=main)](https://github.com/omargad/Bangla-Adventure/actions/workflows/moodle-plugin.yml)
@@ -19,67 +19,29 @@
 </div>
 
 > [!NOTE]
-> An **ICT Project B capstone** for clients **Dr Tanjila Kanij** and **Faysal Alam**.
-> Source: [`omargad/Bangla-Adventure`](https://github.com/omargad/Bangla-Adventure).
-> Use [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) for the current custom application and
-> [`docs/HANDOVER.md`](docs/HANDOVER.md) for client setup and release evidence.
+> An **ICT Project B capstone** for clients **Dr Tanjila Kanij** and **Faysal Alam**. Use the
+> [deployment guide](docs/DEPLOYMENT.md) for the current custom application and the
+> [handover guide](docs/HANDOVER.md) for client setup and release evidence.
 
 ## Features
 
 The running deployment uses the **custom English–Bangla application**, following the owner's
 20 September 2026 decision.
 
-<table>
-<tr>
-<td width="50%" valign="top">
-
-### 🧒 Students
-
-- My Learning, learning topics, allocated classes, activities and results.
-- A student given a temporary password chooses their own at first sign-in, before
-  My Learning, the learning pages and the student APIs open.
-
-</td>
-<td width="50%" valign="top">
-
-### 🧑‍🏫 Teachers
-
-- Require administrator approval, and allocate students without class codes.
-- Upload a CSV class list (`name`, optional `username`; up to 200 rows): accounts are
-  created with one-time temporary passwords.
-- Student sign-in is rate-limited per account, so a class can sign in together from one
-  school network.
-
-</td>
-</tr>
-<tr>
-<td width="50%" valign="top">
-
-### 🛡️ Administrators
-
-- Manage accounts, family links, class allocation and topic-reading updates.
-- Review, export and reset grades and results in every class (`/admin/results`), and
-  open any class from the teacher workspace.
-
-</td>
-<td width="50%" valign="top">
-
-### 👪 Parents
-
-- Read-only access to administrator-linked children's learning records.
-
-</td>
-</tr>
-</table>
+| Role | What they can do |
+| --- | --- |
+| 🧒&nbsp;**Students** | Use My Learning, learning topics, allocated classes, activities and results. A student given a temporary password must choose their own at first sign-in; My Learning, the learning pages and the student APIs stay closed until they do. |
+| 🧑‍🏫&nbsp;**Teachers** | Join once an administrator approves them, and allocate students without class codes. Upload a CSV class list (`name`, optional `username`; up to 200 rows) to create accounts with one-time temporary passwords. Student sign-in is rate-limited per account, so a whole class can sign in together from one school network. |
+| 🛡️&nbsp;**Administrators** | Manage accounts, family links, class allocation and topic-reading updates. Review, export and reset grades and results in every class (`/admin/results`), and open any class from the teacher workspace. |
+| 👪&nbsp;**Parents** | See, read-only, the learning records of the children an administrator has linked to them. |
 
 Learning content requires sign-in. Curriculum edits retain educator-review notices; saving a
 topic is not approval of its educational accuracy, rights or age suitability.
 
-> [!NOTE]
-> `PLATFORM_MODE=legacy` is the configuration name for the custom application; it does not mean
-> the running portals are retired. The Moodle pilot remains an **alternative implementation**,
-> not the current live account/classroom system, and its hidden-course and publication gates
-> remain intact. See [`docs/MOODLE_FIRST_MVP.md`](docs/MOODLE_FIRST_MVP.md) for that earlier plan.
+`PLATFORM_MODE=legacy` is the configuration name for the custom application; it does not mean
+the running portals are retired. The Moodle pilot remains an alternative implementation, not the
+current live account and classroom system, and its hidden-course and publication gates remain
+intact. See the [Moodle-first MVP plan](docs/MOODLE_FIRST_MVP.md) for that earlier plan.
 
 ## Screenshots
 
@@ -123,12 +85,12 @@ topic is not approval of its educational accuracy, rights or age suitability.
 
 <table>
 <tr>
-<td width="68%" valign="top">
+<td width="75%" valign="top">
 <img src="docs/screenshots/topics.jpg" alt="Topics hub with culture and celebration topic cards and a completed quiz result">
 <p><b>Topics hub</b><br><sub>Culture, history and literature topics with review status and quiz results.</sub></p>
 </td>
-<td width="32%" valign="top" align="center">
-<img src="docs/screenshots/mobile-student.jpg" alt="Student dashboard on a phone-sized screen" width="230">
+<td width="25%" valign="top">
+<img src="docs/screenshots/mobile-student.jpg" alt="Student dashboard on a phone-sized screen" width="185">
 <p><b>On a phone</b><br><sub>The student dashboard at 390&nbsp;px wide.</sub></p>
 </td>
 </tr>
@@ -140,18 +102,18 @@ topic is not approval of its educational accuracy, rights or age suitability.
 
 ## Honest delivery status
 
-| | Area | Status |
-| :---: | --- | --- |
-| ✅ | Custom learner/teacher/parent/admin platform | Deployed; role checks, staff allocation, learning progress and parent monitoring implemented |
-| ✅ | Moodle pilot course | Installable hidden-course plugin implemented: 15 bilingual chapters, nine activities and nine questions |
-| 🟡 | Official NCTB catalogue and PDF audit | Source records implemented; a verified PDF is not an approved adaptation |
-| 🟡 | Bilingual topic prototypes | Implemented as drafts; educational/community review remains |
-| 🟡 | Bangla audio | Synthetic fallback included; reviewed human recordings remain incomplete |
-| 🟡 | Application deployment and operations | Existing-host reference configuration, portable service/Compose setup and backup/restore tools included; actual hosting ownership, off-server scheduling and recovery evidence require operator handover |
-| 🔒 | Optional Moodle publication control | Draft validation passes; pilot release validation intentionally fails while 27 human-review gates are pending |
-| ⬜ | YouTube/media verification | Not complete; media excluded from the first pilot |
-| ⬜ | Curriculum, accessibility and child review | Not complete |
-| ⬜ | Privacy, safeguarding and legal approval | Not complete |
+| Area | Status |
+| --- | --- |
+| ✅ Custom platform for learners, teachers, parents and admins | Deployed; role checks, staff allocation, learning progress and parent monitoring implemented |
+| 🟡 Official NCTB catalogue and PDF audit | Source records implemented; a verified PDF is not an approved adaptation |
+| 🟡 Bilingual topic prototypes | Implemented as drafts; educational and community review remains |
+| 🟡 Bangla audio | Synthetic fallback included; reviewed human recordings remain incomplete |
+| 🟡 Application deployment and operations | Existing-host reference configuration, portable service and Compose setup, and backup and restore tools included; actual hosting ownership, off-server scheduling and recovery evidence require operator handover |
+| 🟡 Moodle pilot course | Installable hidden-course plugin implemented: 15 bilingual chapters, nine activities and nine questions |
+| 🔒 Optional Moodle publication control | Draft validation passes; pilot release validation intentionally fails while 27 human-review gates are pending |
+| ⬜ YouTube and media verification | Not complete; media excluded from the first pilot |
+| ⬜ Curriculum, accessibility and child review | Not complete |
+| ⬜ Privacy, safeguarding and legal approval | Not complete |
 
 <sub>✅ implemented · 🟡 implemented, with review or handover outstanding · 🔒 deliberately gated · ⬜ not complete</sub>
 
@@ -172,12 +134,12 @@ age/context, reading support, activity scaffolds, outcomes and teacher success c
 ## Architecture
 
 ```mermaid
-flowchart LR
-    people["Students · Teachers<br/>Administrators · Parents"] -->|HTTPS| caddy["Caddy<br/>reverse proxy"]
-    caddy --> app["Next.js 16 application<br/>React 19 · TypeScript"]
-    app --> db[("SQLite database")]
-    app --> media[("Media files<br/>on the local filesystem")]
-    app -. "PLATFORM_MODE=moodle<br/>(optional)" .-> moodle["Moodle 5.2.2 + MariaDB 10.11<br/>separately provisioned pilot"]
+flowchart TB
+    people["Students · Teachers<br/>Administrators · Parents"] -->|HTTPS| caddy["Caddy reverse proxy"]
+    caddy --> app["Next.js 16 app<br/>React 19 · TypeScript"]
+    app --> db[("SQLite")]
+    app --> media[("Media files<br/>(local disk)")]
+    app -. "optional" .-> moodle["Moodle 5.2.2 pilot<br/>(separately provisioned)"]
 ```
 
 | Layer | Choice |
@@ -321,77 +283,94 @@ course repeatably; it has no command that can publish it.
 - **Existing website:** <https://31.56.120.148>. Portals: `/student`, `/teach`, `/admin`,
   `/family`. Confirm live readiness and ownership during handover; source files alone do not
   establish the current server state.
+- **Setting up or taking over:** start with the [deployment guide](docs/DEPLOYMENT.md) and the
+  [handover guide](docs/HANDOVER.md), then work through the checklist below.
+
+<details>
+<summary><b>Operator handover checklist</b></summary>
+
+<br>
+
 - **Current host reference:** [`infra/current-server/`](infra/current-server/) records the
-  existing non-root loopback3300 service, Caddy site, health/certificate timers and persistent
+  existing non-root loopback3300 service, Caddy site, health and certificate timers and persistent
   paths under `/var/lib/bangla-adventures`. It is historical host reference, not a portable
   installer. Preserve its database and media independently of build directories.
 - **New installations:** use [`compose.yaml`](compose.yaml) or
-  [`infra/custom-app/`](infra/custom-app/) following [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
+  [`infra/custom-app/`](infra/custom-app/) following the [deployment guide](docs/DEPLOYMENT.md).
   Configure HTTPS `PUBLIC_ORIGIN`, persistent `DATABASE_PATH`, absolute `MEDIA_ROOT` and a
-  consistent build/runtime `NEXT_DIST_DIR`. Never rebuild a running release; retain the previous one.
-- **Backups:** [`docs/BACKUP_RESTORE.md`](docs/BACKUP_RESTORE.md) covers verified snapshots and
-  restoration into a new directory. A real off-server destination, encryption/key custody,
+  consistent build and runtime `NEXT_DIST_DIR`. Never rebuild a running release; retain the previous one.
+- **Backups:** the [backup and restore guide](docs/BACKUP_RESTORE.md) covers verified snapshots and
+  restoration into a new directory. A real off-server destination, encryption and key custody,
   schedule, backup-age alerts and a recorded restore exercise still need to be configured and
   demonstrated on the intended deployment.
-- **Client handover:** give the client a specific repository commit/release, lockfile,
-  setup/recovery runbooks, role demonstrations, test results and the
-  [acceptance/known-issues record](docs/ACCEPTANCE.md). Roles and contribution evidence are
-  recorded in [`CONTRIBUTIONS.md`](CONTRIBUTIONS.md).
+- **Client handover:** give the client a specific repository commit or release, the lockfile,
+  setup and recovery runbooks, role demonstrations, test results and the
+  [acceptance and known-issues record](docs/ACCEPTANCE.md). Roles and contribution evidence are
+  recorded in the [contribution register](CONTRIBUTIONS.md).
 - **Accounts and access:** provision the client's administrator only after confirming their
-  account. Transfer credentials/recovery material separately and securely. The current host also
+  account. Transfer credentials and recovery material separately and securely. The current host also
   serves other projects: use application-scoped access or dedicated client-owned hosting rather
   than transferring shared-server root access.
-- **Reviews:** curriculum, privacy/safeguarding, media rights and independent accessibility review
-  remain separate from software test results.
+- **Reviews:** curriculum, privacy and safeguarding, media rights and independent accessibility
+  review remain separate from software test results.
 
-For the alternative Moodle deployment, use [`infra/moodle/README.md`](infra/moodle/README.md); its
-infrastructure and publication prerequisites still apply.
+For the alternative Moodle deployment, use the [Moodle pilot deployment guide](infra/moodle/README.md);
+its infrastructure and publication prerequisites still apply.
+
+</details>
 
 ## Project contributors
 
 Each team member's Jira work is credited below, and the import commits are authored by the Jira owner of each part, so GitHub's Contributors list and `git blame` follow Jira ownership.
 
+<div align="center">
+
 <table>
 <tr>
-<td align="center" valign="top" width="16%"><a href="https://github.com/bahaa11-prog"><img src="https://github.com/bahaa11-prog.png?size=144" width="72" height="72" alt="@bahaa11-prog"><br><b>Bahaa Ghazi</b></a><br><sub>@bahaa11-prog</sub></td>
-<td align="center" valign="top" width="16%"><a href="https://github.com/omargad"><img src="https://github.com/omargad.png?size=144" width="72" height="72" alt="@omargad"><br><b>Omar Gad</b></a><br><sub>@omargad</sub></td>
-<td align="center" valign="top" width="16%"><a href="https://github.com/MAQ022"><img src="https://github.com/MAQ022.png?size=144" width="72" height="72" alt="@MAQ022"><br><b>Mohammed Ali A Alqahtani</b></a><br><sub>@MAQ022</sub></td>
-<td align="center" valign="top" width="16%"><a href="https://github.com/MohammedAlAjmi24"><img src="https://github.com/MohammedAlAjmi24.png?size=144" width="72" height="72" alt="@MohammedAlAjmi24"><br><b>Mohammed Alajmi</b></a><br><sub>@MohammedAlAjmi24</sub></td>
-<td align="center" valign="top" width="16%"><a href="https://github.com/Tlm0v"><img src="https://github.com/Tlm0v.png?size=144" width="72" height="72" alt="@Tlm0v"><br><b>Turki Alahzmi</b></a><br><sub>@Tlm0v</sub></td>
-<td align="center" valign="top" width="16%"><a href="https://github.com/104985376"><img src="https://github.com/104985376.png?size=144" width="72" height="72" alt="@104985376"><br><b>Dilsha Nishadya</b></a><br><sub>@104985376</sub></td>
+<td align="center" valign="top" width="33%"><a href="https://github.com/bahaa11-prog"><img src="https://github.com/bahaa11-prog.png?size=176" width="88" height="88" alt="@bahaa11-prog"><br><b>Bahaa<br>Ghazi</b></a></td>
+<td align="center" valign="top" width="33%"><a href="https://github.com/omargad"><img src="https://github.com/omargad.png?size=176" width="88" height="88" alt="@omargad"><br><b>Omar<br>Gad</b></a></td>
+<td align="center" valign="top" width="33%"><a href="https://github.com/MAQ022"><img src="https://github.com/MAQ022.png?size=176" width="88" height="88" alt="@MAQ022"><br><b>Mohammed Ali A<br>Alqahtani</b></a></td>
+</tr>
+<tr>
+<td align="center" valign="top" width="33%"><a href="https://github.com/MohammedAlAjmi24"><img src="https://github.com/MohammedAlAjmi24.png?size=176" width="88" height="88" alt="@MohammedAlAjmi24"><br><b>Mohammed<br>Alajmi</b></a></td>
+<td align="center" valign="top" width="33%"><a href="https://github.com/Tlm0v"><img src="https://github.com/Tlm0v.png?size=176" width="88" height="88" alt="@Tlm0v"><br><b>Turki<br>Alahzmi</b></a></td>
+<td align="center" valign="top" width="33%"><a href="https://github.com/104985376"><img src="https://github.com/104985376.png?size=176" width="88" height="88" alt="@104985376"><br><b>Dilsha<br>Nishadya</b></a></td>
 </tr>
 </table>
 
-| Contributor | GitHub account | Jira items | Files authored | Already in the August prototype | Contribution areas |
-| --- | --- | ---: | ---: | ---: | --- |
-| [BAHAA GHAZI](CONTRIBUTIONS.md#bahaa-ghazi) | [@bahaa11-prog](https://github.com/bahaa11-prog) | 19 | 12 | 4 | Project coordination, requirements, Jira management and QA; admin results |
-| [Omar Gad](CONTRIBUTIONS.md#omar-gad) | [@omargad](https://github.com/omargad) | 6 | 146 | 68 | Repository, final architecture/database, security, deployment and regression testing |
-| [Mohammed Ali A Alqahtani](CONTRIBUTIONS.md#mohammed-ali-a-alqahtani) | [@MAQ022](https://github.com/MAQ022) | 18 | 250 | 240 | Student learning, activities, progress, login integration and educational sources; technology research, initial architecture and UI review |
-| [Mohammed Alajmi](CONTRIBUTIONS.md#mohammed-alajmi) | [@MohammedAlAjmi24](https://github.com/MohammedAlAjmi24) | 22 | 140 | 118 | Teacher platform, CSV provisioning, class allocation and educational-resource research |
-| [Turki Alahzmi](CONTRIBUTIONS.md#turki-alahzmi) | [@Tlm0v](https://github.com/Tlm0v) | 11 | 18 | 3 | Admin platform, portal organisation and initial user flows/wireframes |
-| [Dilsha Nishadya](CONTRIBUTIONS.md#dilsha-nishadya) | [@104985376](https://github.com/104985376) | 7 | 32 | 12 | Child-friendly UX, visual design, responsiveness and shared navigation |
+</div>
+
+| Contributor | Jira items | Files | From prototype | Contribution areas |
+| --- | ---: | ---: | ---: | --- |
+| [Bahaa Ghazi](CONTRIBUTIONS.md#bahaa-ghazi)<br><sub>@bahaa11-prog</sub> | 19 | 12 | 4 | Project coordination, requirements, Jira management and QA; admin results |
+| [Omar Gad](CONTRIBUTIONS.md#omar-gad)<br><sub>@omargad</sub> | 6 | 146 | 68 | Repository, final architecture/database, security, deployment and regression testing |
+| [Mohammed Ali A Alqahtani](CONTRIBUTIONS.md#mohammed-ali-a-alqahtani)<br><sub>@MAQ022</sub> | 18 | 250 | 240 | Student learning, activities, progress, login integration and educational sources; technology research, initial architecture and UI review |
+| [Mohammed Alajmi](CONTRIBUTIONS.md#mohammed-alajmi)<br><sub>@MohammedAlAjmi24</sub> | 22 | 140 | 118 | Teacher platform, CSV provisioning, class allocation and educational-resource research |
+| [Turki Alahzmi](CONTRIBUTIONS.md#turki-alahzmi)<br><sub>@Tlm0v</sub> | 11 | 18 | 3 | Admin platform, portal organisation and initial user flows/wireframes |
+| [Dilsha Nishadya](CONTRIBUTIONS.md#dilsha-nishadya)<br><sub>@104985376</sub> | 7 | 32 | 12 | Child-friendly UX, visual design, responsiveness and shared navigation |
 
 The [contribution register](CONTRIBUTIONS.md) links every assigned item to its import commit, GitHub issue and repository files, and [docs/FILE_OWNERSHIP.md](docs/FILE_OWNERSHIP.md) lists the owner of each file.
 
 > [!NOTE]
-> The counts cover 83 assigned tasks, stories and subtasks, checked against Jira on 28 October 2026; eight unassigned epics remain separate. Mohammed Ali A Alqahtani's count includes the three items recorded under his second Jira account, Mohammed Alqahtani. Disclosure: files already in the August prototype history (commits by `omargad`, 2–12 August 2026, before the Jira project began) are credited to their Jira assignees at the repository owner's request; see [CONTRIBUTIONS.md](CONTRIBUTIONS.md).
+> *Files* counts the files each person authored in the import; *From prototype* counts those that were already in the August prototype. The counts cover 83 assigned tasks, stories and subtasks, checked against Jira on 28 October 2026; eight unassigned epics remain separate. Mohammed Ali A Alqahtani's count includes the three items recorded under a second Jira account, Mohammed Alqahtani. Disclosure: files already in the August prototype history (commits by `omargad`, 2–12 August 2026, before the Jira project began) are credited to their Jira assignees at the repository owner's request; see [CONTRIBUTIONS.md](CONTRIBUTIONS.md).
 
 ## Key documents
 
 | Document | What it covers |
 | --- | --- |
-| [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) | Current custom application setup, upgrades and rollback |
-| [`docs/BACKUP_RESTORE.md`](docs/BACKUP_RESTORE.md) | Database/media backup, verification and recovery drill |
-| [`docs/ACCEPTANCE.md`](docs/ACCEPTANCE.md) | Reviewer ownership, evidence and client acceptance record |
-| [`docs/HANDOVER.md`](docs/HANDOVER.md) | Release and account handover |
-| [`docs/MOODLE_FIRST_MVP.md`](docs/MOODLE_FIRST_MVP.md) | Recovery decision, scope and definition of done |
-| [`moodle/README.md`](moodle/README.md) | Plugin packaging, installation and release boundary |
-| [`docs/NCTB_CONTENT_AUDIT.md`](docs/NCTB_CONTENT_AUDIT.md) | PDF/source audit and its limits |
-| [`docs/CLIENT_REQUIREMENTS_2026-08-10.md`](docs/CLIENT_REQUIREMENTS_2026-08-10.md) | Requirement traceability |
-| [`docs/MEDIA_REVIEW.md`](docs/MEDIA_REVIEW.md) | Unverified-video and human-audio process |
-| [`infra/moodle/README.md`](infra/moodle/README.md) | Alternative Moodle pilot deployment |
+| [Deployment guide](docs/DEPLOYMENT.md) | Current custom application setup, upgrades and rollback |
+| [Backup and restore](docs/BACKUP_RESTORE.md) | Database and media backup, verification and recovery drill |
+| [Acceptance record](docs/ACCEPTANCE.md) | Reviewer ownership, evidence and client acceptance record |
+| [Handover guide](docs/HANDOVER.md) | Release and account handover |
+| [Contribution register](CONTRIBUTIONS.md) | Who did what, by Jira item, with import commits and files |
+| [Moodle-first MVP plan](docs/MOODLE_FIRST_MVP.md) | Recovery decision, scope and definition of done |
+| [Moodle plugin guide](moodle/README.md) | Plugin packaging, installation and release boundary |
+| [NCTB content audit](docs/NCTB_CONTENT_AUDIT.md) | PDF and source audit, and its limits |
+| [Client requirements, 10 August 2026](docs/CLIENT_REQUIREMENTS_2026-08-10.md) | Requirement traceability |
+| [Media review process](docs/MEDIA_REVIEW.md) | Unverified-video and human-audio process |
+| [Moodle pilot deployment](infra/moodle/README.md) | Alternative Moodle pilot deployment |
 
 <div align="center">
 <br>
-<sub><b>Bangla Adventures</b> · শিখি। জানি। আপন হই। · <a href="#readme-top">Back to top ↑</a></sub>
+<sub><b>Bangla Adventures</b> · শিখি। জানি। আপন হই। · Source: <a href="https://github.com/omargad/Bangla-Adventure">omargad/Bangla-Adventure</a> · <a href="#readme-top">Back to top ↑</a></sub>
 </div>

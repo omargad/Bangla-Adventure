@@ -117,7 +117,7 @@ export default function TopicsHub({ initialTopic }: { initialTopic?: string }) {
             <h1>{active.title[language]}</h1>
             <p>{active.tagline[language]}</p>
             <small>
-              {s(`About ${active.minutes} minutes of reading`, `পড়তে লাগবে প্রায় ${active.minutes} মিনিট`)}
+              {s(`About ${active.minutes} minutes of reading`, `পড়তে লাগবে প্রায় ${active.minutes.toLocaleString("bn-BD")} মিনিট`)}
             </small>
           </header>
 
@@ -317,7 +317,7 @@ export default function TopicsHub({ initialTopic }: { initialTopic?: string }) {
                   <small>
                     {finished !== undefined
                       ? s(`Quiz done — best ${finished}/${topic.quiz.length} ⭐`, `কুইজ শেষ — সেরা ${finished}/${topic.quiz.length} ⭐`)
-                      : s(`${topic.minutes} min read + quiz`, `${topic.minutes} মিনিট পড়া + কুইজ`)}
+                      : s(`${topic.minutes} min read + quiz`, `${topic.minutes.toLocaleString("bn-BD")} মিনিট পড়া + কুইজ`)}
                   </small>
                 </button>
               );
