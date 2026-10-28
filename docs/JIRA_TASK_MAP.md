@@ -11,6 +11,7 @@ Source links are pinned to commit [`b59c62f`](https://github.com/omargad/Bangla-
 - **implemented-area:** corresponding implementation or automated test code exists; this is not independent release acceptance.
 - **documentation-area:** a relevant repository document or project artifact exists, subject to the note for that item.
 - **related-area-only:** adjacent code/docs exist, but do not establish the full Jira task or original deliverable.
+- **implemented-after-import:** the feature was missing from the imported package and was built afterwards; the item's **Import commit** line links the commits.
 - **not-located:** the requested implementation was not found in this snapshot; linked paths are the relevant adjacent areas.
 
 Jira Done is a recorded workflow state. It does not override a missing implementation, incomplete review, historical deployment target or publication restriction. Similar stories remain separate if Jira gives them distinct keys or owners. Each item's **Import commit** line names the commit that added the files attributed to it, authored by the item's Jira assignee; an item without one delivered no file of the final package (see [FILE_OWNERSHIP.md](FILE_OWNERSHIP.md)).
@@ -124,23 +125,23 @@ The following mappings have explicit limits. Their original Jira status and owne
 | [SCRUM-22](#scrum-22) | related-area-only | These files show the selected Next.js/React/Drizzle/SQLite stack and hosting approach. A historical comparison matrix or technology-evaluation report was not located. |
 | [SCRUM-23](#scrum-23) | related-area-only | The project pack contains a historical no-account prototype architecture; current README, schema, auth modules and deployment runbook describe its successor. No separate initial architecture diagram for the present account/database system was located. |
 | [SCRUM-24](#scrum-24) | related-area-only | The original student/teacher user stories and acceptance criteria are stored in Jira. These are related requirement and current workflow counterparts; no standalone initial backlog/story artifact was located in the imported source. |
-| [SCRUM-34](#scrum-34) | not-located | No bulk student CSV parser/import implementation was located in the current custom app. The class-students route allocates an existing username; csvCell in lib/classroom.ts supports grade export, not CSV import. These are the adjacent teacher/roster areas only. |
-| [SCRUM-35](#scrum-35) | not-located | No random temporary-password generator or teacher bulk provisioning flow was located. Administrator account creation accepts a supplied password; password.ts hashes passwords and generates recovery/session material, which is not temporary-password provisioning. These are related account-management areas. |
-| [SCRUM-44](#scrum-44) | not-located | Automatic student creation after a teacher CSV upload was not located. Existing administrator account creation and staff allocation of already registered students are related components, not proof that automatic bulk account creation exists. |
-| [SCRUM-45](#scrum-45) | not-located | A temporary-password generation/provisioning flow was not located. Existing password helpers implement hashing, verification, sessions and recovery codes, while admin creation expects a supplied password. Recovery codes must not be described as temporary passwords. |
-| [SCRUM-51](#scrum-51) | related-area-only | An administrator can enter the shared teacher workspace in isAdmin mode, and its results screen is the closest current implementation. Grade and submission routes still filter classes by teacherId equal to the current actor, so these paths do not establish cross-teacher admin grade management. Preserve Bahaa's task boundary separately from Turki's admin shell. |
+| [SCRUM-34](#scrum-34) | implemented-after-import | Built after the import: lib/student-import.ts parses and validates the teacher's student CSV: quoted fields, header detection, 200-row and 64 KB limits, and line-numbered errors. |
+| [SCRUM-35](#scrum-35) | implemented-after-import | Built after the import: generateTemporaryPassword() in lib/password.ts and importStudents() in lib/enrollments.ts provision the uploaded students with random temporary passwords. |
+| [SCRUM-44](#scrum-44) | implemented-after-import | Built after the import: a valid upload creates every student account, roster row and class enrollment in one transaction; nothing is created when any row is invalid. |
+| [SCRUM-45](#scrum-45) | implemented-after-import | Built after the import: each provisioned student gets a random temporary password, shown to the teacher once and flagged for replacement at first sign-in. |
+| [SCRUM-51](#scrum-51) | implemented-after-import | Built after the import: administrators review every class's results at /admin/results, export them as CSV and reset submissions, with resets audited; teachers stay limited to their own classes. |
 | [SCRUM-54](#scrum-54) | related-area-only | The Jira title is the historical Vercel deployment task. No Vercel deployment configuration was located; the current documented target is Linux/systemd behind Caddy with persistent SQLite/media, plus a Compose alternative. These are the corresponding current deployment areas, not evidence of a Vercel deployment. |
 | [SCRUM-56](#scrum-56) | related-area-only | No standalone student/teacher/admin wireframe artifact was located in the repository. These are the resulting portal interface areas only; their presence must not be presented as the original wireframes or evidence of their author. |
 | [SCRUM-59](#scrum-59) | related-area-only | These documents record or prepare client requirements, meetings, draft communication and acceptance evidence. They are related coordination artifacts; they do not prove that a draft message was sent, a meeting occurred, or a client approved a change. |
 | [SCRUM-60](#scrum-60) | related-area-only | Jira board structure, sprint scope and reporting remain in the external SCRUM project, with Bahaa identified as the sole Jira manager. These repository files provide related ownership/handover/evidence records, not an archived sprint-board history or proof Bahaa authored the imported documentation. |
 | [SCRUM-63](#scrum-63) | related-area-only | Related client-requirements and acceptance/handover records. No dated client-review/sign-off artifact attributable to this Jira task was located in the snapshot; this association does not establish client approval. |
-| [SCRUM-68](#scrum-68) | not-located | Related teacher/student-management surfaces only. The current snapshot allocates an already registered username; no teacher CSV upload form or CSV import parser was located. The visible CSV capability is grades export, not student import. |
-| [SCRUM-69](#scrum-69) | not-located | Student self-registration and administrator single-account creation exist, and staff can allocate existing students. No CSV-driven bulk student-account creation pipeline was located; these are related account primitives rather than proof of this task. |
-| [SCRUM-70](#scrum-70) | not-located | Student creation accepts a supplied password and hashes it. Random values in lib/password.ts are session/recovery material; no generated temporary-student-password provisioning flow or first-login temporary-password flag was located. |
-| [SCRUM-71](#scrum-71) | not-located | No student temporary-password change UI/API was located. The existing account/password route authenticates adults with getSessionAdult and changes adult credentials, so it must not be credited as implementing this student story. |
-| [SCRUM-74](#scrum-74) | related-area-only | Related shared results/grade-export and submission-reset code. Both grades and submissions routes restrict classes to teacherId=user.id; no unrestricted administrator grade-editing workflow was located. Bahaa remains this individual Jira story owner even though the code is shared with teacher results. |
-| [SCRUM-75](#scrum-75) | not-located | No CSV student-upload implementation was located in this snapshot. Current staff allocation uses an exact already registered username, while registration takes individual credentials; grade CSV export is a different function. |
-| [SCRUM-80](#scrum-80) | not-located | No teacher CSV import, bulk provisioning, generated temporary-password or import-error report pipeline was located. Related code supports exact-username class allocation, student self-registration and administrator single-account creation only. |
+| [SCRUM-68](#scrum-68) | implemented-after-import | Built after the import: teachers upload a CSV from the class allocation panel (StudentImport) through POST /api/classes/[id]/students/import. |
+| [SCRUM-69](#scrum-69) | implemented-after-import | Built after the import: a valid upload creates the student accounts automatically, with roster rows and class enrollments, in one transaction. |
+| [SCRUM-70](#scrum-70) | implemented-after-import | Built after the import: each student receives a randomly generated temporary password (generateTemporaryPassword) that must be replaced at first sign-in. |
+| [SCRUM-71](#scrum-71) | implemented-after-import | Built after the import: a student signed in with a temporary password must choose their own at /student/password (POST /api/student/password) before learning pages or student APIs open. |
+| [SCRUM-74](#scrum-74) | implemented-after-import | Built after the import: administrators manage results in every class from /admin/results (review, CSV export, audited reset); teachers stay limited to their own classes. |
+| [SCRUM-75](#scrum-75) | implemented-after-import | Built after the import: built together with SCRUM-80, which Jira marks as the active story for this work: CSV upload, validation errors, automatic accounts and temporary passwords. |
+| [SCRUM-80](#scrum-80) | implemented-after-import | Built after the import: valid CSV upload, line-numbered validation errors, automatic account creation and temporary passwords, covered by unit, integration and browser tests. |
 | [SCRUM-91](#scrum-91) | related-area-only | Current shared UI/styles and responsive regression checks are related implementation areas. No separately attributed before/after review package or independent child-usability approval for this task was located; retain the Jira review assignment without asserting that evidence. |
 
 ## SCRUM-2
@@ -839,9 +840,9 @@ Corresponding repository parts:
 
 Recorded contributor: **Mohammed Alajmi**. GitHub assignee: [@MohammedAlAjmi24](https://github.com/MohammedAlAjmi24).
 
-Mapping: **not-located**. No bulk student CSV parser/import implementation was located in the current custom app. The class-students route allocates an existing username; csvCell in lib/classroom.ts supports grade export, not CSV import. These are the adjacent teacher/roster areas only.
+Mapping: **implemented-after-import**. Built after the import: lib/student-import.ts parses and validates the teacher's student CSV: quoted fields, header detection, 200-row and 64 KB limits, and line-numbered errors.
 
-Import commit: none of its own; each file of the package belongs to exactly one item. The requested implementation was not located in the package (see the mapping note). The adjacent areas listed below were added under [SCRUM-43](#scrum-43) ([`62b28af`](https://github.com/omargad/Bangla-Adventure/commit/62b28af755dea02da7ddda43ca4d61171ad1043d), same contributor), [SCRUM-86](#scrum-86) ([`21f86fa`](https://github.com/omargad/Bangla-Adventure/commit/21f86fa270eb82dcd9b1c6ae5a86c1c12e824d8c), same contributor), [SCRUM-30](#scrum-30) ([`fed115d`](https://github.com/omargad/Bangla-Adventure/commit/fed115d76fd3e207a3dc577e206b477be00c6d15), same contributor).
+Import commit: none; this item's feature was missing from the package and was built after the import by `omargad` on 28 October 2026 in [`4b04977`](https://github.com/omargad/Bangla-Adventure/commit/4b04977b3f0b6606d88690e516af6a758e1ac492).
 
 Corresponding repository parts:
 
@@ -857,9 +858,9 @@ Corresponding repository parts:
 
 Recorded contributor: **Mohammed Alajmi**. GitHub assignee: [@MohammedAlAjmi24](https://github.com/MohammedAlAjmi24).
 
-Mapping: **not-located**. No random temporary-password generator or teacher bulk provisioning flow was located. Administrator account creation accepts a supplied password; password.ts hashes passwords and generates recovery/session material, which is not temporary-password provisioning. These are related account-management areas.
+Mapping: **implemented-after-import**. Built after the import: generateTemporaryPassword() in lib/password.ts and importStudents() in lib/enrollments.ts provision the uploaded students with random temporary passwords.
 
-Import commit: none of its own; each file of the package belongs to exactly one item. The requested implementation was not located in the package (see the mapping note). The adjacent areas listed below were added under [SCRUM-43](#scrum-43) ([`62b28af`](https://github.com/omargad/Bangla-Adventure/commit/62b28af755dea02da7ddda43ca4d61171ad1043d), same contributor), [SCRUM-48](#scrum-48) ([`6c06ffc`](https://github.com/omargad/Bangla-Adventure/commit/6c06ffcd69b0922708477e78ca67dbedaa24f30d), Turki Alahzmi), [SCRUM-53](#scrum-53) ([`ab8d3b2`](https://github.com/omargad/Bangla-Adventure/commit/ab8d3b224bc5a3bf7171d8028fa6c91a26ad39a9), Omar Gad).
+Import commit: none; this item's feature was missing from the package and was built after the import by `omargad` on 28 October 2026 in [`4b04977`](https://github.com/omargad/Bangla-Adventure/commit/4b04977b3f0b6606d88690e516af6a758e1ac492).
 
 Corresponding repository parts:
 
@@ -1050,9 +1051,9 @@ Recorded contributor: **Mohammed Alajmi**. GitHub assignee: [@MohammedAlAjmi24](
 
 Parent: [SCRUM-7](#scrum-7) / [GitHub #14](https://github.com/omargad/Bangla-Adventure/issues/14).
 
-Mapping: **not-located**. Automatic student creation after a teacher CSV upload was not located. Existing administrator account creation and staff allocation of already registered students are related components, not proof that automatic bulk account creation exists.
+Mapping: **implemented-after-import**. Built after the import: a valid upload creates every student account, roster row and class enrollment in one transaction; nothing is created when any row is invalid.
 
-Import commit: none of its own; each file of the package belongs to exactly one item. The requested implementation was not located in the package (see the mapping note). The adjacent areas listed below were added under [SCRUM-86](#scrum-86) ([`21f86fa`](https://github.com/omargad/Bangla-Adventure/commit/21f86fa270eb82dcd9b1c6ae5a86c1c12e824d8c), same contributor), [SCRUM-48](#scrum-48) ([`6c06ffc`](https://github.com/omargad/Bangla-Adventure/commit/6c06ffcd69b0922708477e78ca67dbedaa24f30d), Turki Alahzmi).
+Import commit: none; this item's feature was missing from the package and was built after the import by `omargad` on 28 October 2026 in [`4b04977`](https://github.com/omargad/Bangla-Adventure/commit/4b04977b3f0b6606d88690e516af6a758e1ac492).
 
 Corresponding repository parts:
 
@@ -1071,9 +1072,9 @@ Recorded contributor: **Mohammed Alajmi**. GitHub assignee: [@MohammedAlAjmi24](
 
 Parent: [SCRUM-7](#scrum-7) / [GitHub #14](https://github.com/omargad/Bangla-Adventure/issues/14).
 
-Mapping: **not-located**. A temporary-password generation/provisioning flow was not located. Existing password helpers implement hashing, verification, sessions and recovery codes, while admin creation expects a supplied password. Recovery codes must not be described as temporary passwords.
+Mapping: **implemented-after-import**. Built after the import: each provisioned student gets a random temporary password, shown to the teacher once and flagged for replacement at first sign-in.
 
-Import commit: none of its own; each file of the package belongs to exactly one item. The requested implementation was not located in the package (see the mapping note). The adjacent areas listed below were added under [SCRUM-53](#scrum-53) ([`ab8d3b2`](https://github.com/omargad/Bangla-Adventure/commit/ab8d3b224bc5a3bf7171d8028fa6c91a26ad39a9), Omar Gad), [SCRUM-48](#scrum-48) ([`6c06ffc`](https://github.com/omargad/Bangla-Adventure/commit/6c06ffcd69b0922708477e78ca67dbedaa24f30d), Turki Alahzmi).
+Import commit: none; this item's feature was missing from the package and was built after the import by `omargad` on 28 October 2026 in [`4b04977`](https://github.com/omargad/Bangla-Adventure/commit/4b04977b3f0b6606d88690e516af6a758e1ac492).
 
 Corresponding repository parts:
 
@@ -1201,9 +1202,9 @@ Recorded contributor: **BAHAA GHAZI**. GitHub assignee: [@bahaa11-prog](https://
 
 Parent: [SCRUM-9](#scrum-9) / [GitHub #16](https://github.com/omargad/Bangla-Adventure/issues/16).
 
-Mapping: **related-area-only**. An administrator can enter the shared teacher workspace in isAdmin mode, and its results screen is the closest current implementation. Grade and submission routes still filter classes by teacherId equal to the current actor, so these paths do not establish cross-teacher admin grade management. Preserve Bahaa's task boundary separately from Turki's admin shell.
+Mapping: **implemented-after-import**. Built after the import: administrators review every class's results at /admin/results, export them as CSV and reset submissions, with resets audited; teachers stay limited to their own classes.
 
-Import commit: none of its own; each file of the package belongs to exactly one item. Its related areas were added under [SCRUM-43](#scrum-43) ([`62b28af`](https://github.com/omargad/Bangla-Adventure/commit/62b28af755dea02da7ddda43ca4d61171ad1043d), Mohammed Alajmi), [SCRUM-46](#scrum-46) ([`b0e0fbb`](https://github.com/omargad/Bangla-Adventure/commit/b0e0fbb45edc2545fda16988a925ab660a43c8b2), Mohammed Alajmi).
+Import commit: none; this item's feature was missing from the package and was built after the import by `omargad` on 28 October 2026 in [`4b04977`](https://github.com/omargad/Bangla-Adventure/commit/4b04977b3f0b6606d88690e516af6a758e1ac492).
 
 Corresponding repository parts:
 
@@ -1572,9 +1573,9 @@ Recorded contributor: **Mohammed Alajmi**. GitHub assignee: [@MohammedAlAjmi24](
 
 Parent: [SCRUM-7](#scrum-7) / [GitHub #14](https://github.com/omargad/Bangla-Adventure/issues/14).
 
-Mapping: **not-located**. Related teacher/student-management surfaces only. The current snapshot allocates an already registered username; no teacher CSV upload form or CSV import parser was located. The visible CSV capability is grades export, not student import.
+Mapping: **implemented-after-import**. Built after the import: teachers upload a CSV from the class allocation panel (StudentImport) through POST /api/classes/[id]/students/import.
 
-Import commit: none of its own; each file of the package belongs to exactly one item. The requested implementation was not located in the package (see the mapping note). The adjacent areas listed below were added under [SCRUM-43](#scrum-43) ([`62b28af`](https://github.com/omargad/Bangla-Adventure/commit/62b28af755dea02da7ddda43ca4d61171ad1043d), same contributor), [SCRUM-86](#scrum-86) ([`21f86fa`](https://github.com/omargad/Bangla-Adventure/commit/21f86fa270eb82dcd9b1c6ae5a86c1c12e824d8c), same contributor).
+Import commit: none; this item's feature was missing from the package and was built after the import by `omargad` on 28 October 2026 in [`4b04977`](https://github.com/omargad/Bangla-Adventure/commit/4b04977b3f0b6606d88690e516af6a758e1ac492).
 
 Corresponding repository parts:
 
@@ -1592,9 +1593,9 @@ Recorded contributor: **Mohammed Alajmi**. GitHub assignee: [@MohammedAlAjmi24](
 
 Parent: [SCRUM-7](#scrum-7) / [GitHub #14](https://github.com/omargad/Bangla-Adventure/issues/14).
 
-Mapping: **not-located**. Student self-registration and administrator single-account creation exist, and staff can allocate existing students. No CSV-driven bulk student-account creation pipeline was located; these are related account primitives rather than proof of this task.
+Mapping: **implemented-after-import**. Built after the import: a valid upload creates the student accounts automatically, with roster rows and class enrollments, in one transaction.
 
-Import commit: none of its own; each file of the package belongs to exactly one item. The requested implementation was not located in the package (see the mapping note). The adjacent areas listed below were added under [SCRUM-86](#scrum-86) ([`21f86fa`](https://github.com/omargad/Bangla-Adventure/commit/21f86fa270eb82dcd9b1c6ae5a86c1c12e824d8c), same contributor), [SCRUM-38](#scrum-38) ([`ef89cb8`](https://github.com/omargad/Bangla-Adventure/commit/ef89cb82b123448ea68b59ebb374fa7afc7f9cf4), BAHAA GHAZI), [SCRUM-48](#scrum-48) ([`6c06ffc`](https://github.com/omargad/Bangla-Adventure/commit/6c06ffcd69b0922708477e78ca67dbedaa24f30d), Turki Alahzmi).
+Import commit: none; this item's feature was missing from the package and was built after the import by `omargad` on 28 October 2026 in [`4b04977`](https://github.com/omargad/Bangla-Adventure/commit/4b04977b3f0b6606d88690e516af6a758e1ac492).
 
 Corresponding repository parts:
 
@@ -1613,9 +1614,9 @@ Recorded contributor: **Mohammed Alajmi**. GitHub assignee: [@MohammedAlAjmi24](
 
 Parent: [SCRUM-7](#scrum-7) / [GitHub #14](https://github.com/omargad/Bangla-Adventure/issues/14).
 
-Mapping: **not-located**. Student creation accepts a supplied password and hashes it. Random values in lib/password.ts are session/recovery material; no generated temporary-student-password provisioning flow or first-login temporary-password flag was located.
+Mapping: **implemented-after-import**. Built after the import: each student receives a randomly generated temporary password (generateTemporaryPassword) that must be replaced at first sign-in.
 
-Import commit: none of its own; each file of the package belongs to exactly one item. The requested implementation was not located in the package (see the mapping note). The adjacent areas listed below were added under [SCRUM-38](#scrum-38) ([`ef89cb8`](https://github.com/omargad/Bangla-Adventure/commit/ef89cb82b123448ea68b59ebb374fa7afc7f9cf4), BAHAA GHAZI), [SCRUM-48](#scrum-48) ([`6c06ffc`](https://github.com/omargad/Bangla-Adventure/commit/6c06ffcd69b0922708477e78ca67dbedaa24f30d), Turki Alahzmi), [SCRUM-53](#scrum-53) ([`ab8d3b2`](https://github.com/omargad/Bangla-Adventure/commit/ab8d3b224bc5a3bf7171d8028fa6c91a26ad39a9), Omar Gad), [SCRUM-52](#scrum-52) ([`6cc32cd`](https://github.com/omargad/Bangla-Adventure/commit/6cc32cdc13357d27ca4c4a22df618ff8940c3d7c), Omar Gad).
+Import commit: none; this item's feature was missing from the package and was built after the import by `omargad` on 28 October 2026 in [`4b04977`](https://github.com/omargad/Bangla-Adventure/commit/4b04977b3f0b6606d88690e516af6a758e1ac492).
 
 Corresponding repository parts:
 
@@ -1634,9 +1635,9 @@ Recorded contributor: **Mohammed Ali A Alqahtani**. GitHub assignee: [@MAQ022](h
 
 Parent: [SCRUM-6](#scrum-6) / [GitHub #13](https://github.com/omargad/Bangla-Adventure/issues/13).
 
-Mapping: **not-located**. No student temporary-password change UI/API was located. The existing account/password route authenticates adults with getSessionAdult and changes adult credentials, so it must not be credited as implementing this student story.
+Mapping: **implemented-after-import**. Built after the import: a student signed in with a temporary password must choose their own at /student/password (POST /api/student/password) before learning pages or student APIs open.
 
-Import commit: none of its own; each file of the package belongs to exactly one item. The requested implementation was not located in the package (see the mapping note). The adjacent areas listed below were added under [SCRUM-84](#scrum-84) ([`b1ce40c`](https://github.com/omargad/Bangla-Adventure/commit/b1ce40caebe7c5d0d6a066de46cf9f5717ab4e84), same contributor), [SCRUM-38](#scrum-38) ([`ef89cb8`](https://github.com/omargad/Bangla-Adventure/commit/ef89cb82b123448ea68b59ebb374fa7afc7f9cf4), BAHAA GHAZI), [SCRUM-53](#scrum-53) ([`ab8d3b2`](https://github.com/omargad/Bangla-Adventure/commit/ab8d3b224bc5a3bf7171d8028fa6c91a26ad39a9), Omar Gad).
+Import commit: none; this item's feature was missing from the package and was built after the import by `omargad` on 28 October 2026 in [`4b04977`](https://github.com/omargad/Bangla-Adventure/commit/4b04977b3f0b6606d88690e516af6a758e1ac492).
 
 Corresponding repository parts:
 
@@ -1699,9 +1700,9 @@ Recorded contributor: **BAHAA GHAZI**. GitHub assignee: [@bahaa11-prog](https://
 
 Parent: [SCRUM-7](#scrum-7) / [GitHub #14](https://github.com/omargad/Bangla-Adventure/issues/14).
 
-Mapping: **related-area-only**. Related shared results/grade-export and submission-reset code. Both grades and submissions routes restrict classes to teacherId=user.id; no unrestricted administrator grade-editing workflow was located. Bahaa remains this individual Jira story owner even though the code is shared with teacher results.
+Mapping: **implemented-after-import**. Built after the import: administrators manage results in every class from /admin/results (review, CSV export, audited reset); teachers stay limited to their own classes.
 
-Import commit: none of its own; each file of the package belongs to exactly one item. Its related areas were added under [SCRUM-43](#scrum-43) ([`62b28af`](https://github.com/omargad/Bangla-Adventure/commit/62b28af755dea02da7ddda43ca4d61171ad1043d), Mohammed Alajmi), [SCRUM-46](#scrum-46) ([`b0e0fbb`](https://github.com/omargad/Bangla-Adventure/commit/b0e0fbb45edc2545fda16988a925ab660a43c8b2), Mohammed Alajmi), [SCRUM-53](#scrum-53) ([`ab8d3b2`](https://github.com/omargad/Bangla-Adventure/commit/ab8d3b224bc5a3bf7171d8028fa6c91a26ad39a9), Omar Gad).
+Import commit: none; this item's feature was missing from the package and was built after the import by `omargad` on 28 October 2026 in [`4b04977`](https://github.com/omargad/Bangla-Adventure/commit/4b04977b3f0b6606d88690e516af6a758e1ac492).
 
 Corresponding repository parts:
 
@@ -1720,9 +1721,9 @@ Recorded contributor: **Mohammed Alajmi**. GitHub assignee: [@MohammedAlAjmi24](
 
 Parent: [SCRUM-7](#scrum-7) / [GitHub #14](https://github.com/omargad/Bangla-Adventure/issues/14).
 
-Mapping: **not-located**. No CSV student-upload implementation was located in this snapshot. Current staff allocation uses an exact already registered username, while registration takes individual credentials; grade CSV export is a different function.
+Mapping: **implemented-after-import**. Built after the import: built together with SCRUM-80, which Jira marks as the active story for this work: CSV upload, validation errors, automatic accounts and temporary passwords.
 
-Import commit: none of its own; each file of the package belongs to exactly one item. The requested implementation was not located in the package (see the mapping note). The adjacent areas listed below were added under [SCRUM-43](#scrum-43) ([`62b28af`](https://github.com/omargad/Bangla-Adventure/commit/62b28af755dea02da7ddda43ca4d61171ad1043d), same contributor), [SCRUM-86](#scrum-86) ([`21f86fa`](https://github.com/omargad/Bangla-Adventure/commit/21f86fa270eb82dcd9b1c6ae5a86c1c12e824d8c), same contributor), [SCRUM-38](#scrum-38) ([`ef89cb8`](https://github.com/omargad/Bangla-Adventure/commit/ef89cb82b123448ea68b59ebb374fa7afc7f9cf4), BAHAA GHAZI).
+Import commit: none; this item's feature was missing from the package and was built after the import by `omargad` on 28 October 2026 in [`4b04977`](https://github.com/omargad/Bangla-Adventure/commit/4b04977b3f0b6606d88690e516af6a758e1ac492).
 
 Corresponding repository parts:
 
@@ -1832,9 +1833,9 @@ Recorded contributor: **Mohammed Alajmi**. GitHub assignee: [@MohammedAlAjmi24](
 
 Parent: [SCRUM-7](#scrum-7) / [GitHub #14](https://github.com/omargad/Bangla-Adventure/issues/14).
 
-Mapping: **not-located**. No teacher CSV import, bulk provisioning, generated temporary-password or import-error report pipeline was located. Related code supports exact-username class allocation, student self-registration and administrator single-account creation only.
+Mapping: **implemented-after-import**. Built after the import: valid CSV upload, line-numbered validation errors, automatic account creation and temporary passwords, covered by unit, integration and browser tests.
 
-Import commit: none of its own; each file of the package belongs to exactly one item. The requested implementation was not located in the package (see the mapping note). The adjacent areas listed below were added under [SCRUM-43](#scrum-43) ([`62b28af`](https://github.com/omargad/Bangla-Adventure/commit/62b28af755dea02da7ddda43ca4d61171ad1043d), same contributor), [SCRUM-86](#scrum-86) ([`21f86fa`](https://github.com/omargad/Bangla-Adventure/commit/21f86fa270eb82dcd9b1c6ae5a86c1c12e824d8c), same contributor), [SCRUM-38](#scrum-38) ([`ef89cb8`](https://github.com/omargad/Bangla-Adventure/commit/ef89cb82b123448ea68b59ebb374fa7afc7f9cf4), BAHAA GHAZI), [SCRUM-48](#scrum-48) ([`6c06ffc`](https://github.com/omargad/Bangla-Adventure/commit/6c06ffcd69b0922708477e78ca67dbedaa24f30d), Turki Alahzmi).
+Import commit: none; this item's feature was missing from the package and was built after the import by `omargad` on 28 October 2026 in [`4b04977`](https://github.com/omargad/Bangla-Adventure/commit/4b04977b3f0b6606d88690e516af6a758e1ac492).
 
 Corresponding repository parts:
 

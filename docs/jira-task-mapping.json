@@ -1671,8 +1671,8 @@
       "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/41",
       "githubState": "closed",
       "jiraRemoteLinkCreated": true,
-      "coverage": "not-located",
-      "mappingNote": "No bulk student CSV parser/import implementation was located in the current custom app. The class-students route allocates an existing username; csvCell in lib/classroom.ts supports grade export, not CSV import. These are the adjacent teacher/roster areas only.",
+      "coverage": "implemented-after-import",
+      "mappingNote": "Built after the import: lib/student-import.ts parses and validates the teacher's student CSV: quoted fields, header detection, 200-row and 64 KB limits, and line-numbered errors.",
       "parts": [
         {
           "path": "app/teach/TeacherDashboard.tsx",
@@ -1690,7 +1690,14 @@
           "kind": "file"
         }
       ],
-      "importCommit": null
+      "importCommit": null,
+      "postImportCommits": [
+        {
+          "sha": "4b04977b3f0b6606d88690e516af6a758e1ac492",
+          "url": "https://github.com/omargad/Bangla-Adventure/commit/4b04977b3f0b6606d88690e516af6a758e1ac492",
+          "author": "omargad"
+        }
+      ]
     },
     {
       "jiraKey": "SCRUM-35",
@@ -1706,8 +1713,8 @@
       "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/42",
       "githubState": "closed",
       "jiraRemoteLinkCreated": true,
-      "coverage": "not-located",
-      "mappingNote": "No random temporary-password generator or teacher bulk provisioning flow was located. Administrator account creation accepts a supplied password; password.ts hashes passwords and generates recovery/session material, which is not temporary-password provisioning. These are related account-management areas.",
+      "coverage": "implemented-after-import",
+      "mappingNote": "Built after the import: generateTemporaryPassword() in lib/password.ts and importStudents() in lib/enrollments.ts provision the uploaded students with random temporary passwords.",
       "parts": [
         {
           "path": "lib/user-management.ts",
@@ -1730,7 +1737,14 @@
           "kind": "file"
         }
       ],
-      "importCommit": null
+      "importCommit": null,
+      "postImportCommits": [
+        {
+          "sha": "4b04977b3f0b6606d88690e516af6a758e1ac492",
+          "url": "https://github.com/omargad/Bangla-Adventure/commit/4b04977b3f0b6606d88690e516af6a758e1ac492",
+          "author": "omargad"
+        }
+      ]
     },
     {
       "jiraKey": "SCRUM-36",
@@ -2423,8 +2437,8 @@
       "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/51",
       "githubState": "closed",
       "jiraRemoteLinkCreated": true,
-      "coverage": "not-located",
-      "mappingNote": "Automatic student creation after a teacher CSV upload was not located. Existing administrator account creation and staff allocation of already registered students are related components, not proof that automatic bulk account creation exists.",
+      "coverage": "implemented-after-import",
+      "mappingNote": "Built after the import: a valid upload creates every student account, roster row and class enrollment in one transaction; nothing is created when any row is invalid.",
       "parts": [
         {
           "path": "lib/user-management.ts",
@@ -2447,7 +2461,14 @@
           "kind": "file"
         }
       ],
-      "importCommit": null
+      "importCommit": null,
+      "postImportCommits": [
+        {
+          "sha": "4b04977b3f0b6606d88690e516af6a758e1ac492",
+          "url": "https://github.com/omargad/Bangla-Adventure/commit/4b04977b3f0b6606d88690e516af6a758e1ac492",
+          "author": "omargad"
+        }
+      ]
     },
     {
       "jiraKey": "SCRUM-45",
@@ -2463,8 +2484,8 @@
       "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/52",
       "githubState": "closed",
       "jiraRemoteLinkCreated": true,
-      "coverage": "not-located",
-      "mappingNote": "A temporary-password generation/provisioning flow was not located. Existing password helpers implement hashing, verification, sessions and recovery codes, while admin creation expects a supplied password. Recovery codes must not be described as temporary passwords.",
+      "coverage": "implemented-after-import",
+      "mappingNote": "Built after the import: each provisioned student gets a random temporary password, shown to the teacher once and flagged for replacement at first sign-in.",
       "parts": [
         {
           "path": "lib/password.ts",
@@ -2482,7 +2503,14 @@
           "kind": "file"
         }
       ],
-      "importCommit": null
+      "importCommit": null,
+      "postImportCommits": [
+        {
+          "sha": "4b04977b3f0b6606d88690e516af6a758e1ac492",
+          "url": "https://github.com/omargad/Bangla-Adventure/commit/4b04977b3f0b6606d88690e516af6a758e1ac492",
+          "author": "omargad"
+        }
+      ]
     },
     {
       "jiraKey": "SCRUM-46",
@@ -2784,8 +2812,8 @@
       "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/58",
       "githubState": "closed",
       "jiraRemoteLinkCreated": true,
-      "coverage": "related-area-only",
-      "mappingNote": "An administrator can enter the shared teacher workspace in isAdmin mode, and its results screen is the closest current implementation. Grade and submission routes still filter classes by teacherId equal to the current actor, so these paths do not establish cross-teacher admin grade management. Preserve Bahaa's task boundary separately from Turki's admin shell.",
+      "coverage": "implemented-after-import",
+      "mappingNote": "Built after the import: administrators review every class's results at /admin/results, export them as CSV and reset submissions, with resets audited; teachers stay limited to their own classes.",
       "parts": [
         {
           "path": "app/teach/page.tsx",
@@ -2808,7 +2836,14 @@
           "kind": "file"
         }
       ],
-      "importCommit": null
+      "importCommit": null,
+      "postImportCommits": [
+        {
+          "sha": "4b04977b3f0b6606d88690e516af6a758e1ac492",
+          "url": "https://github.com/omargad/Bangla-Adventure/commit/4b04977b3f0b6606d88690e516af6a758e1ac492",
+          "author": "omargad"
+        }
+      ]
     },
     {
       "jiraKey": "SCRUM-52",
@@ -3676,8 +3711,8 @@
       "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/75",
       "githubState": "closed",
       "jiraRemoteLinkCreated": true,
-      "coverage": "not-located",
-      "mappingNote": "Related teacher/student-management surfaces only. The current snapshot allocates an already registered username; no teacher CSV upload form or CSV import parser was located. The visible CSV capability is grades export, not student import.",
+      "coverage": "implemented-after-import",
+      "mappingNote": "Built after the import: teachers upload a CSV from the class allocation panel (StudentImport) through POST /api/classes/[id]/students/import.",
       "parts": [
         {
           "path": "app/teach/TeacherDashboard.tsx",
@@ -3695,7 +3730,14 @@
           "kind": "file"
         }
       ],
-      "importCommit": null
+      "importCommit": null,
+      "postImportCommits": [
+        {
+          "sha": "4b04977b3f0b6606d88690e516af6a758e1ac492",
+          "url": "https://github.com/omargad/Bangla-Adventure/commit/4b04977b3f0b6606d88690e516af6a758e1ac492",
+          "author": "omargad"
+        }
+      ]
     },
     {
       "jiraKey": "SCRUM-69",
@@ -3711,8 +3753,8 @@
       "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/76",
       "githubState": "closed",
       "jiraRemoteLinkCreated": true,
-      "coverage": "not-located",
-      "mappingNote": "Student self-registration and administrator single-account creation exist, and staff can allocate existing students. No CSV-driven bulk student-account creation pipeline was located; these are related account primitives rather than proof of this task.",
+      "coverage": "implemented-after-import",
+      "mappingNote": "Built after the import: a valid upload creates the student accounts automatically, with roster rows and class enrollments, in one transaction.",
       "parts": [
         {
           "path": "app/api/student/sign-up/route.ts",
@@ -3735,7 +3777,14 @@
           "kind": "file"
         }
       ],
-      "importCommit": null
+      "importCommit": null,
+      "postImportCommits": [
+        {
+          "sha": "4b04977b3f0b6606d88690e516af6a758e1ac492",
+          "url": "https://github.com/omargad/Bangla-Adventure/commit/4b04977b3f0b6606d88690e516af6a758e1ac492",
+          "author": "omargad"
+        }
+      ]
     },
     {
       "jiraKey": "SCRUM-70",
@@ -3751,8 +3800,8 @@
       "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/77",
       "githubState": "closed",
       "jiraRemoteLinkCreated": true,
-      "coverage": "not-located",
-      "mappingNote": "Student creation accepts a supplied password and hashes it. Random values in lib/password.ts are session/recovery material; no generated temporary-student-password provisioning flow or first-login temporary-password flag was located.",
+      "coverage": "implemented-after-import",
+      "mappingNote": "Built after the import: each student receives a randomly generated temporary password (generateTemporaryPassword) that must be replaced at first sign-in.",
       "parts": [
         {
           "path": "lib/student-auth.ts",
@@ -3775,7 +3824,14 @@
           "kind": "file"
         }
       ],
-      "importCommit": null
+      "importCommit": null,
+      "postImportCommits": [
+        {
+          "sha": "4b04977b3f0b6606d88690e516af6a758e1ac492",
+          "url": "https://github.com/omargad/Bangla-Adventure/commit/4b04977b3f0b6606d88690e516af6a758e1ac492",
+          "author": "omargad"
+        }
+      ]
     },
     {
       "jiraKey": "SCRUM-71",
@@ -3791,8 +3847,8 @@
       "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/78",
       "githubState": "closed",
       "jiraRemoteLinkCreated": true,
-      "coverage": "not-located",
-      "mappingNote": "No student temporary-password change UI/API was located. The existing account/password route authenticates adults with getSessionAdult and changes adult credentials, so it must not be credited as implementing this student story.",
+      "coverage": "implemented-after-import",
+      "mappingNote": "Built after the import: a student signed in with a temporary password must choose their own at /student/password (POST /api/student/password) before learning pages or student APIs open.",
       "parts": [
         {
           "path": "app/student/StudentPortal.tsx",
@@ -3810,7 +3866,14 @@
           "kind": "file"
         }
       ],
-      "importCommit": null
+      "importCommit": null,
+      "postImportCommits": [
+        {
+          "sha": "4b04977b3f0b6606d88690e516af6a758e1ac492",
+          "url": "https://github.com/omargad/Bangla-Adventure/commit/4b04977b3f0b6606d88690e516af6a758e1ac492",
+          "author": "omargad"
+        }
+      ]
     },
     {
       "jiraKey": "SCRUM-72",
@@ -3921,8 +3984,8 @@
       "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/81",
       "githubState": "closed",
       "jiraRemoteLinkCreated": true,
-      "coverage": "related-area-only",
-      "mappingNote": "Related shared results/grade-export and submission-reset code. Both grades and submissions routes restrict classes to teacherId=user.id; no unrestricted administrator grade-editing workflow was located. Bahaa remains this individual Jira story owner even though the code is shared with teacher results.",
+      "coverage": "implemented-after-import",
+      "mappingNote": "Built after the import: administrators manage results in every class from /admin/results (review, CSV export, audited reset); teachers stay limited to their own classes.",
       "parts": [
         {
           "path": "app/teach/TeacherDashboard.tsx",
@@ -3945,7 +4008,14 @@
           "kind": "file"
         }
       ],
-      "importCommit": null
+      "importCommit": null,
+      "postImportCommits": [
+        {
+          "sha": "4b04977b3f0b6606d88690e516af6a758e1ac492",
+          "url": "https://github.com/omargad/Bangla-Adventure/commit/4b04977b3f0b6606d88690e516af6a758e1ac492",
+          "author": "omargad"
+        }
+      ]
     },
     {
       "jiraKey": "SCRUM-75",
@@ -3961,8 +4031,8 @@
       "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/82",
       "githubState": "closed",
       "jiraRemoteLinkCreated": true,
-      "coverage": "not-located",
-      "mappingNote": "No CSV student-upload implementation was located in this snapshot. Current staff allocation uses an exact already registered username, while registration takes individual credentials; grade CSV export is a different function.",
+      "coverage": "implemented-after-import",
+      "mappingNote": "Built after the import: built together with SCRUM-80, which Jira marks as the active story for this work: CSV upload, validation errors, automatic accounts and temporary passwords.",
       "parts": [
         {
           "path": "app/teach/TeacherDashboard.tsx",
@@ -3985,7 +4055,14 @@
           "kind": "file"
         }
       ],
-      "importCommit": null
+      "importCommit": null,
+      "postImportCommits": [
+        {
+          "sha": "4b04977b3f0b6606d88690e516af6a758e1ac492",
+          "url": "https://github.com/omargad/Bangla-Adventure/commit/4b04977b3f0b6606d88690e516af6a758e1ac492",
+          "author": "omargad"
+        }
+      ]
     },
     {
       "jiraKey": "SCRUM-76",
@@ -4186,8 +4263,8 @@
       "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/87",
       "githubState": "closed",
       "jiraRemoteLinkCreated": true,
-      "coverage": "not-located",
-      "mappingNote": "No teacher CSV import, bulk provisioning, generated temporary-password or import-error report pipeline was located. Related code supports exact-username class allocation, student self-registration and administrator single-account creation only.",
+      "coverage": "implemented-after-import",
+      "mappingNote": "Built after the import: valid CSV upload, line-numbered validation errors, automatic account creation and temporary passwords, covered by unit, integration and browser tests.",
       "parts": [
         {
           "path": "app/teach/TeacherDashboard.tsx",
@@ -4215,7 +4292,14 @@
           "kind": "file"
         }
       ],
-      "importCommit": null
+      "importCommit": null,
+      "postImportCommits": [
+        {
+          "sha": "4b04977b3f0b6606d88690e516af6a758e1ac492",
+          "url": "https://github.com/omargad/Bangla-Adventure/commit/4b04977b3f0b6606d88690e516af6a758e1ac492",
+          "author": "omargad"
+        }
+      ]
     },
     {
       "jiraKey": "SCRUM-81",
