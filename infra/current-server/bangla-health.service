@@ -1,0 +1,12 @@
+[Unit]
+Description=Check Bangla Adventures readiness
+After=bangla-adventures.service
+OnFailure=bangla-recover.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/curl --fail --silent --show-error --max-time 15 --output /dev/null http://127.0.0.1:3300/api/health
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
