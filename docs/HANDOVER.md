@@ -1,61 +1,69 @@
 # Bangla Adventures — source handover
 
-This package contains the current application source, including the latest
-administrator/session fixes, student announcements and direct Learning topics
-sidebar navigation. It includes uncommitted working-tree changes; it is not an
-export of the older initial Git commit.
+The canonical source is
+[`omargad/Bangla-Adventure`](https://github.com/omargad/Bangla-Adventure).
+Hand over a specific commit or release with its verification evidence.
+[`CONTRIBUTIONS.md`](../CONTRIBUTIONS.md) records Jira responsibility areas; it does
+not reconstruct authorship for the original source snapshot.
 
 ## Open and run
 
-Use Node.js 22 and npm. From the extracted project folder:
+Use Node.js 22 and npm, from a checkout or extracted source release:
 
 ```sh
 npm ci
 npm run dev
 ```
 
-Open `http://localhost:3000`. Configuration examples are in `.env.example`.
-Keep `PLATFORM_MODE=legacy` for the deployed custom application. The Moodle
-directories are the separate alternative pilot, not a requirement for running
-the custom application.
+Open `http://localhost:3000`. `.env.example` documents local defaults and production
+settings. Keep `PLATFORM_MODE=legacy` for the custom app. Moodle is an alternative
+pilot, not a requirement for the student/teacher/admin/family portals.
 
-For a production build:
+SQLite and its tables are created automatically on first use. A fresh installation
+starts empty. Real accounts, sessions, student records, uploaded media, passwords
+and recovery codes are deliberately absent from GitHub. Continuing an existing
+site requires a verified private database/media transfer, not test fixtures.
+
+## Deployment and ownership
+
+Follow [`DEPLOYMENT.md`](DEPLOYMENT.md) for native service or container setup.
+Production needs HTTPS, the actual `PUBLIC_ORIGIN`, persistent `DATABASE_PATH` and
+an absolute persistent `MEDIA_ROOT`. Run one instance. Uploading source or opening
+a Codespace does not configure production hosting or restore its data.
+
+`infra/custom-app/` contains new-host templates for operator review.
+`infra/current-server/` records the existing host's paths, build directories and
+site blocks. Do not copy historical paths to another host or replace unrelated
+proxy sites. Private keys and unrelated configurations are not included.
+
+Agree who owns hosting, domain/TLS, support, backup storage and recovery keys. The
+existing host serves other projects: provide application-scoped access or use
+client-owned hosting instead of transferring shared-server root access.
+
+## Administrator and role handover
+
+1. Confirm the client's account identity. Have the intended owner register an
+   adult account through HTTPS and privately save the recovery codes.
+2. On the intended deployment, run `npm run admin:grant -- YOUR_REGISTERED_EMAIL`
+   using the **same `DATABASE_PATH`** as the app. Native/Compose commands are in
+   [`DEPLOYMENT.md`](DEPLOYMENT.md#first-administrator-and-recovery).
+3. Sign in again at `/grown-ups?returnTo=/admin&switchAccount=1`. Promotion revokes
+   previous sessions. There are no default admin credentials or public admin signup.
+
+Teachers require administrator approval. Staff allocate students without class
+codes; admins link parents to exact registered student accounts for read-only
+access. Password recovery uses saved recovery codes, not email-reset messages.
+Demonstrate the flow and transfer recovery material privately.
+
+## Verification evidence
+
+See [VERIFICATION.md](VERIFICATION.md) for the recorded local and GitHub Actions
+results. Repeat the relevant checks when implementation or deployment changes.
+
+From a clean checkout without production credentials or data configured:
 
 ```sh
-npm run build
-npm start
-```
-
-Production authentication requires HTTPS. Put the application behind an HTTPS
-reverse proxy and configure `PUBLIC_ORIGIN` to its public address. Use persistent
-locations for `DATABASE_PATH` and `MEDIA_ROOT`; do not replace them during updates.
-If setting `MEDIA_ROOT`, use an absolute path.
-
-The runtime schema is created/migrated automatically. A fresh installation starts
-with an empty database. Real accounts, sessions, learner records, uploaded media,
-passwords and recovery codes are deliberately not included in this source package.
-
-## Set up the client's administrator
-
-1. Have the confirmed client owner register an adult account and privately save
-   the recovery codes displayed at registration.
-2. On the intended deployment, using the same `DATABASE_PATH` as the application:
-
-   ```sh
-   npm run admin:grant -- YOUR_REGISTERED_EMAIL
-   ```
-
-3. Sign in again and open `/admin`. There are no default administrator credentials,
-   and ordinary registration never grants administrator access.
-
-Portals: `/student`, `/teach`, `/admin`, `/family`.
-Teachers require administrator approval. Teachers/admins allocate students to
-classes; students do not enter class codes. Parent access requires an administrator
-to link the registered parent and student accounts.
-
-## Verify
-
-```sh
+npm ci
 npm run build
 npm run typecheck
 npm run lint
@@ -65,41 +73,36 @@ npm run test:e2e
 NEXT_DIST_DIR=.next-test npm run test:integration
 ```
 
-Browser and API tests use temporary databases. Do not point tests at production
-data. The browser test runner builds `.next-test`; the final command reuses that
-build for API tests.
+Browser/API tests use temporary databases. Do not run type checking while builds
+replace generated types. Record the commit, runtime, commands, results and any
+unavailable checks; a workflow definition is not a passing run. Container testing
+is a separate CI smoke check; record its actual result before Docker acceptance.
 
-The supplied Dockerfile is another deployment option. Its container build was
-not executed as part of this source-package verification.
+Use [`ACCEPTANCE.md`](ACCEPTANCE.md) for role journeys, educational/media reviews,
+accessibility, client sign-off and responsible owners. A working website or GitHub
+upload is not evidence of human acceptance.
 
-## Upload to GitHub
+## Backups and release contents
 
-Extract the ZIP, then upload or commit the **contents of the project folder**,
-including `.github`, `.gitignore`, `.dockerignore` and `.env.example`.
-Do not upload only the ZIP as the repository contents.
+Use [`BACKUP_RESTORE.md`](BACKUP_RESTORE.md) to create a verified database/media
+backup and restore it into a new isolated directory. Confirm the off-server
+destination, encryption/key custody, schedule, retention, backup-age alerts and an
+actual recovery drill. Templates and tests do not enable a production backup job.
 
-`node_modules`, `.next*`, test outputs, local databases and real `.env` files are
-excluded. `npm ci` and the build recreate dependencies and generated output.
-Never commit production data, private certificates, passwords or recovery codes.
-The package has no `.git` directory; initialise the client's repository and create
-a release commit/tag after uploading.
+Keep state outside releases and preserve it across upgrades. Retain the prior
+release and take a verified pre-upgrade backup; review schema compatibility before
+rollback. Never overwrite live state with fixtures or unverified archives.
 
-The downloadable package also contains `infra/current-server/` reference copies
-of the Bangla service/timer configuration and certificate-deployment hook, plus
-only the Bangla Caddy site blocks. They describe the existing host, with its paths
-and build-directory names. Adapt them to a new host and provision its own TLS
-certificates; private keys and unrelated sites are not included. This is reference
-configuration, not an automated server installation.
+The repository includes `.github`, `.gitignore`, `.dockerignore`, `.env.example`,
+schema/bootstrap code and operating templates. Dependencies, generated builds,
+test output, databases, media uploads, backup archives and real environment files
+stay out of source control. `npm ci` and the build recreate their outputs.
 
-## Client acceptance and operations
+Provide the client with the release/commit URL, lockfile, setup/recovery runbooks,
+role demonstrations, test evidence, acceptance record and support contact. Source
+archives may omit `.git`; the repository URL and commit identify the release.
 
-Give the client the live link, their administrator access, role-specific usage
-instructions, a test/demo record, this source release and an agreed support owner.
-Confirm hosting responsibility, off-server backups and a tested restore procedure.
-The existing host serves other projects: use application-scoped access or
-client-owned hosting rather than handing over shared-server root access.
-
-Software verification does not approve the educational content. Draft review
-notices and publication gates remain in place. Curriculum/language accuracy,
-media rights, accessibility and privacy/safeguarding reviews require their named
-human owners before being recorded as accepted.
+Educational content retains its draft/review notices. Curriculum/language accuracy,
+age suitability, media rights, accessibility and privacy/safeguarding decisions
+require their responsible human reviewers. Record evidence and remaining
+restrictions instead of marking unfinished work approved.

@@ -4,6 +4,10 @@ A bilingual platform for Bangladeshi-heritage children outside Bangladesh,
 focused on **culture, history and literature**. This is an ICT Project B
 capstone with clients Dr Tanjila Kanij and Faysal Alam.
 
+Source: [`omargad/Bangla-Adventure`](https://github.com/omargad/Bangla-Adventure).
+Use [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) for the current custom application
+and [`docs/HANDOVER.md`](docs/HANDOVER.md) for client setup and release evidence.
+
 ## Current product decision
 
 The running deployment uses the **custom English–Bangla application**, following
@@ -28,13 +32,13 @@ See [`docs/MOODLE_FIRST_MVP.md`](docs/MOODLE_FIRST_MVP.md) for that earlier plan
 | Official NCTB catalogue and PDF audit | Source records implemented; a verified PDF is not an approved adaptation |
 | Bilingual topic prototypes | Implemented as drafts; educational/community review remains |
 | Moodle pilot course | Installable hidden-course plugin implemented: 15 bilingual chapters, nine activities and nine questions |
-| Automated publication control | Draft validation passes; release validation intentionally fails while 27 gates are pending |
+| Optional Moodle publication control | Draft validation passes; pilot release validation intentionally fails while 27 human-review gates are pending |
 | Custom learner/teacher/parent/admin platform | Deployed; role checks, staff allocation, learning progress and parent monitoring implemented |
-| Human Bangla audio | Not complete |
+| Bangla audio | Synthetic fallback included; reviewed human recordings remain incomplete |
 | YouTube/media verification | Not complete; media excluded from the first pilot |
 | Curriculum, accessibility and child review | Not complete |
 | Privacy, safeguarding and legal approval | Not complete |
-| Application deployment and operations | Running on HTTPS with automatic restart, health checks and certificate-renewal checks; client ownership and off-server recovery arrangements still need handover |
+| Application deployment and operations | Existing-host reference configuration, portable service/Compose setup and backup/restore tools included; actual hosting ownership, off-server scheduling and recovery evidence require operator handover |
 
 A successful build proves that the software compiles. It does not approve
 Bangla, historical claims, copyright, age suitability, accessibility or child
@@ -106,7 +110,7 @@ paid plugin, mobile app or LTI dependency.
 
 ## Run the application locally or in Codespaces
 
-Use Node.js 22.
+Use Node.js 22 (`.nvmrc` records the major version).
 
 ```bash
 npm ci
@@ -114,7 +118,11 @@ npm run dev
 ```
 
 Open <http://localhost:3000>. A Codespace is a development environment, not a
-production host for children or persistent Moodle data.
+production host for children or persistent application data. SQLite tables are
+created automatically on first use; a new installation starts empty. Real users,
+student records and uploaded media are intentionally absent from GitHub. Continuing
+an existing site requires its database and matching media to be restored privately.
+No separate database server or Moodle installation is needed for the custom app.
 
 To test the Moodle hand-off locally, provide a local or HTTPS Moodle URL:
 
@@ -135,8 +143,10 @@ npm run verify:moodle-pilot
 npm run verify:moodle-plugin
 npm run verify:moodle-infra
 npm run build
-npm run test:integration
+npm run typecheck
+npm run test:backup
 npm run test:e2e
+NEXT_DIST_DIR=.next-test npm run test:integration
 ```
 
 Additional audits:
@@ -147,9 +157,15 @@ npm run verify:links  # external resource register
 npm run fetch:nctb    # controlled NCTB ingestion; PDFs themselves are not lessons
 ```
 
-CI validates the draft manifest. A future deployment workflow must call
-`verify:moodle-release`; it is intentionally not treated as passing while human
-review is incomplete.
+CI includes application checks, backup/restore fixture tests and a disposable
+container persistence smoke check. A workflow definition is not evidence of a
+passing run: retain the actual results for the release. Do not run type checking
+concurrently with builds or use production data in tests.
+
+CI validates the optional Moodle draft manifest. Any workflow publishing that
+pilot must call `verify:moodle-release`; pending human gates must not be bypassed.
+The custom application has separate human acceptance evidence in
+[`docs/ACCEPTANCE.md`](docs/ACCEPTANCE.md).
 
 ## Source and content boundaries
 
@@ -165,22 +181,25 @@ review is incomplete.
 
 ## Current deployment and handover
 
-- Website: <https://31.56.120.148>. Portals: `/student`, `/teach`, `/admin`, `/family`.
-- `bangla-adventures.service` runs the application on loopback3300 as a dedicated
-  non-root user. Caddy provides HTTPS. Health checks run every minute and
-  certificate-renewal checks run every six hours.
-- Persistent database: `/var/lib/bangla-adventures/bangla-adventures.db`.
-  Uploaded media uses the neighbouring `media` directory. Existing data is
-  independent of build directories and must not be replaced by test fixtures.
-- Deployment configuration sets `PUBLIC_ORIGIN`, `DATABASE_PATH`, `MEDIA_ROOT`
-  and `NEXT_DIST_DIR`. Build updates into a new directory; verify them before
-  changing the service's build path and cache mount. Retain the previous build.
-- Local database snapshots were taken before significant changes. An off-server
-  backup schedule and a documented restore exercise remain handover tasks.
-- Give the client a versioned source release, dependency lockfile, setup and
-  operational instructions, role-specific user guides, test evidence and a
-  signed acceptance/known-issues list. The repository still needs a confirmed
-  GitHub remote and publishing identity before its latest work can be pushed.
+- Existing website: <https://31.56.120.148>. Portals: `/student`, `/teach`, `/admin`,
+  `/family`. Confirm live readiness and ownership during handover; source files
+  alone do not establish the current server state.
+- `infra/current-server/` records the existing non-root loopback3300 service,
+  Caddy site, health/certificate timers and persistent paths under
+  `/var/lib/bangla-adventures`. It is historical host reference, not a portable
+  installer. Preserve its database and media independently of build directories.
+- New installations can use `compose.yaml` or `infra/custom-app/` following
+  [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md). Configure HTTPS `PUBLIC_ORIGIN`,
+  persistent `DATABASE_PATH`, absolute `MEDIA_ROOT` and a consistent build/runtime
+  `NEXT_DIST_DIR`. Never rebuild a running release; retain the previous one.
+- [`docs/BACKUP_RESTORE.md`](docs/BACKUP_RESTORE.md) covers verified snapshots and
+  restoration into a new directory. A real off-server destination, encryption/key
+  custody, schedule, backup-age alerts and a recorded restore exercise still need
+  to be configured and demonstrated on the intended deployment.
+- Give the client a specific repository commit/release, lockfile, setup/recovery
+  runbooks, role demonstrations, test results and the
+  [`acceptance/known-issues record`](docs/ACCEPTANCE.md). Roles and contribution
+  evidence are recorded in [`CONTRIBUTIONS.md`](CONTRIBUTIONS.md).
 - Provision the client's administrator only after confirming their account.
   Transfer credentials/recovery material separately and securely. The current
   host also serves other projects: use application-scoped access or dedicated
@@ -194,9 +213,13 @@ publication prerequisites still apply.
 
 ## Key documents
 
+- `docs/DEPLOYMENT.md` — current custom application setup, upgrades and rollback
+- `docs/BACKUP_RESTORE.md` — database/media backup, verification and recovery drill
+- `docs/ACCEPTANCE.md` — reviewer ownership, evidence and client acceptance record
+- `docs/HANDOVER.md` — release and account handover
 - `docs/MOODLE_FIRST_MVP.md` — recovery decision, scope and definition of done
 - `moodle/README.md` — plugin packaging, installation and release boundary
 - `docs/NCTB_CONTENT_AUDIT.md` — PDF/source audit and its limits
 - `docs/CLIENT_REQUIREMENTS_2026-08-10.md` — requirement traceability
 - `docs/MEDIA_REVIEW.md` — unverified-video and human-audio process
-- `infra/moodle/README.md` — cheapest credible deployment runbook
+- `infra/moodle/README.md` — alternative Moodle pilot deployment
