@@ -5,6 +5,9 @@ on:
     branches: ["**"]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   verify:
     runs-on: ubuntu-latest
@@ -17,10 +20,13 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm test
+      - name: Verify backup and restore using temporary fixtures
+        run: python3 -m unittest discover -s tests -p 'backup_restore_test.py'
       - run: npm run verify:moodle-pilot
       - run: npm run verify:moodle-plugin
       - run: npm run verify:moodle-infra
       - run: npm run build
+      - run: npm run typecheck
       - run: npm run test:integration
 
   e2e:
@@ -34,3 +40,17 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
+
+  container:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate the production Compose configuration
+        env:
+          PUBLIC_ORIGIN: https://bangla-container-test.example
+        run: docker compose config --quiet
+      - name: Build the production image
+        run: docker build --tag bangla-adventures:ci .
+      - name: Verify fresh database and persisted database/media after recreation
+        run: bash scripts/test-container.sh bangla-adventures:ci

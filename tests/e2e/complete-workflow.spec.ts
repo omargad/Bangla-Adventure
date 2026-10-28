@@ -118,7 +118,8 @@ test("complete approved-teacher, allocated-student, curriculum and recovery work
     await page.getByLabel("Title (English)", { exact: true }).fill(title);
     await page.getByRole("textbox", { name: "Section 1 text (en)", exact: true }).fill("Read this updated section with your teacher and check the original NCTB source.");
     await page.getByRole("button", { name: "Save topic update", exact: true }).click();
-    await expect(page.getByRole("status")).toContainText("Topic saved");
+    // The connection banner is also a status region; target the save result.
+    await expect(page.getByRole("status").filter({ hasText: "Topic saved" })).toBeVisible();
     await student.goto("/student");
     await student.getByRole("link").filter({ has: student.getByRole("heading", { name: title, exact: true }) }).click();
     await expect(student.getByRole("heading", { level: 1, name: title })).toBeVisible();

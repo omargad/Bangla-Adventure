@@ -10,8 +10,14 @@ RUN npm run build
 
 FROM node:22-slim
 WORKDIR /app
+# The backup/restore utility uses Python's standard-library SQLite backup API.
+RUN apt-get update && apt-get install -y --no-install-recommends python3 \
+  && rm -rf /var/lib/apt/lists/*
 ENV NODE_ENV=production
 ENV PORT=3000
+ENV PLATFORM_MODE=legacy
+ENV DATABASE_PATH=/app/.data/bangla-adventures.db
+ENV MEDIA_ROOT=/app/.data/media
 COPY --from=builder /app/package.json /app/package-lock.json ./
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/.next ./.next
@@ -20,11 +26,12 @@ COPY --from=builder /app/next.config.ts ./next.config.ts
 COPY --from=builder /app/lib ./lib
 COPY --from=builder /app/db ./db
 COPY --from=builder /app/scripts/grant-admin.ts ./scripts/grant-admin.ts
+COPY --from=builder /app/scripts/backup_restore.py /app/scripts/backup.sh /app/scripts/restore.sh ./scripts/
 COPY --from=builder /app/tsconfig.json ./tsconfig.json
 
 # Persistent state (SQLite database + uploaded audio) lives in /app/.data —
 # mount a volume there in production.
-RUN mkdir -p .data .next/cache && chown -R node:node .data .next/cache
+RUN mkdir -p .data/media .next/cache && chown -R node:node .data .next/cache
 VOLUME ["/app/.data"]
 USER node
 
