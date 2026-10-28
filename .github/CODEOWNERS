@@ -1,68 +1,365 @@
-# Review routing based on the Jira responsibilities in CONTRIBUTIONS.md.
-# GitHub identities and write access checked on 2026-10-28.
-# CODEOWNERS does not establish historical authorship or human acceptance.
-# Required reviews depend on repository rules; this file does not enable them.
-# The last matching rule wins. Keep shared owners together on the same line.
+# Review routing from individual Jira tasks and their mapped repository parts.
+# See CONTRIBUTIONS.md for the task register, evidence and identity limitations.
+# Checked 2026-10-28. Only verified GitHub identities appear below.
+# Historical authorship, contributor statistics and human approval are separate.
+# This file does not enable mandatory review or change repository permissions.
+# Epics, not-located work and related-area-only mappings do not assign code here.
+# Multiple tasks touching one file retain the union of their verified assignees.
+# The last matching rule wins; precise rules retain applicable security reviewers.
+# Dynamic Next.js directory names use one-segment wildcards, checked against the
+# current manifest so they do not accidentally assign an unrelated sibling file.
+# The two Alqahtani GitHub identities remain unresolved; no MAQ022 guess is used.
 
-# Repository owner handles technical escalation and otherwise unmatched paths.
-# Student content, admin management and architecture/UI review retain their
-# documented role owners; their GitHub identity mappings are still pending.
+# Repository owner: technical escalation for otherwise unmatched paths.
 * @omargad
 
-# Omar Gad: repository controls, database, security and operations.
+# Security/repository control: retain technical review.
 /.github/ @omargad
-/db/ @omargad
-/drizzle/ @omargad
-/infra/ @omargad
-/scripts/ @omargad
-/Dockerfile @omargad
-/compose.yaml @omargad
-/app/api/auth/ @omargad
-/app/api/account/ @omargad
-/lib/auth.ts @omargad
-/lib/student-auth.ts @omargad
-/lib/session-status.ts @omargad
-/lib/password.ts @omargad
-/lib/roles.ts @omargad
-/lib/request-security.ts @omargad
-/lib/rate-limit.ts @omargad
-/proxy.ts @omargad
 
-# Dilsha Nishadya: shared presentation, responsive navigation and landing page.
-/app/welcome/ @104985376
-/app/globals.css @104985376
-/app/portal.css @104985376
-/app/components/PortalShell.tsx @104985376
-/app/components/PortalFrame.tsx @104985376
+# Security/repository control: retain technical review.
+/app/api/account/ @omargad
+
+# Security/repository control: retain technical review.
+/app/api/admin/ @omargad
+
+# Security/repository control: retain technical review.
+/app/api/auth/ @omargad
+
+# Security/repository control: retain technical review.
+/app/api/classes/ @omargad
+
+# Security/repository control: retain technical review.
+/app/api/student/ @omargad
+
+# Security/repository control: retain technical review.
+/db/ @omargad
+
+# Security/repository control: retain technical review.
+/drizzle/ @omargad
+
+# Security/repository control: retain technical review.
+/infra/ @omargad
+
+# Jira: SCRUM-25.
+/.github/CODEOWNERS @omargad
+
+# Jira: SCRUM-25, SCRUM-61, SCRUM-62, SCRUM-89.
+/.github/workflows/ci.yml @bahaa11-prog @omargad
+
+# Jira: SCRUM-25.
+/.gitignore @omargad
+
+# Jira: SCRUM-25.
+/CONTRIBUTIONS.md @omargad
+
+# Jira: SCRUM-10, SCRUM-11, SCRUM-12, SCRUM-13, SCRUM-16, SCRUM-25, SCRUM-58.
+/README.md @bahaa11-prog @omargad @MohammedAlAjmi24
+
+# Jira: SCRUM-47, SCRUM-48, SCRUM-72, SCRUM-82.
+/app/admin/UserManagement.tsx @Tlm0v
+
+# Jira: SCRUM-47.
+/app/admin/classes/AdminClasses.tsx @Tlm0v
+
+# Jira: SCRUM-47, SCRUM-49, SCRUM-50, SCRUM-64, SCRUM-73, SCRUM-82, SCRUM-92.
+/app/admin/curriculum/CurriculumEditor.tsx @bahaa11-prog @Tlm0v
+
+# Jira: SCRUM-47, SCRUM-67.
+/app/admin/page.tsx @Tlm0v
+
+# Jira: SCRUM-37.
+/app/adventure/page.tsx @104985376
+
+# Jira: SCRUM-90.
+/app/api/account/recovery-codes/route.ts @omargad
+
+# Jira: SCRUM-49, SCRUM-50, SCRUM-73, SCRUM-82, SCRUM-92.
+/app/api/admin/curriculum/route.ts @bahaa11-prog @omargad @Tlm0v
+
+# Jira: SCRUM-48, SCRUM-72, SCRUM-82.
+/app/api/admin/users/*/route.ts @omargad @Tlm0v
+
+# Jira: SCRUM-48, SCRUM-72, SCRUM-82.
+/app/api/admin/users/route.ts @omargad @Tlm0v
+
+# Jira: SCRUM-90.
+/app/api/auth/recover/route.ts @omargad
+
+# Jira: SCRUM-66, SCRUM-67.
+/app/api/auth/sign-in/route.ts @omargad @MohammedAlAjmi24 @Tlm0v
+
+# Jira: SCRUM-33, SCRUM-43.
+/app/api/auth/teacher-request/route.ts @omargad @MohammedAlAjmi24
+
+# Jira: SCRUM-30, SCRUM-31.
+/app/api/classes/*/activities/route.ts @omargad @MohammedAlAjmi24
+
+# Jira: SCRUM-32, SCRUM-36, SCRUM-46, SCRUM-81.
+/app/api/classes/*/grades/route.ts @omargad @MohammedAlAjmi24
+
+# Jira: SCRUM-29, SCRUM-32, SCRUM-81.
+# GitHub identity pending for SCRUM-29.
+/app/api/classes/*/route.ts @omargad @MohammedAlAjmi24
+
+# Jira: SCRUM-86.
+/app/api/classes/*/students/route.ts @omargad @MohammedAlAjmi24
+
+# Jira: SCRUM-36, SCRUM-46, SCRUM-81.
+/app/api/classes/*/submissions/route.ts @omargad @MohammedAlAjmi24
+
+# Jira: SCRUM-26, SCRUM-27, SCRUM-39, SCRUM-40, SCRUM-50, SCRUM-73, SCRUM-78, SCRUM-84.
+# GitHub identity pending for SCRUM-26, SCRUM-27, SCRUM-40, SCRUM-78, SCRUM-84.
+/app/api/curriculum/route.ts @bahaa11-prog @Tlm0v
+
+# Jira: SCRUM-39, SCRUM-41, SCRUM-42, SCRUM-76, SCRUM-78, SCRUM-79, SCRUM-84.
+# GitHub identity pending for SCRUM-41, SCRUM-42, SCRUM-76, SCRUM-78, SCRUM-84.
+/app/api/student/feed/route.ts @bahaa11-prog @omargad
+
+# Jira: SCRUM-42, SCRUM-76, SCRUM-79.
+# GitHub identity pending for SCRUM-42, SCRUM-76.
+/app/api/student/results/route.ts @bahaa11-prog @omargad
+
+# Jira: SCRUM-38.
+/app/api/student/session/route.ts @bahaa11-prog @omargad
+
+# Jira: SCRUM-38, SCRUM-65, SCRUM-77, SCRUM-83.
+# GitHub identity pending for SCRUM-65, SCRUM-77, SCRUM-83.
+/app/api/student/sign-in/route.ts @bahaa11-prog @omargad
+
+# Jira: SCRUM-28, SCRUM-29, SCRUM-41, SCRUM-78.
+# GitHub identity pending for SCRUM-28, SCRUM-29, SCRUM-41, SCRUM-78.
+/app/api/student/submit/route.ts @omargad
+
+# Jira: SCRUM-42, SCRUM-76, SCRUM-79, SCRUM-84.
+# GitHub identity pending for SCRUM-42, SCRUM-76, SCRUM-84.
+/app/api/student/topic-progress/route.ts @bahaa11-prog @omargad
+
+# Jira: SCRUM-49.
+/app/api/studio/drafts/route.ts @Tlm0v
+
+# Jira: SCRUM-64, SCRUM-86.
+/app/components/ClassAllocation.tsx @bahaa11-prog @MohammedAlAjmi24
+
+# Jira: SCRUM-27, SCRUM-85.
+# GitHub identity pending for SCRUM-27.
 /app/components/LearningLayout.tsx @104985376
 
-# Mohammed Alajmi: teacher workflows and staff class allocation.
-# Omar co-reviews shared data/access-control implementations.
-/app/teach/ @MohammedAlAjmi24
-/app/components/ClassAllocation.tsx @MohammedAlAjmi24
-/app/api/classes/ @MohammedAlAjmi24 @omargad
-/lib/classroom.ts @MohammedAlAjmi24 @omargad
-/lib/classroom-server.ts @MohammedAlAjmi24 @omargad
-/lib/enrollments.ts @MohammedAlAjmi24 @omargad
-/tests/classroom.test.mjs @MohammedAlAjmi24 @omargad
-/tests/integration/classroom-flow.test.mjs @MohammedAlAjmi24 @omargad
+# Jira: SCRUM-37, SCRUM-40, SCRUM-41.
+# GitHub identity pending for SCRUM-40, SCRUM-41.
+/app/components/LessonExperience.tsx @104985376
 
-# Bahaa Ghazi: project coordination, requirements, acceptance evidence and QA.
-/CONTRIBUTIONS.md @bahaa11-prog @omargad
-/README.md @bahaa11-prog @omargad
-/docs/atlassian-role-mapping.json @bahaa11-prog @omargad
+# Jira: SCRUM-57, SCRUM-85, SCRUM-87.
+/app/components/PortalFrame.tsx @104985376 @Tlm0v
+
+# Jira: SCRUM-39, SCRUM-47, SCRUM-57, SCRUM-85.
+/app/components/PortalShell.tsx @bahaa11-prog @104985376 @Tlm0v
+
+# Jira: SCRUM-37, SCRUM-55, SCRUM-57.
+/app/globals.css @104985376
+
+# Jira: SCRUM-33, SCRUM-43, SCRUM-64, SCRUM-66, SCRUM-67, SCRUM-90.
+/app/grown-ups/AuthCard.tsx @bahaa11-prog @omargad @MohammedAlAjmi24 @Tlm0v
+
+# Jira: SCRUM-67.
+/app/grown-ups/GrownUpsContent.tsx @Tlm0v
+
+# Jira: SCRUM-15, SCRUM-88.
+# GitHub identity pending for SCRUM-88.
+/app/nctb-books.ts @MohammedAlAjmi24
+
+# Jira: SCRUM-15.
+/app/nctb-content.ts @MohammedAlAjmi24
+
+# Jira: SCRUM-55.
+/app/page.tsx @104985376
+
+# Jira: SCRUM-14, SCRUM-57, SCRUM-85, SCRUM-87.
+/app/portal.css @bahaa11-prog @104985376 @Tlm0v
+
+# Jira: SCRUM-88.
+# GitHub identity pending for SCRUM-88.
+# No verified task-assignee login yet; technical escalation only.
+/app/references/page.tsx @omargad
+
+# Jira: SCRUM-26, SCRUM-28, SCRUM-29, SCRUM-38, SCRUM-39, SCRUM-41, SCRUM-42, SCRUM-64, SCRUM-65, SCRUM-76, SCRUM-77, SCRUM-78, SCRUM-79, SCRUM-83, SCRUM-84.
+# GitHub identity pending for SCRUM-26, SCRUM-28, SCRUM-29, SCRUM-41, SCRUM-42, SCRUM-65, SCRUM-76, SCRUM-77, SCRUM-78, SCRUM-83, SCRUM-84.
+/app/student/StudentPortal.tsx @bahaa11-prog
+
+# Jira: SCRUM-38, SCRUM-65, SCRUM-77, SCRUM-83, SCRUM-84.
+# GitHub identity pending for SCRUM-65, SCRUM-77, SCRUM-83, SCRUM-84.
+/app/student/page.tsx @bahaa11-prog
+
+# Jira: SCRUM-49.
+/app/studio/ContentStudio.tsx @Tlm0v
+
+# Jira: SCRUM-33, SCRUM-43, SCRUM-66.
+/app/teach/TeacherAccess.tsx @MohammedAlAjmi24
+
+# Jira: SCRUM-29, SCRUM-30, SCRUM-31, SCRUM-32, SCRUM-33, SCRUM-36, SCRUM-43, SCRUM-46, SCRUM-81, SCRUM-86, SCRUM-87.
+# GitHub identity pending for SCRUM-29.
+/app/teach/TeacherDashboard.tsx @MohammedAlAjmi24 @Tlm0v
+
+# Jira: SCRUM-33, SCRUM-43, SCRUM-66.
+/app/teach/page.tsx @MohammedAlAjmi24
+
+# Jira: SCRUM-16, SCRUM-26, SCRUM-27, SCRUM-31, SCRUM-40, SCRUM-88.
+# GitHub identity pending for SCRUM-26, SCRUM-27, SCRUM-40, SCRUM-88.
+/app/topics-content.ts @MohammedAlAjmi24
+
+# Jira: SCRUM-26, SCRUM-27, SCRUM-28, SCRUM-40, SCRUM-41, SCRUM-50, SCRUM-73, SCRUM-78, SCRUM-88, SCRUM-92.
+# GitHub identity pending for SCRUM-26, SCRUM-27, SCRUM-28, SCRUM-40, SCRUM-41, SCRUM-78, SCRUM-88.
+/app/topics/TopicsHub.tsx @bahaa11-prog @Tlm0v
+
+# Jira: SCRUM-40.
+# GitHub identity pending for SCRUM-40.
+# No verified task-assignee login yet; technical escalation only.
+/app/topics/page.tsx @omargad
+
+# Jira: SCRUM-55.
+/app/welcome/Welcome.tsx @104985376
+
+# Jira: SCRUM-55.
+/app/welcome/page.tsx @104985376
+
+# Jira: SCRUM-17.
+/content-sources/README.md @MohammedAlAjmi24
+
+# Jira: SCRUM-15.
+/content-sources/manifest.json @MohammedAlAjmi24
+
+# Jira: SCRUM-52.
+/db/access-migration.ts @omargad
+
+# Jira: SCRUM-52.
+/db/bootstrap.ts @omargad
+
+# Jira: SCRUM-52.
+/db/index.ts @omargad
+
+# Jira: SCRUM-29, SCRUM-30, SCRUM-31, SCRUM-32, SCRUM-42, SCRUM-52, SCRUM-76, SCRUM-79.
+# GitHub identity pending for SCRUM-29, SCRUM-42, SCRUM-76.
+/db/schema.ts @bahaa11-prog @omargad @MohammedAlAjmi24
+
+# Jira: SCRUM-12, SCRUM-13, SCRUM-14, SCRUM-17, SCRUM-58, SCRUM-90.
+/docs/ACCEPTANCE.md @bahaa11-prog @omargad @MohammedAlAjmi24
+
+# Jira: SCRUM-10, SCRUM-11, SCRUM-13, SCRUM-17, SCRUM-58.
+/docs/CLIENT_REQUIREMENTS_2026-08-10.md @bahaa11-prog @MohammedAlAjmi24
+
+# Jira: SCRUM-14, SCRUM-52.
+/docs/DEPLOYMENT.md @bahaa11-prog @omargad
+
+# Jira: SCRUM-17.
+/docs/MEDIA_REVIEW.md @MohammedAlAjmi24
+
+# Jira: SCRUM-15, SCRUM-17.
+/docs/NCTB_CONTENT_AUDIT.md @MohammedAlAjmi24
+
+# Jira: SCRUM-15, SCRUM-16.
+/docs/NCTB_READING_NOTES.md @MohammedAlAjmi24
+
+# Jira: SCRUM-10, SCRUM-11, SCRUM-12, SCRUM-13, SCRUM-14.
 /docs/PROJECT_PACK.md @bahaa11-prog
-/docs/FIRST_MEETING_AGENDA.md @bahaa11-prog
-/docs/CLIENT_EMAIL_DRAFT.md @bahaa11-prog
-/docs/CLIENT_REQUIREMENTS_2026-08-10.md @bahaa11-prog
-/docs/ACCEPTANCE.md @bahaa11-prog @omargad
-/docs/HANDOVER.md @bahaa11-prog @omargad
-/docs/VERIFICATION.md @bahaa11-prog @omargad
-/tests/e2e/ @bahaa11-prog @omargad
 
-# Admin grades/results belong to Bahaa; teacher grades/results to Alajmi.
-# These implementations are shared, so both are routed for review. Admin shell,
-# users and content management remain Turki's documented responsibility.
-/app/teach/TeacherDashboard.tsx @MohammedAlAjmi24 @bahaa11-prog
-/app/api/classes/*/grades/ @MohammedAlAjmi24 @bahaa11-prog @omargad
-/app/api/classes/*/submissions/ @MohammedAlAjmi24 @bahaa11-prog @omargad
+# Jira: SCRUM-61, SCRUM-62, SCRUM-89, SCRUM-92.
+/docs/VERIFICATION.md @bahaa11-prog @omargad
+
+# Jira: SCRUM-52.
+/drizzle.config.ts @omargad
+
+# Jira: SCRUM-33, SCRUM-53, SCRUM-90.
+/lib/auth.ts @omargad @MohammedAlAjmi24
+
+# Jira: SCRUM-28, SCRUM-30, SCRUM-31, SCRUM-41.
+# GitHub identity pending for SCRUM-28, SCRUM-41.
+/lib/classroom.ts @MohammedAlAjmi24
+
+# Jira: SCRUM-26, SCRUM-27, SCRUM-49, SCRUM-50, SCRUM-73, SCRUM-88, SCRUM-92.
+# GitHub identity pending for SCRUM-26, SCRUM-27, SCRUM-88.
+/lib/curriculum-catalog.ts @bahaa11-prog @Tlm0v
+
+# Jira: SCRUM-86.
+/lib/enrollments.ts @omargad @MohammedAlAjmi24
+
+# Jira: SCRUM-78.
+# GitHub identity pending for SCRUM-78.
+/lib/learning-policy.ts @omargad
+
+# Jira: SCRUM-38.
+/lib/password.ts @bahaa11-prog @omargad
+
+# Jira: SCRUM-14.
+/lib/request-security.ts @bahaa11-prog @omargad
+
+# Jira: SCRUM-12, SCRUM-43, SCRUM-53, SCRUM-66, SCRUM-67.
+/lib/roles.ts @bahaa11-prog @omargad @MohammedAlAjmi24 @Tlm0v
+
+# Jira: SCRUM-53, SCRUM-83.
+# GitHub identity pending for SCRUM-83.
+/lib/session-status.ts @omargad
+
+# Jira: SCRUM-38, SCRUM-53, SCRUM-65, SCRUM-77, SCRUM-83.
+# GitHub identity pending for SCRUM-65, SCRUM-77, SCRUM-83.
+/lib/student-auth.ts @bahaa11-prog @omargad
+
+# Jira: SCRUM-48, SCRUM-72, SCRUM-82.
+/lib/user-management.ts @omargad @Tlm0v
+
+# Jira: SCRUM-16.
+/moodle/local/banglapilot/data/content-manifest.json @MohammedAlAjmi24
+
+# Jira: SCRUM-53.
+/proxy.ts @omargad
+
+# Jira: SCRUM-15.
+/scripts/crawl-nctb.mjs @MohammedAlAjmi24
+
+# Jira: SCRUM-61, SCRUM-66, SCRUM-67, SCRUM-89.
+/tests/e2e/access.spec.ts @bahaa11-prog @omargad @MohammedAlAjmi24 @Tlm0v
+
+# Jira: SCRUM-29, SCRUM-30, SCRUM-32, SCRUM-57, SCRUM-61, SCRUM-64, SCRUM-65, SCRUM-77, SCRUM-84, SCRUM-85, SCRUM-86, SCRUM-87, SCRUM-88, SCRUM-89, SCRUM-90, SCRUM-92.
+# GitHub identity pending for SCRUM-29, SCRUM-65, SCRUM-77, SCRUM-84, SCRUM-88.
+/tests/e2e/complete-workflow.spec.ts @bahaa11-prog @omargad @MohammedAlAjmi24 @104985376 @Tlm0v
+
+# Jira: SCRUM-61, SCRUM-62.
+/tests/integration/api-flow.test.mjs @bahaa11-prog
+
+# Jira: SCRUM-46, SCRUM-62, SCRUM-81.
+/tests/integration/classroom-flow.test.mjs @bahaa11-prog @MohammedAlAjmi24
+
+# Jira: SCRUM-28, SCRUM-53, SCRUM-61, SCRUM-62, SCRUM-72, SCRUM-89.
+# GitHub identity pending for SCRUM-28.
+/tests/integration/rbac-flow.test.mjs @bahaa11-prog @omargad @Tlm0v
+
+# Jira: SCRUM-50, SCRUM-86, SCRUM-89.
+/tests/portal-workflows.test.mjs @omargad @MohammedAlAjmi24 @Tlm0v
+
+# Jira: SCRUM-48, SCRUM-72.
+/tests/user-management.test.mjs @Tlm0v
+
+# Security/repository control: retain technical review.
+/.dockerignore @omargad
+
+# Security/repository control: retain technical review.
+/.env.example @omargad
+
+# Security/repository control: retain technical review.
+/.nvmrc @omargad
+
+# Security/repository control: retain technical review.
+/Dockerfile @omargad
+
+# Security/repository control: retain technical review.
+/compose.yaml @omargad
+
+# Security/repository control: retain technical review.
+/lib/rate-limit.ts @omargad
+
+# Security/repository control: retain technical review.
+/next.config.ts @omargad
+
+# Security/repository control: retain technical review.
+/package-lock.json @omargad
+
+# Security/repository control: retain technical review.
+/package.json @omargad

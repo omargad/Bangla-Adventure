@@ -8,6 +8,28 @@ Source: [`omargad/Bangla-Adventure`](https://github.com/omargad/Bangla-Adventure
 Use [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) for the current custom application
 and [`docs/HANDOVER.md`](docs/HANDOVER.md) for client setup and release evidence.
 
+## Project contributors
+
+All seven team members are credited below through their individual Jira work.
+The [task-by-task contribution register](CONTRIBUTIONS.md) links each assigned
+item to its corresponding GitHub issue and repository files.
+
+| Contributor | GitHub account | Jira items | Contribution areas |
+| --- | --- | ---: | --- |
+| [BAHAA GHAZI](CONTRIBUTIONS.md#bahaa-ghazi) | [@bahaa11-prog](https://github.com/bahaa11-prog) | 19 | Project coordination, requirements, Jira management and QA; admin results |
+| [Omar Gad](CONTRIBUTIONS.md#omar-gad) | [@omargad](https://github.com/omargad) | 6 | Repository, final architecture/database, security, deployment and regression testing |
+| [Mohammed Ali A Alqahtani](CONTRIBUTIONS.md#mohammed-ali-a-alqahtani) | GitHub identity pending | 15 | Student learning, activities, progress, login integration and educational sources |
+| [Mohammed Alajmi](CONTRIBUTIONS.md#mohammed-alajmi) | [@MohammedAlAjmi24](https://github.com/MohammedAlAjmi24) | 22 | Teacher platform, CSV provisioning, class allocation and educational-resource research |
+| [Turki Alahzmi](CONTRIBUTIONS.md#turki-alahzmi) | [@Tlm0v](https://github.com/Tlm0v) | 11 | Admin platform, portal organisation and initial user flows/wireframes |
+| [Dilsha Nishadya](CONTRIBUTIONS.md#dilsha-nishadya) | [@104985376](https://github.com/104985376) | 7 | Child-friendly UX, visual design, responsiveness and shared navigation |
+| [Mohammed Alqahtani](CONTRIBUTIONS.md#mohammed-alqahtani) | GitHub identity pending | 3 | Technology research, initial architecture and UI consistency review |
+
+The counts cover 83 assigned tasks, stories and subtasks, checked on 28 October
+2026; eight unassigned epics remain separate. GitHub's commit-based Contributors
+list is distinct from this project-credit register. See
+[original contribution evidence](docs/ORIGINAL_CONTRIBUTIONS.md) for verified
+earlier commits and account-identity notes.
+
 ## Current product decision
 
 The running deployment uses the **custom English–Bangla application**, following

@@ -1,0 +1,3970 @@
+{
+  "asOf": "2026-10-28",
+  "sourceProject": "SCRUM",
+  "jiraSite": "https://ictprojectb26.atlassian.net",
+  "repository": "omargad/Bangla-Adventure",
+  "sourceCommit": "d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac",
+  "scope": "All 91 Jira items, including 83 individually assigned tasks/stories/subtasks and 8 unassigned epics.",
+  "basis": "Jira assignees/statuses copied as recorded; repository paths are inspected responsibility associations, not proof of historical source-line authorship or independent completion.",
+  "githubAssignmentCounts": {
+    "assigned": 65,
+    "pendingIdentity": 18,
+    "unassignedInJira": 8
+  },
+  "tasks": [
+    {
+      "jiraKey": "SCRUM-2",
+      "title": "Project Planning & Requirements",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-2",
+      "jiraType": "Epic",
+      "jiraStatus": "To Do",
+      "parentJiraKey": null,
+      "jiraAssignee": null,
+      "githubAssignee": null,
+      "githubAssignmentStatus": "unassigned-in-jira",
+      "githubIssueNumber": 9,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/9",
+      "githubState": "open",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "documentation-area",
+      "mappingNote": "Epic-level requirements and scope association. README records the current custom-app decision; the client-meeting and project-pack documents are historical planning snapshots and do not prove client acceptance.",
+      "parts": [
+        {
+          "path": "README.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/README.md",
+          "kind": "file"
+        },
+        {
+          "path": "docs/CLIENT_REQUIREMENTS_2026-08-10.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/docs/CLIENT_REQUIREMENTS_2026-08-10.md",
+          "kind": "file"
+        },
+        {
+          "path": "docs/PROJECT_PACK.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/docs/PROJECT_PACK.md",
+          "kind": "file"
+        },
+        {
+          "path": "docs/ACCEPTANCE.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/docs/ACCEPTANCE.md",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-3",
+      "title": "Educational Content Research",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-3",
+      "jiraType": "Epic",
+      "jiraStatus": "To Do",
+      "parentJiraKey": null,
+      "jiraAssignee": null,
+      "githubAssignee": null,
+      "githubAssignmentStatus": "unassigned-in-jira",
+      "githubIssueNumber": 10,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/10",
+      "githubState": "open",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "documentation-area",
+      "mappingNote": "Epic-level association with official-source research, source metadata and bilingual topic drafts. Source discovery is distinct from educator, rights or content-publication approval.",
+      "parts": [
+        {
+          "path": "docs/NCTB_CONTENT_AUDIT.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/docs/NCTB_CONTENT_AUDIT.md",
+          "kind": "file"
+        },
+        {
+          "path": "docs/NCTB_READING_NOTES.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/docs/NCTB_READING_NOTES.md",
+          "kind": "file"
+        },
+        {
+          "path": "app/nctb-books.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/nctb-books.ts",
+          "kind": "file"
+        },
+        {
+          "path": "app/nctb-content.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/nctb-content.ts",
+          "kind": "file"
+        },
+        {
+          "path": "content-sources/manifest.json",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/content-sources/manifest.json",
+          "kind": "file"
+        },
+        {
+          "path": "app/topics-content.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/topics-content.ts",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-4",
+      "title": "UI/UX Design",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-4",
+      "jiraType": "Epic",
+      "jiraStatus": "To Do",
+      "parentJiraKey": null,
+      "jiraAssignee": null,
+      "githubAssignee": null,
+      "githubAssignmentStatus": "unassigned-in-jira",
+      "githubIssueNumber": 11,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/11",
+      "githubState": "open",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "implemented-area",
+      "mappingNote": "Epic-level association with current UX implementation and historical design principles. Original design-research and wireframe deliverables are not established by these implemented screens.",
+      "parts": [
+        {
+          "path": "app/welcome/Welcome.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/welcome/Welcome.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/components/PortalShell.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/components/PortalShell.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/components/PortalFrame.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/components/PortalFrame.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/globals.css",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/globals.css",
+          "kind": "file"
+        },
+        {
+          "path": "app/portal.css",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/portal.css",
+          "kind": "file"
+        },
+        {
+          "path": "docs/PROJECT_PACK.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/docs/PROJECT_PACK.md",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-5",
+      "title": "Technology & Architecture",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-5",
+      "jiraType": "Epic",
+      "jiraStatus": "To Do",
+      "parentJiraKey": null,
+      "jiraAssignee": null,
+      "githubAssignee": null,
+      "githubAssignmentStatus": "unassigned-in-jira",
+      "githubIssueNumber": 12,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/12",
+      "githubState": "open",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "implemented-area",
+      "mappingNote": "Epic-level association with the selected application stack, data model, authentication and current native/Compose deployment architecture. This does not identify who authored each source line.",
+      "parts": [
+        {
+          "path": "package.json",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/package.json",
+          "kind": "file"
+        },
+        {
+          "path": "db/schema.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/db/schema.ts",
+          "kind": "file"
+        },
+        {
+          "path": "lib/auth.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/lib/auth.ts",
+          "kind": "file"
+        },
+        {
+          "path": "lib/student-auth.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/lib/student-auth.ts",
+          "kind": "file"
+        },
+        {
+          "path": "docs/DEPLOYMENT.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/docs/DEPLOYMENT.md",
+          "kind": "file"
+        },
+        {
+          "path": "README.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/README.md",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-6",
+      "title": "Student Platform",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-6",
+      "jiraType": "Epic",
+      "jiraStatus": "To Do",
+      "parentJiraKey": null,
+      "jiraAssignee": null,
+      "githubAssignee": null,
+      "githubAssignmentStatus": "unassigned-in-jira",
+      "githubIssueNumber": 13,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/13",
+      "githubState": "open",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "implemented-area",
+      "mappingNote": "Epic-level association with current authenticated student learning, topic reading, class activities, submissions and results. The older token-based classroom code is not the current student allocation flow.",
+      "parts": [
+        {
+          "path": "app/student/StudentPortal.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/student/StudentPortal.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/topics/TopicsHub.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/topics/TopicsHub.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/topics-content.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/topics-content.ts",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/student/submit/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/student/submit/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/student/results/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/student/results/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/student/feed/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/student/feed/route.ts",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-7",
+      "title": "Teacher Platform",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-7",
+      "jiraType": "Epic",
+      "jiraStatus": "To Do",
+      "parentJiraKey": null,
+      "jiraAssignee": null,
+      "githubAssignee": null,
+      "githubAssignmentStatus": "unassigned-in-jira",
+      "githubIssueNumber": 14,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/14",
+      "githubState": "open",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "implemented-area",
+      "mappingNote": "Epic-level association with approved-teacher access, class activity creation, allocated students, submissions and results. Current class activities use validated multiple-choice questions.",
+      "parts": [
+        {
+          "path": "app/teach/TeacherDashboard.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/teach/TeacherDashboard.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/teach/TeacherAccess.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/teach/TeacherAccess.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/classes/[id]/activities/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/classes/%5Bid%5D/activities/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/classes/[id]/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/classes/%5Bid%5D/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/classes/[id]/grades/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/classes/%5Bid%5D/grades/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "app/components/ClassAllocation.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/components/ClassAllocation.tsx",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-8",
+      "title": "Testing & Quality Assurance",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-8",
+      "jiraType": "Epic",
+      "jiraStatus": "To Do",
+      "parentJiraKey": null,
+      "jiraAssignee": null,
+      "githubAssignee": null,
+      "githubAssignmentStatus": "unassigned-in-jira",
+      "githubIssueNumber": 15,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/15",
+      "githubState": "open",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "implemented-area",
+      "mappingNote": "Epic-level association with automated verification and the separate human-acceptance ledger. Test files and recorded software runs do not establish independent accessibility, safeguarding or client approval.",
+      "parts": [
+        {
+          "path": "tests/e2e/",
+          "url": "https://github.com/omargad/Bangla-Adventure/tree/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/tests/e2e/",
+          "kind": "directory"
+        },
+        {
+          "path": "tests/integration/",
+          "url": "https://github.com/omargad/Bangla-Adventure/tree/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/tests/integration/",
+          "kind": "directory"
+        },
+        {
+          "path": ".github/workflows/ci.yml",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/.github/workflows/ci.yml",
+          "kind": "file"
+        },
+        {
+          "path": "tests/request-security.test.mjs",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/tests/request-security.test.mjs",
+          "kind": "file"
+        },
+        {
+          "path": "docs/VERIFICATION.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/docs/VERIFICATION.md",
+          "kind": "file"
+        },
+        {
+          "path": "docs/ACCEPTANCE.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/docs/ACCEPTANCE.md",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-9",
+      "title": "Deployment & Documentation",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-9",
+      "jiraType": "Epic",
+      "jiraStatus": "To Do",
+      "parentJiraKey": null,
+      "jiraAssignee": null,
+      "githubAssignee": null,
+      "githubAssignmentStatus": "unassigned-in-jira",
+      "githubIssueNumber": 16,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/16",
+      "githubState": "open",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "documentation-area",
+      "mappingNote": "Epic-level association with current custom-app deployment and handover records. Host reference files and setup templates do not establish that a particular release is running on the live server.",
+      "parts": [
+        {
+          "path": "docs/DEPLOYMENT.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/docs/DEPLOYMENT.md",
+          "kind": "file"
+        },
+        {
+          "path": "docs/HANDOVER.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/docs/HANDOVER.md",
+          "kind": "file"
+        },
+        {
+          "path": "docs/BACKUP_RESTORE.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/docs/BACKUP_RESTORE.md",
+          "kind": "file"
+        },
+        {
+          "path": "infra/current-server/",
+          "url": "https://github.com/omargad/Bangla-Adventure/tree/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/infra/current-server/",
+          "kind": "directory"
+        },
+        {
+          "path": "infra/custom-app/",
+          "url": "https://github.com/omargad/Bangla-Adventure/tree/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/infra/custom-app/",
+          "kind": "directory"
+        },
+        {
+          "path": "compose.yaml",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/compose.yaml",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-10",
+      "title": "Finalise Project Scope",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-10",
+      "jiraType": "Task",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-2",
+      "jiraAssignee": "BAHAA GHAZI",
+      "githubAssignee": "bahaa11-prog",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 17,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/17",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "documentation-area",
+      "mappingNote": "Scope and exclusions are documented in the current README and historical client/planning records. Historical prototype and Moodle-first decisions must be read in light of the later custom-app decision.",
+      "parts": [
+        {
+          "path": "README.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/README.md",
+          "kind": "file"
+        },
+        {
+          "path": "docs/CLIENT_REQUIREMENTS_2026-08-10.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/docs/CLIENT_REQUIREMENTS_2026-08-10.md",
+          "kind": "file"
+        },
+        {
+          "path": "docs/PROJECT_PACK.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/docs/PROJECT_PACK.md",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-11",
+      "title": "Define Project Objectives",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-11",
+      "jiraType": "Task",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-2",
+      "jiraAssignee": "BAHAA GHAZI",
+      "githubAssignee": "bahaa11-prog",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 18,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/18",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "documentation-area",
+      "mappingNote": "The README and client meeting record state the culture/history/literature mission; the project pack includes the earlier product hypothesis and success signals. These record objectives, not evidence of client sign-off.",
+      "parts": [
+        {
+          "path": "README.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/README.md",
+          "kind": "file"
+        },
+        {
+          "path": "docs/CLIENT_REQUIREMENTS_2026-08-10.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/docs/CLIENT_REQUIREMENTS_2026-08-10.md",
+          "kind": "file"
+        },
+        {
+          "path": "docs/PROJECT_PACK.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/docs/PROJECT_PACK.md",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-12",
+      "title": "Identify Target Users",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-12",
+      "jiraType": "Task",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-2",
+      "jiraAssignee": "BAHAA GHAZI",
+      "githubAssignee": "bahaa11-prog",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 19,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/19",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "documentation-area",
+      "mappingNote": "The project pack supplies historical child/parent/teacher personas; current README, role policy and acceptance journeys define student, teacher, admin and parent responsibilities.",
+      "parts": [
+        {
+          "path": "README.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/README.md",
+          "kind": "file"
+        },
+        {
+          "path": "docs/PROJECT_PACK.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/docs/PROJECT_PACK.md",
+          "kind": "file"
+        },
+        {
+          "path": "docs/ACCEPTANCE.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/docs/ACCEPTANCE.md",
+          "kind": "file"
+        },
+        {
+          "path": "lib/roles.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/lib/roles.ts",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-13",
+      "title": "Define Functional Requirements",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-13",
+      "jiraType": "Task",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-2",
+      "jiraAssignee": "BAHAA GHAZI",
+      "githubAssignee": "bahaa11-prog",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 20,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/20",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "documentation-area",
+      "mappingNote": "The client record has requirement traceability, the historical project pack has functional requirements, and README/acceptance journeys describe current product behavior. Historical document status is not independent release verification.",
+      "parts": [
+        {
+          "path": "docs/CLIENT_REQUIREMENTS_2026-08-10.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/docs/CLIENT_REQUIREMENTS_2026-08-10.md",
+          "kind": "file"
+        },
+        {
+          "path": "docs/PROJECT_PACK.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/docs/PROJECT_PACK.md",
+          "kind": "file"
+        },
+        {
+          "path": "README.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/README.md",
+          "kind": "file"
+        },
+        {
+          "path": "docs/ACCEPTANCE.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/docs/ACCEPTANCE.md",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-14",
+      "title": "Define Non-Functional Requirements",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-14",
+      "jiraType": "Task",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-2",
+      "jiraAssignee": "BAHAA GHAZI",
+      "githubAssignee": "bahaa11-prog",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 21,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/21",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "documentation-area",
+      "mappingNote": "Historical non-functional requirements cover accessibility, performance, reliability and compatibility; current acceptance/deployment docs and security/responsive code provide related implementation areas. Audits and human approval remain separate.",
+      "parts": [
+        {
+          "path": "docs/PROJECT_PACK.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/docs/PROJECT_PACK.md",
+          "kind": "file"
+        },
+        {
+          "path": "docs/ACCEPTANCE.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/docs/ACCEPTANCE.md",
+          "kind": "file"
+        },
+        {
+          "path": "docs/DEPLOYMENT.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/docs/DEPLOYMENT.md",
+          "kind": "file"
+        },
+        {
+          "path": "lib/request-security.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/lib/request-security.ts",
+          "kind": "file"
+        },
+        {
+          "path": "app/portal.css",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/portal.css",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-15",
+      "title": "Research NCTB and Official Educational Resources",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-15",
+      "jiraType": "Task",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-3",
+      "jiraAssignee": "Mohammed Alajmi",
+      "githubAssignee": "MohammedAlAjmi24",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 22,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/22",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "documentation-area",
+      "mappingNote": "Direct association with the NCTB audit methodology, reading notes, official book metadata and ingestion evidence. Verified source records do not mean the learner adaptations are approved.",
+      "parts": [
+        {
+          "path": "docs/NCTB_CONTENT_AUDIT.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/docs/NCTB_CONTENT_AUDIT.md",
+          "kind": "file"
+        },
+        {
+          "path": "docs/NCTB_READING_NOTES.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/docs/NCTB_READING_NOTES.md",
+          "kind": "file"
+        },
+        {
+          "path": "app/nctb-books.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/nctb-books.ts",
+          "kind": "file"
+        },
+        {
+          "path": "app/nctb-content.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/nctb-content.ts",
+          "kind": "file"
+        },
+        {
+          "path": "content-sources/manifest.json",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/content-sources/manifest.json",
+          "kind": "file"
+        },
+        {
+          "path": "scripts/crawl-nctb.mjs",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/scripts/crawl-nctb.mjs",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-16",
+      "title": "Identify and Prioritise MVP Topics",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-16",
+      "jiraType": "Task",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-3",
+      "jiraAssignee": "Mohammed Alajmi",
+      "githubAssignee": "MohammedAlAjmi24",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 23,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/23",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "documentation-area",
+      "mappingNote": "Topic inventory and reading notes identify candidate culture/history/literature areas; the optional Moodle manifest records a narrower historical three-topic pilot. Current README distinguishes that pilot from the custom application.",
+      "parts": [
+        {
+          "path": "app/topics-content.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/topics-content.ts",
+          "kind": "file"
+        },
+        {
+          "path": "docs/NCTB_READING_NOTES.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/docs/NCTB_READING_NOTES.md",
+          "kind": "file"
+        },
+        {
+          "path": "README.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/README.md",
+          "kind": "file"
+        },
+        {
+          "path": "moodle/local/banglapilot/data/content-manifest.json",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/moodle/local/banglapilot/data/content-manifest.json",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-17",
+      "title": "Investigate Copyright and Content Usage",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-17",
+      "jiraType": "Task",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-3",
+      "jiraAssignee": "Mohammed Alajmi",
+      "githubAssignee": "MohammedAlAjmi24",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 24,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/24",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "documentation-area",
+      "mappingNote": "Rights/provenance constraints and review requirements are recorded here. This maps the copyright-investigation task to its documentation; it does not assert permission for every source, image, poem or recording.",
+      "parts": [
+        {
+          "path": "docs/MEDIA_REVIEW.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/docs/MEDIA_REVIEW.md",
+          "kind": "file"
+        },
+        {
+          "path": "docs/NCTB_CONTENT_AUDIT.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/docs/NCTB_CONTENT_AUDIT.md",
+          "kind": "file"
+        },
+        {
+          "path": "content-sources/README.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/content-sources/README.md",
+          "kind": "file"
+        },
+        {
+          "path": "docs/CLIENT_REQUIREMENTS_2026-08-10.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/docs/CLIENT_REQUIREMENTS_2026-08-10.md",
+          "kind": "file"
+        },
+        {
+          "path": "docs/ACCEPTANCE.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/docs/ACCEPTANCE.md",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-18",
+      "title": "Research Child-Friendly Educational Platforms",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-18",
+      "jiraType": "Task",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-4",
+      "jiraAssignee": "Dilsha Nishadya",
+      "githubAssignee": "104985376",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 25,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/25",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "related-area-only",
+      "mappingNote": "The project pack discusses child-oriented design principles and learning resources, and these components implement related presentation. A dedicated comparison/research report of child-friendly platforms was not located.",
+      "parts": [
+        {
+          "path": "docs/PROJECT_PACK.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/docs/PROJECT_PACK.md",
+          "kind": "file"
+        },
+        {
+          "path": "app/welcome/Welcome.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/welcome/Welcome.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/globals.css",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/globals.css",
+          "kind": "file"
+        },
+        {
+          "path": "app/components/LessonExperience.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/components/LessonExperience.tsx",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-19",
+      "title": "Research Child-Friendly Content Presentation",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-19",
+      "jiraType": "Task",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-4",
+      "jiraAssignee": "Dilsha Nishadya",
+      "githubAssignee": "104985376",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 26,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/26",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "related-area-only",
+      "mappingNote": "Historical design principles and the bilingual topic reader are related to short, engaging child-facing presentation. These artifacts do not establish the original research process or age-suitability approval.",
+      "parts": [
+        {
+          "path": "docs/PROJECT_PACK.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/docs/PROJECT_PACK.md",
+          "kind": "file"
+        },
+        {
+          "path": "app/topics-content.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/topics-content.ts",
+          "kind": "file"
+        },
+        {
+          "path": "app/topics/TopicsHub.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/topics/TopicsHub.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/welcome/Welcome.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/welcome/Welcome.tsx",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-20",
+      "title": "Create Initial User Flows",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-20",
+      "jiraType": "Task",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-4",
+      "jiraAssignee": "Turki Alahzmi",
+      "githubAssignee": "Tlm0v",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 27,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/27",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "related-area-only",
+      "mappingNote": "The Jira description contains the original student/teacher flow. These are its current journey documentation and implementation counterparts; a separate original user-flow design artifact was not located in the repository.",
+      "parts": [
+        {
+          "path": "docs/ACCEPTANCE.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/docs/ACCEPTANCE.md",
+          "kind": "file"
+        },
+        {
+          "path": "app/student/StudentPortal.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/student/StudentPortal.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/topics/TopicsHub.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/topics/TopicsHub.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/teach/TeacherDashboard.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/teach/TeacherDashboard.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "tests/e2e/complete-workflow.spec.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/tests/e2e/complete-workflow.spec.ts",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-21",
+      "title": "Create Initial Wireframes",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-21",
+      "jiraType": "Task",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-4",
+      "jiraAssignee": "Turki Alahzmi",
+      "githubAssignee": "Tlm0v",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 28,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/28",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "related-area-only",
+      "mappingNote": "These current screens correspond to the requested home/topic/learning/quiz/dashboard/submission wireframe areas. No original wireframe images or design source files were located; implemented screens are not evidence of the original wireframe deliverable.",
+      "parts": [
+        {
+          "path": "app/welcome/Welcome.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/welcome/Welcome.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/student/StudentPortal.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/student/StudentPortal.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/topics/TopicsHub.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/topics/TopicsHub.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/teach/TeacherDashboard.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/teach/TeacherDashboard.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/components/PortalShell.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/components/PortalShell.tsx",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-22",
+      "title": "Research and Compare Technology Stack",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-22",
+      "jiraType": "Task",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-5",
+      "jiraAssignee": "Mohammed Alqahtani",
+      "githubAssignee": null,
+      "githubAssignmentStatus": "pending-identity",
+      "githubIssueNumber": 29,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/29",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "related-area-only",
+      "mappingNote": "These files show the selected Next.js/React/Drizzle/SQLite stack and hosting approach. A historical comparison matrix or technology-evaluation report was not located.",
+      "parts": [
+        {
+          "path": "package.json",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/package.json",
+          "kind": "file"
+        },
+        {
+          "path": "README.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/README.md",
+          "kind": "file"
+        },
+        {
+          "path": "db/schema.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/db/schema.ts",
+          "kind": "file"
+        },
+        {
+          "path": "next.config.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/next.config.ts",
+          "kind": "file"
+        },
+        {
+          "path": "docs/DEPLOYMENT.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/docs/DEPLOYMENT.md",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-23",
+      "title": "Design Initial System Architecture",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-23",
+      "jiraType": "Task",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-5",
+      "jiraAssignee": "Mohammed Alqahtani",
+      "githubAssignee": null,
+      "githubAssignmentStatus": "pending-identity",
+      "githubIssueNumber": 30,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/30",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "related-area-only",
+      "mappingNote": "The project pack contains a historical no-account prototype architecture; current README, schema, auth modules and deployment runbook describe its successor. No separate initial architecture diagram for the present account/database system was located.",
+      "parts": [
+        {
+          "path": "docs/PROJECT_PACK.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/docs/PROJECT_PACK.md",
+          "kind": "file"
+        },
+        {
+          "path": "README.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/README.md",
+          "kind": "file"
+        },
+        {
+          "path": "db/schema.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/db/schema.ts",
+          "kind": "file"
+        },
+        {
+          "path": "lib/auth.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/lib/auth.ts",
+          "kind": "file"
+        },
+        {
+          "path": "lib/student-auth.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/lib/student-auth.ts",
+          "kind": "file"
+        },
+        {
+          "path": "docs/DEPLOYMENT.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/docs/DEPLOYMENT.md",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-24",
+      "title": "Create Initial User Stories",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-24",
+      "jiraType": "Task",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-2",
+      "jiraAssignee": "BAHAA GHAZI",
+      "githubAssignee": "bahaa11-prog",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 31,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/31",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "related-area-only",
+      "mappingNote": "The original student/teacher user stories and acceptance criteria are stored in Jira. These are related requirement and current workflow counterparts; no standalone initial backlog/story artifact was located in the imported source.",
+      "parts": [
+        {
+          "path": "docs/CLIENT_REQUIREMENTS_2026-08-10.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/docs/CLIENT_REQUIREMENTS_2026-08-10.md",
+          "kind": "file"
+        },
+        {
+          "path": "docs/ACCEPTANCE.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/docs/ACCEPTANCE.md",
+          "kind": "file"
+        },
+        {
+          "path": "app/student/StudentPortal.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/student/StudentPortal.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/teach/TeacherDashboard.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/teach/TeacherDashboard.tsx",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-25",
+      "title": "Set Up GitHub Repository",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-25",
+      "jiraType": "Task",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-5",
+      "jiraAssignee": "Omar Gad",
+      "githubAssignee": "omargad",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 32,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/32",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "implemented-area",
+      "mappingNote": "These repository setup, exclusion, CI and collaboration files support the GitHub setup responsibility. The current files include later maintenance; collaborator invitations and branch administration are GitHub state, not proof supplied by these files alone.",
+      "parts": [
+        {
+          "path": "README.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/README.md",
+          "kind": "file"
+        },
+        {
+          "path": ".gitignore",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/.gitignore",
+          "kind": "file"
+        },
+        {
+          "path": ".github/workflows/ci.yml",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/.github/workflows/ci.yml",
+          "kind": "file"
+        },
+        {
+          "path": "CONTRIBUTIONS.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/CONTRIBUTIONS.md",
+          "kind": "file"
+        },
+        {
+          "path": ".github/CODEOWNERS",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/.github/CODEOWNERS",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-26",
+      "title": "As a student, I want to browse Bangladeshi history and culture topics so that I can learn about my heritage.",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-26",
+      "jiraType": "Story",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-6",
+      "jiraAssignee": "Mohammed Ali A Alqahtani",
+      "githubAssignee": null,
+      "githubAssignmentStatus": "pending-identity",
+      "githubIssueNumber": 33,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/33",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "implemented-area",
+      "mappingNote": "My Learning and the topic hub browse culture/history/literature themes using the authenticated curriculum catalogue. Topic contents remain draft adaptations with educator-review notices.",
+      "parts": [
+        {
+          "path": "app/student/StudentPortal.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/student/StudentPortal.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/topics/TopicsHub.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/topics/TopicsHub.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/topics-content.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/topics-content.ts",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/curriculum/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/curriculum/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "lib/curriculum-catalog.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/lib/curriculum-catalog.ts",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-27",
+      "title": "As a student, I want to read child-friendly educational content so that I can understand Bangladeshi history and culture.",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-27",
+      "jiraType": "Story",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-6",
+      "jiraAssignee": "Mohammed Ali A Alqahtani",
+      "githubAssignee": null,
+      "githubAssignmentStatus": "pending-identity",
+      "githubIssueNumber": 34,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/34",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "implemented-area",
+      "mappingNote": "The topic reader renders bilingual sections, facts and sources from the shared catalogue in the learning layout. Child-friendly presentation exists; educational accuracy and age suitability remain separately reviewed.",
+      "parts": [
+        {
+          "path": "app/topics/TopicsHub.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/topics/TopicsHub.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/topics-content.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/topics-content.ts",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/curriculum/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/curriculum/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "lib/curriculum-catalog.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/lib/curriculum-catalog.ts",
+          "kind": "file"
+        },
+        {
+          "path": "app/components/LearningLayout.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/components/LearningLayout.tsx",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-28",
+      "title": "As a student, I want to complete quizzes so that I can test my understanding.",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-28",
+      "jiraType": "Story",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-6",
+      "jiraAssignee": "Mohammed Ali A Alqahtani",
+      "githubAssignee": null,
+      "githubAssignmentStatus": "pending-identity",
+      "githubIssueNumber": 35,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/35",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "implemented-area",
+      "mappingNote": "Student class quizzes submit validated choices to server-side grading; topic self-check quizzes also run in the topic reader and store their self-check scores locally. These two result paths should not be conflated.",
+      "parts": [
+        {
+          "path": "app/student/StudentPortal.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/student/StudentPortal.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/student/submit/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/student/submit/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "lib/classroom.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/lib/classroom.ts",
+          "kind": "file"
+        },
+        {
+          "path": "app/topics/TopicsHub.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/topics/TopicsHub.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "tests/integration/rbac-flow.test.mjs",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/tests/integration/rbac-flow.test.mjs",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-29",
+      "title": "As a student, I want to submit completed activities so that my teacher can review them.",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-29",
+      "jiraType": "Story",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-6",
+      "jiraAssignee": "Mohammed Ali A Alqahtani",
+      "githubAssignee": null,
+      "githubAssignmentStatus": "pending-identity",
+      "githubIssueNumber": 36,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/36",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "implemented-area",
+      "mappingNote": "Allocated students submit multiple-choice class activities to activitySubmissions; the teacher class API and dashboard show saved scores/answers. This does not claim generic free-text or file-upload submission support.",
+      "parts": [
+        {
+          "path": "app/student/StudentPortal.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/student/StudentPortal.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/student/submit/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/student/submit/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "db/schema.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/db/schema.ts",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/classes/[id]/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/classes/%5Bid%5D/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "app/teach/TeacherDashboard.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/teach/TeacherDashboard.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "tests/e2e/complete-workflow.spec.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/tests/e2e/complete-workflow.spec.ts",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-30",
+      "title": "As a teacher, I want to create quizzes so that I can assess students.",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-30",
+      "jiraType": "Story",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-7",
+      "jiraAssignee": "Mohammed Alajmi",
+      "githubAssignee": "MohammedAlAjmi24",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 37,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/37",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "implemented-area",
+      "mappingNote": "The teacher form creates quizzes with questions/options/answer keys through the owned-class activity API, which validates and persists the question set. Access requires an approved teacher.",
+      "parts": [
+        {
+          "path": "app/teach/TeacherDashboard.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/teach/TeacherDashboard.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/classes/[id]/activities/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/classes/%5Bid%5D/activities/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "lib/classroom.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/lib/classroom.ts",
+          "kind": "file"
+        },
+        {
+          "path": "db/schema.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/db/schema.ts",
+          "kind": "file"
+        },
+        {
+          "path": "tests/e2e/complete-workflow.spec.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/tests/e2e/complete-workflow.spec.ts",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-31",
+      "title": "As a teacher, I want to create activities so that I can provide students with different learning experiences.",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-31",
+      "jiraType": "Story",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-7",
+      "jiraAssignee": "Mohammed Alajmi",
+      "githubAssignee": "MohammedAlAjmi24",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 38,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/38",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "implemented-area",
+      "mappingNote": "Teachers create titled activities with instructions, an optional learning topic and validated multiple-choice questions. This maps the existing activity model; arbitrary free-text/file-based activity types are not established by this code.",
+      "parts": [
+        {
+          "path": "app/teach/TeacherDashboard.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/teach/TeacherDashboard.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/classes/[id]/activities/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/classes/%5Bid%5D/activities/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "lib/classroom.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/lib/classroom.ts",
+          "kind": "file"
+        },
+        {
+          "path": "app/topics-content.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/topics-content.ts",
+          "kind": "file"
+        },
+        {
+          "path": "db/schema.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/db/schema.ts",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-32",
+      "title": "As a teacher, I want to view student submissions so that I can review their work.",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-32",
+      "jiraType": "Story",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-7",
+      "jiraAssignee": "Mohammed Alajmi",
+      "githubAssignee": "MohammedAlAjmi24",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 39,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/39",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "implemented-area",
+      "mappingNote": "The owned-class GET endpoint loads submissions with parsed answers and student names; the teacher dashboard displays submission/result tables and grade summaries. This does not imply an independent human assessment was performed.",
+      "parts": [
+        {
+          "path": "app/teach/TeacherDashboard.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/teach/TeacherDashboard.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/classes/[id]/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/classes/%5Bid%5D/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/classes/[id]/grades/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/classes/%5Bid%5D/grades/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "db/schema.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/db/schema.ts",
+          "kind": "file"
+        },
+        {
+          "path": "tests/e2e/complete-workflow.spec.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/tests/e2e/complete-workflow.spec.ts",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-33",
+      "title": "TEACH-1: Design Teacher Dashboard UI & Authentication.",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-33",
+      "jiraType": "Task",
+      "jiraStatus": "Done",
+      "parentJiraKey": null,
+      "jiraAssignee": "Mohammed Alajmi",
+      "githubAssignee": "MohammedAlAjmi24",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 40,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/40",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "implemented-area",
+      "mappingNote": "The teacher page checks authenticated access and canTeach, renders the request/approval screen for unapproved accounts, and renders TeacherDashboard for approved staff. The adult sign-in form and auth service are shared infrastructure.",
+      "parts": [
+        {
+          "path": "app/teach/page.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/teach/page.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/teach/TeacherAccess.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/teach/TeacherAccess.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/teach/TeacherDashboard.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/teach/TeacherDashboard.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/grown-ups/AuthCard.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/grown-ups/AuthCard.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/auth/teacher-request/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/auth/teacher-request/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "lib/auth.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/lib/auth.ts",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-34",
+      "title": "TEACH-2: Implement CSV Parsing for bulk student upload.",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-34",
+      "jiraType": "Task",
+      "jiraStatus": "Done",
+      "parentJiraKey": null,
+      "jiraAssignee": "Mohammed Alajmi",
+      "githubAssignee": "MohammedAlAjmi24",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 41,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/41",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "not-located",
+      "mappingNote": "No bulk student CSV parser/import implementation was located in the current custom app. The class-students route allocates an existing username; csvCell in lib/classroom.ts supports grade export, not CSV import. These are the adjacent teacher/roster areas only.",
+      "parts": [
+        {
+          "path": "app/teach/TeacherDashboard.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/teach/TeacherDashboard.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/classes/[id]/students/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/classes/%5Bid%5D/students/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "lib/classroom.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/lib/classroom.ts",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-35",
+      "title": "TEACH-3: Build random password generator & user provisioning.",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-35",
+      "jiraType": "Task",
+      "jiraStatus": "Done",
+      "parentJiraKey": null,
+      "jiraAssignee": "Mohammed Alajmi",
+      "githubAssignee": "MohammedAlAjmi24",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 42,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/42",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "not-located",
+      "mappingNote": "No random temporary-password generator or teacher bulk provisioning flow was located. Administrator account creation accepts a supplied password; password.ts hashes passwords and generates recovery/session material, which is not temporary-password provisioning. These are related account-management areas.",
+      "parts": [
+        {
+          "path": "lib/user-management.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/lib/user-management.ts",
+          "kind": "file"
+        },
+        {
+          "path": "lib/password.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/lib/password.ts",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/admin/users/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/admin/users/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "app/teach/TeacherDashboard.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/teach/TeacherDashboard.tsx",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-36",
+      "title": "TEACH-4: Build Teacher Gradebook and Results UI.",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-36",
+      "jiraType": "Task",
+      "jiraStatus": "Done",
+      "parentJiraKey": null,
+      "jiraAssignee": "Mohammed Alajmi",
+      "githubAssignee": "MohammedAlAjmi24",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 43,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/43",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "implemented-area",
+      "mappingNote": "TeacherDashboard builds grade summaries and results panels, links CSV grade export, and exposes submission reset. The grades and submissions routes restrict these operations to the owning teacher's class.",
+      "parts": [
+        {
+          "path": "app/teach/TeacherDashboard.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/teach/TeacherDashboard.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/classes/[id]/grades/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/classes/%5Bid%5D/grades/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/classes/[id]/submissions/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/classes/%5Bid%5D/submissions/route.ts",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-37",
+      "title": "Implement Child-Friendly Animations and Gamified Feedback",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-37",
+      "jiraType": "Subtask",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-18",
+      "jiraAssignee": "Dilsha Nishadya",
+      "githubAssignee": "104985376",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 44,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/44",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "implemented-area",
+      "mappingNote": "The adventure interface contains Bagh character text, stars, earned badges and activity feedback; LessonExperience supplies mastery feedback. Global styles contain the animation and reduced-motion rules. This maps the present feedback surfaces, not independent confirmation of every animation listed in Jira.",
+      "parts": [
+        {
+          "path": "app/adventure/page.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/adventure/page.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/components/LessonExperience.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/components/LessonExperience.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/globals.css",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/globals.css",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-38",
+      "title": "Implement Student Authentication and Login",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-38",
+      "jiraType": "Task",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-6",
+      "jiraAssignee": "BAHAA GHAZI",
+      "githubAssignee": "bahaa11-prog",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 45,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/45",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "implemented-area",
+      "mappingNote": "The student page loads the database-backed session, StudentPortal submits the sign-in form, and the student auth routes/service verify credentials and create sessions. Preserve Bahaa as this individual Jira task's assignee even though later student-login tasks belong to Mohammed Ali A Alqahtani.",
+      "parts": [
+        {
+          "path": "app/student/page.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/student/page.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/student/StudentPortal.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/student/StudentPortal.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/student/sign-in/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/student/sign-in/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/student/session/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/student/session/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "lib/student-auth.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/lib/student-auth.ts",
+          "kind": "file"
+        },
+        {
+          "path": "lib/password.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/lib/password.ts",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-39",
+      "title": "Implement Student Dashboard",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-39",
+      "jiraType": "Story",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-6",
+      "jiraAssignee": "BAHAA GHAZI",
+      "githubAssignee": "bahaa11-prog",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 46,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/46",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "implemented-area",
+      "mappingNote": "StudentPortal renders My Learning, classes, activities and progress metrics using the student feed and curriculum catalogue in the shared portal shell. This records Bahaa's dashboard task separately from the later learning-dashboard refinement.",
+      "parts": [
+        {
+          "path": "app/student/StudentPortal.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/student/StudentPortal.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/student/feed/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/student/feed/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/curriculum/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/curriculum/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "app/components/PortalShell.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/components/PortalShell.tsx",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-40",
+      "title": "Implement Learning Content Pages",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-40",
+      "jiraType": "Task",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-6",
+      "jiraAssignee": "Mohammed Ali A Alqahtani",
+      "githubAssignee": null,
+      "githubAssignmentStatus": "pending-identity",
+      "githubIssueNumber": 47,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/47",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "implemented-area",
+      "mappingNote": "TopicsHub displays bilingual reading topics fetched from the curriculum catalogue; topic definitions and LessonExperience provide related lesson content. Draft/educator-review notices remain part of the content and this mapping does not approve educational accuracy.",
+      "parts": [
+        {
+          "path": "app/topics/page.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/topics/page.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/topics/TopicsHub.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/topics/TopicsHub.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/topics-content.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/topics-content.ts",
+          "kind": "file"
+        },
+        {
+          "path": "app/components/LessonExperience.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/components/LessonExperience.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/curriculum/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/curriculum/route.ts",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-41",
+      "title": "Implement Quizzes and Activities",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-41",
+      "jiraType": "Task",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-6",
+      "jiraAssignee": "Mohammed Ali A Alqahtani",
+      "githubAssignee": null,
+      "githubAssignmentStatus": "pending-identity",
+      "githubIssueNumber": 48,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/48",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "implemented-area",
+      "mappingNote": "StudentPortal loads allocated class activities, collects answers and submits them to the student submission API. TopicsHub and LessonExperience contain additional learning checks; classroom helpers validate and grade quiz answers.",
+      "parts": [
+        {
+          "path": "app/student/StudentPortal.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/student/StudentPortal.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/student/feed/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/student/feed/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/student/submit/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/student/submit/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "app/topics/TopicsHub.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/topics/TopicsHub.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "lib/classroom.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/lib/classroom.ts",
+          "kind": "file"
+        },
+        {
+          "path": "app/components/LessonExperience.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/components/LessonExperience.tsx",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-42",
+      "title": "Implement Student Results and Progress",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-42",
+      "jiraType": "Task",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-6",
+      "jiraAssignee": "Mohammed Ali A Alqahtani",
+      "githubAssignee": null,
+      "githubAssignmentStatus": "pending-identity",
+      "githubIssueNumber": 49,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/49",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "implemented-area",
+      "mappingNote": "The student interface shows results and topic/activity progress. Student feed/results routes scope records to the signed-in student, and topic-progress persists reading progress using the schema's student progress records.",
+      "parts": [
+        {
+          "path": "app/student/StudentPortal.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/student/StudentPortal.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/student/feed/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/student/feed/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/student/results/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/student/results/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/student/topic-progress/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/student/topic-progress/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "db/schema.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/db/schema.ts",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-43",
+      "title": "Implement Teacher Authentication and Dashboard",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-43",
+      "jiraType": "Task",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-7",
+      "jiraAssignee": "Mohammed Alajmi",
+      "githubAssignee": "MohammedAlAjmi24",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 50,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/50",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "implemented-area",
+      "mappingNote": "The teacher portal uses adult authentication, explicit request/approval and role checks before rendering class-management and results screens. This is the individual implementation issue alongside the earlier TEACH-1 design/authentication task.",
+      "parts": [
+        {
+          "path": "app/teach/page.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/teach/page.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/teach/TeacherAccess.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/teach/TeacherAccess.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/teach/TeacherDashboard.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/teach/TeacherDashboard.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/grown-ups/AuthCard.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/grown-ups/AuthCard.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/auth/teacher-request/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/auth/teacher-request/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "lib/roles.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/lib/roles.ts",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-44",
+      "title": "Implement Automatic Student Account Creation",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-44",
+      "jiraType": "Task",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-7",
+      "jiraAssignee": "Mohammed Alajmi",
+      "githubAssignee": "MohammedAlAjmi24",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 51,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/51",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "not-located",
+      "mappingNote": "Automatic student creation after a teacher CSV upload was not located. Existing administrator account creation and staff allocation of already registered students are related components, not proof that automatic bulk account creation exists.",
+      "parts": [
+        {
+          "path": "lib/user-management.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/lib/user-management.ts",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/admin/users/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/admin/users/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/classes/[id]/students/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/classes/%5Bid%5D/students/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "lib/enrollments.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/lib/enrollments.ts",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-45",
+      "title": "Implement Temporary Password Generation",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-45",
+      "jiraType": "Task",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-7",
+      "jiraAssignee": "Mohammed Alajmi",
+      "githubAssignee": "MohammedAlAjmi24",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 52,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/52",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "not-located",
+      "mappingNote": "A temporary-password generation/provisioning flow was not located. Existing password helpers implement hashing, verification, sessions and recovery codes, while admin creation expects a supplied password. Recovery codes must not be described as temporary passwords.",
+      "parts": [
+        {
+          "path": "lib/password.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/lib/password.ts",
+          "kind": "file"
+        },
+        {
+          "path": "lib/user-management.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/lib/user-management.ts",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/admin/users/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/admin/users/route.ts",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-46",
+      "title": "Implement Teacher Grades and Results",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-46",
+      "jiraType": "Task",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-7",
+      "jiraAssignee": "Mohammed Alajmi",
+      "githubAssignee": "MohammedAlAjmi24",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 53,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/53",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "implemented-area",
+      "mappingNote": "The results section summarizes submissions and exports grades; class routes support retrieving grades and resetting submissions for the owning teacher. Integration tests cover the classroom submission/result flow.",
+      "parts": [
+        {
+          "path": "app/teach/TeacherDashboard.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/teach/TeacherDashboard.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/classes/[id]/grades/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/classes/%5Bid%5D/grades/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/classes/[id]/submissions/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/classes/%5Bid%5D/submissions/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "tests/integration/classroom-flow.test.mjs",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/tests/integration/classroom-flow.test.mjs",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-47",
+      "title": "Implement Admin Dashboard",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-47",
+      "jiraType": "Task",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-9",
+      "jiraAssignee": "Turki Alahzmi",
+      "githubAssignee": "Tlm0v",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 54,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/54",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "implemented-area",
+      "mappingNote": "Admin page access is guarded and the admin shell connects user management, class allocation and curriculum editing. Jira explicitly gives Turki the shell/navigation and users/content, while Bahaa's separate task owns admin grades/results.",
+      "parts": [
+        {
+          "path": "app/admin/page.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/admin/page.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/admin/UserManagement.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/admin/UserManagement.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/admin/classes/AdminClasses.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/admin/classes/AdminClasses.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/admin/curriculum/CurriculumEditor.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/admin/curriculum/CurriculumEditor.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/components/PortalShell.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/components/PortalShell.tsx",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-48",
+      "title": "Implement User Management",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-48",
+      "jiraType": "Task",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-9",
+      "jiraAssignee": "Turki Alahzmi",
+      "githubAssignee": "Tlm0v",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 55,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/55",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "implemented-area",
+      "mappingNote": "UserManagement and its admin APIs implement listing/creating/updating accounts, teacher approval, suspension and session invalidation through transactionally audited user-management functions.",
+      "parts": [
+        {
+          "path": "app/admin/UserManagement.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/admin/UserManagement.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/admin/users/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/admin/users/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/admin/users/[id]/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/admin/users/%5Bid%5D/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "lib/user-management.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/lib/user-management.ts",
+          "kind": "file"
+        },
+        {
+          "path": "tests/user-management.test.mjs",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/tests/user-management.test.mjs",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-49",
+      "title": "Implement Content Management",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-49",
+      "jiraType": "Task",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-9",
+      "jiraAssignee": "Turki Alahzmi",
+      "githubAssignee": "Tlm0v",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 56,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/56",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "implemented-area",
+      "mappingNote": "The admin editor manages existing topic reading and the content studio handles draft/review workflows. Current curriculum PUT updates selected existing topics and retains sources/quizzes/review gates; this is not evidence of unrestricted creation/deletion or publication approval.",
+      "parts": [
+        {
+          "path": "app/admin/curriculum/CurriculumEditor.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/admin/curriculum/CurriculumEditor.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/admin/curriculum/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/admin/curriculum/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "lib/curriculum-catalog.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/lib/curriculum-catalog.ts",
+          "kind": "file"
+        },
+        {
+          "path": "app/studio/ContentStudio.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/studio/ContentStudio.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/studio/drafts/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/studio/drafts/route.ts",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-50",
+      "title": "Implement Educational Content Updating",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-50",
+      "jiraType": "Task",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-9",
+      "jiraAssignee": "Turki Alahzmi",
+      "githubAssignee": "Tlm0v",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 57,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/57",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "implemented-area",
+      "mappingNote": "The editor saves bilingual title/introduction/reading updates with optimistic version checks. The shared catalogue surfaces updates to learners while preserving sources, quizzes and educator-review status; workflow tests cover propagation and permissions.",
+      "parts": [
+        {
+          "path": "app/admin/curriculum/CurriculumEditor.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/admin/curriculum/CurriculumEditor.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/admin/curriculum/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/admin/curriculum/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "lib/curriculum-catalog.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/lib/curriculum-catalog.ts",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/curriculum/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/curriculum/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "app/topics/TopicsHub.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/topics/TopicsHub.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "tests/portal-workflows.test.mjs",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/tests/portal-workflows.test.mjs",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-51",
+      "title": "Implement Admin Grades and Results Management",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-51",
+      "jiraType": "Task",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-9",
+      "jiraAssignee": "BAHAA GHAZI",
+      "githubAssignee": "bahaa11-prog",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 58,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/58",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "related-area-only",
+      "mappingNote": "An administrator can enter the shared teacher workspace in isAdmin mode, and its results screen is the closest current implementation. Grade and submission routes still filter classes by teacherId equal to the current actor, so these paths do not establish cross-teacher admin grade management. Preserve Bahaa's task boundary separately from Turki's admin shell.",
+      "parts": [
+        {
+          "path": "app/teach/page.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/teach/page.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/teach/TeacherDashboard.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/teach/TeacherDashboard.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/classes/[id]/grades/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/classes/%5Bid%5D/grades/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/classes/[id]/submissions/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/classes/%5Bid%5D/submissions/route.ts",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-52",
+      "title": "Finalise Technical Architecture and Database",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-52",
+      "jiraType": "Task",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-5",
+      "jiraAssignee": "Omar Gad",
+      "githubAssignee": "omargad",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 59,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/59",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "implemented-area",
+      "mappingNote": "The schema, SQLite connection/bootstrap and additive access migration define the current database implementation; Drizzle configuration and the current deployment runbook describe runtime/storage integration. This maps the final architecture/database task to the current source.",
+      "parts": [
+        {
+          "path": "db/schema.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/db/schema.ts",
+          "kind": "file"
+        },
+        {
+          "path": "db/index.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/db/index.ts",
+          "kind": "file"
+        },
+        {
+          "path": "db/bootstrap.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/db/bootstrap.ts",
+          "kind": "file"
+        },
+        {
+          "path": "db/access-migration.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/db/access-migration.ts",
+          "kind": "file"
+        },
+        {
+          "path": "drizzle.config.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/drizzle.config.ts",
+          "kind": "file"
+        },
+        {
+          "path": "docs/DEPLOYMENT.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/docs/DEPLOYMENT.md",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-53",
+      "title": "Implement Authentication and Role-Based Access Control",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-53",
+      "jiraType": "Task",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-5",
+      "jiraAssignee": "Omar Gad",
+      "githubAssignee": "omargad",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 60,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/60",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "implemented-area",
+      "mappingNote": "Adult/student session services, role predicates, shared session precedence and proxy access handling implement authentication and role controls. The RBAC integration suite exercises role boundaries; runtime authorization also remains in route handlers.",
+      "parts": [
+        {
+          "path": "lib/auth.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/lib/auth.ts",
+          "kind": "file"
+        },
+        {
+          "path": "lib/student-auth.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/lib/student-auth.ts",
+          "kind": "file"
+        },
+        {
+          "path": "lib/roles.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/lib/roles.ts",
+          "kind": "file"
+        },
+        {
+          "path": "lib/session-status.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/lib/session-status.ts",
+          "kind": "file"
+        },
+        {
+          "path": "proxy.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/proxy.ts",
+          "kind": "file"
+        },
+        {
+          "path": "tests/integration/rbac-flow.test.mjs",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/tests/integration/rbac-flow.test.mjs",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-54",
+      "title": "Configure Vercel Deployment",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-54",
+      "jiraType": "Task",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-9",
+      "jiraAssignee": "Omar Gad",
+      "githubAssignee": "omargad",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 61,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/61",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "related-area-only",
+      "mappingNote": "The Jira title is the historical Vercel deployment task. No Vercel deployment configuration was located; the current documented target is Linux/systemd behind Caddy with persistent SQLite/media, plus a Compose alternative. These are the corresponding current deployment areas, not evidence of a Vercel deployment.",
+      "parts": [
+        {
+          "path": "docs/DEPLOYMENT.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/docs/DEPLOYMENT.md",
+          "kind": "file"
+        },
+        {
+          "path": "infra/current-server/bangla-adventures.service",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/infra/current-server/bangla-adventures.service",
+          "kind": "file"
+        },
+        {
+          "path": "infra/current-server/Caddyfile.bangla.example",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/infra/current-server/Caddyfile.bangla.example",
+          "kind": "file"
+        },
+        {
+          "path": "infra/custom-app/bangla-adventures.service",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/infra/custom-app/bangla-adventures.service",
+          "kind": "file"
+        },
+        {
+          "path": "compose.yaml",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/compose.yaml",
+          "kind": "file"
+        },
+        {
+          "path": "README.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/README.md",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-55",
+      "title": "As a student, I want a child-friendly landing page so that I can engage with the platform easily.",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-55",
+      "jiraType": "Story",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-4",
+      "jiraAssignee": "Dilsha Nishadya",
+      "githubAssignee": "104985376",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 62,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/62",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "implemented-area",
+      "mappingNote": "The public welcome page and its component provide the child-facing landing experience; global styles supply presentation and the root page routes anonymous visitors to /welcome. Signed-in users follow their current account portal.",
+      "parts": [
+        {
+          "path": "app/welcome/page.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/welcome/page.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/welcome/Welcome.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/welcome/Welcome.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/globals.css",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/globals.css",
+          "kind": "file"
+        },
+        {
+          "path": "app/page.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/page.tsx",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-56",
+      "title": "Create Student/Teacher/Admin Wireframes",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-56",
+      "jiraType": "Task",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-4",
+      "jiraAssignee": "Dilsha Nishadya",
+      "githubAssignee": "104985376",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 63,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/63",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "related-area-only",
+      "mappingNote": "No standalone student/teacher/admin wireframe artifact was located in the repository. These are the resulting portal interface areas only; their presence must not be presented as the original wireframes or evidence of their author.",
+      "parts": [
+        {
+          "path": "app/components/PortalShell.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/components/PortalShell.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/student/StudentPortal.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/student/StudentPortal.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/teach/TeacherDashboard.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/teach/TeacherDashboard.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/admin/UserManagement.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/admin/UserManagement.tsx",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-57",
+      "title": "As a student, I want a responsive and visually clear platform so that I can use it comfortably on different devices.",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-57",
+      "jiraType": "Story",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-4",
+      "jiraAssignee": "Dilsha Nishadya",
+      "githubAssignee": "104985376",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 64,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/64",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "implemented-area",
+      "mappingNote": "Shared styles and portal containers implement responsive layout and navigation, with browser workflow coverage at multiple viewport widths. The mapping does not substitute for independent accessibility or child-usability approval.",
+      "parts": [
+        {
+          "path": "app/globals.css",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/globals.css",
+          "kind": "file"
+        },
+        {
+          "path": "app/portal.css",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/portal.css",
+          "kind": "file"
+        },
+        {
+          "path": "app/components/PortalShell.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/components/PortalShell.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/components/PortalFrame.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/components/PortalFrame.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "tests/e2e/complete-workflow.spec.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/tests/e2e/complete-workflow.spec.ts",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-58",
+      "title": "Refine Project Requirements and User Stories",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-58",
+      "jiraType": "Task",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-2",
+      "jiraAssignee": "BAHAA GHAZI",
+      "githubAssignee": "bahaa11-prog",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 65,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/65",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "documentation-area",
+      "mappingNote": "The dated client-requirements record and current README/acceptance record are related requirements artifacts. The older meeting document includes historical Moodle-first decisions; current README records the custom-app decision. A dedicated Jira user-story refinement history is external, not proved by these files.",
+      "parts": [
+        {
+          "path": "docs/CLIENT_REQUIREMENTS_2026-08-10.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/docs/CLIENT_REQUIREMENTS_2026-08-10.md",
+          "kind": "file"
+        },
+        {
+          "path": "README.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/README.md",
+          "kind": "file"
+        },
+        {
+          "path": "docs/ACCEPTANCE.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/docs/ACCEPTANCE.md",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-59",
+      "title": "Coordinate Client Feedback and Requirements Changes",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-59",
+      "jiraType": "Task",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-2",
+      "jiraAssignee": "BAHAA GHAZI",
+      "githubAssignee": "bahaa11-prog",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 66,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/66",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "related-area-only",
+      "mappingNote": "These documents record or prepare client requirements, meetings, draft communication and acceptance evidence. They are related coordination artifacts; they do not prove that a draft message was sent, a meeting occurred, or a client approved a change.",
+      "parts": [
+        {
+          "path": "docs/CLIENT_REQUIREMENTS_2026-08-10.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/docs/CLIENT_REQUIREMENTS_2026-08-10.md",
+          "kind": "file"
+        },
+        {
+          "path": "docs/FIRST_MEETING_AGENDA.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/docs/FIRST_MEETING_AGENDA.md",
+          "kind": "file"
+        },
+        {
+          "path": "docs/CLIENT_EMAIL_DRAFT.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/docs/CLIENT_EMAIL_DRAFT.md",
+          "kind": "file"
+        },
+        {
+          "path": "docs/ACCEPTANCE.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/docs/ACCEPTANCE.md",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-60",
+      "title": "Sprint Progress Tracking and Documentation",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-60",
+      "jiraType": "Task",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-9",
+      "jiraAssignee": "BAHAA GHAZI",
+      "githubAssignee": "bahaa11-prog",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 67,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/67",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "related-area-only",
+      "mappingNote": "Jira board structure, sprint scope and reporting remain in the external SCRUM project, with Bahaa identified as the sole Jira manager. These repository files provide related ownership/handover/evidence records, not an archived sprint-board history or proof Bahaa authored the imported documentation.",
+      "parts": [
+        {
+          "path": "CONTRIBUTIONS.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/CONTRIBUTIONS.md",
+          "kind": "file"
+        },
+        {
+          "path": "docs/atlassian-role-mapping.json",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/docs/atlassian-role-mapping.json",
+          "kind": "file"
+        },
+        {
+          "path": "docs/HANDOVER.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/docs/HANDOVER.md",
+          "kind": "file"
+        },
+        {
+          "path": "docs/VERIFICATION.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/docs/VERIFICATION.md",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-61",
+      "title": "Conduct System Testing",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-61",
+      "jiraType": "Task",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-8",
+      "jiraAssignee": "BAHAA GHAZI",
+      "githubAssignee": "bahaa11-prog",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 68,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/68",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "implemented-area",
+      "mappingNote": "System and role workflow tests, CI configuration and the verification record are the corresponding testing areas. Recorded automated results are separate from this Jira assignee's personal test execution or human release sign-off.",
+      "parts": [
+        {
+          "path": "tests/e2e/complete-workflow.spec.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/tests/e2e/complete-workflow.spec.ts",
+          "kind": "file"
+        },
+        {
+          "path": "tests/e2e/access.spec.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/tests/e2e/access.spec.ts",
+          "kind": "file"
+        },
+        {
+          "path": "tests/integration/api-flow.test.mjs",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/tests/integration/api-flow.test.mjs",
+          "kind": "file"
+        },
+        {
+          "path": "tests/integration/rbac-flow.test.mjs",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/tests/integration/rbac-flow.test.mjs",
+          "kind": "file"
+        },
+        {
+          "path": ".github/workflows/ci.yml",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/.github/workflows/ci.yml",
+          "kind": "file"
+        },
+        {
+          "path": "docs/VERIFICATION.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/docs/VERIFICATION.md",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-62",
+      "title": "Conduct Peer Review and Integration Testing",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-62",
+      "jiraType": "Task",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-8",
+      "jiraAssignee": "BAHAA GHAZI",
+      "githubAssignee": "bahaa11-prog",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 69,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/69",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "implemented-area",
+      "mappingNote": "Integration suites and CI cover API, classroom and RBAC interactions; the verification record supplies automated-run evidence. A specific human peer-review record was not located, so these files do not independently prove the peer-review part of the Jira task.",
+      "parts": [
+        {
+          "path": "tests/integration/api-flow.test.mjs",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/tests/integration/api-flow.test.mjs",
+          "kind": "file"
+        },
+        {
+          "path": "tests/integration/classroom-flow.test.mjs",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/tests/integration/classroom-flow.test.mjs",
+          "kind": "file"
+        },
+        {
+          "path": "tests/integration/rbac-flow.test.mjs",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/tests/integration/rbac-flow.test.mjs",
+          "kind": "file"
+        },
+        {
+          "path": ".github/workflows/ci.yml",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/.github/workflows/ci.yml",
+          "kind": "file"
+        },
+        {
+          "path": "docs/VERIFICATION.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/docs/VERIFICATION.md",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-63",
+      "title": "Client Review and Feedback Implementation",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-63",
+      "jiraType": "Task",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-8",
+      "jiraAssignee": "BAHAA GHAZI",
+      "githubAssignee": "bahaa11-prog",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 70,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/70",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "related-area-only",
+      "mappingNote": "Related client-requirements and acceptance/handover records. No dated client-review/sign-off artifact attributable to this Jira task was located in the snapshot; this association does not establish client approval.",
+      "parts": [
+        {
+          "path": "docs/CLIENT_REQUIREMENTS_2026-08-10.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/docs/CLIENT_REQUIREMENTS_2026-08-10.md",
+          "kind": "file"
+        },
+        {
+          "path": "docs/ACCEPTANCE.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/docs/ACCEPTANCE.md",
+          "kind": "file"
+        },
+        {
+          "path": "docs/HANDOVER.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/docs/HANDOVER.md",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-64",
+      "title": "Implement Basic Frontend Form Validation",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-64",
+      "jiraType": "Task",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-6",
+      "jiraAssignee": "BAHAA GHAZI",
+      "githubAssignee": "bahaa11-prog",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 71,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/71",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "implemented-area",
+      "mappingNote": "Student/adult authentication forms, class allocation and curriculum editing contain required-field, length, format and error states. The complete-workflow browser test covers selected invalid and successful flows; this does not prove exhaustive validation of every form.",
+      "parts": [
+        {
+          "path": "app/student/StudentPortal.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/student/StudentPortal.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/grown-ups/AuthCard.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/grown-ups/AuthCard.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/components/ClassAllocation.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/components/ClassAllocation.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/admin/curriculum/CurriculumEditor.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/admin/curriculum/CurriculumEditor.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "tests/e2e/complete-workflow.spec.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/tests/e2e/complete-workflow.spec.ts",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-65",
+      "title": "As a student, I want to log in to my account so that I can securely access my learning activities.",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-65",
+      "jiraType": "Task",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-6",
+      "jiraAssignee": "Mohammed Ali A Alqahtani",
+      "githubAssignee": null,
+      "githubAssignmentStatus": "pending-identity",
+      "githubIssueNumber": 72,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/72",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "implemented-area",
+      "mappingNote": "Student login UI posts credentials to the sign-in route, which verifies the active student, rate-limits attempts and issues the student session cookie; successful navigation reaches My Learning.",
+      "parts": [
+        {
+          "path": "app/student/StudentPortal.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/student/StudentPortal.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/student/page.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/student/page.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/student/sign-in/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/student/sign-in/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "lib/student-auth.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/lib/student-auth.ts",
+          "kind": "file"
+        },
+        {
+          "path": "tests/e2e/complete-workflow.spec.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/tests/e2e/complete-workflow.spec.ts",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-66",
+      "title": "As a teacher, I want to log in to the teacher dashboard so that I can manage my students and learning activities.",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-66",
+      "jiraType": "Story",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-7",
+      "jiraAssignee": "Mohammed Alajmi",
+      "githubAssignee": "MohammedAlAjmi24",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 73,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/73",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "implemented-area",
+      "mappingNote": "Teacher entry uses adult sign-in and checks canTeach before rendering the dashboard. Pending/unapproved teachers see TeacherAccess, and browser coverage exercises registration, approval gating and class access.",
+      "parts": [
+        {
+          "path": "app/teach/page.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/teach/page.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/teach/TeacherAccess.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/teach/TeacherAccess.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/grown-ups/AuthCard.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/grown-ups/AuthCard.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/auth/sign-in/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/auth/sign-in/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "lib/roles.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/lib/roles.ts",
+          "kind": "file"
+        },
+        {
+          "path": "tests/e2e/access.spec.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/tests/e2e/access.spec.ts",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-67",
+      "title": "As an admin, I want to log in to the admin dashboard so that I can manage the platform.",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-67",
+      "jiraType": "Story",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-9",
+      "jiraAssignee": "Turki Alahzmi",
+      "githubAssignee": "Tlm0v",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 74,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/74",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "implemented-area",
+      "mappingNote": "The admin entry requires an existing admin role; requireAdmin rejects other signed-in accounts and account switching has dedicated browser regression coverage. This flow never grants admin merely through sign-in.",
+      "parts": [
+        {
+          "path": "app/admin/page.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/admin/page.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/grown-ups/AuthCard.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/grown-ups/AuthCard.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/grown-ups/GrownUpsContent.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/grown-ups/GrownUpsContent.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/auth/sign-in/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/auth/sign-in/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "lib/roles.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/lib/roles.ts",
+          "kind": "file"
+        },
+        {
+          "path": "tests/e2e/access.spec.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/tests/e2e/access.spec.ts",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-68",
+      "title": "As a teacher, I want to upload student information using a CSV file so that I can create multiple student accounts efficiently.",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-68",
+      "jiraType": "Task",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-7",
+      "jiraAssignee": "Mohammed Alajmi",
+      "githubAssignee": "MohammedAlAjmi24",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 75,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/75",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "not-located",
+      "mappingNote": "Related teacher/student-management surfaces only. The current snapshot allocates an already registered username; no teacher CSV upload form or CSV import parser was located. The visible CSV capability is grades export, not student import.",
+      "parts": [
+        {
+          "path": "app/teach/TeacherDashboard.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/teach/TeacherDashboard.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/components/ClassAllocation.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/components/ClassAllocation.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/classes/[id]/students/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/classes/%5Bid%5D/students/route.ts",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-69",
+      "title": "As a teacher, I want student accounts to be created automatically after a CSV upload so that I do not have to create each account manually.",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-69",
+      "jiraType": "Task",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-7",
+      "jiraAssignee": "Mohammed Alajmi",
+      "githubAssignee": "MohammedAlAjmi24",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 76,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/76",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "not-located",
+      "mappingNote": "Student self-registration and administrator single-account creation exist, and staff can allocate existing students. No CSV-driven bulk student-account creation pipeline was located; these are related account primitives rather than proof of this task.",
+      "parts": [
+        {
+          "path": "app/api/student/sign-up/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/student/sign-up/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "lib/student-auth.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/lib/student-auth.ts",
+          "kind": "file"
+        },
+        {
+          "path": "lib/user-management.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/lib/user-management.ts",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/classes/[id]/students/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/classes/%5Bid%5D/students/route.ts",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-70",
+      "title": "As a teacher, I want each student to receive a randomly generated temporary password so that students can securely access their accounts.",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-70",
+      "jiraType": "Task",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-7",
+      "jiraAssignee": "Mohammed Alajmi",
+      "githubAssignee": "MohammedAlAjmi24",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 77,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/77",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "not-located",
+      "mappingNote": "Student creation accepts a supplied password and hashes it. Random values in lib/password.ts are session/recovery material; no generated temporary-student-password provisioning flow or first-login temporary-password flag was located.",
+      "parts": [
+        {
+          "path": "lib/student-auth.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/lib/student-auth.ts",
+          "kind": "file"
+        },
+        {
+          "path": "lib/user-management.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/lib/user-management.ts",
+          "kind": "file"
+        },
+        {
+          "path": "lib/password.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/lib/password.ts",
+          "kind": "file"
+        },
+        {
+          "path": "db/schema.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/db/schema.ts",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-71",
+      "title": "As a student, I want to change my temporary password so that I can secure my account.",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-71",
+      "jiraType": "Task",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-6",
+      "jiraAssignee": "Mohammed Ali A Alqahtani",
+      "githubAssignee": null,
+      "githubAssignmentStatus": "pending-identity",
+      "githubIssueNumber": 78,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/78",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "not-located",
+      "mappingNote": "No student temporary-password change UI/API was located. The existing account/password route authenticates adults with getSessionAdult and changes adult credentials, so it must not be credited as implementing this student story.",
+      "parts": [
+        {
+          "path": "app/student/StudentPortal.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/student/StudentPortal.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "lib/student-auth.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/lib/student-auth.ts",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/account/password/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/account/password/route.ts",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-72",
+      "title": "As an admin, I want to manage user accounts so that I can maintain the platform.",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-72",
+      "jiraType": "Task",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-9",
+      "jiraAssignee": "Turki Alahzmi",
+      "githubAssignee": "Tlm0v",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 79,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/79",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "implemented-area",
+      "mappingNote": "Administrator UI and APIs list/create/update accounts, approve teachers, suspend accounts and revoke sessions; shared service code records audited changes and tests permissions and session invalidation.",
+      "parts": [
+        {
+          "path": "app/admin/UserManagement.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/admin/UserManagement.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/admin/users/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/admin/users/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/admin/users/[id]/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/admin/users/%5Bid%5D/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "lib/user-management.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/lib/user-management.ts",
+          "kind": "file"
+        },
+        {
+          "path": "tests/user-management.test.mjs",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/tests/user-management.test.mjs",
+          "kind": "file"
+        },
+        {
+          "path": "tests/integration/rbac-flow.test.mjs",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/tests/integration/rbac-flow.test.mjs",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-73",
+      "title": "As an admin, I want to add, edit and update educational content so that learning materials can be kept up to date.",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-73",
+      "jiraType": "Task",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-9",
+      "jiraAssignee": "Turki Alahzmi",
+      "githubAssignee": "Tlm0v",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 80,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/80",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "implemented-area",
+      "mappingNote": "Administrator editor updates existing bilingual topic readings with validation, optimistic versions and audit records, then serves them to the learner view. New topic creation is not exposed by this editor; existing sources, quizzes and educator-review gates are retained.",
+      "parts": [
+        {
+          "path": "app/admin/curriculum/CurriculumEditor.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/admin/curriculum/CurriculumEditor.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/admin/curriculum/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/admin/curriculum/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "lib/curriculum-catalog.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/lib/curriculum-catalog.ts",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/curriculum/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/curriculum/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "app/topics/TopicsHub.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/topics/TopicsHub.tsx",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-74",
+      "title": "As an admin, I want to manage student grades and results so that performance information remains accurate.",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-74",
+      "jiraType": "Story",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-7",
+      "jiraAssignee": "BAHAA GHAZI",
+      "githubAssignee": "bahaa11-prog",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 81,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/81",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "related-area-only",
+      "mappingNote": "Related shared results/grade-export and submission-reset code. Both grades and submissions routes restrict classes to teacherId=user.id; no unrestricted administrator grade-editing workflow was located. Bahaa remains this individual Jira story owner even though the code is shared with teacher results.",
+      "parts": [
+        {
+          "path": "app/teach/TeacherDashboard.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/teach/TeacherDashboard.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/classes/[id]/grades/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/classes/%5Bid%5D/grades/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/classes/[id]/submissions/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/classes/%5Bid%5D/submissions/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "lib/roles.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/lib/roles.ts",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-75",
+      "title": "Implement CSV Student Upload",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-75",
+      "jiraType": "Story",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-7",
+      "jiraAssignee": "Mohammed Alajmi",
+      "githubAssignee": "MohammedAlAjmi24",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 82,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/82",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "not-located",
+      "mappingNote": "No CSV student-upload implementation was located in this snapshot. Current staff allocation uses an exact already registered username, while registration takes individual credentials; grade CSV export is a different function.",
+      "parts": [
+        {
+          "path": "app/teach/TeacherDashboard.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/teach/TeacherDashboard.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/components/ClassAllocation.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/components/ClassAllocation.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/classes/[id]/students/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/classes/%5Bid%5D/students/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "lib/student-auth.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/lib/student-auth.ts",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-76",
+      "title": "As a student, I want to view my results and progress so that I can track my learning performance.",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-76",
+      "jiraType": "Story",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-6",
+      "jiraAssignee": "Mohammed Ali A Alqahtani",
+      "githubAssignee": null,
+      "githubAssignmentStatus": "pending-identity",
+      "githubIssueNumber": 83,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/83",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "implemented-area",
+      "mappingNote": "Student UI displays completed activities, scores, average result and stored topic-reading progress. Feed/results routes scope data through active student enrollments and persisted submissions; retain this story separately from the similarly worded SCRUM-79.",
+      "parts": [
+        {
+          "path": "app/student/StudentPortal.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/student/StudentPortal.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/student/feed/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/student/feed/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/student/results/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/student/results/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/student/topic-progress/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/student/topic-progress/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "db/schema.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/db/schema.ts",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-77",
+      "title": "As a student, I want to sign in securely so that I can access my learning account.",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-77",
+      "jiraType": "Story",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-6",
+      "jiraAssignee": "Mohammed Ali A Alqahtani",
+      "githubAssignee": null,
+      "githubAssignmentStatus": "pending-identity",
+      "githubIssueNumber": 84,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/84",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "implemented-area",
+      "mappingNote": "Student credential verification, active-account/session handling and My Learning navigation are implemented by these surfaces. SCRUM-77 is preserved separately from SCRUM-65 and its implementation subtask SCRUM-83.",
+      "parts": [
+        {
+          "path": "app/student/StudentPortal.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/student/StudentPortal.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/student/page.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/student/page.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/student/sign-in/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/student/sign-in/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "lib/student-auth.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/lib/student-auth.ts",
+          "kind": "file"
+        },
+        {
+          "path": "tests/e2e/complete-workflow.spec.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/tests/e2e/complete-workflow.spec.ts",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-78",
+      "title": "As a student, I want to access learning content and interactive activities so that I can learn about Bangladesh in an engaging way.",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-78",
+      "jiraType": "Story",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-6",
+      "jiraAssignee": "Mohammed Ali A Alqahtani",
+      "githubAssignee": null,
+      "githubAssignmentStatus": "pending-identity",
+      "githubIssueNumber": 85,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/85",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "implemented-area",
+      "mappingNote": "Student learning links lead to topic readings and sources; allocated activities are loaded from the scoped feed and submitted through the student endpoint. Learning routes require a session and topic content retains review notices.",
+      "parts": [
+        {
+          "path": "app/student/StudentPortal.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/student/StudentPortal.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/topics/TopicsHub.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/topics/TopicsHub.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/curriculum/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/curriculum/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/student/feed/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/student/feed/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/student/submit/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/student/submit/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "lib/learning-policy.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/lib/learning-policy.ts",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-79",
+      "title": "As a student, I want to view my results and progress so that I can track my learning performance.",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-79",
+      "jiraType": "Story",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-6",
+      "jiraAssignee": "BAHAA GHAZI",
+      "githubAssignee": "bahaa11-prog",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 86,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/86",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "implemented-area",
+      "mappingNote": "The same results/progress surfaces support this separately assigned Jira story. Preserve Bahaa as the SCRUM-79 owner and Mohammed Ali A Alqahtani as SCRUM-76 owner; matching descriptions do not merge their task records or prove source-line authorship.",
+      "parts": [
+        {
+          "path": "app/student/StudentPortal.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/student/StudentPortal.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/student/feed/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/student/feed/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/student/results/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/student/results/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/student/topic-progress/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/student/topic-progress/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "db/schema.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/db/schema.ts",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-80",
+      "title": "As a teacher, I want to manage student accounts using CSV upload so that I can create multiple student accounts efficiently.",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-80",
+      "jiraType": "Story",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-7",
+      "jiraAssignee": "Mohammed Alajmi",
+      "githubAssignee": "MohammedAlAjmi24",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 87,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/87",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "not-located",
+      "mappingNote": "No teacher CSV import, bulk provisioning, generated temporary-password or import-error report pipeline was located. Related code supports exact-username class allocation, student self-registration and administrator single-account creation only.",
+      "parts": [
+        {
+          "path": "app/teach/TeacherDashboard.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/teach/TeacherDashboard.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/components/ClassAllocation.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/components/ClassAllocation.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/classes/[id]/students/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/classes/%5Bid%5D/students/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "lib/student-auth.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/lib/student-auth.ts",
+          "kind": "file"
+        },
+        {
+          "path": "lib/user-management.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/lib/user-management.ts",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-81",
+      "title": "As a teacher, I want to view and manage student grades and results so that I can monitor student performance.",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-81",
+      "jiraType": "Story",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-7",
+      "jiraAssignee": "Mohammed Alajmi",
+      "githubAssignee": "MohammedAlAjmi24",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 88,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/88",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "implemented-area",
+      "mappingNote": "Teacher dashboard summarizes stored submissions, exposes per-class grade CSV export and can reset a submission through the owner-scoped DELETE endpoint. These paths support teacher results management; they do not expose arbitrary manual score editing.",
+      "parts": [
+        {
+          "path": "app/teach/TeacherDashboard.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/teach/TeacherDashboard.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/classes/[id]/grades/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/classes/%5Bid%5D/grades/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/classes/[id]/submissions/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/classes/%5Bid%5D/submissions/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/classes/[id]/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/classes/%5Bid%5D/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "tests/integration/classroom-flow.test.mjs",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/tests/integration/classroom-flow.test.mjs",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-82",
+      "title": "As an admin, I want to manage users and educational content so that the platform can be maintained without developer intervention for routine updates.",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-82",
+      "jiraType": "Story",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-9",
+      "jiraAssignee": "Turki Alahzmi",
+      "githubAssignee": "Tlm0v",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 89,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/89",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "implemented-area",
+      "mappingNote": "Administrator account management and existing-topic reading updates are represented here. The curriculum editor updates known topics rather than adding new topic definitions; review gates remain separate from successful saves.",
+      "parts": [
+        {
+          "path": "app/admin/UserManagement.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/admin/UserManagement.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/admin/curriculum/CurriculumEditor.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/admin/curriculum/CurriculumEditor.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/admin/users/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/admin/users/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/admin/users/[id]/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/admin/users/%5Bid%5D/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/admin/curriculum/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/admin/curriculum/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "lib/user-management.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/lib/user-management.ts",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-83",
+      "title": "Connect student login to authentication flow",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-83",
+      "jiraType": "Subtask",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-77",
+      "jiraAssignee": "Mohammed Ali A Alqahtani",
+      "githubAssignee": null,
+      "githubAssignmentStatus": "pending-identity",
+      "githubIssueNumber": 90,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/90",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "implemented-area",
+      "mappingNote": "Student form submission calls the authentication endpoint, creates the student session and uses full navigation to the requested student destination. Session-status logic recognizes the current account; this is the implementation subtask of SCRUM-77.",
+      "parts": [
+        {
+          "path": "app/student/StudentPortal.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/student/StudentPortal.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/student/sign-in/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/student/sign-in/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "lib/student-auth.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/lib/student-auth.ts",
+          "kind": "file"
+        },
+        {
+          "path": "app/student/page.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/student/page.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "lib/session-status.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/lib/session-status.ts",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-84",
+      "title": "As a student, I want a learning-focused dashboard with topic progress so that I can quickly see what to learn next.",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-84",
+      "jiraType": "Story",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-6",
+      "jiraAssignee": "Mohammed Ali A Alqahtani",
+      "githubAssignee": null,
+      "githubAssignmentStatus": "pending-identity",
+      "githubIssueNumber": 91,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/91",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "implemented-area",
+      "mappingNote": "My Learning presents topic cards, stored read-topic markers, allocated class activities and submission-derived progress totals. The browser workflow checks student landing, topic navigation and persistence of reading completion; these source paths do not establish representative-child acceptance.",
+      "parts": [
+        {
+          "path": "app/student/StudentPortal.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/student/StudentPortal.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/student/page.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/student/page.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/curriculum/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/curriculum/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/student/topic-progress/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/student/topic-progress/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/student/feed/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/student/feed/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "tests/e2e/complete-workflow.spec.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/tests/e2e/complete-workflow.spec.ts",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-85",
+      "title": "Create a shared portal layout and consistent navigation pattern",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-85",
+      "jiraType": "Task",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-4",
+      "jiraAssignee": "Dilsha Nishadya",
+      "githubAssignee": "104985376",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 92,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/92",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "implemented-area",
+      "mappingNote": "Shared shell/frame components supply role-appropriate navigation, active states and responsive menus; LearningLayout wraps learning pages. Browser coverage checks common portal navigation and overflow across desktop, tablet and mobile widths.",
+      "parts": [
+        {
+          "path": "app/components/PortalShell.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/components/PortalShell.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/components/PortalFrame.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/components/PortalFrame.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/components/LearningLayout.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/components/LearningLayout.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/portal.css",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/portal.css",
+          "kind": "file"
+        },
+        {
+          "path": "tests/e2e/complete-workflow.spec.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/tests/e2e/complete-workflow.spec.ts",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-86",
+      "title": "As a teacher, I want to manage classes and allocate students so that young learners do not need to enter class codes.",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-86",
+      "jiraType": "Story",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-7",
+      "jiraAssignee": "Mohammed Alajmi",
+      "githubAssignee": "MohammedAlAjmi24",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 93,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/93",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "implemented-area",
+      "mappingNote": "Teacher/class UI allocates existing registered students by exact username, updates/removes active enrollment without deleting learning records, and rejects unauthorized allocation and handles duplicate allocation idempotently without creating a second roster entry. Tests cover permission boundaries and the no-class-code student journey.",
+      "parts": [
+        {
+          "path": "app/teach/TeacherDashboard.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/teach/TeacherDashboard.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/components/ClassAllocation.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/components/ClassAllocation.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/classes/[id]/students/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/classes/%5Bid%5D/students/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "lib/enrollments.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/lib/enrollments.ts",
+          "kind": "file"
+        },
+        {
+          "path": "tests/portal-workflows.test.mjs",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/tests/portal-workflows.test.mjs",
+          "kind": "file"
+        },
+        {
+          "path": "tests/e2e/complete-workflow.spec.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/tests/e2e/complete-workflow.spec.ts",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-87",
+      "title": "Organise teacher portal functions into clear pages and sidebar sections",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-87",
+      "jiraType": "Task",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-7",
+      "jiraAssignee": "Turki Alahzmi",
+      "githubAssignee": "Tlm0v",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 94,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/94",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "implemented-area",
+      "mappingNote": "TeacherDashboard groups classes, students, activities, results and announcements behind sidebar sections, retaining shared navigation and responsive behavior. The functions remain sections within the dashboard rather than all becoming separate route pages.",
+      "parts": [
+        {
+          "path": "app/teach/TeacherDashboard.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/teach/TeacherDashboard.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/components/PortalFrame.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/components/PortalFrame.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/portal.css",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/portal.css",
+          "kind": "file"
+        },
+        {
+          "path": "tests/e2e/complete-workflow.spec.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/tests/e2e/complete-workflow.spec.ts",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-88",
+      "title": "Add visible sources and references to educational content",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-88",
+      "jiraType": "Task",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-3",
+      "jiraAssignee": "Mohammed Ali A Alqahtani",
+      "githubAssignee": null,
+      "githubAssignmentStatus": "pending-identity",
+      "githubIssueNumber": 95,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/95",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "implemented-area",
+      "mappingNote": "Topic source records render beside reading and link to the references/NCTB collection; the workflow test checks source visibility and retained draft notices. Visible citations are not proof that every adaptation has passed educator, rights or cultural review.",
+      "parts": [
+        {
+          "path": "app/references/page.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/references/page.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/topics/TopicsHub.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/topics/TopicsHub.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/topics-content.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/topics-content.ts",
+          "kind": "file"
+        },
+        {
+          "path": "lib/curriculum-catalog.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/lib/curriculum-catalog.ts",
+          "kind": "file"
+        },
+        {
+          "path": "app/nctb-books.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/nctb-books.ts",
+          "kind": "file"
+        },
+        {
+          "path": "tests/e2e/complete-workflow.spec.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/tests/e2e/complete-workflow.spec.ts",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-89",
+      "title": "Run end-to-end workflow and form-validation regression tests",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-89",
+      "jiraType": "Task",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-8",
+      "jiraAssignee": "Omar Gad",
+      "githubAssignee": "omargad",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 96,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/96",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "implemented-area",
+      "mappingNote": "The complete browser journey covers teacher registration/approval, class allocation, activity publishing/submission, results, curriculum updates and recovery with selected validation failures. Related API/unit checks and the verification record provide reproducible evidence for the tested release, not live-server approval.",
+      "parts": [
+        {
+          "path": "tests/e2e/complete-workflow.spec.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/tests/e2e/complete-workflow.spec.ts",
+          "kind": "file"
+        },
+        {
+          "path": "tests/e2e/access.spec.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/tests/e2e/access.spec.ts",
+          "kind": "file"
+        },
+        {
+          "path": "tests/integration/rbac-flow.test.mjs",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/tests/integration/rbac-flow.test.mjs",
+          "kind": "file"
+        },
+        {
+          "path": "tests/portal-workflows.test.mjs",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/tests/portal-workflows.test.mjs",
+          "kind": "file"
+        },
+        {
+          "path": "docs/VERIFICATION.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/docs/VERIFICATION.md",
+          "kind": "file"
+        },
+        {
+          "path": ".github/workflows/ci.yml",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/.github/workflows/ci.yml",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-90",
+      "title": "Review teacher recovery-code flow and demonstrate its intended use cases",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-90",
+      "jiraType": "Task",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-5",
+      "jiraAssignee": "Omar Gad",
+      "githubAssignee": "omargad",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 97,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/97",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "implemented-area",
+      "mappingNote": "Sign-up UI explains one-time recovery codes; recovery and regeneration APIs use the authentication service, and the browser workflow demonstrates reset plus refusal to reuse a consumed code. The acceptance record retains the human demonstration/sign-off requirement.",
+      "parts": [
+        {
+          "path": "app/grown-ups/AuthCard.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/grown-ups/AuthCard.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/auth/recover/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/auth/recover/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/account/recovery-codes/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/account/recovery-codes/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "lib/auth.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/lib/auth.ts",
+          "kind": "file"
+        },
+        {
+          "path": "tests/e2e/complete-workflow.spec.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/tests/e2e/complete-workflow.spec.ts",
+          "kind": "file"
+        },
+        {
+          "path": "docs/ACCEPTANCE.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/docs/ACCEPTANCE.md",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-91",
+      "title": "Review UI alignment, child-friendly presentation and responsive consistency",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-91",
+      "jiraType": "Task",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-4",
+      "jiraAssignee": "Mohammed Alqahtani",
+      "githubAssignee": null,
+      "githubAssignmentStatus": "pending-identity",
+      "githubIssueNumber": 98,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/98",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "related-area-only",
+      "mappingNote": "Current shared UI/styles and responsive regression checks are related implementation areas. No separately attributed before/after review package or independent child-usability approval for this task was located; retain the Jira review assignment without asserting that evidence.",
+      "parts": [
+        {
+          "path": "app/components/PortalShell.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/components/PortalShell.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/components/PortalFrame.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/components/PortalFrame.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/portal.css",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/portal.css",
+          "kind": "file"
+        },
+        {
+          "path": "app/globals.css",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/globals.css",
+          "kind": "file"
+        },
+        {
+          "path": "tests/e2e/complete-workflow.spec.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/tests/e2e/complete-workflow.spec.ts",
+          "kind": "file"
+        },
+        {
+          "path": "docs/ACCEPTANCE.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/docs/ACCEPTANCE.md",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "jiraKey": "SCRUM-92",
+      "title": "Clarify admin workflow and confirm curriculum updates end to end",
+      "jiraUrl": "https://ictprojectb26.atlassian.net/browse/SCRUM-92",
+      "jiraType": "Task",
+      "jiraStatus": "Done",
+      "parentJiraKey": "SCRUM-9",
+      "jiraAssignee": "BAHAA GHAZI",
+      "githubAssignee": "bahaa11-prog",
+      "githubAssignmentStatus": "assigned",
+      "githubIssueNumber": 99,
+      "githubIssueUrl": "https://github.com/omargad/Bangla-Adventure/issues/99",
+      "githubState": "closed",
+      "jiraRemoteLinkCreated": true,
+      "coverage": "implemented-area",
+      "mappingNote": "Existing-topic admin edits are validated, version-checked and read back in the student topic view. The full browser workflow demonstrates save-to-learner visibility, forbidden student mutation and preserved draft/source notices; new topic creation and client production acceptance are separate claims.",
+      "parts": [
+        {
+          "path": "app/admin/curriculum/CurriculumEditor.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/admin/curriculum/CurriculumEditor.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "app/api/admin/curriculum/route.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/api/admin/curriculum/route.ts",
+          "kind": "file"
+        },
+        {
+          "path": "lib/curriculum-catalog.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/lib/curriculum-catalog.ts",
+          "kind": "file"
+        },
+        {
+          "path": "app/topics/TopicsHub.tsx",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/app/topics/TopicsHub.tsx",
+          "kind": "file"
+        },
+        {
+          "path": "tests/e2e/complete-workflow.spec.ts",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/tests/e2e/complete-workflow.spec.ts",
+          "kind": "file"
+        },
+        {
+          "path": "docs/VERIFICATION.md",
+          "url": "https://github.com/omargad/Bangla-Adventure/blob/d7560a07336fd7cfeecc48ff3ac9bcf1852e26ac/docs/VERIFICATION.md",
+          "kind": "file"
+        }
+      ]
+    }
+  ]
+}

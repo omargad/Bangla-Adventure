@@ -2,7 +2,7 @@
   "asOf": "2026-10-28",
   "site": "https://ictprojectb26.atlassian.net",
   "sourceProject": "SCRUM",
-  "basis": "Jira task ownership and issue descriptions. This records responsibility; it does not establish authorship of individual source lines or commits.",
+  "basis": "Individual Jira task ownership, descriptions and source associations. Exact task-level assignments in docs/jira-task-mapping.json take precedence over broad responsibility summaries; no source-line authorship is implied.",
   "people": [
     {
       "displayName": "BAHAA GHAZI",
@@ -46,10 +46,104 @@
         }
       ],
       "githubAssignmentStatus": "assigned",
-      "githubOwnershipIssue": {
-        "number": 2,
-        "url": "https://github.com/omargad/Bangla-Adventure/issues/2"
-      }
+      "githubTaskIssues": [
+        {
+          "jiraKey": "SCRUM-10",
+          "number": 17,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/17"
+        },
+        {
+          "jiraKey": "SCRUM-11",
+          "number": 18,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/18"
+        },
+        {
+          "jiraKey": "SCRUM-12",
+          "number": 19,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/19"
+        },
+        {
+          "jiraKey": "SCRUM-13",
+          "number": 20,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/20"
+        },
+        {
+          "jiraKey": "SCRUM-14",
+          "number": 21,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/21"
+        },
+        {
+          "jiraKey": "SCRUM-24",
+          "number": 31,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/31"
+        },
+        {
+          "jiraKey": "SCRUM-38",
+          "number": 45,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/45"
+        },
+        {
+          "jiraKey": "SCRUM-39",
+          "number": 46,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/46"
+        },
+        {
+          "jiraKey": "SCRUM-51",
+          "number": 58,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/58"
+        },
+        {
+          "jiraKey": "SCRUM-58",
+          "number": 65,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/65"
+        },
+        {
+          "jiraKey": "SCRUM-59",
+          "number": 66,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/66"
+        },
+        {
+          "jiraKey": "SCRUM-60",
+          "number": 67,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/67"
+        },
+        {
+          "jiraKey": "SCRUM-61",
+          "number": 68,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/68"
+        },
+        {
+          "jiraKey": "SCRUM-62",
+          "number": 69,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/69"
+        },
+        {
+          "jiraKey": "SCRUM-63",
+          "number": 70,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/70"
+        },
+        {
+          "jiraKey": "SCRUM-64",
+          "number": 71,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/71"
+        },
+        {
+          "jiraKey": "SCRUM-74",
+          "number": 81,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/81"
+        },
+        {
+          "jiraKey": "SCRUM-79",
+          "number": 86,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/86"
+        },
+        {
+          "jiraKey": "SCRUM-92",
+          "number": 99,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/99"
+        }
+      ],
+      "jiraItemCount": 19
     },
     {
       "displayName": "Omar Gad",
@@ -85,10 +179,39 @@
         }
       ],
       "githubAssignmentStatus": "assigned",
-      "githubOwnershipIssue": {
-        "number": 3,
-        "url": "https://github.com/omargad/Bangla-Adventure/issues/3"
-      }
+      "githubTaskIssues": [
+        {
+          "jiraKey": "SCRUM-25",
+          "number": 32,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/32"
+        },
+        {
+          "jiraKey": "SCRUM-52",
+          "number": 59,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/59"
+        },
+        {
+          "jiraKey": "SCRUM-53",
+          "number": 60,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/60"
+        },
+        {
+          "jiraKey": "SCRUM-54",
+          "number": 61,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/61"
+        },
+        {
+          "jiraKey": "SCRUM-89",
+          "number": 96,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/96"
+        },
+        {
+          "jiraKey": "SCRUM-90",
+          "number": 97,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/97"
+        }
+      ],
+      "jiraItemCount": 6
     },
     {
       "displayName": "Mohammed Ali A Alqahtani",
@@ -124,10 +247,84 @@
         }
       ],
       "githubAssignmentStatus": "pending-identity-confirmation",
-      "githubOwnershipIssue": {
-        "number": 4,
-        "url": "https://github.com/omargad/Bangla-Adventure/issues/4"
-      }
+      "githubTaskIssues": [
+        {
+          "jiraKey": "SCRUM-26",
+          "number": 33,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/33"
+        },
+        {
+          "jiraKey": "SCRUM-27",
+          "number": 34,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/34"
+        },
+        {
+          "jiraKey": "SCRUM-28",
+          "number": 35,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/35"
+        },
+        {
+          "jiraKey": "SCRUM-29",
+          "number": 36,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/36"
+        },
+        {
+          "jiraKey": "SCRUM-40",
+          "number": 47,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/47"
+        },
+        {
+          "jiraKey": "SCRUM-41",
+          "number": 48,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/48"
+        },
+        {
+          "jiraKey": "SCRUM-42",
+          "number": 49,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/49"
+        },
+        {
+          "jiraKey": "SCRUM-65",
+          "number": 72,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/72"
+        },
+        {
+          "jiraKey": "SCRUM-71",
+          "number": 78,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/78"
+        },
+        {
+          "jiraKey": "SCRUM-76",
+          "number": 83,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/83"
+        },
+        {
+          "jiraKey": "SCRUM-77",
+          "number": 84,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/84"
+        },
+        {
+          "jiraKey": "SCRUM-78",
+          "number": 85,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/85"
+        },
+        {
+          "jiraKey": "SCRUM-83",
+          "number": 90,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/90"
+        },
+        {
+          "jiraKey": "SCRUM-84",
+          "number": 91,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/91"
+        },
+        {
+          "jiraKey": "SCRUM-88",
+          "number": 95,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/95"
+        }
+      ],
+      "jiraItemCount": 15
     },
     {
       "displayName": "Mohammed Alajmi",
@@ -159,18 +356,127 @@
         }
       ],
       "githubAssignmentStatus": "assigned",
-      "githubOwnershipIssue": {
-        "number": 5,
-        "url": "https://github.com/omargad/Bangla-Adventure/issues/5"
-      }
+      "githubTaskIssues": [
+        {
+          "jiraKey": "SCRUM-15",
+          "number": 22,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/22"
+        },
+        {
+          "jiraKey": "SCRUM-16",
+          "number": 23,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/23"
+        },
+        {
+          "jiraKey": "SCRUM-17",
+          "number": 24,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/24"
+        },
+        {
+          "jiraKey": "SCRUM-30",
+          "number": 37,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/37"
+        },
+        {
+          "jiraKey": "SCRUM-31",
+          "number": 38,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/38"
+        },
+        {
+          "jiraKey": "SCRUM-32",
+          "number": 39,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/39"
+        },
+        {
+          "jiraKey": "SCRUM-33",
+          "number": 40,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/40"
+        },
+        {
+          "jiraKey": "SCRUM-34",
+          "number": 41,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/41"
+        },
+        {
+          "jiraKey": "SCRUM-35",
+          "number": 42,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/42"
+        },
+        {
+          "jiraKey": "SCRUM-36",
+          "number": 43,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/43"
+        },
+        {
+          "jiraKey": "SCRUM-43",
+          "number": 50,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/50"
+        },
+        {
+          "jiraKey": "SCRUM-44",
+          "number": 51,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/51"
+        },
+        {
+          "jiraKey": "SCRUM-45",
+          "number": 52,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/52"
+        },
+        {
+          "jiraKey": "SCRUM-46",
+          "number": 53,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/53"
+        },
+        {
+          "jiraKey": "SCRUM-66",
+          "number": 73,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/73"
+        },
+        {
+          "jiraKey": "SCRUM-68",
+          "number": 75,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/75"
+        },
+        {
+          "jiraKey": "SCRUM-69",
+          "number": 76,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/76"
+        },
+        {
+          "jiraKey": "SCRUM-70",
+          "number": 77,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/77"
+        },
+        {
+          "jiraKey": "SCRUM-75",
+          "number": 82,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/82"
+        },
+        {
+          "jiraKey": "SCRUM-80",
+          "number": 87,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/87"
+        },
+        {
+          "jiraKey": "SCRUM-81",
+          "number": 88,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/88"
+        },
+        {
+          "jiraKey": "SCRUM-86",
+          "number": 93,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/93"
+        }
+      ],
+      "jiraItemCount": 22
     },
     {
       "displayName": "Turki Alahzmi",
       "accountId": "712020:9af156e3-d75c-401c-b92c-2d2e69f32c9f",
       "responsibility": "Admin platform and portal organisation",
       "detail": "Owns the admin shell/navigation, user management, content management and updates, plus teacher portal section organisation. Admin grades/results remain Bahaa's responsibility under SCRUM-47.",
-      "githubLogin": null,
-      "githubIdentityBasis": "Pending: no verified GitHub-to-Jira identity match",
+      "githubLogin": "Tlm0v",
+      "githubIdentityBasis": "Contextual verification on 2026-10-28: existing write collaborator, original GitHub-attributed same-project admin/users/content commits, consistent account evidence and a unique matching team member. See docs/ORIGINAL_CONTRIBUTIONS.md; not an exact cross-service account-ID match.",
       "evidence": [
         {
           "key": "SCRUM-47",
@@ -193,11 +499,65 @@
           "url": "https://ictprojectb26.atlassian.net/browse/SCRUM-87"
         }
       ],
-      "githubAssignmentStatus": "pending-identity-confirmation",
-      "githubOwnershipIssue": {
-        "number": 6,
-        "url": "https://github.com/omargad/Bangla-Adventure/issues/6"
-      }
+      "githubAssignmentStatus": "assigned",
+      "githubTaskIssues": [
+        {
+          "jiraKey": "SCRUM-20",
+          "number": 27,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/27"
+        },
+        {
+          "jiraKey": "SCRUM-21",
+          "number": 28,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/28"
+        },
+        {
+          "jiraKey": "SCRUM-47",
+          "number": 54,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/54"
+        },
+        {
+          "jiraKey": "SCRUM-48",
+          "number": 55,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/55"
+        },
+        {
+          "jiraKey": "SCRUM-49",
+          "number": 56,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/56"
+        },
+        {
+          "jiraKey": "SCRUM-50",
+          "number": 57,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/57"
+        },
+        {
+          "jiraKey": "SCRUM-67",
+          "number": 74,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/74"
+        },
+        {
+          "jiraKey": "SCRUM-72",
+          "number": 79,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/79"
+        },
+        {
+          "jiraKey": "SCRUM-73",
+          "number": 80,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/80"
+        },
+        {
+          "jiraKey": "SCRUM-82",
+          "number": 89,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/89"
+        },
+        {
+          "jiraKey": "SCRUM-87",
+          "number": 94,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/94"
+        }
+      ],
+      "jiraItemCount": 11
     },
     {
       "displayName": "Dilsha Nishadya",
@@ -237,10 +597,44 @@
         }
       ],
       "githubAssignmentStatus": "assigned",
-      "githubOwnershipIssue": {
-        "number": 7,
-        "url": "https://github.com/omargad/Bangla-Adventure/issues/7"
-      }
+      "githubTaskIssues": [
+        {
+          "jiraKey": "SCRUM-18",
+          "number": 25,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/25"
+        },
+        {
+          "jiraKey": "SCRUM-19",
+          "number": 26,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/26"
+        },
+        {
+          "jiraKey": "SCRUM-37",
+          "number": 44,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/44"
+        },
+        {
+          "jiraKey": "SCRUM-55",
+          "number": 62,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/62"
+        },
+        {
+          "jiraKey": "SCRUM-56",
+          "number": 63,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/63"
+        },
+        {
+          "jiraKey": "SCRUM-57",
+          "number": 64,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/64"
+        },
+        {
+          "jiraKey": "SCRUM-85",
+          "number": 92,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/92"
+        }
+      ],
+      "jiraItemCount": 7
     },
     {
       "displayName": "Mohammed Alqahtani",
@@ -264,17 +658,32 @@
         }
       ],
       "githubAssignmentStatus": "pending-identity-confirmation",
-      "githubOwnershipIssue": {
-        "number": 8,
-        "url": "https://github.com/omargad/Bangla-Adventure/issues/8"
-      }
+      "githubTaskIssues": [
+        {
+          "jiraKey": "SCRUM-22",
+          "number": 29,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/29"
+        },
+        {
+          "jiraKey": "SCRUM-23",
+          "number": 30,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/30"
+        },
+        {
+          "jiraKey": "SCRUM-91",
+          "number": 98,
+          "url": "https://github.com/omargad/Bangla-Adventure/issues/98"
+        }
+      ],
+      "jiraItemCount": 3
     }
   ],
   "notes": [
     "Mohammed Alqahtani and Mohammed Ali A Alqahtani are distinct active Jira accounts and must remain separate.",
     "All seven accounts are assignable in SCRUM; assignment eligibility must be checked again for a newly created project.",
     "No commit history was included in the supplied ZIP; do not manufacture historical commits or co-author records.",
-    "Task status Done is copied only as a Jira record, not independent proof that the imported release is production-ready."
+    "Task status Done is copied only as a Jira record, not independent proof that the imported release is production-ready.",
+    "The seven broad ownership-review issues #2–#8 were superseded by 91 individual Jira mirrors. 65 GitHub assignments are verified, 18 await identity confirmation, and 8 epics retain their unassigned Jira state."
   ],
   "githubAccessVerification": {
     "asOf": "2026-10-28",
@@ -287,14 +696,13 @@
       "Tlm0v"
     ],
     "unmappedWriteCollaborators": [
-      "MAQ022",
-      "Tlm0v"
+      "MAQ022"
     ],
     "unresolvedPeople": [
       "Mohammed Ali A Alqahtani",
-      "Turki Alahzmi",
       "Mohammed Alqahtani"
     ],
-    "note": "Six human accounts were visible in the repository assignee selector. A seventh account and invitation status could not be established. Unmapped collaborators are not assigned to a Jira person by inference."
-  }
+    "note": "Five identities are mapped; MAQ022 is not distinguished between the two Alqahtani Jira accounts. Six human accounts were observed in the issue-assignee selector; a seventh was not established. No invitation acceptance status is inferred."
+  },
+  "taskMapping": "docs/jira-task-mapping.json"
 }
