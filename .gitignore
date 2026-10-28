@@ -47,6 +47,7 @@ next-env.d.ts
 
 # local application state (SQLite database + uploaded media)
 /.data/
+/backups/
 
 # keep the documented example env file
 !.env.example
