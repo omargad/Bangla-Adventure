@@ -654,6 +654,7 @@ These files were added after the package import by the commits that created them
 - `infra/custom-app/README.md`
 - `infra/custom-app/app.env.example`
 - `infra/custom-app/bangla-adventures.service`
+- `lib/class-access.ts`
 - `lib/csv.ts`
 - `lib/grades.ts`
 - `lib/student-import.ts`
@@ -662,9 +663,13 @@ These files were added after the package import by the commits that created them
 - `scripts/restore.sh`
 - `scripts/test-container.sh`
 - `tests/backup_restore_test.py`
+- `tests/class-access.test.mjs`
+- `tests/csv.test.mjs`
+- `tests/e2e/admin-classes.spec.ts`
 - `tests/e2e/admin-results.spec.ts`
 - `tests/e2e/student-import.spec.ts`
 - `tests/grades.test.mjs`
+- `tests/integration/admin-classes-flow.test.mjs`
 - `tests/integration/admin-results-flow.test.mjs`
 - `tests/integration/student-import-flow.test.mjs`
 - `tests/student-import-db.test.mjs`

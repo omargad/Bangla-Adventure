@@ -2813,7 +2813,7 @@
       "githubState": "closed",
       "jiraRemoteLinkCreated": true,
       "coverage": "implemented-after-import",
-      "mappingNote": "Built after the import: administrators review every class's results at /admin/results, export them as CSV and reset submissions, with resets audited; teachers stay limited to their own classes.",
+      "mappingNote": "Built after the import: administrators review every class's results at /admin/results, export them as CSV and reset submissions, with resets audited; teachers stay limited to their own classes; administrators can also open and manage any class from the teacher workspace, and every reset is audited.",
       "parts": [
         {
           "path": "app/teach/page.tsx",
@@ -2841,6 +2841,11 @@
         {
           "sha": "4b04977b3f0b6606d88690e516af6a758e1ac492",
           "url": "https://github.com/omargad/Bangla-Adventure/commit/4b04977b3f0b6606d88690e516af6a758e1ac492",
+          "author": "omargad"
+        },
+        {
+          "sha": "952d6c99ba135a4f53c96007bb78f1a579e47d4a",
+          "url": "https://github.com/omargad/Bangla-Adventure/commit/952d6c99ba135a4f53c96007bb78f1a579e47d4a",
           "author": "omargad"
         }
       ]
@@ -3985,7 +3990,7 @@
       "githubState": "closed",
       "jiraRemoteLinkCreated": true,
       "coverage": "implemented-after-import",
-      "mappingNote": "Built after the import: administrators manage results in every class from /admin/results (review, CSV export, audited reset); teachers stay limited to their own classes.",
+      "mappingNote": "Built after the import: administrators manage results in every class from /admin/results (review, CSV export, audited reset); teachers stay limited to their own classes; administrators can also open and manage any class from the teacher workspace, and every reset is audited.",
       "parts": [
         {
           "path": "app/teach/TeacherDashboard.tsx",
@@ -4013,6 +4018,11 @@
         {
           "sha": "4b04977b3f0b6606d88690e516af6a758e1ac492",
           "url": "https://github.com/omargad/Bangla-Adventure/commit/4b04977b3f0b6606d88690e516af6a758e1ac492",
+          "author": "omargad"
+        },
+        {
+          "sha": "952d6c99ba135a4f53c96007bb78f1a579e47d4a",
+          "url": "https://github.com/omargad/Bangla-Adventure/commit/952d6c99ba135a4f53c96007bb78f1a579e47d4a",
           "author": "omargad"
         }
       ]
