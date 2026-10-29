@@ -4,13 +4,17 @@ import { readdirSync, readFileSync } from "node:fs";
 
 const playback = await import("../lib/voice-playback.ts");
 const { lessons } = await import("../app/curriculum.ts");
-const { bundledClip, lessonClip, playbackPlan, deviceVoiceFor, voiceLabel, noVoiceNote, voiceStatusText, isNeuralClip, lessonRecordingsUrl, withLessonRecordings } = playback;
+const { bundledClip, lessonClip, playbackPlan, deviceVoiceFor, voiceLabel, noVoiceNote, voiceStatusText, isNeuralClip, lessonRecordingsUrl, withLessonRecordings, playingStatus, NEURAL_PROVIDERS } = playback;
 
 const english = [{ lang: "en-US", name: "English (US)" }, { lang: "en-GB", name: "English (UK)" }];
 const banglaIndia = { lang: "bn-IN", name: "Bangla (India)" };
 const banglaBangladesh = { lang: "bn-BD", name: "Bangla (Bangladesh)" };
 const espeakFiles = { "lesson-hello-me-word-1": { provider: "espeak", voice: "bn+f3" }, "hello-bn": { provider: "espeak", voice: "bn+f3" } };
 const neuralFiles = { "lesson-hello-me-word-1": { provider: "azure", voice: "bn-BD-NabanitaNeural" }, "hello-bn": { provider: "azure", voice: "bn-BD-NabanitaNeural" } };
+const elevenFiles = {
+  "lesson-hello-me-word-1": { provider: "elevenlabs", voice: "BanglaVoice000000001", model: "eleven_v4" },
+  "story-1-bn": { provider: "elevenlabs", voice: "BanglaVoice000000001", model: "eleven_v4" },
+};
 const sources = (steps) => steps.map((step) => step.source);
 
 test("an approved human recording plays first, then the device's Bangla voice, then the bundled eSpeak clip", () => {
@@ -112,8 +116,37 @@ test("the voice manifest lists every bundled clip with the engine and voice that
     for (const slot of ["dialogue", "reading", "word-1", "word-6", "pattern-1", "pattern-2"]) assert.ok(manifest.files[`lesson-${lesson.id}-${slot}`], `${lesson.id} ${slot}`);
   }
   for (const [file, entry] of Object.entries(manifest.files)) {
-    assert.ok(["espeak", "azure"].includes(entry.provider), `${file}: unknown provider ${entry.provider}`);
+    assert.ok(["espeak", "azure", "elevenlabs"].includes(entry.provider), `${file}: unknown provider ${entry.provider}`);
     assert.ok(entry.voice, `${file}: no voice recorded`);
-    assert.equal(isNeuralClip(file), entry.provider === "azure", file);
+    if (entry.provider === "elevenlabs") assert.ok(entry.model, `${file}: no ElevenLabs model recorded`);
+    assert.equal(isNeuralClip(file), NEURAL_PROVIDERS.has(entry.provider), file);
   }
+});
+
+test("ElevenLabs clips play before the device voice and are labelled as a named computer voice, never as a person or as reviewed", () => {
+  const clip = lessonClip("hello-me", "word-1");
+  assert.deepEqual(sources(playbackPlan({ lang: "bn-BD", voices: [banglaBangladesh], clip, files: elevenFiles })), ["provider", "device"]);
+  assert.deepEqual(
+    sources(playbackPlan({ lang: "bn-BD", voices: [banglaBangladesh], clip, recordings: { "hello-me/word-1": "rec-1" }, files: elevenFiles })),
+    ["human", "provider", "device"],
+    "an approved recording still comes first",
+  );
+  assert.equal(isNeuralClip("story-1-bn", elevenFiles), true);
+
+  const status = playingStatus("provider", "bn-BD", bundledClip("story-1-bn"), elevenFiles);
+  assert.deepEqual(status, { state: "playing", source: "provider", lang: "bn-BD", provider: "elevenlabs" });
+  assert.equal(voiceStatusText(status, "en"), "Neural computer voice (ElevenLabs): may mispronounce some words");
+  assert.equal(voiceStatusText(status, "bn"), "উন্নত কম্পিউটার কণ্ঠ (ElevenLabs): কিছু শব্দ ভুল উচ্চারণ হতে পারে");
+  assert.equal(voiceLabel("provider", "en", "azure"), "Neural computer voice (Microsoft Azure): may mispronounce some words");
+  for (const language of ["en", "bn"]) {
+    for (const label of [voiceLabel("provider", language, "elevenlabs"), voiceLabel("provider", language, "azure")]) {
+      assert.doesNotMatch(label, /record|review|check|human|person|রেকর্ড|যাচাই|মানুষ/i, label);
+    }
+  }
+  // Only a provider clip names a provider; an unknown name falls back to the plain label.
+  assert.deepEqual(playingStatus("device", "bn-BD", bundledClip("story-1-bn"), elevenFiles), { state: "playing", source: "device", lang: "bn-BD" });
+  assert.deepEqual(playingStatus("computer", "bn-BD", bundledClip("hello-bn"), espeakFiles), { state: "playing", source: "computer", lang: "bn-BD" });
+  assert.equal(voiceLabel("provider", "en", "constructor"), voiceLabel("provider", "en"));
+  assert.equal(voiceLabel("device", "en", "elevenlabs"), "Device voice");
+  assert.equal(voiceStatusText({ state: "playing", source: "provider", lang: "bn-BD" }, "en"), "Neural computer voice: may mispronounce some words");
 });

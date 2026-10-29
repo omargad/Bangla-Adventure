@@ -40,6 +40,11 @@ Agree who owns hosting, domain/TLS, support, backup storage and recovery keys. T
 existing host serves other projects: provide application-scoped access or use
 client-owned hosting instead of transferring shared-server root access.
 
+The client also owns the ElevenLabs account and API key used to make the Bangla
+audio clips. The key is only needed on the computer that generates them, never
+on the server; [`MEDIA_REVIEW.md`](MEDIA_REVIEW.md#a-better-bangla-computer-voice-elevenlabs)
+has the licence check, dry run, samples, generation and native-speaker review.
+
 ## Administrator and role handover
 
 1. Confirm the client's account identity. Have the intended owner register an

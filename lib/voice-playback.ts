@@ -17,17 +17,20 @@ export type VoiceLike = { lang: string; name?: string };
 export type PlaybackStep<V extends VoiceLike = VoiceLike> =
   | { source: "human" | "provider" | "computer"; url: string }
   | { source: "device"; voice: V };
-/** What the page shows about the sound: what is playing, or that nothing can. */
+/** What the page shows about the sound: what is playing (and which provider made a provider clip), or that nothing can. */
 export type VoiceStatus =
-  | { state: "playing"; source: VoiceSource; lang: string }
+  | { state: "playing"; source: VoiceSource; lang: string; provider?: string }
   | { state: "none"; lang: string }
   | { state: "failed"; lang: string };
 
-type ManifestEntry = { provider: string; voice: string };
+/** How a bundled clip was made; ElevenLabs clips also record the model. */
+type ManifestEntry = { provider: string; voice: string; model?: string };
 const manifestFiles: Record<string, ManifestEntry | undefined> = (voiceManifest as { files: Record<string, ManifestEntry> }).files;
 
 /** Text-to-speech providers whose clips sound better than a device voice. eSpeak is not one. */
-export const NEURAL_PROVIDERS: ReadonlySet<string> = new Set(["azure"]);
+export const NEURAL_PROVIDERS: ReadonlySet<string> = new Set(["azure", "elevenlabs"]);
+/** The name a label gives each neural provider's clips. */
+const PROVIDER_NAMES: ReadonlyMap<string, string> = new Map([["azure", "Microsoft Azure"], ["elevenlabs", "ElevenLabs"]]);
 export const LESSON_AUDIO_SLOT = /^(dialogue|reading|word-[1-6]|pattern-[1-2])$/;
 
 export const lessonClip = (lessonId: string, slot: string): Clip => ({ file: `lesson-${lessonId}-${slot}`, lessonId, slot });
@@ -124,9 +127,25 @@ const sourceLabels: Record<VoiceSource, Record<Language, string>> = {
   computer: { en: "Computer voice: may mispronounce names", bn: "কম্পিউটারের কণ্ঠ: নাম ভুল উচ্চারণ হতে পারে" },
 };
 
-/** A short label for what is playing, in the page language. */
-export function voiceLabel(source: VoiceSource, language: Language): string {
+/**
+ * A short label for what is playing, in the page language. A provider's clip
+ * names the provider that made it; every computer voice says it may mispronounce
+ * words, and no label claims a person checked the sound.
+ */
+export function voiceLabel(source: VoiceSource, language: Language, provider?: string): string {
+  const name = source === "provider" && provider ? PROVIDER_NAMES.get(provider) : undefined;
+  if (name) {
+    return language === "bn"
+      ? `উন্নত কম্পিউটার কণ্ঠ (${name}): কিছু শব্দ ভুল উচ্চারণ হতে পারে`
+      : `Neural computer voice (${name}): may mispronounce some words`;
+  }
   return sourceLabels[source][language];
+}
+
+/** The status for a sound that has started; a provider's clip carries the provider that made it. */
+export function playingStatus(source: VoiceSource, lang: string, clip?: Clip, files: Record<string, ManifestEntry | undefined> = manifestFiles): VoiceStatus {
+  const provider = source === "provider" && clip ? bundledVoice(clip.file, files)?.provider : undefined;
+  return provider ? { state: "playing", source, lang, provider } : { state: "playing", source, lang };
 }
 
 /** What the page says when nothing can read the text aloud. */
@@ -138,7 +157,7 @@ export function noVoiceNote(lang: string, language: Language): string {
 /** The text for a voice status, or "" when there is nothing to say. */
 export function voiceStatusText(status: VoiceStatus | null | undefined, language: Language): string {
   if (!status) return "";
-  if (status.state === "playing") return voiceLabel(status.source, language);
+  if (status.state === "playing") return voiceLabel(status.source, language, status.provider);
   if (status.state === "none") return noVoiceNote(status.lang, language);
   return language === "bn" ? "শব্দ বাজানো গেল না। আবার চেষ্টা করো।" : "The sound could not play. Please try again.";
 }

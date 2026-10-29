@@ -62,7 +62,7 @@ where they stand:
 | Group lessons into categories and fix wrong ones | ✅ Lessons grouped (for example *General conversation*); *Symbols of Bangladesh* moved out of History |
 | Results stay readable with many students | ✅ Gradebook table |
 | Attendance (optional) | ✅ Present by default; parents, students and administrators see "attended X of Y" |
-| Bangla pronunciation | 🟡 Recordings play first; a neural voice is ready once Faysal names a provider and gives a key |
+| Bangla pronunciation | 🟡 Recordings play first; ElevenLabs is the chosen voice provider and the clips are generated once the client's API key is set up |
 | Deploy on the client's server | ⬜ Waiting for server access |
 
 ## Screenshots
@@ -152,7 +152,7 @@ where they stand:
 | ✅ Custom platform for learners, teachers, parents and admins | Deployed; role checks, staff allocation, learning progress and parent monitoring implemented |
 | 🟡 Official NCTB catalogue and PDF audit | Source records implemented; a verified PDF is not an approved adaptation |
 | 🟡 Bilingual topics and lessons | Teachers preview and approve content before students see it; the shipped content is approved as a baseline and still needs individual educator and community review |
-| 🟡 Bangla audio | Approved human recordings play first, then the device voice, then the bundled eSpeak voice; a neural provider (Azure) path is ready for a key; reviewed recordings remain incomplete |
+| 🟡 Bangla audio | Approved human recordings play first, then provider clips, the device voice and the bundled eSpeak voice; ElevenLabs is the chosen provider and generation waits for the client's key (Azure remains an alternative); native-speaker review and reviewed recordings remain incomplete |
 | 🟡 Application deployment and operations | Existing-host reference configuration, portable service and Compose setup, and backup and restore tools included; actual hosting ownership, off-server scheduling and recovery evidence require operator handover |
 | 🟡 Moodle pilot course | Installable hidden-course plugin implemented: 15 bilingual chapters, nine activities and nine questions |
 | 🔒 Optional Moodle publication control | Draft validation passes; pilot release validation intentionally fails while 27 human-review gates are pending |

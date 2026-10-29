@@ -9,7 +9,7 @@ import { libraryBooks } from "../library-content";
 import LessonExperience from "../components/LessonExperience";
 import FourSkillDiagnostic from "../components/FourSkillDiagnostic";
 import VoiceNote from "../components/VoiceNote";
-import { bundledClip, lessonClip, playbackPlan, voiceStatusText, type Clip, type RecordingMap, type VoiceStatus } from "../../lib/voice-playback";
+import { bundledClip, lessonClip, playbackPlan, playingStatus, voiceStatusText, type Clip, type RecordingMap, type VoiceStatus } from "../../lib/voice-playback";
 import { deviceVoices, runPlayback, stopPlayback } from "../../lib/voice-player";
 import { useLessonRecordings } from "../../lib/use-voice-player";
 
@@ -871,7 +871,7 @@ export default function AdventureApp({ approvedLessonIds, videos, recordings: in
     }, recordedAudioRef, {
       isCurrent: () => speechTokenRef.current === token,
       onStart: (source) => {
-        lastStatus = { state: "playing", source, lang };
+        lastStatus = playingStatus(source, lang, clip);
         setIsSpeaking(true);
         duckAmbience(true);
         showVoiceStatus(lastStatus);

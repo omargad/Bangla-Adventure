@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { lessonRecordingsUrl, playbackPlan, withLessonRecordings, type Clip, type RecordingMap, type VoiceStatus } from "./voice-playback";
+import { lessonRecordingsUrl, playbackPlan, playingStatus, withLessonRecordings, type Clip, type RecordingMap, type VoiceStatus } from "./voice-playback";
 import { deviceVoices, runPlayback, stopPlayback } from "./voice-player";
 
 type SpeakOptions = { key?: string; lang?: string; clip?: Clip; rate?: number };
@@ -66,9 +66,9 @@ export function useVoicePlayer(recordings?: RecordingMap) {
     let lastSource = steps[0].source;
     runPlayback(steps, { text, lang, rate }, audioRef, {
       isCurrent: () => tokenRef.current === token,
-      onStart: (source) => { lastSource = source; setSpeakingKey(key); show({ state: "playing", source, lang }); },
+      onStart: (source) => { lastSource = source; setSpeakingKey(key); show(playingStatus(source, lang, clip)); },
       // The label stays a moment after a short clip, so it can be read.
-      onEnd: () => { setSpeakingKey(null); show({ state: "playing", source: lastSource, lang }, 3000); },
+      onEnd: () => { setSpeakingKey(null); show(playingStatus(lastSource, lang, clip), 3000); },
       onFail: () => { setSpeakingKey(null); show({ state: "failed", lang }, 6000); },
     });
   }, [recordings, show]);

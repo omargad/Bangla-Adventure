@@ -104,8 +104,11 @@ and preserve real records.
 
 Use [`MEDIA_REVIEW.md`](MEDIA_REVIEW.md) for candidate video and human-audio
 evidence. Existing synthetic audio fallback does not prove pronunciation review.
-Human recordings are an enhancement when reviewed recordings and consent are
-available. Unverified videos are not approved merely because their URLs resolve.
+Clips regenerated with ElevenLabs are still computer voices: record who reviewed
+them as a native Bangla speaker, the model and voice used, and which clips were
+remade or replaced by recordings. Human recordings are an enhancement when
+reviewed recordings and consent are available. Unverified videos are not
+approved merely because their URLs resolve.
 
 Email-based password reset is not part of this release's recovery contract. The
 supported mechanism is recovery codes. Adding email delivery is a separately

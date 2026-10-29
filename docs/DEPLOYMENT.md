@@ -177,6 +177,23 @@ named `NEXT_DIST_DIR`. Retain it unless a separate migration is planned; update
 both its build-directory setting and cache bind target together. Do not overwrite
 its live service with the new-host example without adapting and reviewing it.
 
+## Bangla audio (ElevenLabs)
+
+The Bangla pronunciation clips are files in `public/audio`, built into each
+release; the running app never calls a text-to-speech service and needs no
+voice key. The client chose ElevenLabs to make better clips. Its account, plan
+and API key belong to the **client**, not the hosting operator or the student
+team. Do not put `ELEVENLABS_API_KEY` (or `ELEVENLABS_VOICE_ID_BN` /
+`ELEVENLABS_VOICE_ID_EN`) in `app.env`, `.env` or Compose: they are set only in
+the shell of the person who generates the clips, on their own computer.
+
+Follow [`MEDIA_REVIEW.md`](MEDIA_REVIEW.md#a-better-bangla-computer-voice-elevenlabs):
+confirm the plan's licence covers audio in a schools app, run the dry run, make
+and compare the samples, generate every clip, have a native Bangla speaker review
+them, then commit `public/audio` with its `voice-manifest.json`. Deploy that
+commit as a normal release (build, verify, switch `current`); nothing else on the
+server changes.
+
 ## Acceptance and optional Moodle
 
 Use [`ACCEPTANCE.md`](ACCEPTANCE.md) to record reviewers, release scope, evidence
