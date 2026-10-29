@@ -3,13 +3,15 @@ import { useCallback, useEffect, useState } from "react";
 import { localMessage, localNumber, type Language } from "@/lib/use-language";
 import StudentImport from "./StudentImport";
 
-type Allocation = { studentId: string; username: string; displayName: string; active: boolean };
+/** A student now in the class; `studentId` and `username` are null for an old class-code learner. */
+type Allocation = { id: string; studentId: string | null; username: string | null; displayName: string };
 type Candidate = { id: string; username: string; displayName: string };
 const searchFailed: [string, string] = ["Students could not be loaded.", "শিক্ষার্থীদের লোড করা যায়নি।"];
 
 /**
  * A class's Students section: search every active, approved student by name or username, tick
- * them and add them in one go; remove a student's access; or upload a CSV (StudentImport).
+ * them and add them in one go; the one list of students now in the class, where access can be
+ * removed; or upload a CSV (StudentImport).
  */
 export default function ClassAllocation({ classId, language = "en", onChange, onPasswordsChange }: { classId: string; language?: Language; onChange?: () => void; onPasswordsChange?: (shown: boolean) => void }) {
   const s = (en: string, bn: string) => language === "bn" ? bn : en;
@@ -73,12 +75,12 @@ export default function ClassAllocation({ classId, language = "en", onChange, on
     finally { setBusy(false); }
   }
   async function remove(student: Allocation) {
-    if (busy || !window.confirm(s("Remove class access? Existing results will be retained.", "ক্লাসের প্রবেশাধিকার সরাবেন? ফলাফল থাকবে।"))) return;
+    if (busy || !student.studentId || !window.confirm(s(`Remove ${student.displayName} from this class? They leave the class list, results and attendance; their work is kept and comes back if they are added again.`, `${student.displayName}-কে এই ক্লাস থেকে সরাবেন? তাকে ক্লাসের তালিকা, ফলাফল ও উপস্থিতিতে আর দেখা যাবে না; তার কাজ সংরক্ষিত থাকবে এবং আবার যোগ করলে ফিরে আসবে।`))) return;
     setBusy(true); setError(""); setMessage("");
     try {
       await send("DELETE", { studentId: student.studentId });
       setRefresh((value) => value + 1);
-      await load(); onChange?.(); setMessage(s("Class allocation saved.", "ক্লাস বরাদ্দ সংরক্ষিত হয়েছে।"));
+      await load(); onChange?.(); setMessage(s(`${student.displayName} was removed from this class.`, `${student.displayName}-কে এই ক্লাস থেকে সরানো হয়েছে।`));
     } catch (error) { setError(error instanceof Error ? error.message : s(...failed)); }
     finally { setBusy(false); }
   }
@@ -104,8 +106,8 @@ export default function ClassAllocation({ classId, language = "en", onChange, on
       {available?.more && <p className="allocation-more">{s(`Showing the first ${shown.length} students. Type part of a name or username to find others.`, `প্রথম ${number(shown.length)} জন দেখানো হচ্ছে। অন্যদের খুঁজতে নাম বা ব্যবহারকারীর নামের অংশ লিখুন।`)}</p>}
     </div>
     {error && <p role="alert" className="auth-error">{error}</p>}{message && <p role="status" className="teach-message">{message}</p>}
-    <h3>{s("Students in this class", "এই ক্লাসের শিক্ষার্থী")}</h3>
-    <ul className="family-link-list">{students.map((student) => <li key={student.studentId}><span><strong>{student.displayName}</strong> · {student.username} {!student.active && `(${s("Access removed", "প্রবেশ বন্ধ")})`}</span>{student.active && <button className="text-button" disabled={busy} onClick={() => void remove(student)}>{s("Remove allocation", "বরাদ্দ সরান")}</button>}</li>)}</ul>
+    <h3>{s(`Students in this class (${students.length})`, `এই ক্লাসের শিক্ষার্থী (${number(students.length)})`)}</h3>
+    <ul className="family-link-list">{students.map((student) => <li key={student.id}><span><strong>{student.displayName}</strong> · {student.username ?? s("joined with a class code (no account)", "ক্লাস কোড দিয়ে যোগ দিয়েছে (অ্যাকাউন্ট নেই)")}</span>{student.studentId && <button className="text-button" disabled={busy} onClick={() => void remove(student)}>{s("Remove allocation", "বরাদ্দ সরান")}</button>}</li>)}</ul>
     {students.length === 0 && <p className="teach-empty">{s("No students yet. Tick students above or upload a CSV file below.", "এখনও কোনো শিক্ষার্থী নেই। ওপরে টিক দিন বা নিচে CSV ফাইল আপলোড করুন।")}</p>}
   </section>
   <StudentImport classId={classId} language={language} onPasswordsChange={onPasswordsChange} onImported={() => { setRefresh((value) => value + 1); void load().catch((error) => setError(error.message)); onChange?.(); }} /></>;

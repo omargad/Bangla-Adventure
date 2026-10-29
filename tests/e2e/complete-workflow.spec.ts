@@ -114,9 +114,11 @@ test("complete approved-teacher, allocated-student, curriculum and recovery work
     await student.getByRole("button", { name: "Submit answers", exact: true }).click();
     await expect(student.getByText("You got 2 out of 2.", { exact: true })).toBeVisible();
     await teacher.getByRole("navigation", { name: "Portal navigation" }).getByRole("button", { name: "Results", exact: true }).click();
-    await teacher.getByRole("button", { name: /1 submissions/ }).click();
-    await expect(teacher.getByRole("cell", { name: "Workflow Student", exact: true })).toBeVisible();
-    await expect(teacher.getByRole("cell", { name: "2/2", exact: true })).toBeVisible();
+    await expect(teacher.getByRole("region", { name: "Gradebook" }).getByRole("row", { name: /Workflow Student/ })).toContainText("2/2");
+    await teacher.getByRole("button", { name: "1 of 1 submitted", exact: true }).click();
+    const submissions = teacher.getByRole("table", { name: "A festival and a boat" });
+    await expect(submissions.getByRole("cell", { name: "Workflow Student", exact: true })).toBeVisible();
+    await expect(submissions.getByRole("cell", { name: "2/2", exact: true })).toBeVisible();
 
     await page.goto("/admin/curriculum");
     await page.getByLabel("Choose a topic").selectOption("pohela-boishakh");

@@ -1,11 +1,14 @@
 import { eq, inArray } from "drizzle-orm";
 import { getDb } from "@/db";
-import { activitySubmissions, classActivities, classStudents, classes } from "@/db/schema";
+import { activitySubmissions, classActivities, classes } from "@/db/schema";
 import { getSessionAdult } from "@/lib/auth";
 import { canTeach } from "@/lib/roles";
 import { managedClass } from "@/lib/class-access";
-import { csvCell, scorePercent } from "@/lib/classroom";
-import { attachmentDisposition } from "@/lib/csv";
+import { classAttendanceSummaries } from "@/lib/class-attendance";
+import { currentMembers } from "@/lib/class-roster";
+import { scorePercent } from "@/lib/classroom";
+import { attachmentDisposition, csvRows } from "@/lib/csv";
+import { buildGradebook, gradebookCsvRows } from "@/lib/gradebook";
 
 export const dynamic = "force-dynamic";
 
@@ -25,8 +28,11 @@ export async function GET(request: Request, context: RouteContext) {
 
     const activities = await db.select().from(classActivities).where(eq(classActivities.classId, id));
     const activityIds = activities.map((activity) => activity.id);
-    const submissions = activityIds.length ? await db.select().from(activitySubmissions).where(inArray(activitySubmissions.activityId, activityIds)) : [];
-    const students = await db.select().from(classStudents).where(eq(classStudents.classId, id));
+    // Only students now in the class: a removed student's work is kept but not reported.
+    const attendance = classAttendanceSummaries(db, id);
+    const students = currentMembers(db, [id]).map((student) => ({ ...student, attendance: student.studentId ? attendance.get(student.studentId) ?? { attended: 0, recorded: 0 } : null }));
+    const members = new Set(students.map((student) => student.id));
+    const submissions = activityIds.length ? (await db.select().from(activitySubmissions).where(inArray(activitySubmissions.activityId, activityIds))).filter((submission) => members.has(submission.studentId)) : [];
     const rows = submissions.map((submission) => {
       const activity = activities.find((item) => item.id === submission.activityId);
       const student = students.find((item) => item.id === submission.studentId);
@@ -43,14 +49,11 @@ export async function GET(request: Request, context: RouteContext) {
         submittedAt: submission.submittedAt,
       };
     });
+    const gradebook = buildGradebook(students, activities.map((activity) => ({ ...activity, submissions: submissions.filter((submission) => submission.activityId === activity.id) })));
 
     const url = new URL(request.url);
     if (url.searchParams.get("format") === "csv") {
-      const header = ["Class", "Activity", "Student", "Score", "Total", "Percent", "Submitted At"];
-      const csv = [header, ...rows.map((row) => [row.className, row.activityTitle, row.studentName, row.score, row.total, row.percent, row.submittedAt])]
-        .map((row) => row.map(csvCell).join(","))
-        .join("\n");
-      return new Response(csv, {
+      return new Response(csvRows(gradebookCsvRows(classroom.name, gradebook)), {
         headers: {
           "Content-Type": "text/csv; charset=utf-8",
           "Content-Disposition": attachmentDisposition(classroom.name, "-grades.csv", "class"),
@@ -58,7 +61,7 @@ export async function GET(request: Request, context: RouteContext) {
       });
     }
 
-    return Response.json({ class: classroom, rows });
+    return Response.json({ class: classroom, rows, gradebook });
   } catch (error) {
     return databaseError(error);
   }

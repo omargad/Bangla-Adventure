@@ -1,7 +1,10 @@
 import { and, count, desc, eq, sum } from "drizzle-orm";
 import { getDb } from "../db";
 import { activitySubmissions, adults, classActivities, classStudents, classes, studentClassEnrollments, userAuditEvents } from "../db/schema";
+import { attendancePercent } from "./attendance";
 import { managedClass, type Staff } from "./class-access";
+import { classAttendanceTotals } from "./class-attendance";
+import { currentMember } from "./class-roster";
 import { scorePercent } from "./classroom";
 
 export type ClassResultsSummary = {
@@ -14,6 +17,8 @@ export type ClassResultsSummary = {
   activityCount: number;
   submissionCount: number;
   averagePercent: number | null;
+  /** Present marks of all marks saved for the class's allocated students; null before any. */
+  attendancePercent: number | null;
 };
 
 /**
@@ -44,21 +49,28 @@ export async function resetSubmission(actor: Staff, classId: string, submissionI
   });
 }
 
-/** Every class with its teacher and result totals, newest first, for the administrator results view. */
+/**
+ * Every class with its teacher and result totals, newest first, for the administrator results view.
+ * Counts, submissions and averages cover the students now in each class (see currentMember).
+ */
 export async function listClassResults(): Promise<ClassResultsSummary[]> {
   const db = await getDb();
   const rows = await db
     .select({ id: classes.id, name: classes.name, createdAt: classes.createdAt, teacherName: adults.displayName, teacherEmail: adults.email })
     .from(classes).innerJoin(adults, eq(classes.teacherId, adults.id)).orderBy(desc(classes.createdAt));
-  const rosters = await db.select({ classId: classStudents.classId, students: count() }).from(classStudents).groupBy(classStudents.classId);
+  const member = eq(studentClassEnrollments.classStudentId, classStudents.id);
+  const rosters = await db.select({ classId: classStudents.classId, students: count() }).from(classStudents)
+    .leftJoin(studentClassEnrollments, member).where(currentMember).groupBy(classStudents.classId);
   const activities = await db.select({ classId: classActivities.classId, activities: count() }).from(classActivities).groupBy(classActivities.classId);
   const results = await db
     .select({ classId: classActivities.classId, submissions: count(), score: sum(activitySubmissions.score), total: sum(activitySubmissions.total) })
     .from(activitySubmissions).innerJoin(classActivities, eq(activitySubmissions.activityId, classActivities.id))
-    .groupBy(classActivities.classId);
+    .innerJoin(classStudents, eq(activitySubmissions.studentId, classStudents.id)).leftJoin(studentClassEnrollments, member)
+    .where(currentMember).groupBy(classActivities.classId);
   const studentCounts = new Map(rosters.map((row) => [row.classId, row.students]));
   const activityCounts = new Map(activities.map((row) => [row.classId, row.activities]));
   const totals = new Map(results.map((row) => [row.classId, row]));
+  const attendance = classAttendanceTotals(db);
   return rows.map((row) => {
     const result = totals.get(row.id);
     return {
@@ -68,6 +80,7 @@ export async function listClassResults(): Promise<ClassResultsSummary[]> {
       submissionCount: result?.submissions ?? 0,
       // Score-weighted, like the per-student average in the teacher workspace.
       averagePercent: result ? scorePercent(Number(result.score), Number(result.total)) : null,
+      attendancePercent: attendancePercent(attendance.get(row.id)),
     };
   });
 }

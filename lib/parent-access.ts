@@ -2,6 +2,7 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 import { getDb } from "../db";
 import { adults, students, parentStudentLinks, classes, classStudents, studentClassEnrollments, classActivities, activitySubmissions, userAuditEvents } from "../db/schema";
 import { canManageUsers } from "./roles";
+import { attendanceKey, studentAttendance } from "./class-attendance";
 import { UserManagementError } from "./user-management";
 
 type Db = Awaited<ReturnType<typeof getDb>>;
@@ -73,9 +74,12 @@ export async function getParentOverview(parentId: string) {
       .from(classActivities).where(inArray(classActivities.classId, classIds)).orderBy(desc(classActivities.createdAt)).all() : [];
     const submissions = rosterIds.length ? tx.select({ activityId: activitySubmissions.activityId, studentId: activitySubmissions.studentId, score: activitySubmissions.score, total: activitySubmissions.total, submittedAt: activitySubmissions.submittedAt })
       .from(activitySubmissions).where(inArray(activitySubmissions.studentId, rosterIds)).all() : [];
+    const attendance = studentAttendance(tx, ids);
     return { children: children.map((child) => {
       const childClasses = enrollments.filter((enrollment) => enrollment.studentId === child.id).map((enrollment) => ({
         id: enrollment.classId, name: enrollment.name, teacherName: enrollment.teacherName,
+        // Sessions attended of the sessions the teacher recorded for this child in this class.
+        attendance: attendance.get(attendanceKey(child.id, enrollment.classId)) ?? { attended: 0, recorded: 0 },
         activities: activities.filter((activity) => activity.classId === enrollment.classId).map((activity) => {
           const submission = submissions.find((entry) => entry.activityId === activity.id && entry.studentId === enrollment.classStudentId);
           return { id: activity.id, title: activity.title, instructions: activity.instructions, status: activity.status, createdAt: activity.createdAt,
@@ -86,7 +90,8 @@ export async function getParentOverview(parentId: string) {
       const completed = work.filter((item) => item.submission);
       const score = completed.reduce((sum, item) => sum + (item.submission?.score ?? 0), 0);
       const total = completed.reduce((sum, item) => sum + (item.submission?.total ?? 0), 0);
-      return { ...child, classes: childClasses, metrics: { enrolledClasses: childClasses.length, assignedActivities: work.length, completedActivities: completed.length, averagePercent: total > 0 ? Math.round(score / total * 100) : null } };
+      return { ...child, classes: childClasses, metrics: { enrolledClasses: childClasses.length, assignedActivities: work.length, completedActivities: completed.length, averagePercent: total > 0 ? Math.round(score / total * 100) : null,
+        attendedSessions: childClasses.reduce((sum, item) => sum + item.attendance.attended, 0), recordedSessions: childClasses.reduce((sum, item) => sum + item.attendance.recorded, 0) } };
     }), updatedAt: new Date().toISOString() };
   });
 }

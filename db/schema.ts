@@ -303,6 +303,24 @@ export const classAnnouncements = sqliteTable(
   (table) => [index("class_announcements_class_idx").on(table.classId)],
 );
 
+/** One mark per student per class session; a session is the date the teacher saved attendance for. */
+export const classAttendance = sqliteTable(
+  "class_attendance",
+  {
+    id: text("id").primaryKey(),
+    classId: text("class_id").notNull().references(() => classes.id, { onDelete: "cascade" }),
+    studentId: text("student_id").notNull().references(() => students.id, { onDelete: "cascade" }),
+    sessionDate: text("session_date").notNull(),
+    present: integer("present", { mode: "boolean" }).notNull().default(true),
+    recordedBy: text("recorded_by").references(() => adults.id, { onDelete: "set null" }),
+    recordedAt: text("recorded_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    uniqueIndex("class_attendance_session_unique").on(table.classId, table.studentId, table.sessionDate),
+    index("class_attendance_student_idx").on(table.studentId),
+  ],
+);
+
 export const knowledgeSources = sqliteTable(
   "knowledge_sources",
   {

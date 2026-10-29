@@ -10,6 +10,7 @@ import {
   studentClassEnrollments,
 } from "@/db/schema";
 import type { QuizQuestion } from "@/lib/classroom";
+import { attendanceKey, studentAttendance } from "@/lib/class-attendance";
 import { getStudentAccess } from "@/lib/student-auth";
 
 export const dynamic = "force-dynamic";
@@ -48,6 +49,8 @@ export async function GET() {
       ? await db.select().from(activitySubmissions).where(inArray(activitySubmissions.studentId, classStudentIds))
       : [];
 
+    const attendance = studentAttendance(db, [student.id]);
+    const classAttendance = (classId: string) => attendance.get(attendanceKey(student.id, classId)) ?? { attended: 0, recorded: 0 };
     const scored = submissions.filter((submission) => submission.total > 0);
     const totalScore = scored.reduce((sum, submission) => sum + submission.score, 0);
     const totalQuestions = scored.reduce((sum, submission) => sum + submission.total, 0);
@@ -61,12 +64,15 @@ export async function GET() {
         completedActivities: submissions.length,
         averagePercent: totalQuestions ? Math.round((totalScore / totalQuestions) * 100) : 0,
         bestPercent,
+        attendedSessions: enrollments.reduce((sum, enrollment) => sum + classAttendance(enrollment.classId).attended, 0),
+        recordedSessions: enrollments.reduce((sum, enrollment) => sum + classAttendance(enrollment.classId).recorded, 0),
       },
       classes: enrollments.map((enrollment) => ({
         id: enrollment.classId,
         name: enrollment.className,
         teacherName: enrollment.teacherName,
         joinedAt: enrollment.joinedAt,
+        attendance: classAttendance(enrollment.classId),
         announcements: announcements.filter((item) => item.classId === enrollment.classId),
         activities: activities.filter((activity) => activity.classId === enrollment.classId).map((activity) => {
           const submission = submissions.find((item) => item.activityId === activity.id && item.studentId === enrollment.classStudentId);

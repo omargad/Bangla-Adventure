@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { useLanguage, type Language } from "@/lib/use-language";
+import { localDateTime as localTime, useLanguage } from "@/lib/use-language";
 import FamilyLinks from "./FamilyLinks";
 import FamilyImport from "./FamilyImport";
 import { confirmDiscardPasswords } from "../components/StudentImport";
@@ -12,12 +12,6 @@ type User = { id: string; kind: "adult" | "student"; displayName: string; email?
 type UsersPage = { users: User[]; total: number; pageSize: number; stats: { adults: number; students: number; teachers: number; pending: number }; approvals: { users: User[]; total: number }; audit: { id: string; action: string; targetType: string; targetId: string; createdAt: string }[] };
 /** Sign-in details shown once after an administrator creates an account or resets a password. */
 type Credentials = { reason: "created" | "reset"; kind: "adult" | "student"; displayName: string; account: string; temporaryPassword: string; recoveryCodes: string[]; signInUrl: string };
-
-/** SQLite stores CURRENT_TIMESTAMP as UTC without a zone; show it in the reader's local time. */
-function localTime(value: string, language: Language) {
-  const date = new Date(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(value) ? `${value.replace(" ", "T")}Z` : value);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString(language === "bn" ? "bn-BD" : "en-AU", { dateStyle: "medium", timeStyle: "short" });
-}
 
 export default function UserManagement({ actorId, actorName }: { actorId: string; actorName: string }) {
   const [language, toggleLanguage] = useLanguage();

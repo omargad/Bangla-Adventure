@@ -68,7 +68,8 @@ test("an administrator reviews another teacher's class results and resets a subm
   const results = page.getByRole("region", { name: `Results: ${className}` });
   await expect(results.getByRole("heading", { level: 2 })).toBeFocused();
   await expect(results.getByRole("link", { name: "Download CSV" })).toHaveAttribute("href", /\/grades\?format=csv$/);
-  const submission = results.getByRole("row").filter({ hasText: "Maya Results" });
+  await expect(results.getByRole("region", { name: "Gradebook" }).getByRole("row", { name: /Maya Results/ })).toContainText("1/2");
+  const submission = results.getByRole("table", { name: "Submissions in this class" }).getByRole("row").filter({ hasText: "Maya Results" });
   await expect(submission).toContainText("Festivals check-in");
   await expect(submission).toContainText("1/2");
 

@@ -48,5 +48,17 @@ export function migrateAccessControl(sqlite: Database.Database): void {
       topic_id text NOT NULL, completed_at text NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
     CREATE UNIQUE INDEX IF NOT EXISTS student_topic_progress_unique ON student_topic_progress(student_id, topic_id);`);
+    // Class attendance: one mark per student per session date, saved again in place.
+    sqlite.exec(`CREATE TABLE IF NOT EXISTS class_attendance (
+      id text PRIMARY KEY NOT NULL,
+      class_id text NOT NULL REFERENCES classes(id) ON DELETE cascade,
+      student_id text NOT NULL REFERENCES students(id) ON DELETE cascade,
+      session_date text NOT NULL,
+      present integer NOT NULL DEFAULT 1 CHECK (present IN (0, 1)),
+      recorded_by text REFERENCES adults(id) ON DELETE set null,
+      recorded_at text NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS class_attendance_session_unique ON class_attendance (class_id, student_id, session_date);
+    CREATE INDEX IF NOT EXISTS class_attendance_student_idx ON class_attendance (student_id);`);
   })();
 }

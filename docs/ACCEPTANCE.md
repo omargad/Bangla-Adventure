@@ -57,18 +57,22 @@ and preserve real records.
    teacher, a parent and a student from the Waiting for approval queue, decline one
    account, create an account and reset a password from the printable sheet, import a
    family CSV (siblings and an existing parent) and print its sheet (one family per
-   page), upload it again to see the repeated rows refused, manage
+   page), upload it again to see the repeated rows refused, create a class for a
+   teacher and give it to another teacher (the first loses access), manage
    student/family links and update topic reading. Verify existing quizzes/sources and
    review notices remain.
 2. **Teacher:** request access, demonstrate no sign-in or teaching privileges before approval,
    create a class and activity/quiz, find and tick approved students to add them, inspect
-   submissions/results, and post an announcement visible only to that class.
+   the results gradebook (`—` for work not submitted) and each activity's submissions,
+   take attendance for today with one student unticked and reopen the date, remove a
+   student and see them leave the roster, results and export, and post an announcement
+   visible only to that class.
 3. **Student:** sign in to My Learning, open Learning topics and sources, complete
    an allocated activity, view results/progress, refresh and switch devices. Confirm
    unallocated class data is unavailable and no self-enrolment code is required.
 4. **Parent:** link an exact registered account through admin controls (or a family
    import); confirm it
-   sees only the linked student's academic records, cannot submit as the child or
+   sees only the linked student's academic records and attendance, cannot submit as the child or
    edit grades, and loses access when the link is removed without losing records.
 5. **Session/recovery:** demonstrate one-time recovery codes, the forced password
    change (and fresh recovery codes) for an administrator-created account, role

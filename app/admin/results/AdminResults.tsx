@@ -1,7 +1,9 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import PortalShell from "@/app/components/PortalShell";
-import { useLanguage } from "@/lib/use-language";
+import Gradebook from "@/app/components/Gradebook";
+import type { Gradebook as GradebookData } from "@/lib/gradebook";
+import { localDateTime, localNumber, useLanguage } from "@/lib/use-language";
 
 type ClassResults = {
   id: string;
@@ -12,6 +14,7 @@ type ClassResults = {
   activityCount: number;
   submissionCount: number;
   averagePercent: number | null;
+  attendancePercent: number | null;
 };
 
 type ResultRow = {
@@ -32,12 +35,14 @@ async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
 }
 
 const byActivityThenStudent = (a: ResultRow, b: ResultRow) => a.activityTitle.localeCompare(b.activityTitle) || a.studentName.localeCompare(b.studentName);
-const average = (value: number | null) => value === null ? "—" : `${value}%`;
 
 export default function AdminResults({ name }: { name: string }) {
   const [language, toggleLanguage] = useLanguage();
   const s = (en: string, bn: string) => language === "bn" ? bn : en;
+  const number = (value: number) => localNumber(value, language);
+  const percent = (value: number | null) => value === null ? "—" : `${number(value)}%`;
   const [classes, setClasses] = useState<ClassResults[] | null>(null);
+  const [gradebook, setGradebook] = useState<GradebookData | null>(null);
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState("");
   const [rows, setRows] = useState<ResultRow[] | null>(null);
@@ -68,8 +73,8 @@ export default function AdminResults({ name }: { name: string }) {
     latestClass.current = classId;
     setLoadingRows(true);
     try {
-      const data = await requestJson<{ rows: ResultRow[] }>(`/api/classes/${classId}/grades`);
-      if (latestClass.current === classId) setRows([...data.rows].sort(byActivityThenStudent));
+      const data = await requestJson<{ rows: ResultRow[]; gradebook: GradebookData }>(`/api/classes/${classId}/grades`);
+      if (latestClass.current === classId) { setRows([...data.rows].sort(byActivityThenStudent)); setGradebook(data.gradebook); }
     } catch (error) {
       if (latestClass.current === classId) setError(error instanceof Error ? error.message : "Could not load the class results.");
     } finally {
@@ -78,13 +83,13 @@ export default function AdminResults({ name }: { name: string }) {
   }
 
   function openClass(classId: string) {
-    setSelectedId(classId); setRows(null); setError(""); setNotice("");
+    setSelectedId(classId); setRows(null); setGradebook(null); setError(""); setNotice("");
     void loadRows(classId);
   }
 
   function closeClass() {
     latestClass.current = "";
-    setSelectedId(""); setRows(null); setLoadingRows(false); setNotice("");
+    setSelectedId(""); setRows(null); setGradebook(null); setLoadingRows(false); setNotice("");
     opener.current?.focus();
   }
 
@@ -107,8 +112,8 @@ export default function AdminResults({ name }: { name: string }) {
   return <PortalShell role="admin" name={name} active="results" language={language} toggleLanguage={toggleLanguage}>
     <h1>{s("Grades & results", "গ্রেড ও ফলাফল")}</h1>
     <p>{s(
-      "Review results in every class, download a class's grades as CSV and reset a submission so the student can try again. Administrator resets are recorded in the access log.",
-      "সব ক্লাসের ফলাফল দেখুন, কোনো ক্লাসের গ্রেড CSV হিসেবে নামান এবং শিক্ষার্থী যেন আবার চেষ্টা করতে পারে সে জন্য জমা রিসেট করুন। প্রশাসকের রিসেট প্রবেশাধিকারের লগে সংরক্ষিত হয়।",
+      "Review results and attendance in every class, download a class's grades as CSV and reset a submission so the student can try again. Administrator resets are recorded in the access log.",
+      "সব ক্লাসের ফলাফল ও উপস্থিতি দেখুন, কোনো ক্লাসের গ্রেড CSV হিসেবে নামান এবং শিক্ষার্থী যেন আবার চেষ্টা করতে পারে সে জন্য জমা রিসেট করুন। প্রশাসকের রিসেট প্রবেশাধিকারের লগে সংরক্ষিত হয়।",
     )}</p>
     {error && <p role="alert" className="auth-error">{error}</p>}
     {notice && <p role="status" className="teach-message">{notice}</p>}
@@ -123,24 +128,26 @@ export default function AdminResults({ name }: { name: string }) {
         : visible.length === 0 ? <p className="teach-empty">{s("No classes match this search.", "এই খোঁজে কোনো ক্লাস মেলেনি।")}</p>
         : <div className="management-table-wrap"><table className="management-table">
           <caption className="sr-only">{s("Results by class", "ক্লাস অনুযায়ী ফলাফল")}</caption>
-          <thead><tr><th scope="col">{s("Class", "ক্লাস")}</th><th scope="col">{s("Teacher", "শিক্ষক")}</th><th scope="col">{s("Students", "শিক্ষার্থী")}</th><th scope="col">{s("Submissions", "জমা")}</th><th scope="col">{s("Average", "গড়")}</th><th scope="col">{s("Actions", "করণীয়")}</th></tr></thead>
+          <thead><tr><th scope="col">{s("Class", "ক্লাস")}</th><th scope="col">{s("Teacher", "শিক্ষক")}</th><th scope="col">{s("Students", "শিক্ষার্থী")}</th><th scope="col">{s("Submissions", "জমা")}</th><th scope="col">{s("Average", "গড়")}</th><th scope="col">{s("Attendance", "উপস্থিতি")}</th><th scope="col">{s("Actions", "করণীয়")}</th></tr></thead>
           <tbody>{visible.map((item) => <tr key={item.id}>
-            <td><strong>{item.name}</strong><small>{item.activityCount} {s("activities", "কার্যক্রম")}</small></td>
+            <td><strong>{item.name}</strong><small>{number(item.activityCount)} {s("activities", "কার্যক্রম")}</small></td>
             <td><strong>{item.teacherName}</strong><small>{item.teacherEmail}</small></td>
-            <td>{item.studentCount}</td>
-            <td>{item.submissionCount}</td>
-            <td>{average(item.averagePercent)}</td>
+            <td>{number(item.studentCount)}</td>
+            <td>{number(item.submissionCount)}</td>
+            <td>{percent(item.averagePercent)}</td>
+            <td>{item.attendancePercent === null ? "—" : s(`${number(item.attendancePercent)}% present`, `${number(item.attendancePercent)}% উপস্থিত`)}</td>
             <td><div className="management-row-actions"><button type="button" className="outline-button" aria-expanded={item.id === selectedId} aria-controls={item.id === selectedId ? "class-results" : undefined} aria-label={`${s("View results", "ফলাফল দেখুন")}: ${item.name}`} onClick={(event) => { opener.current = event.currentTarget; if (item.id === selectedId) closeClass(); else openClass(item.id); }}>{s("View results", "ফলাফল দেখুন")}</button></div></td>
           </tr>)}</tbody>
         </table></div>}
     </section>
     {selected && <section id="class-results" className="teach-panel" aria-labelledby="class-results-heading">
       <h2 id="class-results-heading" ref={resultsHeading} tabIndex={-1}>{s("Results", "ফলাফল")}: {selected.name}</h2>
-      <p>{s("Teacher", "শিক্ষক")}: {selected.teacherName} · {selected.studentCount} {s("students", "শিক্ষার্থী")} · {s("Average", "গড়")}: {average(selected.averagePercent)}</p>
+      <p>{s("Teacher", "শিক্ষক")}: {selected.teacherName} · {number(selected.studentCount)} {s("students", "শিক্ষার্থী")} · {s("Average", "গড়")}: {percent(selected.averagePercent)}</p>
       <div className="grade-tools">
         <a className="outline-button" href={`/api/classes/${selected.id}/grades?format=csv`}>{s("Download CSV", "CSV নামান")}</a>
         <button type="button" className="text-button" onClick={closeClass}>{s("Close", "বন্ধ করুন")}</button>
       </div>
+      {gradebook && <><h3>{s("Gradebook and attendance", "গ্রেডবুক ও উপস্থিতি")}</h3><Gradebook gradebook={gradebook} language={language} /><h3>{s("Submissions", "জমা")}</h3></>}
       {loadingRows && rows === null ? <p role="status">{s("Loading results…", "ফলাফল লোড হচ্ছে…")}</p>
         : rows && (rows.length === 0 ? <p className="teach-empty">{s("No submissions yet.", "এখনো কোনো জমা নেই।")}</p>
         : <div className="management-table-wrap"><table className="management-table">
@@ -149,8 +156,8 @@ export default function AdminResults({ name }: { name: string }) {
           <tbody>{rows.map((row) => <tr key={row.submissionId}>
             <td><strong>{row.studentName}</strong></td>
             <td>{row.activityTitle}</td>
-            <td>{row.score}/{row.total}<small>{row.percent}%</small></td>
-            <td>{new Date(row.submittedAt).toLocaleString()}</td>
+            <td>{number(row.score)}/{number(row.total)}<small>{number(row.percent)}%</small></td>
+            <td>{localDateTime(row.submittedAt, language)}</td>
             <td><button type="button" className="text-button danger" disabled={busy} onClick={() => void reset(row)}>{s("Reset", "রিসেট")}</button></td>
           </tr>)}</tbody>
         </table></div>)}

@@ -59,7 +59,7 @@ test("the administrator listing covers every class with its teacher, counts and 
   const byId = Object.fromEntries(listing.map((item) => [item.id, item]));
   assert.deepEqual(
     { ...byId["class-a"], createdAt: undefined },
-    { id: "class-a", name: "Sunday Class", createdAt: undefined, teacherName: "Teacher A", teacherEmail: "a@example.com", studentCount: 2, activityCount: 2, submissionCount: 3, averagePercent: 57 },
+    { id: "class-a", name: "Sunday Class", createdAt: undefined, teacherName: "Teacher A", teacherEmail: "a@example.com", studentCount: 2, activityCount: 2, submissionCount: 3, averagePercent: 57, attendancePercent: null },
     "4 of 7 marks, not the 50% mean of per-quiz percentages",
   );
   assert.equal(byId["class-b"].teacherName, "Teacher B");

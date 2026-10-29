@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 export type Language = "en" | "bn";
 
 const STORAGE_KEY = "bangla-adventures-language";
+const locale = (language: Language) => (language === "bn" ? "bn-BD" : "en-AU");
 
 /**
  * Client hook for the shared English/Bangla preference used across the learner
@@ -37,7 +38,24 @@ export function useLanguage(): [Language, () => void] {
 
 /** A whole number in the page language's digits (Bangla digits in Bangla mode). */
 export function localNumber(value: number, language: Language): string {
-  return value.toLocaleString(language === "bn" ? "bn-BD" : "en-AU");
+  return value.toLocaleString(locale(language));
+}
+
+/**
+ * A stored time in the reader's local time and the page language. SQLite's CURRENT_TIMESTAMP is UTC
+ * without a zone ("2026-10-28 06:41:12"), so it is read as UTC; ISO times carry their own zone.
+ */
+export function localDateTime(value: string, language: Language): string {
+  const date = new Date(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(value) ? `${value.replace(" ", "T")}Z` : value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString(locale(language), { dateStyle: "medium", timeStyle: "short" });
+}
+
+/** A calendar date ('YYYY-MM-DD', such as a class session) in the page language, without shifting the day. */
+export function localDate(value: string, language: Language): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return value;
+  const date = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
+  return date.toLocaleDateString(locale(language), { weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 }
 
 /**

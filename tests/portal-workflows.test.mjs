@@ -37,10 +37,11 @@ test("removing and restoring allocation preserves submitted work", async () => {
   db.insert(classActivities).values({ id: "quiz", classId: "class", title: "Quiz" }).run();
   db.insert(activitySubmissions).values({ id: "result", activityId: "quiz", studentId: enrollment.classStudentId, score: 1, total: 1 }).run();
   await removeAllocation("admin", "class", "student");
-  assert.equal((await roster("teacher", "class"))[0].active, false);
+  assert.deepEqual(await roster("teacher", "class"), [], "a removed student leaves the class list");
   assert.equal(db.select().from(activitySubmissions).all().length, 1);
   await allocateStudent("teacher", "class", "learner");
   assert.equal(db.select().from(studentClassEnrollments).get().classStudentId, enrollment.classStudentId);
+  assert.deepEqual((await roster("teacher", "class")).map((row) => row.username), ["learner"], "and comes back when added again");
 });
 test("admin reading updates reach the catalogue without changing source mappings or review status", async () => {
   const initial = (await getCatalog())[0];

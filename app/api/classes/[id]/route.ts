@@ -4,12 +4,15 @@ import {
   activitySubmissions,
   classActivities,
   classAnnouncements,
-  classStudents,
 } from "../../../../db/schema";
-import { getSessionAdult } from "@/lib/auth";
+import { getSessionAdult, getStaffAccess } from "@/lib/auth";
 import { canTeach } from "@/lib/roles";
 import { deleteClass, findManagedClass } from "@/lib/class-access";
+import { classAttendanceSummaries } from "@/lib/class-attendance";
+import { changeClassTeacher } from "@/lib/class-management";
+import { currentMembers } from "@/lib/class-roster";
 import type { QuizQuestion } from "@/lib/classroom";
+import { UserManagementError } from "@/lib/user-management";
 
 export const dynamic = "force-dynamic";
 
@@ -27,12 +30,18 @@ export async function GET(_request: Request, context: RouteContext) {
     if (!classroom) return Response.json({ error: "Class not found." }, { status: 404 });
 
     const db = await getDb();
-    const students = await db.select({ id: classStudents.id, displayName: classStudents.displayName, createdAt: classStudents.createdAt }).from(classStudents).where(eq(classStudents.classId, id)).orderBy(desc(classStudents.createdAt));
+    // The students now in the class, A–Z, with their attendance; removed students and their work are left out.
+    const attendance = classAttendanceSummaries(db, id);
+    const students = currentMembers(db, [id]).map(({ id: rosterId, studentId, username, displayName, createdAt }) => ({
+      id: rosterId, studentId, username, displayName, createdAt,
+      attendance: studentId ? attendance.get(studentId) ?? { attended: 0, recorded: 0 } : null,
+    }));
+    const members = new Set(students.map((student) => student.id));
     const activities = await db.select().from(classActivities).where(eq(classActivities.classId, id)).orderBy(desc(classActivities.createdAt));
     const announcements = await db.select().from(classAnnouncements).where(eq(classAnnouncements.classId, id)).orderBy(desc(classAnnouncements.createdAt));
     const activityIds = activities.map((activity) => activity.id);
     const submissions = activityIds.length
-      ? await db.select().from(activitySubmissions).where(inArray(activitySubmissions.activityId, activityIds)).orderBy(desc(activitySubmissions.submittedAt))
+      ? (await db.select().from(activitySubmissions).where(inArray(activitySubmissions.activityId, activityIds)).orderBy(desc(activitySubmissions.submittedAt))).filter((submission) => members.has(submission.studentId))
       : [];
 
     return Response.json({
@@ -49,10 +58,25 @@ export async function GET(_request: Request, context: RouteContext) {
             ...submission,
             answers: parseAnswers(submission.answersJson),
             answersJson: undefined,
-            studentName: students.find((student) => student.id === submission.studentId)?.displayName ?? "(left the class)",
+            studentName: students.find((student) => student.id === submission.studentId)?.displayName ?? "",
           })),
       })),
     });
+  } catch (error) {
+    return databaseError(error);
+  }
+}
+
+/** An administrator gives the class to another approved teacher: { teacherId }. */
+export async function PATCH(request: Request, context: RouteContext) {
+  const actor = await getStaffAccess("admin");
+  if (actor instanceof Response) return actor;
+  const body = (await request.json().catch(() => null)) as { teacherId?: unknown } | null;
+  if (!body || typeof body.teacherId !== "string" || !body.teacherId || body.teacherId.length > 80) {
+    return Response.json({ error: "Choose an approved teacher.", errorBn: "একজন অনুমোদিত শিক্ষক বেছে নিন।" }, { status: 400 });
+  }
+  try {
+    return Response.json(await changeClassTeacher(actor.id, (await context.params).id, body.teacherId));
   } catch (error) {
     return databaseError(error);
   }
@@ -91,6 +115,7 @@ function parseAnswers(json: string): number[] {
 }
 
 function databaseError(error: unknown) {
+  if (error instanceof UserManagementError) return Response.json({ error: error.message, errorBn: error.messageBn }, { status: error.status });
   const message = error instanceof Error ? error.message : "Unexpected database error";
   const unavailable = message.includes("no such table") || message.includes("SQLITE");
   return Response.json({ error: unavailable ? "The classroom service is still being set up." : message }, { status: 500 });

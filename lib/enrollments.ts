@@ -6,6 +6,7 @@ import { canTeach } from "./roles";
 import { createSessionToken, generateTemporaryPassword, hashPasswordAsync, hashSessionToken } from "./password";
 import { bnNumber, nameKey, parseStudentCsv, quote, sameName, usernameSlug, type SignInSheetRow, type StudentImportIssue } from "./student-import";
 import { UserManagementError } from "./user-management";
+import { currentMembers } from "./class-roster";
 
 export type Tx = Parameters<Parameters<Awaited<ReturnType<typeof getDb>>["transaction"]>[0]>[0];
 function authorize(tx: Tx, actorId: string, classId: string) {
@@ -16,13 +17,15 @@ function authorize(tx: Tx, actorId: string, classId: string) {
 }
 /** Students a class, or a family, can take in: active and approved. */
 export const addable = and(eq(students.status, "active"), eq(students.approvalStatus, "approved"))!;
+/**
+ * The students now in a class, A–Z: allocated students (with username) and any old class-code learners
+ * (no account). Students whose allocation was removed are not listed.
+ */
 export async function roster(actorId: string, classId: string) {
   const db = await getDb();
   return db.transaction((tx) => {
     authorize(tx, actorId, classId);
-    return tx.select({ id: studentClassEnrollments.id, studentId: students.id, username: students.username, displayName: students.displayName, active: studentClassEnrollments.active })
-      .from(studentClassEnrollments).innerJoin(students, eq(students.id, studentClassEnrollments.studentId))
-      .where(eq(studentClassEnrollments.classId, classId)).orderBy(students.displayName).all();
+    return currentMembers(tx, [classId]).map(({ id, studentId, username, displayName }) => ({ id, studentId, username, displayName }));
   });
 }
 /**

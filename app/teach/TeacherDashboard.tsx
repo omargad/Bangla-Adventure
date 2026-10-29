@@ -2,11 +2,15 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useLanguage } from "../../lib/use-language";
+import { localDateTime, localNumber, useLanguage } from "../../lib/use-language";
+import type { AttendanceSummary } from "../../lib/attendance";
+import { buildGradebook } from "../../lib/gradebook";
 import type { Topic } from "../topics-content";
 import { NCTB_PORTAL_URL } from "../library-content";
 import PortalShell from "../components/PortalShell";
 import ClassAllocation from "../components/ClassAllocation";
+import ClassAttendance from "../components/ClassAttendance";
+import Gradebook from "../components/Gradebook";
 import { confirmDiscardPasswords } from "../components/StudentImport";
 
 type ClassSummary = {
@@ -47,7 +51,8 @@ type ActivityDetail = {
 
 type ClassDetail = {
   class: { id: string; name: string; joinCode: string; teacherId: string };
-  students: Array<{ id: string; displayName: string; createdAt: string }>;
+  /** Students now in the class, A–Z (`id` is the roster row; `studentId` is null for a class-code learner). */
+  students: Array<{ id: string; studentId: string | null; username: string | null; displayName: string; createdAt: string; attendance: AttendanceSummary | null }>;
   announcements: Array<{ id: string; body: string; createdAt: string }>;
   activities: ActivityDetail[];
 };
@@ -76,6 +81,7 @@ async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
 export default function TeacherDashboard({ teacherName, userId, isAdmin = false }: { teacherName: string; userId?: string; isAdmin?: boolean }) {
   const [language, toggleLanguage] = useLanguage();
   const s = (en: string, bn: string) => (language === "bn" ? bn : en);
+  const number = (value: number) => localNumber(value, language);
 
   const [classList, setClassList] = useState<ClassSummary[]>([]);
   const [detail, setDetail] = useState<ClassDetail | null>(null);
@@ -103,7 +109,8 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
   const [activityInstructions, setActivityInstructions] = useState("");
   const [activityTopic, setActivityTopic] = useState("");
   const [questions, setQuestions] = useState<Question[]>([emptyQuestion()]);
-  const [openSubmissions, setOpenSubmissions] = useState<string | null>(null);
+  // Activities whose per-student submissions table is open in Results.
+  const [openSubmissions, setOpenSubmissions] = useState<Set<string>>(new Set());
 
   const loadClasses = useCallback(async () => {
     try {
@@ -135,7 +142,7 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
       const data = await requestJson<ClassDetail>(`/api/classes/${id}`);
       setDetail(data);
       if (section === "classes") setSection("students");
-      setOpenSubmissions(null);
+      if (data.class.id !== detail?.class.id) setOpenSubmissions(new Set());
     } catch (error) { setMessage(error instanceof Error ? error.message : "Could not open the class."); }
   }
 
@@ -291,22 +298,13 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
   const topicTitle = (topicId: string | null) =>
     topicId ? topics.find((topic) => topic.id === topicId)?.title[language] ?? topicId : null;
 
-  const gradeSummary = useMemo(() => {
-    if (!detail) return [];
-    return detail.students.map((student) => {
-      const submissions = detail.activities.flatMap((activity) =>
-        activity.submissions.filter((submission) => submission.studentId === student.id),
-      );
-      const totalScore = submissions.reduce((sum, submission) => sum + submission.score, 0);
-      const totalQuestions = submissions.reduce((sum, submission) => sum + submission.total, 0);
-      const average = totalQuestions ? Math.round((totalScore / totalQuestions) * 100) : 0;
-      const best = submissions.reduce(
-        (value, submission) => Math.max(value, submission.total ? Math.round((submission.score / submission.total) * 100) : 0),
-        0,
-      );
-      return { student, attempts: submissions.length, average, best };
-    });
-  }, [detail]);
+  // One row per student now in the class and one column per activity (newest first).
+  const gradebook = useMemo(() => buildGradebook(detail?.students ?? [], detail?.activities ?? []), [detail]);
+  const toggleSubmissions = (activityId: string) => setOpenSubmissions((current) => {
+    const next = new Set(current);
+    if (!next.delete(activityId)) next.add(activityId);
+    return next;
+  });
 
   const resetSubmission = async (submissionId: string) => {
     if (!detail) return;
@@ -326,6 +324,7 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
         ["students", s("Students", "শিক্ষার্থী")],
         ["activities", s("Activities & quizzes", "কার্যক্রম ও কুইজ")],
         ["results", s("Results", "ফলাফল")],
+        ["attendance", s("Attendance", "উপস্থিতি")],
         ["announcements", s("Announcements", "ঘোষণা")],
         ["sources", s("Manage sources", "উৎস পরিচালনা")],
       ].map(([id, label]) => ({ id, label, onClick: () => { if ((id === "classes" || id === "sources") && detail && !canLeaveClass()) return; setSection(id); setMessage(""); if (id === "classes" || id === "sources") { setDetail(null); void loadClasses(); } else if (detail) void openClass(detail.class.id); } })),
@@ -459,19 +458,6 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
 
             {/* Hidden rather than unmounted, so moving between sections keeps an upload's temporary passwords. */}
             <div hidden={section !== "students"}><ClassAllocation key={detail.class.id} classId={detail.class.id} language={language} onPasswordsChange={setPasswordsOnScreen} onChange={() => { void loadClasses(); void openClass(detail.class.id); }} /></div>
-            <section hidden={section !== "students"} className="teach-panel" aria-label={s("Students", "শিক্ষার্থী")}>
-              <h3>{s("Students", "শিক্ষার্থী")} ({detail.students.length})</h3>
-              {detail.students.length === 0 ? (
-                <p className="teach-empty">{s("Allocate a registered student above. Refresh the class to see the updated roster.", "উপরে নিবন্ধিত শিক্ষার্থী বরাদ্দ করুন। তালিকা দেখতে ক্লাস হালনাগাদ করুন।")}</p>
-              ) : (
-                <ul className="teach-roster">
-                  {detail.students.map((student) => (
-                    <li key={student.id}>{student.displayName}</li>
-                  ))}
-                </ul>
-              )}
-            </section>
-
             <section hidden={section !== "results"} className="teach-panel" aria-label={s("Grades and results", "গ্রেড ও ফলাফল")}>
               <h3>{s("Grades & results", "গ্রেড ও ফলাফল")}</h3>
               <div className="grade-tools">
@@ -479,21 +465,76 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
                   {s("Export CSV", "CSV নামান")}
                 </a>
               </div>
-              {gradeSummary.length === 0 ? (
-                <p className="teach-empty">{s("No students to grade yet.", "এখনো গ্রেড দেওয়ার মতো শিক্ষার্থী নেই।")}</p>
+              <Gradebook gradebook={gradebook} language={language} />
+            </section>
+
+            <section hidden={section !== "results"} className="teach-panel" aria-label={s("Submissions by activity", "কার্যক্রম অনুযায়ী জমা")}>
+              <h3>{s("Submissions by activity", "কার্যক্রম অনুযায়ী জমা")}</h3>
+              {gradebook.activities.length === 0 ? (
+                <p className="teach-empty">{s("No activities yet. Set one in Activities & quizzes.", "এখনো কোনো কার্যক্রম নেই। কার্যক্রম ও কুইজ অংশে একটি দিন।")}</p>
               ) : (
-                <div className="grade-summary-grid">
-                  {gradeSummary.map((row) => (
-                    <div className="grade-summary-card" key={row.student.id}>
-                      <strong>{row.student.displayName}</strong>
-                      <span>{row.attempts} {s("attempts", "চেষ্টা")}</span>
-                      <span>{s("Average", "গড়")}: {row.average}%</span>
-                      <span>{s("Best", "সেরা")}: {row.best}%</span>
-                    </div>
-                  ))}
-                </div>
+                gradebook.activities.map((column, index) => {
+                  const activity = detail.activities.find((item) => item.id === column.id);
+                  const submitted = gradebook.rows.filter((row) => row.cells[index]).length;
+                  const open = openSubmissions.has(column.id);
+                  return (
+                    <article className="teach-activity" key={column.id}>
+                      <header>
+                        <div>
+                          <strong>{column.title}</strong>
+                          <small>
+                            {number(activity?.questions.length ?? 0)} {s("questions", "প্রশ্ন")}
+                            {" · "}
+                            {activity?.status === "open" ? s("open", "খোলা") : s("closed", "বন্ধ")}
+                          </small>
+                        </div>
+                        <button type="button" className="text-button" aria-expanded={open} onClick={() => toggleSubmissions(column.id)}>
+                          {s(`${submitted} of ${gradebook.rows.length} submitted`, `${number(gradebook.rows.length)} জনের মধ্যে ${number(submitted)} জন জমা দিয়েছে`)}
+                        </button>
+                      </header>
+                      {open && (gradebook.rows.length === 0 ? (
+                        <p className="teach-empty">{s("No students in this class yet.", "এই ক্লাসে এখনও কোনো শিক্ষার্থী নেই।")}</p>
+                      ) : (
+                        <div className="management-table-wrap">
+                          <table className="teach-submissions">
+                            <caption className="sr-only">{column.title}</caption>
+                            <thead>
+                              <tr>
+                                <th>{s("Student", "শিক্ষার্থী")}</th>
+                                <th>{s("Score", "স্কোর")}</th>
+                                <th>{s("Submitted", "জমার সময়")}</th>
+                                <th>{s("Manage", "পরিচালনা")}</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {gradebook.rows.map((row) => {
+                                const cell = row.cells[index];
+                                return (
+                                  <tr key={row.student.id}>
+                                    <td>{row.student.displayName}</td>
+                                    <td>{cell ? `${number(cell.score)}/${number(cell.total)}` : <span className="gradebook-missing-text">—</span>}</td>
+                                    <td>{cell ? localDateTime(cell.submittedAt, language) : <span className="gradebook-missing-text">{s("Not submitted", "জমা হয়নি")}</span>}</td>
+                                    <td>
+                                      {cell && (
+                                        <button type="button" className="text-button danger" onClick={() => resetSubmission(cell.id)}>
+                                          {s("Reset", "রিসেট")}
+                                        </button>
+                                      )}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      ))}
+                    </article>
+                  );
+                })
               )}
             </section>
+
+            {section === "attendance" && <ClassAttendance key={detail.class.id} classId={detail.class.id} language={language} onSaved={() => void openClass(detail.class.id)} />}
 
             <section hidden={section !== "announcements"} className="teach-panel" aria-label={s("Announcements", "ঘোষণা")}>
               <h3>{s("Announcements", "ঘোষণা")}</h3>
@@ -639,71 +680,43 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
               </form>
             </section>
 
-            <section hidden={!["activities", "results"].includes(section)} className="teach-panel" aria-label={s("Activities and submissions", "কার্যক্রম ও জমা")}>
+            <section hidden={section !== "activities"} className="teach-panel" aria-label={s("Activities and submissions", "কার্যক্রম ও জমা")}>
               <h3>{s("Activities & submissions", "কার্যক্রম ও জমা")}</h3>
               {detail.activities.length === 0 ? (
                 <p className="teach-empty">{s("No activities yet.", "এখনো কোনো কার্যক্রম নেই।")}</p>
               ) : (
-                detail.activities.map((activity) => (
-                  <article className="teach-activity" key={activity.id}>
-                    <header>
-                      <div>
-                        <strong>{activity.title}</strong>
-                        <small>
-                          {activity.questions.length} {s("questions", "প্রশ্ন")}
-                          {activity.topicId && <> · {s("topic:", "বিষয়:")} {topicTitle(activity.topicId)}</>}
-                          {" · "}
-                          {activity.status === "open" ? s("open", "খোলা") : s("closed", "বন্ধ")}
-                        </small>
-                      </div>
-                      <div className="teach-activity-buttons">
-                        <button type="button" className="text-button" onClick={() => setOpenSubmissions(openSubmissions === activity.id ? null : activity.id)}>
-                          {activity.submissions.length} {s("submissions", "জমা")}
-                        </button>
-                        <button
-                          type="button"
-                          className="text-button"
-                          onClick={() => setActivityStatus(activity.id, activity.status === "open" ? "closed" : "open")}
-                        >
-                          {activity.status === "open" ? s("Close", "বন্ধ করুন") : s("Reopen", "আবার খুলুন")}
-                        </button>
-                        <button type="button" className="text-button danger" onClick={() => removeActivity(activity.id)}>
-                          {s("Delete", "মুছুন")}
-                        </button>
-                      </div>
-                    </header>
-                    {openSubmissions === activity.id && (
-                      activity.submissions.length === 0 ? (
-                        <p className="teach-empty">{s("No submissions yet.", "এখনো কোনো জমা নেই।")}</p>
-                      ) : (
-                        <table className="teach-submissions">
-                          <thead>
-                            <tr>
-                              <th>{s("Student", "শিক্ষার্থী")}</th>
-                              <th>{s("Score", "স্কোর")}</th>
-                              <th>{s("Submitted", "জমার সময়")}</th>
-                              <th>{s("Manage", "পরিচালনা")}</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {activity.submissions.map((submission) => (
-                              <tr key={submission.id}>
-                                <td>{submission.studentName}</td>
-                                <td>{submission.score}/{submission.total}</td>
-                                <td>{new Date(submission.submittedAt).toLocaleString()}</td>
-                                <td>
-                                  <button type="button" className="text-button danger" onClick={() => resetSubmission(submission.id)}>
-                                    {s("Reset", "রিসেট")}
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      )
-                    )}
-                  </article>
-                ))
+                <>
+                  <p className="teach-note">{s("Scores for each student are in Results.", "প্রত্যেক শিক্ষার্থীর স্কোর ফলাফল অংশে আছে।")}</p>
+                  {detail.activities.map((activity) => (
+                    <article className="teach-activity" key={activity.id}>
+                      <header>
+                        <div>
+                          <strong>{activity.title}</strong>
+                          <small>
+                            {number(activity.questions.length)} {s("questions", "প্রশ্ন")}
+                            {activity.topicId && <> · {s("topic:", "বিষয়:")} {topicTitle(activity.topicId)}</>}
+                            {" · "}
+                            {activity.status === "open" ? s("open", "খোলা") : s("closed", "বন্ধ")}
+                            {" · "}
+                            {s(`${activity.submissions.length} of ${detail.students.length} submitted`, `${number(detail.students.length)} জনের মধ্যে ${number(activity.submissions.length)} জন জমা দিয়েছে`)}
+                          </small>
+                        </div>
+                        <div className="teach-activity-buttons">
+                          <button
+                            type="button"
+                            className="text-button"
+                            onClick={() => setActivityStatus(activity.id, activity.status === "open" ? "closed" : "open")}
+                          >
+                            {activity.status === "open" ? s("Close", "বন্ধ করুন") : s("Reopen", "আবার খুলুন")}
+                          </button>
+                          <button type="button" className="text-button danger" onClick={() => removeActivity(activity.id)}>
+                            {s("Delete", "মুছুন")}
+                          </button>
+                        </div>
+                      </header>
+                    </article>
+                  ))}
+                </>
               )}
             </section>
           </>

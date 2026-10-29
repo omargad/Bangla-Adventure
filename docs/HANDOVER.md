@@ -71,7 +71,13 @@ with two parents shares one username across both rows), can allocate a class, an
 shows a printable sign-in sheet with one page per family. A student username that
 already exists links that student instead, and a name that already has a student
 account is refused unless the administrator confirms it is a different child, so a
-repeated upload never creates second accounts. Password recovery uses saved recovery codes, not email-reset
+repeated upload never creates second accounts. On **Class allocation** an administrator
+can also create a class for an approved teacher and give a class to another teacher; the
+class keeps its students, activities, results and attendance, and the previous teacher
+loses access. Teachers (and administrators) take attendance per class date in the
+teacher workspace; parents, students and the administrator results page show it as
+"attended X of Y". Students removed from a class leave its roster, results and exports
+but keep their records. Password recovery uses saved recovery codes, not email-reset
 messages. Demonstrate the flow and transfer recovery material privately.
 
 ## Verification evidence

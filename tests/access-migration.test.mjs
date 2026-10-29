@@ -56,3 +56,24 @@ test("approval and administrator-issued password columns default to approved, un
   assert.ok(indexes.includes("adults_approval_idx") && indexes.includes("students_approval_idx"));
   db.close();
 });
+
+test("class attendance is added to existing databases: one mark per student per class date", () => {
+  const db = new Database(":memory:");
+  db.exec(bootstrapSql);
+  migrateAccessControl(db);
+  migrateAccessControl(db);
+  const columns = db.prepare("PRAGMA table_info(class_attendance)").all().map((column) => column.name);
+  assert.deepEqual(columns, ["id", "class_id", "student_id", "session_date", "present", "recorded_by", "recorded_at"]);
+  db.pragma("foreign_keys = ON");
+  db.prepare("INSERT INTO adults(id,email,display_name,password_hash) VALUES(?,?,?,?)").run("teacher", "teacher@example.com", "Teacher", "hash");
+  db.prepare("INSERT INTO students(id,username,display_name,password_hash) VALUES(?,?,?,?)").run("child", "child", "Learner", "hash");
+  db.prepare("INSERT INTO classes(id,teacher_id,name,join_code) VALUES(?,?,?,?)").run("class", "teacher", "Class", "ABC234");
+  const mark = db.prepare("INSERT INTO class_attendance(id,class_id,student_id,session_date,present,recorded_by) VALUES(?,?,?,?,?,?)");
+  mark.run("one", "class", "child", "2026-10-28", 0, "teacher");
+  assert.throws(() => mark.run("two", "class", "child", "2026-10-28", 1, "teacher"), /UNIQUE/);
+  assert.throws(() => mark.run("three", "class", "child", "2026-10-21", 2, "teacher"), /CHECK/);
+  assert.throws(() => mark.run("four", "class", "missing", "2026-10-21", 1, "teacher"), /FOREIGN KEY/);
+  db.prepare("DELETE FROM adults WHERE id = ?").run("teacher");
+  assert.equal(db.prepare("SELECT count(*) AS n FROM class_attendance").get().n, 0, "marks go with their class");
+  db.close();
+});

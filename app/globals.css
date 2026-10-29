@@ -410,26 +410,6 @@ a:focus-visible {
   margin-top: 12px;
 }
 
-.grade-summary-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-  gap: 12px;
-  margin-top: 14px;
-}
-
-.grade-summary-card {
-  display: grid;
-  gap: 4px;
-  padding: 14px;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.72);
-}
-
-.grade-summary-card strong {
-  color: var(--emerald);
-}
-
 .grade-tools {
   display: flex;
   flex-wrap: wrap;
@@ -10015,23 +9995,6 @@ body.modal-open .pwa-status {
 .teach-class-title p {
   margin: 0;
   color: var(--muted);
-}
-
-.teach-roster {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.teach-roster li {
-  padding: 6px 14px;
-  border: 1.5px solid var(--line);
-  border-radius: 999px;
-  background: var(--cream);
-  font-weight: 600;
 }
 
 .teach-announcements {

@@ -125,8 +125,8 @@ test("an administrator reads and exports grades in another teacher's class", asy
   assert.match(csv.headers.get("content-type"), /text\/csv/);
   assert.match(csv.headers.get("content-disposition"), /results-class-grades\.csv/);
   const lines = (await csv.text()).split("\n");
-  assert.equal(lines[0], '"Class","Activity","Student","Score","Total","Percent","Submitted At"');
-  assert.match(lines[1], /^"Results class","Festivals check-in","Maya","1","2","50",/);
+  assert.equal(lines[0], '"Class","Activity","Student","Score","Total","Percent","Submitted At","Done","Attendance"');
+  assert.match(lines[1], /^"Results class","Festivals check-in","Maya","1","2","50","[^"]+","1 of 1",""$/);
 });
 
 test("an administrator resets a submission in any class and the reset is audited", async () => {
