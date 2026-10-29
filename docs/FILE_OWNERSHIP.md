@@ -692,11 +692,15 @@ These files were added after the package import by the commits that created them
 - `docs/assets/readme-banner.jpg`
 - `docs/atlassian-role-mapping.json`
 - `docs/jira-task-mapping.json`
-- `docs/screenshots/admin-results.jpg`
+- `docs/screenshots/family-import.jpg`
 - `docs/screenshots/landing.jpg`
+- `docs/screenshots/lessons-studio.jpg`
 - `docs/screenshots/mobile-student.jpg`
 - `docs/screenshots/my-learning.jpg`
-- `docs/screenshots/teacher-class.jpg`
+- `docs/screenshots/parent-dashboard.jpg`
+- `docs/screenshots/teacher-attendance.jpg`
+- `docs/screenshots/teacher-gradebook.jpg`
+- `docs/screenshots/topic-approval.jpg`
 - `docs/screenshots/topic-reader-bn.jpg`
 - `docs/screenshots/topic-reader.jpg`
 - `docs/screenshots/topics.jpg`

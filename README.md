@@ -70,57 +70,80 @@ where they stand:
 <table>
 <tr>
 <td width="50%" valign="top">
-<img src="docs/screenshots/landing.jpg" alt="Bangla Adventures welcome page with Bagh the tiger on an illustrated river map">
-<p><b>Welcome page</b><br><sub>A bilingual front door for students, parents and teachers.</sub></p>
+<img src="docs/screenshots/family-import.jpg" alt="Administrator family import result: 7 student and 6 parent accounts created and added to the class, with a printable sign-in sheet for one parent and two children showing fictional temporary passwords">
+<p><b>Family CSV import</b><br><sub>Student name, parent name and parent e-mail become linked accounts and a sign-in sheet.</sub></p>
 </td>
 <td width="50%" valign="top">
-<img src="docs/screenshots/my-learning.jpg" alt="Student My Learning dashboard with progress cards, a class announcement and topics">
-<p><b>My Learning</b><br><sub>Progress, class announcements and topics in one place.</sub></p>
-</td>
-</tr>
-<tr>
-<td width="50%" valign="top">
-<img src="docs/screenshots/topic-reader.jpg" alt="Pohela Boishakh topic open in English with a draft-for-educator-review notice">
-<p><b>Topic reader</b><br><sub>Short readings that keep an honest educator-review notice.</sub></p>
-</td>
-<td width="50%" valign="top">
-<img src="docs/screenshots/topic-reader-bn.jpg" alt="The same Pohela Boishakh topic shown in Bangla">
-<p><b>The same topic in Bangla</b><br><sub>One tap switches the portal's language.</sub></p>
+<img src="docs/screenshots/topic-approval.jpg" alt="Staff preview of a teacher-written topic with its quiz shown side by side in English and Bangla, the ticked confirmation I have read the whole topic, including its quiz, in English and Bangla, and the Approve and publish to students button">
+<p><b>Topic approval</b><br><sub>A new topic previewed in English and Bangla side by side; approving needs the full-read tick.</sub></p>
 </td>
 </tr>
 <tr>
 <td width="50%" valign="top">
-<img src="docs/screenshots/teacher-class.jpg" alt="Teacher workspace after a CSV upload, showing the printable sign-in sheet with temporary passwords">
-<p><b>CSV class upload</b><br><sub>A class list becomes accounts and a printable sign-in sheet.</sub></p>
+<img src="docs/screenshots/teacher-attendance.jpg" alt="Attendance sheet for Sunday 25 October 2026 with six of seven students ticked present, one absent, and each student's attended-of-sessions total">
+<p><b>Attendance</b><br><sub>Everyone starts present; untick who was absent and save the date.</sub></p>
 </td>
 <td width="50%" valign="top">
-<img src="docs/screenshots/admin-results.jpg" alt="Administrator results page with a class's submissions, CSV download and reset actions">
-<p><b>Results for administrators</b><br><sub>Every class's grades, CSV export and audited resets.</sub></p>
+<img src="docs/screenshots/teacher-gradebook.jpg" alt="Teacher gradebook for a class of seven students: one row per student and one column per activity, dashes for work not submitted, then done, average and attendance columns">
+<p><b>Gradebook</b><br><sub>Students down, activities across, <code>—</code> for missing work, attendance at the end.</sub></p>
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+<img src="docs/screenshots/my-learning.jpg" alt="Student My Learning dashboard: topics read 4 of 15, activities 3 of 3, average result 100%, classes attended 3 of 3, a class announcement, and topic cards under the History and the national story category">
+<p><b>My Learning</b><br><sub>Progress, attendance, class notices and approved topics grouped by category.</sub></p>
+</td>
+<td width="50%" valign="top">
+<img src="docs/screenshots/parent-dashboard.jpg" alt="Parent dashboard headed Your children's learning for two linked children, with a parents-only announcement, an announcement for students and parents, and the first child's attendance: attended 3 of 3 classes">
+<p><b>Parent dashboard</b><br><sub>“Your children's learning”: parents-only notices and each child's attendance.</sub></p>
 </td>
 </tr>
 </table>
 
 <details>
-<summary><b>More screenshots</b>: topics hub and phone layout</summary>
+<summary><b>More screenshots</b>: welcome page, topics, the topic reader in both languages, lessons and the phone layout</summary>
 
 <br>
 
 <table>
 <tr>
+<td width="50%" valign="top">
+<img src="docs/screenshots/landing.jpg" alt="Bangla Adventures welcome page with Bagh the tiger on an illustrated river map">
+<p><b>Welcome page</b><br><sub>A bilingual front door for students, parents and teachers.</sub></p>
+</td>
+<td width="50%" valign="top">
+<img src="docs/screenshots/topics.jpg" alt="Student topics page with the Our country and Culture, crafts and celebrations categories, Read badges and a completed quiz result">
+<p><b>Topics by category</b><br><sub>Only approved topics, with read badges and quiz results.</sub></p>
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+<img src="docs/screenshots/topic-reader.jpg" alt="Approved Pohela Boishakh topic open in English for a student, with no draft notice">
+<p><b>Topic reader</b><br><sub>An approved topic as a student reads it.</sub></p>
+</td>
+<td width="50%" valign="top">
+<img src="docs/screenshots/topic-reader-bn.jpg" alt="The same Pohela Boishakh topic and the student menu shown in Bangla">
+<p><b>The same topic in Bangla</b><br><sub>One tap switches the portal's language.</sub></p>
+</td>
+</tr>
+</table>
+
+<table>
+<tr>
 <td width="75%" valign="top">
-<img src="docs/screenshots/topics.jpg" alt="Topics hub with culture and celebration topic cards and a completed quiz result">
-<p><b>Topics hub</b><br><sub>Culture, history and literature topics with review status and quiz results.</sub></p>
+<img src="docs/screenshots/lessons-studio.jpg" alt="Staff Lessons page with the Letters and numbers and Places and nature categories: one lesson approved by a teacher, the others approved as a baseline, each with a Preview lesson button">
+<p><b>Lessons by category</b><br><sub>The 18 lessons grouped by category, each with its approval status and who approved it.</sub></p>
 </td>
 <td width="25%" valign="top">
-<img src="docs/screenshots/mobile-student.jpg" alt="Student dashboard on a phone-sized screen" width="185">
-<p><b>On a phone</b><br><sub>The student dashboard at 390&nbsp;px wide.</sub></p>
+<img src="docs/screenshots/mobile-student.jpg" alt="Student My Learning dashboard on a phone-sized screen with progress cards, classes attended and a class announcement" width="185">
+<p><b>On a phone</b><br><sub>My Learning at 390&nbsp;px wide.</sub></p>
 </td>
 </tr>
 </table>
 
 </details>
 
-<sub>Captured from a local build seeded with fictional demo accounts; names and passwords are made up.</sub>
+<sub>Captured from a local build seeded with a fictional weekend school and fictional demo accounts; names, e-mail addresses and passwords are made up.</sub>
 
 ## Honest delivery status
 
