@@ -62,9 +62,12 @@ declined only after it is reactivated. Accounts an administrator creates are
 approved and get a generated temporary password, shown once on a printable sheet;
 the person must choose their own password at first sign-in, and adults then receive
 fresh recovery codes. Administrators can reset a forgotten student or adult password
-the same way (never their own). Staff allocate approved students without class
-codes; admins link approved parents to approved student accounts for
-read-only access. Password recovery uses saved recovery codes, not email-reset
+the same way (never their own). Staff find approved students by name or username
+and tick them to allocate them, without class codes; admins link approved parents
+to approved student accounts for read-only access. **Import families (CSV)** on the
+Users page takes one file of student name, parent name and parent e-mail: it creates
+the students and any new parents, links them (siblings share one parent), can
+allocate a class, and shows one printable sign-in sheet per family. Password recovery uses saved recovery codes, not email-reset
 messages. Demonstrate the flow and transfer recovery material privately.
 
 ## Verification evidence

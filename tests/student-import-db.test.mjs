@@ -89,3 +89,71 @@ test("a username claimed while passwords are hashed rolls the whole upload back"
   await assert.rejects(pending, (error) => error.status === 409 && /taken during the upload/.test(error.message));
   assert.deepEqual(counts(), { ...before, students: before.students + 1 }, "only the racing account exists; no partial upload");
 });
+
+const enrolled = (studentId) => db.select().from(studentClassEnrollments).where(eq(studentClassEnrollments.studentId, studentId)).all();
+
+test("a row with an existing student's username and name puts that student in the class", async () => {
+  db.insert(students).values({ id: "rina", username: "rina.k", displayName: "Rina Khan", passwordHash: "rina-own-hash" }).run();
+  const before = counts();
+  const result = await importStudents("teacher", "class", "name,username\nrina  KHAN,Rina.K\nBrand New Pupil,\n");
+  assert.ok("created" in result, JSON.stringify(result));
+  assert.deepEqual(result.created.map((row) => row.displayName), ["Brand New Pupil"]);
+  assert.deepEqual(result.existing, [{ displayName: "Rina Khan", username: "rina.k", alreadyInClass: false }]);
+  assert.deepEqual(counts(), { students: before.students + 1, roster: before.roster + 2, enrollments: before.enrollments + 2, provisioned: before.provisioned + 1 });
+  assert.deepEqual(enrolled("rina").map((row) => [row.classId, row.active]), [["class", true]]);
+  const rina = db.select().from(students).where(eq(students.id, "rina")).get();
+  assert.equal(rina.passwordHash, "rina-own-hash", "an existing student keeps their password");
+  assert.equal(rina.mustChangePassword, false);
+  assert.equal(db.select({ n: count() }).from(userAuditEvents).where(eq(userAuditEvents.targetId, "rina")).get().n, 1, "the allocation is audited");
+
+  const again = await importStudents("teacher", "class", "name,username\nRina Khan,rina.k\n");
+  assert.deepEqual(again, { created: [], existing: [{ displayName: "Rina Khan", username: "rina.k", alreadyInClass: true }] });
+  assert.equal(enrolled("rina").length, 1);
+});
+
+test("the username of a suspended or unapproved student is still taken", async () => {
+  db.insert(students).values([
+    { id: "suspended-kid", username: "sus.kid", displayName: "Sus Kid", passwordHash: "fixture", status: "suspended" },
+    { id: "waiting-kid", username: "wait.kid", displayName: "Wait Kid", passwordHash: "fixture", approvalStatus: "pending" },
+  ]).run();
+  const before = counts();
+  const result = await importStudents("teacher", "class", "name,username\nSus Kid,sus.kid\nWait Kid,wait.kid\n");
+  assert.deepEqual(result.errors.map((error) => [error.line, error.message]), [
+    [2, 'The username "sus.kid" is already taken. Choose another or leave it blank to generate one.'],
+    [3, 'The username "wait.kid" is already taken. Choose another or leave it blank to generate one.'],
+  ]);
+  assert.equal(result.sameNames, false);
+  assert.deepEqual(counts(), before);
+  assert.deepEqual(enrolled("suspended-kid"), []);
+});
+
+test("a name-only row whose name already has an account needs confirmation before a second account", async () => {
+  db.insert(students).values([
+    { id: "omar", username: "omar.f", displayName: "Omar Faruk", passwordHash: "fixture" },
+    { id: "omar-waiting", username: "omar.p", displayName: "Omar Faruk", passwordHash: "fixture", approvalStatus: "pending" },
+    ...["twin.a", "twin.b", "twin.c", "twin.d"].map((username) => ({ id: username, username, displayName: "Twin Name", passwordHash: "fixture" })),
+  ]).run();
+  const before = counts();
+  const refused = await importStudents("teacher", "class", "name\nomar  faruk\nUnique Pupil Name\nTwin Name\n");
+  assert.equal(refused.sameNames, true);
+  assert.deepEqual(refused.errors.map((error) => error.line), [2, 4]);
+  assert.equal(refused.errors[0].message, 'A student named "omar  faruk" already has an account (omar.f). To add them, write their username in the "username" column. If this is a different child, tick "Create new accounts for matching names too" and upload again.');
+  assert.match(refused.errors[0].messageBn, /অ্যাকাউন্ট আছে \(omar\.f\)/);
+  assert.match(refused.errors[1].message, /\(twin\.a, twin\.b, twin\.c and 1 more\)/);
+  assert.deepEqual(counts(), before, "nothing is created");
+
+  const confirmed = await importStudents("teacher", "class", "name\nomar  faruk\nUnique Pupil Name\nTwin Name\n", { createSameNames: true });
+  assert.deepEqual(confirmed.created.map((row) => row.displayName), ["omar  faruk", "Unique Pupil Name", "Twin Name"]);
+  assert.deepEqual(confirmed.existing, []);
+});
+
+test("an existing student suspended while passwords are hashed rolls the whole upload back", async () => {
+  db.insert(students).values({ id: "late", username: "late.kid", displayName: "Late Kid", passwordHash: "fixture" }).run();
+  const before = counts();
+  const pending = importStudents("teacher", "class", "name,username\nLate Kid,late.kid\nNew Kid Two,\n");
+  await new Promise((resolve) => setImmediate(resolve));
+  db.update(students).set({ status: "suspended" }).where(eq(students.id, "late")).run();
+  await assert.rejects(pending, (error) => error.status === 409 && /changed during the upload/.test(error.message));
+  assert.deepEqual(counts(), before, "no partial upload");
+  assert.deepEqual(enrolled("late"), []);
+});

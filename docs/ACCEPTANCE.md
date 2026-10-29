@@ -55,16 +55,18 @@ and preserve real records.
 1. **Administrator:** register the confirmed test owner, grant admin on the same
    database (this also approves the waiting account), sign in again, approve a
    teacher, a parent and a student from the Waiting for approval queue, decline one
-   account, create an account and reset a password from the printable sheet, manage
+   account, create an account and reset a password from the printable sheet, import a
+   family CSV (siblings and an existing parent) and print its sheet, manage
    student/family links and update topic reading. Verify existing quizzes/sources and
    review notices remain.
 2. **Teacher:** request access, demonstrate no sign-in or teaching privileges before approval,
-   create a class and activity/quiz, allocate an exact registered student, inspect
+   create a class and activity/quiz, find and tick approved students to add them, inspect
    submissions/results, and post an announcement visible only to that class.
 3. **Student:** sign in to My Learning, open Learning topics and sources, complete
    an allocated activity, view results/progress, refresh and switch devices. Confirm
    unallocated class data is unavailable and no self-enrolment code is required.
-4. **Parent:** link an exact registered account through admin controls; confirm it
+4. **Parent:** link an exact registered account through admin controls (or a family
+   import); confirm it
    sees only the linked student's academic records, cannot submit as the child or
    edit grades, and loses access when the link is removed without losing records.
 5. **Session/recovery:** demonstrate one-time recovery codes, the forced password

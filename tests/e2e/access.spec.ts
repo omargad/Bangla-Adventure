@@ -156,7 +156,8 @@ test("approved teacher can create a class and sees its dashboard totals", async 
   await expect(page.getByRole("button", { name: /Adventure Club/ })).toBeVisible();
   await page.getByRole("button", { name: /Adventure Club/ }).click();
   await expect(page.getByRole("heading", { name: "Adventure Club", exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Allocate student", exact: true })).toBeVisible();
+  await expect(page.getByRole("searchbox", { name: "Find students", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Add selected (0)", exact: true })).toBeDisabled();
   expect(await page.evaluate(async () => (await fetch("/api/admin/users")).status)).toBe(403);
 });
 

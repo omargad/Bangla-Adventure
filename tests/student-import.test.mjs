@@ -28,7 +28,7 @@ test("accepts CRLF, a UTF-8 BOM, blank lines and every documented header spellin
     assert.deepEqual(rows, [{ line: 3, displayName: "মায়া রহমান", username: "maya1" }, { line: 5, displayName: "Arif" }]);
   }
   assert.deepEqual(parseStudentCsv("name\rMaya\rArif").rows.map((row) => row.line), [2, 3], "old Mac line endings");
-  assert.deepEqual(parseStudentCsv("name").errors, [{ line: 1, message: "Add at least one student below the header row." }]);
+  assert.deepEqual(parseStudentCsv("name").errors, [{ line: 1, message: "Add at least one student below the header row.", messageBn: "শিরোনাম সারির নিচে অন্তত একজন শিক্ষার্থী যোগ করুন।" }]);
 });
 
 test("a quoted line break keeps later line numbers accurate", () => {
@@ -47,7 +47,7 @@ test("reports a missing or unknown name column clearly", () => {
   assert.match(missing.errors[0].message, /header with a name column/);
   assert.match(missing.errors[0].message, /"Maya Rahman"/);
   const unknown = parseStudentCsv("name,email\nMaya,maya@example.com\n");
-  assert.deepEqual(unknown.errors, [{ line: 1, message: 'Unknown column "email". Use only "name" and, optionally, "username".' }]);
+  assert.deepEqual(unknown.errors, [{ line: 1, message: 'Unknown column "email". Use only "name" and, optionally, "username".', messageBn: 'অচেনা কলাম "email"। শুধু "name" এবং চাইলে "username" ব্যবহার করুন।' }]);
   assert.match(parseStudentCsv("name,student name\nMaya,Maya\n").errors[0].message, /more than one name column/);
   assert.match(parseStudentCsv("").errors[0].message, /empty/);
   assert.match(parseStudentCsv("\n \n,,\n").errors[0].message, /empty/);
@@ -78,7 +78,7 @@ test("validates names, usernames and file-level duplicates on the right lines", 
 test("unterminated quotes are reported at the line they start", () => {
   const { rows, errors } = parseStudentCsv('name\nMaya\n"Arif\nNadia\n');
   assert.equal(rows.length, 0);
-  assert.deepEqual(errors, [{ line: 3, message: 'A quoted value is never closed. Check for a missing double quote (").' }]);
+  assert.deepEqual(errors, [{ line: 3, message: 'A quoted value is never closed. Check for a missing double quote (").', messageBn: 'একটি উদ্ধৃত মান কোথাও বন্ধ হয়নি। কোনো ডাবল কোট (") বাদ পড়েছে কি না দেখুন।' }]);
 });
 
 test("enforces the 200-row and 64 KB limits", () => {
@@ -120,4 +120,13 @@ test("the sign-in sheet neutralises spreadsheet formulas", () => {
   const [header, row] = csv.split("\n");
   assert.equal(header, '"Name","Username","Temporary password"');
   assert.equal(row, '"\'=HYPERLINK(""x"")","maya1234","kp7m-x3qa-9t"');
+});
+
+test("row errors and the sign-in sheet are bilingual", () => {
+  const { errors } = parseStudentCsv("name,username\n,ok.name\nMaya,a b\nArif,ok.name\n");
+  assert.deepEqual(errors.map((error) => error.line), [2, 3, 4]);
+  for (const error of errors) assert.ok(error.messageBn && /[\u0980-\u09ff]/.test(error.messageBn), error.message);
+  assert.equal(parseStudentCsv("name,username\nMaya,maya.r\nArif,maya.r\n").errors[0].messageBn, 'ব্যবহারকারীর নাম "maya.r" লাইন ২-এ আগেই ব্যবহার হয়েছে।', "line numbers in Bangla digits");
+  assert.match(parseStudentCsv(["name", ...Array.from({ length: MAX_IMPORT_ROWS + 1 }, (_, index) => `S ${index}`)].join("\n")).errors[0].messageBn, /সর্বোচ্চ ২০০ জন/);
+  assert.equal(signInSheetCsv([], "bn"), '"নাম","ব্যবহারকারীর নাম","অস্থায়ী পাসওয়ার্ড"');
 });

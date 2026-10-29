@@ -65,17 +65,18 @@ test("complete approved-teacher, allocated-student, curriculum and recovery work
     const approvals = new Database(process.env.BANGLA_E2E_DB);
     approvals.prepare("UPDATE students SET approval_status = 'approved' WHERE username = ?").run(username);
     approvals.close();
-    await teacher.getByLabel("Student username", { exact: true }).fill("does-not-exist");
-    await teacher.getByRole("button", { name: "Allocate student", exact: true }).click();
-    await expect(teacher.locator(".auth-error[role=alert]")).toContainText("No active student");
-    await teacher.getByLabel("Student username", { exact: true }).fill(username);
-    await teacher.getByRole("button", { name: "Allocate student", exact: true }).click();
-    await expect(teacher.getByText("Class allocation saved.", { exact: true })).toBeVisible();
+    // Teachers find students by name or username and tick them; nobody types an exact username.
+    await teacher.getByLabel("Find students", { exact: true }).fill("does-not-exist");
+    await expect(teacher.getByText(/^No student who can be added matches this search/)).toBeVisible();
+    await teacher.getByLabel("Find students", { exact: true }).fill(username);
+    await teacher.getByRole("checkbox", { name: new RegExp(username) }).check();
+    await teacher.getByRole("button", { name: "Add selected (1)", exact: true }).click();
+    await expect(teacher.getByText("1 student added to this class.", { exact: true })).toBeVisible();
     await page.goto("/admin/classes");
     await page.getByRole("combobox", { name: "Choose a class", exact: true }).selectOption(classId);
-    await page.getByLabel("Student username", { exact: true }).fill(username);
-    await page.getByRole("button", { name: "Allocate student", exact: true }).click();
-    await expect(page.getByText("Class allocation saved.", { exact: true })).toBeVisible();
+    await expect(page.locator(".family-link-list")).toContainText(username);
+    await page.getByLabel("Find students", { exact: true }).fill(username);
+    await expect(page.getByText(/^No student who can be added matches this search/)).toBeVisible();
     await teacher.getByRole("navigation", { name: "Portal navigation" }).getByRole("button", { name: "Activities & quizzes", exact: true }).click();
     expect((await api(teacher, `/api/classes/${classId}/activities`, { title: "Bad", questions: [{ prompt: "Question", options: ["", "Valid"], answer: 0 }] })).status).toBe(400);
     await teacher.getByLabel("Activity title", { exact: true }).fill("A festival and a boat");

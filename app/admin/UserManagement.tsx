@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useLanguage, type Language } from "@/lib/use-language";
 import FamilyLinks from "./FamilyLinks";
+import FamilyImport from "./FamilyImport";
+import { confirmDiscardPasswords } from "../components/StudentImport";
 import PortalShell from "../components/PortalShell";
 
 type User = { id: string; kind: "adult" | "student"; displayName: string; email?: string; username?: string; role: string; status: string; teacherStatus: string; approvalStatus: string; mustChangePassword?: boolean; createdAt: string };
@@ -36,6 +38,10 @@ export default function UserManagement({ actorId, actorName }: { actorId: string
   const [createType, setCreateType] = useState<"parent" | "teacher" | "student">("parent");
   const [credentials, setCredentials] = useState<Credentials | null>(null);
   const [familyStudent, setFamilyStudent] = useState<User | null>(null);
+  const [showFamilyImport, setShowFamilyImport] = useState(false);
+  // A family import's sign-in sheet keeps its panel open; a new key clears it.
+  const [familySheetShown, setFamilySheetShown] = useState(false);
+  const [familyImportKey, setFamilyImportKey] = useState(0);
 
   const load = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
@@ -97,8 +103,26 @@ export default function UserManagement({ actorId, actorName }: { actorId: string
   }
 
   // Only one set of sign-in details is shown at a time: replacing it loses that temporary password for good.
+  // A family import's sheet counts too: it is discarded (after asking) before new details are shown.
+  const credentialsReplaced = () => !credentials || window.confirm(s(`The sign-in details for ${credentials.displayName} are still shown and will be replaced; that temporary password cannot be shown again. Continue?`, `${credentials.displayName}-এর সাইন-ইন তথ্য এখনও দেখানো হচ্ছে, সেটি সরে যাবে; ওই অস্থায়ী পাসওয়ার্ড আর দেখানো যাবে না। এগিয়ে যাবেন?`));
   function replaceCredentials() {
-    return !credentials || window.confirm(s(`The sign-in details for ${credentials.displayName} are still shown and will be replaced; that temporary password cannot be shown again. Continue?`, `${credentials.displayName}-এর সাইন-ইন তথ্য এখনও দেখানো হচ্ছে, সেটি সরে যাবে; ওই অস্থায়ী পাসওয়ার্ড আর দেখানো যাবে না। এগিয়ে যাবেন?`));
+    if (familySheetShown) {
+      if (!confirmDiscardPasswords(language)) return false;
+      setFamilyImportKey((key) => key + 1);
+    }
+    return credentialsReplaced();
+  }
+
+  // A family import replaces any single account's sign-in details still on screen.
+  function beforeFamilyImport() {
+    if (!credentialsReplaced()) return false;
+    setCredentials(null);
+    return true;
+  }
+
+  function closeFamilyImport() {
+    if (familySheetShown && !confirmDiscardPasswords(language)) return;
+    setFamilySheetShown(false); setShowFamilyImport(false);
   }
 
   async function create(event: React.FormEvent<HTMLFormElement>) {
@@ -157,7 +181,7 @@ export default function UserManagement({ actorId, actorName }: { actorId: string
       <div className="adult-account"><button className="outline-button" onClick={toggleLanguage}>{s("বাংলা", "English")}</button><a href="/api/auth/sign-out?returnTo=%2F">{s("Sign out", "সাইন আউট")}</a></div>
     </header>
     <div className="adult-content">
-      <section className="management-heading"><div><p className="adult-eyebrow">{s(`Welcome, ${actorName}`, `স্বাগতম, ${actorName}`)}</p><h1>{s("People make the adventure", "মানুষের হাতেই অভিযানের শুরু")}</h1><p>{s("Approve new accounts, support families and keep account access under control.", "নতুন অ্যাকাউন্ট অনুমোদন করুন, পরিবারকে সহায়তা করুন ও অ্যাকাউন্টের প্রবেশাধিকার পরিচালনা করুন।")}</p></div><button className="primary-button" onClick={() => { setShowCreate(!showCreate); setEditing(null); }}>{showCreate ? s("Close form", "ফর্ম বন্ধ করুন") : s("Create user", "ব্যবহারকারী তৈরি")}</button></section>
+      <section className="management-heading"><div><p className="adult-eyebrow">{s(`Welcome, ${actorName}`, `স্বাগতম, ${actorName}`)}</p><h1>{s("People make the adventure", "মানুষের হাতেই অভিযানের শুরু")}</h1><p>{s("Approve new accounts, support families and keep account access under control.", "নতুন অ্যাকাউন্ট অনুমোদন করুন, পরিবারকে সহায়তা করুন ও অ্যাকাউন্টের প্রবেশাধিকার পরিচালনা করুন।")}</p></div><div className="management-heading-actions"><button className="outline-button" aria-expanded={showFamilyImport || familySheetShown} onClick={() => showFamilyImport || familySheetShown ? closeFamilyImport() : setShowFamilyImport(true)}>{s("Import families (CSV)", "পরিবার যোগ করুন (CSV)")}</button><button className="primary-button" onClick={() => { setShowCreate(!showCreate); setEditing(null); }}>{showCreate ? s("Close form", "ফর্ম বন্ধ করুন") : s("Create user", "ব্যবহারকারী তৈরি")}</button></div></section>
       {error && <p role="alert" className="auth-error">{error}</p>}
       {notice && <p role="status" className="teach-message">{notice}</p>}
       <section className="workspace-stats" aria-label="User overview">
@@ -186,6 +210,7 @@ export default function UserManagement({ actorId, actorName }: { actorId: string
           </>}
         </div>
       </section>}
+      {(showFamilyImport || familySheetShown) && <FamilyImport key={familyImportKey} language={language} onImported={() => void load()} onPasswordsChange={setFamilySheetShown} beforeUpload={beforeFamilyImport} onClose={closeFamilyImport} />}
       {familyStudent && <FamilyLinks key={familyStudent.id} student={familyStudent} language={language} onClose={() => setFamilyStudent(null)} />}
       {showCreate && <section className="teach-panel"><h2>{s("Create an account", "অ্যাকাউন্ট তৈরি করুন")}</h2><form className="management-form" onSubmit={create}>
         <label>{s("Account type", "অ্যাকাউন্টের ধরন")}<select name="accountType" required value={createType} onChange={(event) => setCreateType(event.target.value as "parent" | "teacher" | "student")}><option value="parent">{s("Parent", "অভিভাবক")}</option><option value="teacher">{s("Approved teacher", "অনুমোদিত শিক্ষক")}</option><option value="student">{s("Student", "শিক্ষার্থী")}</option></select></label>

@@ -4,8 +4,9 @@ import { adults, adultSessions, recoveryCodes, students, studentSessions, userAu
 import { canManageUsers, isRole, isStatus } from "./roles";
 import { generateRecoveryCode, generateTemporaryPassword, hashPasswordAsync, hashSessionToken, normalizeRecoveryCode } from "./password";
 
+/** `messageBn` is the same message in Bangla, sent as `errorBn` where a bilingual page shows it. */
 export class UserManagementError extends Error {
-  constructor(message: string, public status = 400) { super(message); }
+  constructor(message: string, public status = 400, public messageBn?: string) { super(message); }
 }
 
 const adultFields = { id: adults.id, email: adults.email, displayName: adults.displayName, role: adults.role, status: adults.status, teacherStatus: adults.teacherStatus, approvalStatus: adults.approvalStatus, mustChangePassword: adults.mustChangePassword, createdAt: adults.createdAt };
