@@ -155,6 +155,43 @@ test("a teacher request made at sign-up decides the account; an existing parent'
   assert.equal((await listUsers(new URLSearchParams())).approvals.total, 0);
 });
 
+test("approving a teacher applicant declined at sign-up grants the request it was declined with", async () => {
+  const declined = (await listUsers(new URLSearchParams({ kind: "adult", filter: "declined" }))).users.find((user) => user.id === "refused-applicant");
+  assert.deepEqual([declined.role, declined.teacherStatus], ["parent", "rejected"]);
+  const approved = await updateUser("admin", "refused-applicant", { kind: "adult", action: "approve" });
+  assert.deepEqual([approved.role, approved.teacherStatus, approved.approvalStatus], ["teacher", "approved", "approved"]);
+  assert.deepEqual(auditFor("refused-applicant"), ["reject", "approve"]);
+  // A declined parent who never asked to teach is approved as a parent.
+  const parent = await updateUser("admin", "declined-parent", { kind: "adult", action: "approve" });
+  assert.deepEqual([parent.role, parent.teacherStatus, parent.approvalStatus], ["parent", "none", "approved"]);
+  assert.deepEqual(auditFor("declined-parent"), ["account-approved"]);
+});
+
+test("suspended accounts leave the approval queue and are decided only once reactivated", async () => {
+  db.insert(adults).values({ id: "suspended-applicant", email: "suspended-applicant@example.com", displayName: "Suspended Applicant", passwordHash: "test-only", teacherStatus: "pending", approvalStatus: "pending", status: "suspended" }).run();
+  db.insert(students).values({ id: "suspended-child", username: "suspended-child", displayName: "Suspended Child", passwordHash: "test-only", approvalStatus: "pending", status: "suspended" }).run();
+  const waiting = async () => {
+    const result = await listUsers(new URLSearchParams());
+    const pendingAdults = (await listUsers(new URLSearchParams({ kind: "adult", filter: "pending" }))).users.map((user) => user.id);
+    const pendingStudents = (await listUsers(new URLSearchParams({ kind: "student", filter: "pending" }))).users.map((user) => user.id);
+    assert.equal(result.stats.pending, result.approvals.total);
+    return [result.approvals.users.map((user) => user.id).sort(), [...pendingAdults, ...pendingStudents].sort()];
+  };
+  assert.deepEqual(await waiting(), [[], []]);
+  const refused = (error) => error.status === 409 && /Reactivate this account/.test(error.message);
+  for (const action of ["approve", "reject"]) {
+    await assert.rejects(updateUser("admin", "suspended-applicant", { kind: "adult", action }), refused);
+    await assert.rejects(updateUser("admin", "suspended-child", { kind: "student", action }), refused);
+  }
+  await updateUser("admin", "suspended-applicant", { kind: "adult", status: "active" });
+  await updateUser("admin", "suspended-child", { kind: "student", status: "active" });
+  assert.deepEqual(await waiting(), [["suspended-applicant", "suspended-child"], ["suspended-applicant", "suspended-child"]]);
+  const teacher = await updateUser("admin", "suspended-applicant", { kind: "adult", action: "approve" });
+  assert.deepEqual([teacher.role, teacher.approvalStatus], ["teacher", "approved"]);
+  assert.equal((await updateUser("admin", "suspended-child", { kind: "student", action: "reject" })).approvalStatus, "declined");
+  assert.deepEqual(await waiting(), [[], []]);
+});
+
 test("administrators reset student and adult passwords, including other administrators', but never their own", async () => {
   const before = db.select().from(students).where(eq(students.id, "self-child")).get().passwordHash;
   db.insert(studentSessions).values({ tokenHash: "self-child-session", studentId: "self-child", expiresAt: "2099-01-01" }).run();

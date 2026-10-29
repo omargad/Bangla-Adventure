@@ -166,11 +166,50 @@ test("a declined account cannot sign in until an administrator approves it later
   const declined = await (await send("/api/admin/users?kind=adult&filter=declined", "GET", undefined, adminCookie)).json();
   assert.deepEqual(declined.users.map((user) => user.email), ["declined@example.com"]);
 
+  const link = (studentId) => send("/api/admin/family-links", "POST", { studentId, parentEmail: "waiting-parent@example.com", confirmed: true }, adminCookie);
+  const refused = await link(childId);
+  assert.equal(refused.status, 409, "an approved parent is not linked to a declined child");
+  assert.match((await refused.json()).error, /Approve this student account/);
+
   assert.equal((await decide(adult.id, "adult", "approve")).status, 200);
   assert.equal((await adultSignIn("declined@example.com")).status, 200);
   assert.equal((await decide(childId, "student", "approve")).status, 200);
   assert.equal((await studentSignIn("declined-child")).status, 200);
+  assert.equal((await link(childId)).status, 200, "linking works once the child is approved");
   assert.deepEqual(actions(adult.id), ["account-declined", "account-approved"]);
+});
+
+test("a teacher applicant declined by mistake is approved later as a teacher", async () => {
+  const signUp = await send("/api/auth/sign-up", "POST", { email: "mistaken@example.com", displayName: "Mistaken Applicant", password, accountType: "teacher" }, undefined, { "x-forwarded-for": "approval-mistaken" });
+  const { adult } = await signUp.json();
+  const declined = await (await decide(adult.id, "adult", "reject")).json();
+  assert.deepEqual([declined.user.role, declined.user.teacherStatus, declined.user.approvalStatus], ["parent", "rejected", "declined"]);
+  await expectWaiting(await adultSignIn("mistaken@example.com"), "declined");
+  const approved = await (await decide(adult.id, "adult", "approve")).json();
+  assert.deepEqual([approved.user.role, approved.user.teacherStatus, approved.user.approvalStatus], ["teacher", "approved", "approved"]);
+  const signIn = await adultSignIn("mistaken@example.com");
+  assert.equal(signIn.status, 200);
+  assert.equal((await signIn.json()).adult.role, "teacher");
+  assert.equal((await send("/api/classes", "POST", { name: "Second chance class" }, cookieFrom(signIn))).status, 201);
+  assert.deepEqual(actions(adult.id), ["reject", "approve"]);
+});
+
+test("a waiting child cannot be linked, and a suspended account is decided only after reactivation", async () => {
+  const child = await send("/api/student/sign-up", "POST", { username: "linked-too-soon", displayName: "Too Soon", password }, undefined, { "x-forwarded-for": "approval-too-soon" });
+  const childId = (await child.json()).student.id;
+  const link = await send("/api/admin/family-links", "POST", { studentId: childId, parentEmail: "waiting-parent@example.com", confirmed: true }, adminCookie);
+  assert.equal(link.status, 409);
+  assert.deepEqual((await (await send(`/api/admin/family-links?studentId=${childId}`, "GET", undefined, adminCookie)).json()).parents, []);
+
+  assert.equal((await send(`/api/admin/users/${childId}`, "PATCH", { kind: "student", status: "suspended" }, adminCookie)).status, 200);
+  const listing = await (await send("/api/admin/users", "GET", undefined, adminCookie)).json();
+  assert.ok(!listing.approvals.users.some((user) => user.id === childId), "a suspended account leaves the queue");
+  const decision = await decide(childId, "student", "approve");
+  assert.equal(decision.status, 409);
+  assert.match((await decision.json()).error, /Reactivate this account/);
+  assert.equal((await send(`/api/admin/users/${childId}`, "PATCH", { kind: "student", status: "active" }, adminCookie)).status, 200);
+  assert.equal((await decide(childId, "student", "approve")).status, 200);
+  assert.equal((await studentSignIn("linked-too-soon")).status, 200);
 });
 
 test("only administrators decide approvals", async () => {

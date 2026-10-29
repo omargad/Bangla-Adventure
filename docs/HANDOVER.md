@@ -56,12 +56,14 @@ client-owned hosting instead of transferring shared-server root access.
 Students, parents and teachers who register themselves wait in the administrator's
 **Waiting for approval** queue on the Users page until they are approved (approving
 a teacher request also approves the account); declined accounts cannot sign in
-until an administrator approves them later. Accounts an administrator creates are
+until an administrator approves them later (a declined teacher applicant is then
+approved as a teacher). A suspended account leaves the queue and is approved or
+declined only after it is reactivated. Accounts an administrator creates are
 approved and get a generated temporary password, shown once on a printable sheet;
 the person must choose their own password at first sign-in, and adults then receive
 fresh recovery codes. Administrators can reset a forgotten student or adult password
 the same way (never their own). Staff allocate approved students without class
-codes; admins link approved parents to exact registered student accounts for
+codes; admins link approved parents to approved student accounts for
 read-only access. Password recovery uses saved recovery codes, not email-reset
 messages. Demonstrate the flow and transfer recovery material privately.
 

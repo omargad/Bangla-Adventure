@@ -3,7 +3,10 @@ import Link from "next/link";
 import { useState } from "react";
 import { useLanguage } from "@/lib/use-language";
 
-/** The required first change of an administrator-issued password; every other adult page is blocked until it is done. */
+/**
+ * The required change of a temporary password an administrator issued, at first sign-in or after a reset;
+ * every other adult page is blocked until it is done.
+ */
 export default function AdultPasswordForm({ name, email, destination }: { name: string; email: string; destination: string }) {
   const [language, toggleLanguage] = useLanguage();
   const s = (en: string, bn: string) => language === "bn" ? bn : en;
@@ -40,13 +43,13 @@ export default function AdultPasswordForm({ name, email, destination }: { name: 
     <header className="adult-header"><Link className="adult-brand" href="/"><span>বা</span><strong>Bangla Adventures</strong></Link><a href="/api/auth/sign-out?returnTo=%2Fgrown-ups">{s("Sign out", "সাইন আউট")}</a><button type="button" className="outline-button" onClick={toggleLanguage}>{s("বাংলা", "English")}</button></header>
     <div className="auth-layout"><section className="auth-intro"><p className="adult-eyebrow">{s("Keep your account safe", "আপনার অ্যাকাউন্ট নিরাপদ রাখুন")}</p>
       <h1>{codes ? s("Your password is changed", "আপনার পাসওয়ার্ড বদলানো হয়েছে") : s("Choose your own password", "নিজের পাসওয়ার্ড বেছে নিন")}</h1>
-      <p>{s("An administrator created this password for you so you could sign in for the first time. Now choose a password that only you know. You will use it every time you sign in, and any other device signed in to this account will be signed out.", "প্রথমবার সাইন ইন করার জন্য একজন প্রশাসক আপনাকে এই পাসওয়ার্ডটি দিয়েছেন। এখন এমন একটি পাসওয়ার্ড বেছে নিন যা শুধু আপনি জানেন। প্রতিবার সাইন ইন করতে এটি লাগবে, আর এই অ্যাকাউন্টে সাইন ইন থাকা অন্য সব ডিভাইস সাইন আউট হয়ে যাবে।")}</p>
+      <p>{s("An administrator gave you this temporary password. Now choose a password that only you know. You will use it every time you sign in, and any other device signed in to this account will be signed out.", "একজন প্রশাসক আপনাকে এই অস্থায়ী পাসওয়ার্ডটি দিয়েছেন। এখন এমন একটি পাসওয়ার্ড বেছে নিন যা শুধু আপনি জানেন। প্রতিবার সাইন ইন করতে এটি লাগবে, আর এই অ্যাকাউন্টে সাইন ইন থাকা অন্য সব ডিভাইস সাইন আউট হয়ে যাবে।")}</p>
       {signedInAs}
     </section>
       {codes ? <section className="auth-card" aria-label={s("New recovery codes", "নতুন পুনরুদ্ধার কোড")}>
         <h2 className="auth-codes-title">{s("Save your new recovery codes", "নতুন পুনরুদ্ধার কোড সংরক্ষণ করুন")}</h2>
-        <p className="auth-note">{s("If you forget your password, one of these one-time codes lets you choose a new one. They replace the codes the administrator was given, which no longer work. Store them somewhere safe — they are shown only once.", "পাসওয়ার্ড ভুলে গেলে এই এককালীন কোডগুলোর একটি দিয়ে নতুন পাসওয়ার্ড বেছে নিতে পারবেন। প্রশাসককে দেওয়া আগের কোডগুলো আর কাজ করবে না। নিরাপদ জায়গায় রাখুন — এগুলো কেবল একবারই দেখানো হয়।")}</p>
-        <ul className="auth-codes" aria-label="One-time recovery codes">{codes.map((code) => <li key={code}><code>{code}</code></li>)}</ul>
+        <p className="auth-note">{s("If you forget your password, one of these one-time codes lets you choose a new one. They replace any recovery codes you had before: old codes no longer work, so throw them away. Store these somewhere safe — they are shown only once.", "পাসওয়ার্ড ভুলে গেলে এই এককালীন কোডগুলোর একটি দিয়ে নতুন পাসওয়ার্ড বেছে নিতে পারবেন। আগের সব পুনরুদ্ধার কোডের বদলে এগুলো দেওয়া হলো: পুরোনো কোড আর কাজ করবে না, তাই সেগুলো ফেলে দিন। এগুলো নিরাপদ জায়গায় রাখুন — কেবল একবারই দেখানো হয়।")}</p>
+        <ul className="auth-codes" aria-label={s("One-time recovery codes", "এককালীন পুনরুদ্ধার কোড")}>{codes.map((code) => <li key={code}><code>{code}</code></li>)}</ul>
         <div className="auth-codes-actions">
           <button type="button" className="outline-button" onClick={() => void copyCodes()}>{copied ? s("Copied ✓", "কপি হয়েছে ✓") : s("Copy all codes", "সব কোড কপি করুন")}</button>
           <button type="button" className="auth-submit" onClick={() => window.location.replace(destination)}>{s("I’ve saved them — continue", "সংরক্ষণ করেছি — এগিয়ে যান")}</button>

@@ -82,6 +82,19 @@ test("non-parent and suspended accounts cannot use parent monitoring", async () 
   db.update(adults).set({ status: "active" }).where(eq(adults.id, "parent-b")).run();
 });
 
+test("a child account no administrator has approved cannot be linked to a family", async () => {
+  db.insert(students).values([
+    { id: "child-waiting", username: "child-waiting", displayName: "Waiting", passwordHash: "test-only", approvalStatus: "pending" },
+    { id: "child-declined", username: "child-declined", displayName: "Declined", passwordHash: "test-only", approvalStatus: "declined" },
+  ]).run();
+  for (const id of ["child-waiting", "child-declined"]) {
+    await assert.rejects(linkParent("admin", id, "a@example.com"), (error) => error.status === 409 && /Approve this student/.test(error.message));
+    assert.deepEqual(await listParents("admin", id), []);
+  }
+  await assert.rejects(linkParent("admin", "missing-child", "a@example.com"), (error) => error.status === 404);
+  assert.ok(!(await getParentOverview("parent-a")).children.some((child) => child.id.startsWith("child-waiting") || child.id === "child-declined"));
+});
+
 test("only administration can unlink and revoked links stop exposing data immediately", async () => {
   await assert.rejects(unlinkParent("parent-a", "child-a", "parent-a"), /Administrator/);
   await unlinkParent("admin", "child-a", "parent-a");

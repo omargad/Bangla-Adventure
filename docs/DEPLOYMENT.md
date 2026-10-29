@@ -139,7 +139,7 @@ Approve self-registered students, parents and teacher requests explicitly from t
 Users page queue. Accounts an administrator creates, and passwords an administrator
 resets, use a generated temporary password shown once on a printable sheet; the
 owner must replace it at first sign-in. Staff allocate approved students to classes;
-admins link approved parents to exact registered student accounts. Parents have
+admins link approved parents to approved student accounts. Parents have
 read-only academic access. Recovery codes are the implemented password-reset
 mechanism for adults; this release does not require SMTP or promise email reset.
 Transfer recovery material privately.

@@ -30,7 +30,10 @@ export async function linkParent(actorId: string, studentId: string, parentEmail
     const parent = tx.select({ id: adults.id }).from(adults)
       .where(and(eq(adults.email, parentEmail.trim().toLowerCase()), eq(adults.role, "parent"), eq(adults.status, "active"), eq(adults.approvalStatus, "approved"))).get();
     if (!parent) throw new UserManagementError("No active parent account matches that email.", 404);
-    if (!tx.select({ id: students.id }).from(students).where(eq(students.id, studentId)).get()) throw new UserManagementError("Student not found.", 404);
+    const student = tx.select({ approvalStatus: students.approvalStatus }).from(students).where(eq(students.id, studentId)).get();
+    if (!student) throw new UserManagementError("Student not found.", 404);
+    // A self-registered child no administrator has approved is not shown to any family.
+    if (student.approvalStatus !== "approved") throw new UserManagementError("Approve this student account before linking a parent.", 409);
     const link = tx.insert(parentStudentLinks).values({ id: crypto.randomUUID(), parentId: parent.id, studentId })
       .onConflictDoNothing({ target: [parentStudentLinks.parentId, parentStudentLinks.studentId] }).returning({ id: parentStudentLinks.id }).get();
     if (link) tx.insert(userAuditEvents).values({ id: crypto.randomUUID(), actorId, targetId: studentId, targetType: "student", action: "parent-linked", detailsJson: JSON.stringify({ parentId: parent.id }) }).run();

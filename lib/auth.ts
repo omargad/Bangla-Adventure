@@ -184,12 +184,6 @@ export async function destroyOtherSessions(adultId: string, keepToken: string): 
     );
 }
 
-/** Set a password the account owner chose (recovery), which also ends any administrator-issued one. */
-export async function updateAdultPassword(adultId: string, newPassword: string): Promise<void> {
-  const db = await getDb();
-  await db.update(adults).set({ passwordHash: await hashPasswordAsync(newPassword), mustChangePassword: false }).where(eq(adults.id, adultId));
-}
-
 const RECOVERY_CODE_COUNT = 8;
 
 export function newRecoveryCodes(): string[] {
@@ -229,6 +223,23 @@ export async function changeAdultPassword(adult: Adult, newPassword: string, kee
       id: crypto.randomUUID(), actorId: adult.id, targetId: adult.id, targetType: "adult",
       action: "password-changed", detailsJson: JSON.stringify({ temporary: adult.mustChangePassword }),
     }).run();
+  });
+  return codes;
+}
+
+/**
+ * Set the password the owner chose with a recovery code and end every session, in one transaction.
+ * That also ends an administrator-issued password; the administrator saw the codes of such an account,
+ * so they are replaced and the new ones returned once (otherwise null), exactly as on a first change.
+ */
+export async function recoverAdultPassword(adult: Adult, newPassword: string): Promise<string[] | null> {
+  const passwordHash = await hashPasswordAsync(newPassword);
+  const codes = adult.mustChangePassword ? newRecoveryCodes() : null;
+  const db = await getDb();
+  db.transaction((tx) => {
+    tx.update(adults).set({ passwordHash, mustChangePassword: false }).where(eq(adults.id, adult.id)).run();
+    tx.delete(adultSessions).where(eq(adultSessions.adultId, adult.id)).run();
+    if (codes) replaceRecoveryCodes(tx, adult.id, codes);
   });
   return codes;
 }

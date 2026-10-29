@@ -83,12 +83,25 @@ test("replacing an administrator-issued password clears the flag, renews recover
   assert.equal(unusedCodes(id), 7);
 });
 
-test("a recovery-code reset also ends an administrator-issued password", async () => {
+test("a recovery-code reset also ends an administrator-issued password and the codes the administrator saw", async () => {
   const id = crypto.randomUUID();
   db.insert(adults).values({ id, email: "recovering@example.com", displayName: "Recovering Parent", passwordHash: "unused", mustChangePassword: true }).run();
-  await auth.updateAdultPassword(id, "chosen-by-owner-1");
+  const adminCodes = await auth.issueRecoveryCodes(id);
+  db.insert(adultSessions).values({ tokenHash: hashSessionToken("recovering-device"), adultId: id, expiresAt: "2099-01-01T00:00:00.000Z" }).run();
+  const adult = await auth.consumeRecoveryCode("recovering@example.com", adminCodes[0]);
+  const fresh = await auth.recoverAdultPassword(adult, "chosen-by-owner-1");
+  assert.equal(fresh.length, 8);
   assert.equal(db.select().from(adults).where(eq(adults.id, id)).get().mustChangePassword, false);
   assert.ok(await auth.verifyAdultCredentials("recovering@example.com", "chosen-by-owner-1"));
+  assert.equal(db.select().from(adultSessions).where(eq(adultSessions.adultId, id)).all().length, 0, "every session ends");
+  assert.equal(await auth.consumeRecoveryCode("recovering@example.com", adminCodes[1]), null, "the codes the administrator saw stop working");
+  assert.equal(unusedCodes(id), 8);
+
+  // A later recovery by the owner keeps their own codes.
+  const own = await auth.consumeRecoveryCode("recovering@example.com", fresh[0]);
+  assert.equal(await auth.recoverAdultPassword(own, "chosen-by-owner-2"), null);
+  assert.equal(unusedCodes(id), 7);
+  assert.ok(await auth.verifyAdultCredentials("recovering@example.com", "chosen-by-owner-2"));
 });
 
 test("approval notices are bilingual and address children and adults differently", () => {

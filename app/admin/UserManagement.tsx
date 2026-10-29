@@ -76,17 +76,34 @@ export default function UserManagement({ actorId, actorName }: { actorId: string
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error ?? "Could not update the user.");
       setEditing(null);
-      setNotice(values.action === "approve" ? s(`${user.displayName} is approved and can now sign in. The action has been recorded.`, `${user.displayName} অনুমোদিত হয়েছেন এবং এখন সাইন ইন করতে পারবেন। পরিবর্তনটি নথিভুক্ত হয়েছে।`)
-        : values.action === "reject" ? s(`${user.displayName} was declined and cannot sign in. You can approve the account later. The action has been recorded.`, `${user.displayName}-কে প্রত্যাখ্যান করা হয়েছে, তিনি সাইন ইন করতে পারবেন না। পরে চাইলে অনুমোদন দিতে পারবেন। পরিবর্তনটি নথিভুক্ত হয়েছে।`)
-        : s("Account updated. The action has been recorded.", "অ্যাকাউন্ট হালনাগাদ হয়েছে। পরিবর্তনটি নথিভুক্ত হয়েছে।"));
+      setNotice(values.action === "approve" || values.action === "reject" ? decisionNotice(user, payload.user) : s("Account updated. The action has been recorded.", "অ্যাকাউন্ট হালনাগাদ হয়েছে। পরিবর্তনটি নথিভুক্ত হয়েছে।"));
       await load();
     } catch (error) { setError(error instanceof Error ? error.message : "Please try again."); }
     finally { setBusy(false); }
   }
 
+  /** What an approval decision did, from the account as it was and as the server left it. */
+  function decisionNotice(before: User, after: User) {
+    const name = before.displayName;
+    const recorded = s(" The action has been recorded.", " পরিবর্তনটি নথিভুক্ত হয়েছে।");
+    // An approved parent's teacher request: only the request was decided; the parent account is unchanged.
+    if (before.approvalStatus === "approved") return (after.role === "teacher"
+      ? s(`${name} is now an approved teacher.`, `${name} এখন অনুমোদিত শিক্ষক।`)
+      : s(`${name}’s teacher request was declined. Their parent account is unchanged and they can still sign in.`, `${name}-এর শিক্ষক হওয়ার আবেদন প্রত্যাখ্যান করা হয়েছে। তাঁর অভিভাবক অ্যাকাউন্ট আগের মতোই আছে, তিনি সাইন ইন করতে পারবেন।`)) + recorded;
+    if (after.approvalStatus === "declined") return s(`${name} was declined and cannot sign in. You can approve the account later.`, `${name}-কে প্রত্যাখ্যান করা হয়েছে, তিনি সাইন ইন করতে পারবেন না। পরে চাইলে অনুমোদন দিতে পারবেন।`) + recorded;
+    return (after.role === "teacher"
+      ? s(`${name} is approved as a teacher and can now sign in.`, `${name} শিক্ষক হিসেবে অনুমোদিত হয়েছেন এবং এখন সাইন ইন করতে পারবেন।`)
+      : s(`${name} is approved and can now sign in.`, `${name} অনুমোদিত হয়েছেন এবং এখন সাইন ইন করতে পারবেন।`)) + recorded;
+  }
+
+  // Only one set of sign-in details is shown at a time: replacing it loses that temporary password for good.
+  function replaceCredentials() {
+    return !credentials || window.confirm(s(`The sign-in details for ${credentials.displayName} are still shown and will be replaced; that temporary password cannot be shown again. Continue?`, `${credentials.displayName}-এর সাইন-ইন তথ্য এখনও দেখানো হচ্ছে, সেটি সরে যাবে; ওই অস্থায়ী পাসওয়ার্ড আর দেখানো যাবে না। এগিয়ে যাবেন?`));
+  }
+
   async function create(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (busy) return;
+    if (busy || !replaceCredentials()) return;
     const form = event.currentTarget;
     const values = Object.fromEntries(new FormData(form));
     setBusy(true); setError(""); setNotice("");
@@ -104,7 +121,7 @@ export default function UserManagement({ actorId, actorName }: { actorId: string
   }
 
   async function resetPassword(user: User) {
-    if (busy) return;
+    if (busy || !replaceCredentials()) return;
     if (!window.confirm(s(`Reset the password for ${user.displayName}? They are signed out everywhere and must choose a new password at their next sign-in.`, `${user.displayName}-এর পাসওয়ার্ড রিসেট করবেন? সব জায়গা থেকে সাইন আউট হবে এবং পরের বার সাইন ইন করে নতুন পাসওয়ার্ড বেছে নিতে হবে।`))) return;
     setBusy(true); setError(""); setNotice("");
     try {
@@ -123,11 +140,14 @@ export default function UserManagement({ actorId, actorName }: { actorId: string
     if (window.confirm(s("Hide the sign-in details? The temporary password cannot be shown again.", "সাইন-ইন তথ্য লুকাবেন? অস্থায়ী পাসওয়ার্ড আর দেখানো যাবে না।"))) setCredentials(null);
   }
 
-  const accountType = (user: User) => user.kind === "student" ? s("Student", "শিক্ষার্থী") : user.teacherStatus === "pending" ? s("Teacher request", "শিক্ষক হওয়ার আবেদন") : s("Parent", "অভিভাবক");
-  const awaitingApproval = (user: User) => user.approvalStatus === "pending" || (user.teacherStatus === "pending" && user.status === "active");
-  const decisionButtons = (user: User) => <>
-    {awaitingApproval(user) && <><button className="outline-button" disabled={busy} onClick={() => void update(user, { action: "approve" })}>{s("Approve", "অনুমোদন")}</button><button className="text-button" disabled={busy} onClick={() => void update(user, { action: "reject" })}>{s("Decline", "প্রত্যাখ্যান")}</button></>}
-    {user.approvalStatus === "declined" && <button className="outline-button" disabled={busy} onClick={() => void update(user, { action: "approve" })}>{s("Approve", "অনুমোদন")}</button>}
+  // A teacher applicant declined at sign-up keeps the request: approving the account later grants it.
+  const declinedApplicant = (user: User) => user.approvalStatus === "declined" && user.teacherStatus === "rejected";
+  const accountType = (user: User) => user.kind === "student" ? s("Student", "শিক্ষার্থী") : user.teacherStatus === "pending" || declinedApplicant(user) ? s("Teacher request", "শিক্ষক হওয়ার আবেদন") : s("Parent", "অভিভাবক");
+  const undecided = (user: User) => user.approvalStatus !== "approved" || user.teacherStatus === "pending";
+  // A suspended account is reactivated before anyone approves or declines it.
+  const decisionButtons = (user: User) => user.status === "active" && <>
+    {(user.approvalStatus === "pending" || user.teacherStatus === "pending") && <><button className="outline-button" disabled={busy} onClick={() => void update(user, { action: "approve" })}>{s("Approve", "অনুমোদন")}</button><button className="text-button" disabled={busy} onClick={() => void update(user, { action: "reject" })}>{s("Decline", "প্রত্যাখ্যান")}</button></>}
+    {user.approvalStatus === "declined" && <button className="outline-button" disabled={busy} onClick={() => void update(user, { action: "approve" })}>{declinedApplicant(user) ? s("Approve as teacher", "শিক্ষক হিসেবে অনুমোদন") : s("Approve", "অনুমোদন")}</button>}
   </>;
 
   return <PortalShell role="admin" name={actorName} active="users" language={language} toggleLanguage={toggleLanguage}><main className="adult-app management-app" lang={language}>
@@ -208,8 +228,10 @@ export default function UserManagement({ actorId, actorName }: { actorId: string
               {user.approvalStatus === "pending" && <span className="status-badge pending">{s("Waiting for approval", "অনুমোদনের অপেক্ষায়")}</span>}
               {user.approvalStatus === "declined" && <span className="status-badge declined">{s("Declined", "প্রত্যাখ্যাত")}</span>}
               {user.teacherStatus === "pending" && <small>{s("Teacher approval requested", "শিক্ষকের অনুমোদন চাওয়া হয়েছে")}</small>}
+              {declinedApplicant(user) && <small>{s("Teacher request declined along with the account", "অ্যাকাউন্টের সঙ্গে শিক্ষক হওয়ার আবেদনও প্রত্যাখ্যাত হয়েছে")}</small>}
+              {user.status !== "active" && undecided(user) && <small>{s("Reactivate the account to approve or decline it", "অনুমোদন বা প্রত্যাখ্যান করতে আগে অ্যাকাউন্টটি পুনরায় চালু করুন")}</small>}
               {user.mustChangePassword && <small>{s("Temporary password not yet changed", "অস্থায়ী পাসওয়ার্ড এখনও বদলানো হয়নি")}</small>}</td>
-            <td><div className="management-row-actions">{user.kind === "student" && <button className="text-button" disabled={busy} onClick={() => { setFamilyStudent(user); setEditing(null); setShowCreate(false); }}>{s("Family access", "পরিবারের প্রবেশাধিকার")}</button>}{decisionButtons(user)}<button className="text-button" disabled={busy} onClick={() => { setEditing(user); setShowCreate(false); }}>{s("Edit", "সম্পাদনা")}</button><button className="text-button" disabled={busy || user.id === actorId} onClick={() => void update(user, { status: user.status === "active" ? "suspended" : "active" })}>{user.status === "active" ? s("Suspend", "স্থগিত") : s("Reactivate", "পুনরায় চালু")}</button><button className="text-button" disabled={busy || user.id === actorId} onClick={() => void update(user, { action: "revoke-sessions" })}>{s("Revoke sessions", "সেশন বাতিল")}</button><button className="text-button" disabled={busy || user.id === actorId} onClick={() => void resetPassword(user)}>{s("Reset password", "পাসওয়ার্ড রিসেট")}</button></div></td>
+            <td><div className="management-row-actions">{user.kind === "student" && user.approvalStatus === "approved" && <button className="text-button" disabled={busy} onClick={() => { setFamilyStudent(user); setEditing(null); setShowCreate(false); }}>{s("Family access", "পরিবারের প্রবেশাধিকার")}</button>}{decisionButtons(user)}<button className="text-button" disabled={busy} onClick={() => { setEditing(user); setShowCreate(false); }}>{s("Edit", "সম্পাদনা")}</button><button className="text-button" disabled={busy || user.id === actorId} onClick={() => void update(user, { status: user.status === "active" ? "suspended" : "active" })}>{user.status === "active" ? s("Suspend", "স্থগিত") : s("Reactivate", "পুনরায় চালু")}</button><button className="text-button" disabled={busy || user.id === actorId} onClick={() => void update(user, { action: "revoke-sessions" })}>{s("Revoke sessions", "সেশন বাতিল")}</button><button className="text-button" disabled={busy || user.id === actorId} onClick={() => void resetPassword(user)}>{s("Reset password", "পাসওয়ার্ড রিসেট")}</button></div></td>
           </tr>)}</tbody></table></div>
           {data.users.length === 0 && <p className="teach-empty">{s("No accounts match these filters.", "এই বাছাইয়ে কোনো অ্যাকাউন্ট নেই।")}</p>}
           <div className="management-pagination"><button className="outline-button" disabled={page <= 1} onClick={() => { setPage(page - 1); }}>{s("Previous", "আগের")}</button><span>{s("Page", "পৃষ্ঠা")} {number(page)} · {number(data.total)} {s("accounts", "অ্যাকাউন্ট")}</span><button className="outline-button" disabled={page * data.pageSize >= data.total} onClick={() => { setPage(page + 1); }}>{s("Next", "পরের")}</button></div>

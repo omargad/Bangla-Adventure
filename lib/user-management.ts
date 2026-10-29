@@ -16,7 +16,10 @@ type Transaction = Parameters<Parameters<Db["transaction"]>[0]>[0];
 /** How many waiting accounts the approval queue shows at once, oldest first. */
 export const APPROVAL_QUEUE_LIMIT = 50;
 // A self-registered account, or a teacher request made at sign-up or later, waits for an administrator.
-const adultAwaitingApproval = or(eq(adults.approvalStatus, "pending"), eq(adults.teacherStatus, "pending"))!;
+// A suspended account is decided only once it is reactivated, so it leaves the queue meanwhile.
+const adultAwaitingApproval = and(eq(adults.status, "active"), or(eq(adults.approvalStatus, "pending"), eq(adults.teacherStatus, "pending")))!;
+const studentAwaitingApproval = and(eq(students.status, "active"), eq(students.approvalStatus, "pending"))!;
+const SUSPENDED_DECISION = "Reactivate this account before approving or declining it.";
 
 function authorize(tx: Transaction, actorId: string) {
   const actor = tx.select().from(adults).where(eq(adults.id, actorId)).get();
@@ -42,7 +45,8 @@ export async function listUsers(params: URLSearchParams) {
     if (!["all", "pending", "declined", "suspended"].includes(filter)) throw new UserManagementError("Invalid student filter.");
     if (search) conditions.push(or(like(students.displayName, `%${search}%`), like(students.username, `%${search}%`))!);
     if (filter === "suspended") conditions.push(eq(students.status, "suspended"));
-    else if (filter === "pending" || filter === "declined") conditions.push(eq(students.approvalStatus, filter));
+    else if (filter === "pending") conditions.push(studentAwaitingApproval);
+    else if (filter === "declined") conditions.push(eq(students.approvalStatus, "declined"));
     users = db.select(studentFields).from(students).where(and(...conditions)).orderBy(desc(students.createdAt), students.id).limit(pageSize).offset((page - 1) * pageSize).all().map((user) => ({ ...user, role: "student", teacherStatus: "none", kind }));
     total = db.select({ value: count() }).from(students).where(and(...conditions)).get()!.value;
   } else {
@@ -55,7 +59,7 @@ export async function listUsers(params: URLSearchParams) {
     total = db.select({ value: count() }).from(adults).where(and(...conditions)).get()!.value;
   }
   const pendingAdults = db.select({ value: count() }).from(adults).where(adultAwaitingApproval).get()!.value;
-  const pendingStudents = db.select({ value: count() }).from(students).where(eq(students.approvalStatus, "pending")).get()!.value;
+  const pendingStudents = db.select({ value: count() }).from(students).where(studentAwaitingApproval).get()!.value;
   const stats = {
     adults: db.select({ value: count() }).from(adults).get()!.value,
     students: db.select({ value: count() }).from(students).get()!.value,
@@ -66,7 +70,7 @@ export async function listUsers(params: URLSearchParams) {
   const approvals = {
     users: [
       ...db.select(adultFields).from(adults).where(adultAwaitingApproval).orderBy(asc(adults.createdAt), adults.id).limit(APPROVAL_QUEUE_LIMIT).all().map((user) => ({ ...user, kind: "adult" as const })),
-      ...db.select(studentFields).from(students).where(eq(students.approvalStatus, "pending")).orderBy(asc(students.createdAt), students.id).limit(APPROVAL_QUEUE_LIMIT).all().map((user) => ({ ...user, role: "student", teacherStatus: "none", kind: "student" as const })),
+      ...db.select(studentFields).from(students).where(studentAwaitingApproval).orderBy(asc(students.createdAt), students.id).limit(APPROVAL_QUEUE_LIMIT).all().map((user) => ({ ...user, role: "student", teacherStatus: "none", kind: "student" as const })),
     ].sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id)).slice(0, APPROVAL_QUEUE_LIMIT),
     total: stats.pending,
   };
@@ -92,6 +96,7 @@ export async function updateUser(actorId: string, id: string, input: Record<stri
       const next = { displayName: typeof input.displayName === "string" ? input.displayName.trim() : current.displayName, status: isStatus(input.status) ? input.status : current.status, approvalStatus: current.approvalStatus };
       // Approve a waiting or previously declined account; decline only one that is waiting.
       if (deciding) {
+        if (current.status !== "active") throw new UserManagementError(SUSPENDED_DECISION, 409);
         if (action === "approve" ? current.approvalStatus === "approved" : current.approvalStatus !== "pending") throw new UserManagementError("This account is no longer awaiting approval.", 409);
         next.approvalStatus = action === "approve" ? "approved" : "declined";
       }
@@ -110,12 +115,16 @@ export async function updateUser(actorId: string, id: string, input: Record<stri
       approvalStatus: current.approvalStatus,
     };
     let audited = String(action);
-    if (deciding && current.teacherStatus === "pending") {
-      if (current.status !== "active" || current.role !== "parent") throw new UserManagementError("This request is no longer awaiting approval.", 409);
+    if (deciding && current.status !== "active") throw new UserManagementError(SUSPENDED_DECISION, 409);
+    // Declining a teacher applicant at sign-up refuses the account and the request together (only that sets
+    // both), so approving the account later grants the request too rather than silently dropping it.
+    const declinedApplicant = action === "approve" && current.approvalStatus === "declined" && current.teacherStatus === "rejected";
+    if (deciding && (current.teacherStatus === "pending" || declinedApplicant)) {
+      if (current.role !== "parent") throw new UserManagementError("This request is no longer awaiting approval.", 409);
       next.role = action === "approve" ? "teacher" : "parent";
       next.teacherStatus = action === "approve" ? "approved" : "rejected";
       // A teacher request made at sign-up is also the account's approval; an existing parent's account is unaffected.
-      if (current.approvalStatus === "pending") next.approvalStatus = action === "approve" ? "approved" : "declined";
+      if (current.approvalStatus !== "approved") next.approvalStatus = action === "approve" ? "approved" : "declined";
     } else if (deciding) {
       if (action === "approve" ? current.approvalStatus === "approved" : current.approvalStatus !== "pending") throw new UserManagementError("This account is no longer awaiting approval.", 409);
       next.approvalStatus = action === "approve" ? "approved" : "declined";

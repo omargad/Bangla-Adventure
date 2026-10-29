@@ -119,6 +119,7 @@ test("self sign-ups wait until an administrator approves them from the queue", a
     const applicantItem = queue.getByRole("listitem").filter({ hasText: applicant });
     await expect(applicantItem).toContainText("Teacher request");
     await applicantItem.getByRole("button", { name: "Decline", exact: true }).click();
+    await expect(page.getByRole("status").filter({ hasText: "Queued Applicant was declined and cannot sign in" })).toBeVisible();
     await expect(applicantItem).toHaveCount(0);
 
     await parent.getByRole("button", { name: "Sign in", exact: true }).click();
@@ -129,6 +130,18 @@ test("self sign-ups wait until an administrator approves them from the queue", a
     const declined = await page.request.post("/api/auth/sign-in", { data: { email: applicant, password } });
     expect(declined.status()).toBe(403);
     expect((await declined.json()).approvalStatus).toBe("declined");
+
+    // Declined by mistake: approving the account from the Declined filter grants the teacher request too.
+    await page.getByRole("combobox", { name: "Filter users" }).selectOption("declined");
+    await page.getByLabel("Search users").fill(applicant);
+    await page.getByRole("button", { name: "Search", exact: true }).click();
+    const declinedRow = page.getByRole("row").filter({ hasText: applicant });
+    await expect(declinedRow).toContainText("Teacher request declined along with the account");
+    await declinedRow.getByRole("button", { name: "Approve as teacher", exact: true }).click();
+    await expect(page.getByRole("status").filter({ hasText: "Queued Applicant is approved as a teacher" })).toBeVisible();
+    const approved = await parent.request.post("/api/auth/sign-in", { data: { email: applicant, password } });
+    expect(approved.status()).toBe(200);
+    expect((await approved.json()).adult.role).toBe("teacher");
   } finally { await parentContext.close(); await studentContext.close(); }
 });
 
