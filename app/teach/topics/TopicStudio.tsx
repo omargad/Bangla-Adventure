@@ -8,7 +8,7 @@ import type { StaffTopicSummary } from "@/lib/curriculum-catalog";
 import { formatNumber, formatWhen, groupByCategory } from "@/lib/topic-model";
 import TopicEditor from "./TopicEditor";
 import TopicReview from "./TopicReview";
-import { call, failure, statusLabel, versionLabel } from "./shared";
+import { authorLabel, call, failure, statusLabel, versionLabel } from "./shared";
 import type { Bilingual } from "@/app/topics-content";
 
 type View = { kind: "list" } | { kind: "edit"; topicId: string | null } | { kind: "review"; topicId: string; version: number | null };
@@ -59,7 +59,7 @@ export default function TopicStudio({ name, role, initialView }: { name: string;
       <span className="topic-emoji" aria-hidden="true">{topic.emoji}</span>
       <span className="topic-admin-title">
         <strong>{topic.title[language]}</strong>
-        <small><span className={`topic-status topic-status-${topic.latest.status}`}>{chip(topic)}</span>{waiting && <> · {versionLabel(topic.latest.version, language)} · {topic.latest.authorName ?? s("a former staff member", "একজন সাবেক কর্মী")}, {formatWhen(topic.latest.createdAt, language)}</>}</small>
+        <small><span className={`topic-status topic-status-${topic.latest.status}`}>{chip(topic)}</span>{waiting && <> · {versionLabel(topic.latest.version, language)} · {authorLabel(topic.latest, language)}, {formatWhen(topic.latest.createdAt, language)}</>}</small>
       </span>
       <span className="topic-admin-actions">
         {waiting

@@ -158,6 +158,9 @@ test("an edit of an approved topic stays hidden until approved, and a rejected e
   assert.equal(afterReject.head.status, "rejected");
   assert.equal(afterReject.versions.at(-1).reviewNote, "Please update the Bangla title as well.");
   assert.equal(afterReject.versions.at(-1).reviewerName, "topics-reviewer");
+  assert.equal(afterReject.canStartFromApproved, true, "the next editor may start again from what students see");
+  assert.equal(afterReject.approved.version, 0);
+  assert.equal(afterReject.approved.content.title.en, original);
 
   const fixed = { ...edit, title: pair("Pohela Boishakh: a new year together", "পহেলা বৈশাখ: একসঙ্গে নতুন বছর"), baseVersion: 1 };
   assert.equal((await (await send(`/api/topics/${id}`, "PUT", fixed, authorCookie)).json()).version, 2);

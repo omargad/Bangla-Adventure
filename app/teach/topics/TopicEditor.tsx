@@ -10,7 +10,11 @@ type EditableTopic = {
   theme: string; emoji: string; title: Bilingual; tagline: Bilingual; minutes: number;
   sections: TopicSection[]; funFacts: Bilingual[]; quiz: TopicQuizQuestion[]; sourceNote: Bilingual;
 };
-type StaffTopic = { id: string; head: { version: number; status: TopicVersionStatus; content: TopicContent }; versions: VersionSummary[] };
+type StaffTopic = {
+  id: string; head: { version: number; status: TopicVersionStatus; content: TopicContent };
+  approved: { version: number; content: TopicContent } | null; canStartFromApproved: boolean; versions: VersionSummary[];
+};
+type Base = "newest" | "approved";
 
 const blank = (): Bilingual => ({ en: "", bn: "" });
 const emptyTopic = (): EditableTopic => ({
@@ -22,10 +26,14 @@ const editable = (content: TopicContent): EditableTopic => ({
   theme: content.theme, emoji: content.emoji, title: content.title, tagline: content.tagline, minutes: content.minutes,
   sections: content.sections, funFacts: content.funFacts ?? [], quiz: content.quiz ?? [], sourceNote: content.sourceNote ?? blank(),
 });
+/** The version an edit starts from: the newest one, or the approved one when allowed. */
+const baseOf = (topic: StaffTopic, which: Base) => (which === "approved" && topic.approved ? topic.approved : topic.head);
 
 /**
  * Write a new topic or edit one. Saving always creates a version that waits for
- * approval; what students see changes only when someone approves it.
+ * approval; what students see changes only when someone approves it. When every
+ * change since the approved version was sent back, editing starts again from the
+ * approved version (what students see), with the sent-back version one click away.
  */
 export default function TopicEditor({ topicId, language, onSaved, onCancel }: {
   topicId: string | null; language: Language; onSaved: (topicId: string, version: number) => void; onCancel: () => void;
@@ -34,6 +42,7 @@ export default function TopicEditor({ topicId, language, onSaved, onCancel }: {
   const n = (value: number) => formatNumber(value, language);
   const [draft, setDraft] = useState<EditableTopic | null>(topicId ? null : emptyTopic());
   const [existing, setExisting] = useState<StaffTopic | null>(null);
+  const [base, setBase] = useState<Base>("newest");
   const [error, setError] = useState<Bilingual | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -41,11 +50,20 @@ export default function TopicEditor({ topicId, language, onSaved, onCancel }: {
     if (!topicId) return;
     const controller = new AbortController();
     call<{ topic: StaffTopic }>(`/api/topics/${encodeURIComponent(topicId)}`, { signal: controller.signal })
-      .then(({ topic }) => { setExisting(topic); setDraft(editable(topic.head.content)); })
+      .then(({ topic }) => {
+        const start: Base = topic.canStartFromApproved && topic.approved ? "approved" : "newest";
+        setExisting(topic); setBase(start); setDraft(editable(baseOf(topic, start).content));
+      })
       .catch((caught) => { if (!controller.signal.aborted) setError(failure(caught)); });
     return () => controller.abort();
   }, [topicId]);
 
+  const switchBase = (next: Base) => {
+    if (!existing || !draft) return;
+    const unsaved = JSON.stringify(draft) !== JSON.stringify(editable(baseOf(existing, base).content));
+    if (unsaved && !window.confirm(s("Replace your unsaved changes with that version?", "আপনার সংরক্ষণ না করা পরিবর্তনগুলোর বদলে ওই সংস্করণটি খুলবেন?"))) return;
+    setBase(next); setDraft(editable(baseOf(existing, next).content)); setError(null);
+  };
   const update = (change: Partial<EditableTopic>) => setDraft((current) => (current ? { ...current, ...change } : current));
   const updateQuestion = (index: number, change: (question: TopicQuizQuestion) => TopicQuizQuestion) =>
     update({ quiz: draft!.quiz.map((question, i) => (i === index ? change(question) : question)) });
@@ -55,7 +73,7 @@ export default function TopicEditor({ topicId, language, onSaved, onCancel }: {
     if (!draft || busy) return;
     setBusy(true); setError(null);
     const hasNote = Boolean(draft.sourceNote.en.trim() || draft.sourceNote.bn.trim());
-    const body = { ...draft, sourceNote: hasNote ? draft.sourceNote : undefined, ...(existing ? { baseVersion: existing.head.version } : {}) };
+    const body = { ...draft, sourceNote: hasNote ? draft.sourceNote : undefined, ...(existing ? { baseVersion: baseOf(existing, base).version } : {}) };
     try {
       const saved = await call<{ topicId: string; version: number }>(topicId ? `/api/topics/${encodeURIComponent(topicId)}` : "/api/topics", { method: topicId ? "PUT" : "POST", body: JSON.stringify(body) });
       onSaved(saved.topicId, saved.version);
@@ -79,6 +97,8 @@ export default function TopicEditor({ topicId, language, onSaved, onCancel }: {
 
   const head = existing?.head;
   const headSummary = existing?.versions.find((version) => version.version === head?.version);
+  const approvedBase = existing?.canStartFromApproved ? existing.approved : null;
+  const reviewer = (lang: Language) => headSummary?.reviewerName ?? (lang === "bn" ? "একজন পর্যালোচক" : "a reviewer");
   return (
     <section className="teach-panel topic-editor" aria-label={topicId ? s("Edit topic", "বিষয় সম্পাদনা") : s("New topic", "নতুন বিষয়")}>
       <h2>{topicId ? s("Edit topic", "বিষয় সম্পাদনা") : s("Write a new topic", "নতুন বিষয় লিখুন")}</h2>
@@ -89,9 +109,19 @@ export default function TopicEditor({ topicId, language, onSaved, onCancel }: {
         )}
       </p>
       {head && headSummary && <p className="topic-editor-base" role="note">
-        {s("You are editing", "আপনি সম্পাদনা করছেন")}: {versionLabel(head.version, language)} · {statusLabel(headSummary, language)}.{" "}
-        {head.status === "pending" && s("Your changes build on this waiting version.", "আপনার পরিবর্তন এই অপেক্ষমাণ সংস্করণের ওপর হবে।")}
-        {head.status === "rejected" && headSummary.reviewNote && <>{s(`Sent back by ${headSummary.reviewerName ?? "a reviewer"}: `, `${headSummary.reviewerName ?? "একজন পর্যালোচক"} ফেরত পাঠিয়েছেন: `)}<q>{headSummary.reviewNote}</q></>}
+        {approvedBase && base === "approved" ? <>
+          {s(`${versionLabel(head.version, "en")} was sent back by ${reviewer("en")}`, `${reviewer("bn")} ${versionLabel(head.version, "bn")} ফেরত পাঠিয়েছেন`)}{headSummary.reviewNote && <>: <q>{headSummary.reviewNote}</q></>}.{" "}
+          {s(
+            `You are starting again from the approved version students see now (${versionLabel(approvedBase.version, "en").toLowerCase()}), so the sent-back changes are not included.`,
+            `শিক্ষার্থীরা এখন যে অনুমোদিত সংস্করণ দেখে (${versionLabel(approvedBase.version, "bn")}), আপনি সেখান থেকে নতুন করে শুরু করছেন, তাই ফেরত পাঠানো পরিবর্তনগুলো এতে নেই।`,
+          )}{" "}
+          <button type="button" className="text-button" onClick={() => switchBase("newest")}>{s("Continue from the sent-back version instead", "বরং ফেরত পাঠানো সংস্করণ থেকে চালিয়ে যান")}</button>
+        </> : <>
+          {s("You are editing", "আপনি সম্পাদনা করছেন")}: {versionLabel(head.version, language)} · {statusLabel(headSummary, language)}.{" "}
+          {head.status === "pending" && s("Your changes build on this waiting version.", "আপনার পরিবর্তন এই অপেক্ষমাণ সংস্করণের ওপর হবে।")}
+          {head.status === "rejected" && headSummary.reviewNote && <>{s(`Sent back by ${reviewer("en")}: `, `${reviewer("bn")} ফেরত পাঠিয়েছেন: `)}<q>{headSummary.reviewNote}</q></>}
+          {approvedBase && <>{" "}<button type="button" className="text-button" onClick={() => switchBase("approved")}>{s("Start again from the approved version", "অনুমোদিত সংস্করণ থেকে নতুন করে শুরু করুন")}</button></>}
+        </>}
       </p>}
       {error && <p className="auth-error" role="alert">{error[language]}</p>}
       {!draft ? (!error && <p role="status">{s("Loading the topic…", "বিষয় লোড হচ্ছে…")}</p>) : (

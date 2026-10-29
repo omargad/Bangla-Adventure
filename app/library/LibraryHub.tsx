@@ -87,7 +87,7 @@ export default function LibraryHub() {
         <section className="adult-hero">
           <div>
             <p className="adult-eyebrow">{s("Our source of truth", "আমাদের তথ্যের উৎস")}</p>
-            <h1>{s("The government sources being checked for each candidate topic.", "প্রতিটি সম্ভাব্য বিষয়ের জন্য যাচাই করা সরকারি উৎস।")}</h1>
+            <h1>{s("The government sources being checked for each classroom topic.", "প্রতিটি শ্রেণিকক্ষের বিষয়ের জন্য যাচাই করা সরকারি উৎস।")}</h1>
             <p>
               {s(
                 "Bangladesh's National Curriculum and Textbook Board (NCTB) publishes official school textbooks and offers them free on its website. At the client's direction, these records are the starting evidence base for culture, history and literature. A source link is not lesson approval: every adaptation still needs an exact edition/page decision plus language, cultural, age, rights and accessibility review. Stories and poems are not republished unless that evidence is recorded.",

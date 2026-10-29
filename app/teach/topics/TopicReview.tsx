@@ -6,7 +6,7 @@ import type { Bilingual } from "@/app/topics-content";
 import type { VersionSummary } from "@/lib/curriculum-catalog";
 import { categoryTitle, formatWhen, TOPIC_LIMITS, type Language, type TopicContent } from "@/lib/topic-model";
 import TopicReader from "@/app/topics/TopicReader";
-import { call, failure, statusLabel, versionLabel } from "./shared";
+import { authorLabel, call, failure, statusLabel, versionLabel } from "./shared";
 
 type VersionDetail = {
   id: string; latestVersion: number;
@@ -88,7 +88,7 @@ export default function TopicReview({ topicId, version, language, onOpenVersion,
         <h2>{s("Preview", "প্রিভিউ")}: {current.content.title[language]}</h2>
         <p>
           <strong>{versionLabel(current.version, language)}</strong> · <span className={`topic-status topic-status-${current.status}`}>{statusLabel(current, language)}</span>
-          {current.authorName !== null || current.createdAt ? <> · {s("written by", "লিখেছেন")} {who(current.authorName)}{current.createdAt && <>, {formatWhen(current.createdAt, language)}</>}</> : null}
+          {current.authorName !== null || current.createdAt ? <> · {s("written by", "লিখেছেন")} {authorLabel(current, language)}{current.createdAt && <>, {formatWhen(current.createdAt, language)}</>}</> : null}
         </p>
         {current.baseline && <p className="teach-note">{s(
           "Pre-existing content, approved as a baseline: students could already read it before topic approval existed. It has not been individually reviewed.",
@@ -151,7 +151,7 @@ export default function TopicReview({ topicId, version, language, onOpenVersion,
             <tr key={item.version} aria-current={item.version === current.version ? "true" : undefined}>
               <td>{versionLabel(item.version, language)}</td>
               <td>{statusLabel(item, language)}</td>
-              <td>{item.version === 0 ? s("Shipped with the app", "অ্যাপের সঙ্গে এসেছে") : <>{who(item.authorName)}<br /><small>{formatWhen(item.createdAt, language)}</small></>}</td>
+              <td>{item.version === 0 ? s("Shipped with the app", "অ্যাপের সঙ্গে এসেছে") : <>{authorLabel(item, language)}<br /><small>{formatWhen(item.createdAt, language)}</small></>}</td>
               <td>{item.reviewedAt ? <>{item.baseline ? s("Approved as a baseline", "ভিত্তি হিসেবে অনুমোদিত") : who(item.reviewerName)}<br /><small>{formatWhen(item.reviewedAt, language)}</small></> : item.baseline ? s("Approved as a baseline", "ভিত্তি হিসেবে অনুমোদিত") : "—"}</td>
               <td>{item.reviewNote || "—"}</td>
               <td>{item.version !== current.version && <button type="button" className="text-button" onClick={() => onOpenVersion(item.version)}>{s(`Preview ${versionLabel(item.version, "en").toLowerCase()}`, `${versionLabel(item.version, "bn")} দেখুন`)}</button>}</td>

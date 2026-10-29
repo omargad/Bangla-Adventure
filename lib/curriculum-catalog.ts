@@ -1,11 +1,12 @@
+import { createHash } from "node:crypto";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { getDb } from "../db";
 import { adults, classStudents, studentClassEnrollments, studentTopicProgress, topicVersions, userAuditEvents } from "../db/schema";
-import { topics as shippedTopics, type Bilingual, type Topic } from "../app/topics-content";
+import { topics as shippedTopics, type Bilingual, type Topic, type TopicQuizQuestion } from "../app/topics-content";
 import { bookById, NCTB_PORTAL_URL } from "../app/library-content";
 import { canTeach } from "./roles";
 import {
-  checkReview, describeTopicChanges, gradeTopicQuiz, newTopicId, statusesAfterApproval, topicChanged, TopicError, TOPIC_LIMITS,
+  canRestartFromApproved, checkReview, describeTopicChanges, gradeTopicQuiz, newTopicId, statusesAfterApproval, topicChanged, TopicError, TOPIC_LIMITS,
   validateTopicDraft, type TopicContent, type TopicVersionStatus,
 } from "./topic-model";
 
@@ -113,14 +114,23 @@ export async function listStaffTopics(): Promise<StaffTopicSummary[]> {
   });
 }
 
-/** One topic for the editor and its history: the newest version's content and every version. */
+/**
+ * One topic for the editor and its history: the newest version's content, the
+ * approved content, whether an edit may start again from the approved version
+ * (every later version was sent back) and every version.
+ */
 export async function getStaffTopic(topicId: string) {
   const db = await getDb();
   const [state] = topicStates(db, topicId);
   const head = state ? headOf(state) : null;
   if (!state || !head) throw new TopicError("Topic not found.", "বিষয়টি পাওয়া যায়নি।", 404);
   const approved = approvedTopic(state);
-  return { id: state.id, head, approvedVersion: approved?.version ?? null, versions: summaries(state, nameLookup(db, state.rows)) };
+  return {
+    id: state.id, head, approvedVersion: approved?.version ?? null,
+    approved: approved ? { version: approved.version, content: contentOf(approved) } : null,
+    canStartFromApproved: canRestartFromApproved(state.rows, approved?.version ?? null),
+    versions: summaries(state, nameLookup(db, state.rows)),
+  };
 }
 
 /** One version in full, with the approved version and what changed between them. */
@@ -166,9 +176,11 @@ export async function createTopic(actorId: string, raw: unknown) {
 }
 
 /**
- * An edit, saved as a new pending version on top of the newest one. Students keep
- * the approved version until this one is approved. baseVersion is the version the
- * editor loaded, so two people cannot overwrite each other's work unseen.
+ * An edit, saved as a new pending version. Students keep the approved version until
+ * this one is approved. baseVersion is the version the editor loaded: the newest one,
+ * or the approved one when every later version was sent back (so a rejected change is
+ * never carried forward unasked). Any other base means someone saved in the meantime,
+ * so two people cannot overwrite each other's work unseen.
  */
 export async function submitTopicEdit(actorId: string, topicId: string, raw: unknown) {
   const draft = validateTopicDraft(raw);
@@ -180,14 +192,17 @@ export async function submitTopicEdit(actorId: string, topicId: string, raw: unk
     const [state] = topicStates(tx, topicId);
     const head = state ? headOf(state) : null;
     if (!state || !head) throw new TopicError("Topic not found.", "বিষয়টি পাওয়া যায়নি।", 404);
-    if (head.version !== baseVersion) throw new TopicError("Someone saved a newer version of this topic. Reload it before saving.", "কেউ এই বিষয়ের নতুন সংস্করণ সংরক্ষণ করেছেন। সংরক্ষণের আগে আবার খুলুন।", 409);
-    if (!topicChanged(draft, head.content)) throw new TopicError("Nothing has changed yet. Edit the topic before saving.", "এখনো কিছু বদলায়নি। সংরক্ষণের আগে বিষয়টি সম্পাদনা করুন।");
-    const version = head.version + 1;
+    const approved = approvedTopic(state);
+    const restart = approved !== null && baseVersion === approved.version && baseVersion !== head.version && canRestartFromApproved(state.rows, approved.version);
+    if (head.version !== baseVersion && !restart) throw new TopicError("Someone saved a newer version of this topic. Reload it before saving.", "কেউ এই বিষয়ের নতুন সংস্করণ সংরক্ষণ করেছেন। সংরক্ষণের আগে আবার খুলুন।", 409);
+    const base = restart ? contentOf(approved) : head.content;
+    if (!topicChanged(draft, base)) throw new TopicError("Nothing has changed yet. Edit the topic before saving.", "এখনো কিছু বদলায়নি। সংরক্ষণের আগে বিষয়টি সম্পাদনা করুন।");
+    const version = head.version + 1, basedOn = Number(baseVersion);
     tx.insert(topicVersions).values({
-      id: crypto.randomUUID(), topicId, version, dataJson: JSON.stringify({ ...draft, sources: head.content.sources ?? [] }), status: "pending",
-      basedOn: head.version, createdBy: actorId, createdAt: new Date().toISOString(),
+      id: crypto.randomUUID(), topicId, version, dataJson: JSON.stringify({ ...draft, sources: base.sources ?? [] }), status: "pending",
+      basedOn, createdBy: actorId, createdAt: new Date().toISOString(),
     }).run();
-    audit(tx, actorId, topicId, "topic-edit-submitted", { version, basedOn: head.version });
+    audit(tx, actorId, topicId, "topic-edit-submitted", { version, basedOn });
     return { topicId, version };
   });
 }
@@ -235,6 +250,21 @@ export async function findApprovedTopic(topicId: unknown): Promise<CatalogTopic 
 }
 
 /**
+ * A fingerprint of a quiz's questions, answers and correct answers. A stored score
+ * counts only while the approved topic still has exactly the quiz it was earned on.
+ */
+export function quizKey(quiz: TopicQuizQuestion[]): string | null {
+  if (!quiz.length) return null;
+  const canonical = quiz.map((item) => [item.question.en, item.question.bn, item.options.map((option) => [option.en, option.bn]), item.answer]);
+  return createHash("sha256").update(JSON.stringify(canonical)).digest("hex").slice(0, 32);
+}
+
+/** The best quiz score in a progress row, when it was earned on the topic's current quiz. */
+function currentScore(row: typeof studentTopicProgress.$inferSelect, key: string | null) {
+  return key !== null && row.quizKey === key && row.quizBestScore !== null && row.quizTotal ? { best: row.quizBestScore, total: row.quizTotal } : null;
+}
+
+/**
  * Records that a student read a topic. With quiz answers it also marks the quiz on
  * the server and keeps the student's best score (finishing the quiz counts as reading).
  */
@@ -250,39 +280,51 @@ export async function recordTopicProgress(studentId: string, topicId: unknown, a
     const existing = tx.select().from(studentTopicProgress).where(where).get();
     if (!existing) tx.insert(studentTopicProgress).values({ studentId, topicId: topic.id, completedAt: now }).run();
     if (!result) return { read: true, topicId: topic.id, quiz: null };
-    // A score out of a different number of questions (the quiz was changed since) is replaced, not compared.
-    const previous = existing?.quizBestScore != null && existing.quizTotal === result.total ? existing.quizBestScore : null;
+    // A score earned on a quiz that has since been changed is replaced, not compared.
+    const key = quizKey(topic.quiz);
+    const previous = existing ? currentScore(existing, key)?.best ?? null : null;
     const best = Math.max(previous ?? -1, result.score);
-    if (best !== previous) tx.update(studentTopicProgress).set({ quizBestScore: best, quizTotal: result.total, quizCompletedAt: now }).where(where).run();
+    if (best !== previous) tx.update(studentTopicProgress).set({ quizBestScore: best, quizTotal: result.total, quizKey: key, quizCompletedAt: now }).where(where).run();
     return { read: true, topicId: topic.id, quiz: { score: result.score, total: result.total, best } };
   });
 }
 
-/** A student's reading and quiz progress, counting only topics that are approved now. */
-export async function topicProgressFor(studentId: string, approvedIds: string[]) {
+/** Each approved topic's id with the fingerprint of its current quiz (null when it has none). */
+function quizKeys(topics: Array<Pick<Topic, "id" | "quiz">>) {
+  return new Map(topics.map((topic) => [topic.id, quizKey(topic.quiz)]));
+}
+
+/**
+ * A student's reading and quiz progress, counting only topics that are approved now
+ * and only scores earned on each topic's current quiz.
+ */
+export async function topicProgressFor(studentId: string, approvedTopics: Array<Pick<Topic, "id" | "quiz">>) {
   const db = await getDb();
-  const approved = new Set(approvedIds);
-  const rows = db.select().from(studentTopicProgress).where(eq(studentTopicProgress.studentId, studentId)).all().filter((row) => approved.has(row.topicId));
+  const keys = quizKeys(approvedTopics);
+  const rows = db.select().from(studentTopicProgress).where(eq(studentTopicProgress.studentId, studentId)).all().filter((row) => keys.has(row.topicId));
   return {
     readTopicIds: rows.map((row) => row.topicId),
-    quizScores: Object.fromEntries(rows.filter((row) => row.quizBestScore !== null && row.quizTotal).map((row) => [row.topicId, { best: row.quizBestScore!, total: row.quizTotal! }])),
+    quizScores: Object.fromEntries(rows.flatMap((row) => {
+      const score = currentScore(row, keys.get(row.topicId) ?? null);
+      return score ? [[row.topicId, score]] : [];
+    })),
   };
 }
 
 /** Topics read and topic-quiz results for each student allocated to a class, for its teacher. */
 export async function classTopicProgress(classId: string) {
   const db = await getDb();
-  const approvedIds = new Set((await getCatalog()).map((topic) => topic.id));
+  const keys = quizKeys(await getCatalog());
   const roster = db.select({ rosterId: classStudents.id, studentId: studentClassEnrollments.studentId, displayName: classStudents.displayName })
     .from(studentClassEnrollments).innerJoin(classStudents, eq(studentClassEnrollments.classStudentId, classStudents.id))
     .where(and(eq(studentClassEnrollments.classId, classId), eq(studentClassEnrollments.active, true))).all();
-  const progress = roster.length ? db.select().from(studentTopicProgress).where(inArray(studentTopicProgress.studentId, roster.map((row) => row.studentId))).all().filter((row) => approvedIds.has(row.topicId)) : [];
+  const progress = roster.length ? db.select().from(studentTopicProgress).where(inArray(studentTopicProgress.studentId, roster.map((row) => row.studentId))).all().filter((row) => keys.has(row.topicId)) : [];
   return {
-    approvedTopics: approvedIds.size,
+    approvedTopics: keys.size,
     students: roster.map((student) => {
       const rows = progress.filter((row) => row.studentId === student.studentId);
-      const quizzes = rows.filter((row) => row.quizBestScore !== null && row.quizTotal);
-      const score = quizzes.reduce((sum, row) => sum + row.quizBestScore!, 0), total = quizzes.reduce((sum, row) => sum + row.quizTotal!, 0);
+      const quizzes = rows.flatMap((row) => currentScore(row, keys.get(row.topicId) ?? null) ?? []);
+      const score = quizzes.reduce((sum, quiz) => sum + quiz.best, 0), total = quizzes.reduce((sum, quiz) => sum + quiz.total, 0);
       return { rosterId: student.rosterId, displayName: student.displayName, topicsRead: rows.length, quizzesDone: quizzes.length, quizPercent: total ? Math.round((score / total) * 100) : null };
     }).sort((a, b) => a.displayName.localeCompare(b.displayName)),
   };

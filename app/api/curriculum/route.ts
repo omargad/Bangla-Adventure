@@ -18,7 +18,7 @@ export async function GET(request: Request) {
   try {
     const catalog = await getCatalog();
     if (new URL(request.url).searchParams.get("summary") === "1") return Response.json({ topicCount: catalog.length });
-    const progress = student ? await topicProgressFor(student.id, catalog.map((topic) => topic.id)) : { readTopicIds: [], quizScores: {} };
+    const progress = student ? await topicProgressFor(student.id, catalog) : { readTopicIds: [], quizScores: {} };
     const staff = canTeach(adult);
     const review = staff ? new Map((await listStaffTopics()).map((topic) => [topic.id, topic])) : null;
     return Response.json({

@@ -342,6 +342,8 @@ export const studentTopicProgress = sqliteTable("student_topic_progress", {
   // Best topic-quiz result; added by db/content-migration.ts.
   quizBestScore: integer("quiz_best_score"),
   quizTotal: integer("quiz_total"),
+  // Fingerprint of the quiz the best score was earned on; a changed quiz starts afresh.
+  quizKey: text("quiz_key"),
   quizCompletedAt: text("quiz_completed_at"),
 }, (table) => [uniqueIndex("student_topic_progress_unique").on(table.studentId, table.topicId)]);
 

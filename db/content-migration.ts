@@ -8,7 +8,8 @@ const BASELINE_NOTE = "Edited before topic approval existed; approved as a basel
  * version and only an approved version reaches learners. The topics shipped in
  * app/topics-content.ts are the approved baseline (version 0). Administrator
  * edits saved before approval existed (topic_updates) were already visible to
- * students, so they are carried over once as approved baseline versions.
+ * students, so they are carried over once as approved baseline versions, credited
+ * to the administrator who saved them while that account exists.
  * Runs on every start and is safe to repeat.
  */
 export function migrateContent(sqlite: Database.Database): void {
@@ -32,7 +33,7 @@ export function migrateContent(sqlite: Database.Database): void {
 
     const progressColumns = new Set((sqlite.prepare("PRAGMA table_info(student_topic_progress)").all() as Array<{ name: string }>).map((column) => column.name));
     if (progressColumns.size) {
-      for (const [name, definition] of [["quiz_best_score", "integer"], ["quiz_total", "integer"], ["quiz_completed_at", "text"]]) {
+      for (const [name, definition] of [["quiz_best_score", "integer"], ["quiz_total", "integer"], ["quiz_key", "text"], ["quiz_completed_at", "text"]]) {
         if (!progressColumns.has(name)) sqlite.exec(`ALTER TABLE student_topic_progress ADD COLUMN ${name} ${definition}`);
       }
     }
@@ -40,16 +41,29 @@ export function migrateContent(sqlite: Database.Database): void {
     if (!sqlite.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'topic_updates'").get()) return;
     const edits = sqlite.prepare("SELECT topic_id, data_json, version, updated_at FROM topic_updates").all() as Array<{ topic_id: string; data_json: string; version: number; updated_at: string }>;
     const hasVersions = sqlite.prepare("SELECT 1 FROM topic_versions WHERE topic_id = ? LIMIT 1");
-    const insert = sqlite.prepare(`INSERT INTO topic_versions (id, topic_id, version, data_json, status, baseline, based_on, created_at, reviewed_at, review_note)
-      VALUES (?, ?, ?, ?, 'approved', 1, 0, ?, ?, ?)`);
+    const insert = sqlite.prepare(`INSERT INTO topic_versions (id, topic_id, version, data_json, status, baseline, based_on, created_by, created_at, reviewed_at, review_note)
+      VALUES (?, ?, ?, ?, 'approved', 1, 0, ?, ?, ?, ?)`);
+    // The old editor audited every save; the latest save wrote the stored text.
+    const hasAudit = Boolean(sqlite.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'user_audit_events'").get());
+    const lastEditor = hasAudit ? sqlite.prepare(`SELECT adults.id FROM (
+        SELECT actor_id FROM user_audit_events WHERE action = 'topic-preview-updated' AND target_id = ? ORDER BY created_at DESC, rowid DESC LIMIT 1
+      ) AS latest JOIN adults ON adults.id = latest.actor_id`) : null;
+    const credit = sqlite.prepare("UPDATE topic_versions SET created_by = ? WHERE topic_id = ? AND version = ? AND baseline = 1 AND created_by IS NULL AND review_note = ?");
     for (const edit of edits) {
       const shipped = topics.find((topic) => topic.id === edit.topic_id);
-      if (!shipped || hasVersions.get(edit.topic_id)) continue;
+      if (!shipped) continue;
+      const author = (lastEditor?.get(edit.topic_id) as { id: string } | undefined)?.id ?? null;
+      const version = Math.max(1, edit.version);
+      if (hasVersions.get(edit.topic_id)) {
+        // Carried over before authors were credited.
+        if (author) credit.run(author, edit.topic_id, version, BASELINE_NOTE);
+        continue;
+      }
       const carried = carriedEdit(edit.data_json);
       if (!carried) continue;
       // These edits could change only the reading text, so the category, quiz and sources come from the shipped topic.
       const data = JSON.stringify({ ...shipped, ...carried, id: undefined });
-      insert.run(crypto.randomUUID(), edit.topic_id, Math.max(1, edit.version), data, edit.updated_at, edit.updated_at, BASELINE_NOTE);
+      insert.run(crypto.randomUUID(), edit.topic_id, version, data, author, edit.updated_at, edit.updated_at, BASELINE_NOTE);
     }
   })();
 }

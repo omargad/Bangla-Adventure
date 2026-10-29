@@ -29,6 +29,16 @@ export function statusLabel(version: Pick<VersionSummary, "status" | "baseline">
   return version.baseline ? s("Approved · baseline", "অনুমোদিত · আগে থেকে থাকা") : s("Approved", "অনুমোদিত");
 }
 
+/**
+ * Who wrote a version. Administrator edits carried over from before topic approval
+ * existed have no author when that account no longer exists.
+ */
+export function authorLabel(version: Pick<VersionSummary, "authorName" | "baseline">, language: Language): string {
+  if (version.authorName) return version.authorName;
+  const s = (en: string, bn: string) => (language === "bn" ? bn : en);
+  return version.baseline ? s("an administrator, before topic approval existed", "একজন প্রশাসক, বিষয় অনুমোদন চালুর আগে") : s("a former staff member", "একজন সাবেক কর্মী");
+}
+
 export function versionLabel(version: number, language: Language): string {
   if (version === 0) return language === "bn" ? "অ্যাপের সঙ্গে আসা মূল সংস্করণ" : "Original shipped version";
   return language === "bn" ? `সংস্করণ ${formatNumber(version, language)}` : `Version ${version}`;

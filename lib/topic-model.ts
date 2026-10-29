@@ -123,6 +123,17 @@ export function statusesAfterApproval(versions: Array<{ version: number; status:
   });
 }
 
+/**
+ * Whether an editor may start again from the approved version instead of the newest
+ * one: only when every version after the approved one was sent back, so nobody has
+ * to carry a rejected change into their own edit.
+ */
+export function canRestartFromApproved(versions: Array<{ version: number; status: TopicVersionStatus }>, approvedVersion: number | null): boolean {
+  if (approvedVersion === null) return false;
+  const later = versions.filter((item) => item.version > approvedVersion);
+  return later.length > 0 && later.every((item) => item.status === "rejected");
+}
+
 /** Marks a topic quiz; null unless every question has an answer that is one of its options. */
 export function gradeTopicQuiz(quiz: TopicQuizQuestion[], answers: unknown): { score: number; total: number } | null {
   if (!quiz.length || !Array.isArray(answers) || answers.length !== quiz.length) return null;

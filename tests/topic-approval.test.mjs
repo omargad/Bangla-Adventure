@@ -76,6 +76,11 @@ test("the review rules: only pending versions are decided, never over a newer ap
   assert.deepEqual(model.statusesAfterApproval([
     { version: 1, status: "approved" }, { version: 2, status: "rejected" }, { version: 3, status: "pending" }, { version: 4, status: "pending" }, { version: 5, status: "pending" },
   ], 4), [{ version: 1, status: "superseded" }, { version: 3, status: "superseded" }, { version: 4, status: "approved" }]);
+  assert.equal(model.canRestartFromApproved([{ version: 1, status: "rejected" }], 0), true);
+  assert.equal(model.canRestartFromApproved([{ version: 1, status: "approved" }, { version: 2, status: "rejected" }, { version: 3, status: "rejected" }], 1), true);
+  assert.equal(model.canRestartFromApproved([{ version: 1, status: "rejected" }, { version: 2, status: "pending" }], 0), false, "a waiting version is never skipped");
+  assert.equal(model.canRestartFromApproved([{ version: 1, status: "approved" }], 1), false, "nothing was sent back");
+  assert.equal(model.canRestartFromApproved([{ version: 1, status: "rejected" }], null), false, "a new topic has no approved version");
 });
 
 test("change summaries, quiz marking, grouping and formatting", () => {
@@ -206,10 +211,10 @@ test("finishing a topic quiz counts as reading and keeps the best server-side sc
   const third = await catalog.recordTopicProgress("maya", "pohela-boishakh", wrong);
   assert.deepEqual(third.quiz, { score: 0, total: topic.quiz.length, best: topic.quiz.length });
   await catalog.recordTopicProgress("maya", "folk-tales");
-  const progress = await catalog.topicProgressFor("maya", await learnerIds());
+  const progress = await catalog.topicProgressFor("maya", await catalog.getCatalog());
   assert.deepEqual(progress.readTopicIds.sort(), ["folk-tales", "pohela-boishakh"]);
   assert.deepEqual(progress.quizScores, { "pohela-boishakh": { best: topic.quiz.length, total: topic.quiz.length } });
-  assert.deepEqual((await catalog.topicProgressFor("maya", ["folk-tales"])).readTopicIds, ["folk-tales"], "only approved topics count");
+  assert.deepEqual((await catalog.topicProgressFor("maya", [await catalog.findApprovedTopic("folk-tales")])).readTopicIds, ["folk-tales"], "only approved topics count");
 
   db.insert(classes).values({ id: "class", teacherId: "author", name: "Sunday 11:30", joinCode: "TOP234" }).run();
   db.insert(classStudents).values([{ id: "roster-maya", classId: "class", displayName: "Maya", tokenHash: "a" }, { id: "roster-rohan", classId: "class", displayName: "Rohan", tokenHash: "b" }]).run();
@@ -222,24 +227,114 @@ test("finishing a topic quiz counts as reading and keeps the best server-side sc
   assert.deepEqual(results.students, [{ rosterId: "roster-maya", displayName: "Maya", topicsRead: 2, quizzesDone: 1, quizPercent: 100 }], "removed students are left out");
 });
 
-test("the content migration adds its table and columns and carries earlier admin edits over once", () => {
+test("after an edit is sent back, the next edit can start again from the approved version", async () => {
+  const id = "british-rule";
+  const original = await catalog.findApprovedTopic(id);
+  const start = (await catalog.getStaffTopic(id)).head.content;
+  await catalog.submitTopicEdit("author", id, { ...start, title: pair("A rejected title", start.title.bn), baseVersion: 0 });
+  await catalog.reviewTopicVersion("reviewer", id, 1, { decision: "reject", note: "This title is wrong." });
+
+  const staff = await catalog.getStaffTopic(id);
+  assert.equal(staff.head.version, 1);
+  assert.equal(staff.head.content.title.en, "A rejected title", "the sent-back version stays available to its author");
+  assert.equal(staff.canStartFromApproved, true);
+  assert.deepEqual(staff.approved, { version: 0, content: start });
+
+  // Another teacher fixes a typo starting from what students see, so the rejected title is not carried over.
+  const typo = { ...staff.approved.content, tagline: pair(`${start.tagline.en} Fixed.`, start.tagline.bn), baseVersion: 0 };
+  await assert.rejects(catalog.submitTopicEdit("reviewer", id, { ...staff.approved.content, baseVersion: 0 }), /Nothing has changed/, "compared with the approved version");
+  const saved = await catalog.submitTopicEdit("reviewer", id, typo);
+  assert.equal(saved.version, 2);
+  const preview = await catalog.getTopicVersion(id, 2);
+  assert.equal(preview.version.content.title.en, original.title.en);
+  assert.equal(preview.version.basedOn, 0);
+  assert.deepEqual(preview.changes.map((change) => change.en), ["Short introduction (English) changed"]);
+  assert.deepEqual(preview.version.content.sources, original.sources);
+  assert.equal((await catalog.getStaffTopic(id)).canStartFromApproved, false, "a waiting version is never skipped");
+  await assert.rejects(catalog.submitTopicEdit("author", id, { ...typo, minutes: 9 }), (error) => error.status === 409, "the approved version is no longer a base once a newer version waits");
+
+  await catalog.reviewTopicVersion("admin", id, 2, { decision: "approve", confirmedRead: true });
+  const now = await catalog.findApprovedTopic(id);
+  assert.equal(now.title.en, original.title.en);
+  assert.match(now.tagline.en, /Fixed\.$/);
+
+  const { topicId } = await catalog.createTopic("author", draft({ title: pair("Hill tracts", "পার্বত্য চট্টগ্রাম") }));
+  await catalog.reviewTopicVersion("reviewer", topicId, 1, { decision: "reject", note: "Add more detail." });
+  const unpublished = await catalog.getStaffTopic(topicId);
+  assert.equal(unpublished.canStartFromApproved, false);
+  assert.equal(unpublished.approved, null);
+  await assert.rejects(catalog.submitTopicEdit("author", topicId, { ...draft({ title: pair("Hill tracts", "পার্বত্য চট্টগ্রাম"), minutes: 7 }), baseVersion: 0 }), (error) => error.status === 409);
+});
+
+test("a quiz score counts only while the topic still has the quiz it was earned on", async () => {
+  const id = "pohela-boishakh";
+  const before = await catalog.findApprovedTopic(id);
+  const right = before.quiz.map((question) => question.answer);
+  const scores = async () => (await catalog.topicProgressFor("maya", await catalog.getCatalog())).quizScores;
+  assert.deepEqual((await scores())[id], { best: before.quiz.length, total: before.quiz.length });
+  assert.equal(catalog.quizKey(before.quiz), catalog.quizKey(structuredClone(before.quiz)));
+  assert.equal(catalog.quizKey([]), null);
+
+  // An approved edit that leaves the quiz alone keeps the score.
+  let head = (await catalog.getStaffTopic(id)).head;
+  await catalog.submitTopicEdit("author", id, { ...head.content, minutes: head.content.minutes + 1, baseVersion: head.version });
+  await catalog.reviewTopicVersion("reviewer", id, head.version + 1, { decision: "approve", confirmedRead: true });
+  assert.deepEqual((await scores())[id], { best: before.quiz.length, total: before.quiz.length });
+
+  // Rewritten questions with the same number of answers: the old best no longer counts.
+  head = (await catalog.getStaffTopic(id)).head;
+  const rewritten = head.content.quiz.map((question, index) => ({ ...question, question: pair(`Rewritten question ${index + 1}?`, `নতুন প্রশ্ন ${index + 1}?`) }));
+  await catalog.submitTopicEdit("author", id, { ...head.content, quiz: rewritten, baseVersion: head.version });
+  await catalog.reviewTopicVersion("reviewer", id, head.version + 1, { decision: "approve", confirmedRead: true });
+  assert.equal((await scores())[id], undefined);
+  assert.equal((await catalog.classTopicProgress("class")).students[0].quizzesDone, 0);
+  const wrong = right.map((answer, index) => (answer + 1) % rewritten[index].options.length);
+  assert.deepEqual((await catalog.recordTopicProgress("maya", id, wrong)).quiz, { score: 0, total: right.length, best: 0 }, "the new quiz starts afresh");
+  assert.deepEqual((await scores())[id], { best: 0, total: right.length });
+
+  // The quiz removed: the topic still counts as read, but no quiz result is reported.
+  head = (await catalog.getStaffTopic(id)).head;
+  await catalog.submitTopicEdit("author", id, { ...head.content, quiz: [], baseVersion: head.version });
+  await catalog.reviewTopicVersion("reviewer", id, head.version + 1, { decision: "approve", confirmedRead: true });
+  const progress = await catalog.topicProgressFor("maya", await catalog.getCatalog());
+  assert.ok(progress.readTopicIds.includes(id));
+  assert.equal(progress.quizScores[id], undefined);
+  const results = (await catalog.classTopicProgress("class")).students[0];
+  assert.equal(results.topicsRead, 2);
+  assert.equal(results.quizzesDone, 0);
+  assert.equal(results.quizPercent, null);
+});
+
+test("the content migration adds its table and columns and carries earlier admin edits over once, crediting their author", () => {
   const sqlite = new Database(":memory:");
   sqlite.exec(bootstrapSql);
   migrateAccessControl(sqlite);
   const edited = { ...shipped[0], theme: "history", title: pair("An earlier admin title", shipped[0].title.bn) };
   sqlite.prepare("INSERT INTO topic_updates (topic_id, data_json, version, updated_at) VALUES (?, ?, ?, ?)").run(shipped[0].id, JSON.stringify(edited), 2, "2026-10-01T10:00:00.000Z");
+  sqlite.prepare("INSERT INTO topic_updates (topic_id, data_json, version, updated_at) VALUES (?, ?, ?, ?)").run(shipped[2].id, JSON.stringify({ ...shipped[2], minutes: 9 }), 1, "2026-10-02T10:00:00.000Z");
+  sqlite.prepare("INSERT INTO adults (id, email, display_name, password_hash, role) VALUES ('old-admin', 'old@example.com', 'Old Admin', 'x', 'admin'), ('new-admin', 'new@example.com', 'New Admin', 'x', 'admin')").run();
+  const auditEdit = sqlite.prepare("INSERT INTO user_audit_events (id, actor_id, target_id, target_type, action, details_json, created_at) VALUES (?, ?, ?, 'topic', 'topic-preview-updated', '{}', ?)");
+  auditEdit.run("a1", "old-admin", shipped[0].id, "2026-09-30 10:00:00");
+  auditEdit.run("a2", "new-admin", shipped[0].id, "2026-10-01 10:00:00");
+  auditEdit.run("a3", "removed-admin", shipped[2].id, "2026-10-02 10:00:00");
   sqlite.prepare("INSERT INTO topic_updates (topic_id, data_json, version, updated_at) VALUES (?, ?, ?, ?)").run("retired-topic", JSON.stringify(edited), 1, "2026-10-01T10:00:00.000Z");
   sqlite.prepare("INSERT INTO topic_updates (topic_id, data_json, version, updated_at) VALUES (?, ?, ?, ?)").run(shipped[1].id, "{not json", 1, "2026-10-01T10:00:00.000Z");
   sqlite.prepare("INSERT INTO students (id, username, display_name, password_hash) VALUES ('s', 's', 'S', 'x')").run();
   sqlite.prepare("INSERT INTO student_topic_progress (student_id, topic_id) VALUES ('s', ?)").run(shipped[0].id);
   migrateContent(sqlite);
   migrateContent(sqlite);
-  const rows = sqlite.prepare("SELECT * FROM topic_versions").all();
-  assert.equal(rows.length, 1);
+  const rows = sqlite.prepare("SELECT * FROM topic_versions ORDER BY topic_id = ? DESC").all(shipped[0].id);
+  assert.equal(rows.length, 2);
   assert.equal(rows[0].topic_id, shipped[0].id);
   assert.equal(rows[0].status, "approved");
   assert.equal(rows[0].baseline, 1);
   assert.equal(rows[0].version, 2);
+  assert.equal(rows[0].created_by, "new-admin", "the administrator who saved the edit last is credited");
+  assert.equal(rows[1].created_by, null, "an author whose account is gone is not guessed");
+  // An edit carried over before authors were credited gets its author on the next start.
+  sqlite.prepare("UPDATE topic_versions SET created_by = NULL").run();
+  migrateContent(sqlite);
+  assert.deepEqual(sqlite.prepare("SELECT created_by FROM topic_versions ORDER BY topic_id = ? DESC").all(shipped[0].id).map((row) => row.created_by), ["new-admin", null]);
   const data = JSON.parse(rows[0].data_json);
   assert.equal(data.title.en, "An earlier admin title");
   assert.equal(data.theme, shipped[0].theme);
@@ -247,6 +342,7 @@ test("the content migration adds its table and columns and carries earlier admin
   assert.equal("id" in data, false);
   const progress = sqlite.prepare("SELECT * FROM student_topic_progress").get();
   assert.equal(progress.quiz_best_score, null);
-  assert.ok(sqlite.prepare("PRAGMA table_info(student_topic_progress)").all().some((column) => column.name === "quiz_completed_at"));
+  const progressColumns = sqlite.prepare("PRAGMA table_info(student_topic_progress)").all().map((column) => column.name);
+  for (const column of ["quiz_best_score", "quiz_total", "quiz_key", "quiz_completed_at"]) assert.ok(progressColumns.includes(column), column);
   sqlite.close();
 });

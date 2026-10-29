@@ -1,4 +1,4 @@
-import { test, expect, type Browser } from "@playwright/test";
+import { test, expect, type Browser, type Page } from "@playwright/test";
 import Database from "better-sqlite3";
 import { randomUUID } from "node:crypto";
 
@@ -94,5 +94,62 @@ test("a teacher writes a bilingual topic, another previews it in Bangla and appr
     await authorContext.close().catch(() => undefined);
     await reviewerContext.close().catch(() => undefined);
     await studentContext.close().catch(() => undefined);
+  }
+});
+
+/** A JSON API call made by the signed-in page, so its session cookie is sent. */
+async function api(page: Page, method: string, url: string, data?: unknown) {
+  return page.evaluate(async ({ method, url, data }) => {
+    const response = await fetch(url, { method, headers: data ? { "Content-Type": "application/json" } : {}, body: data ? JSON.stringify(data) : undefined });
+    return { status: response.status, body: await response.json() };
+  }, { method, url, data });
+}
+
+test("after an edit is sent back, the next editor starts from the approved version and can switch to the sent-back one", async ({ browser, baseURL }) => {
+  test.setTimeout(90000);
+  const suffix = randomUUID().slice(0, 8);
+  const id = "ethnic-communities", wrongTitle = `A wrong title ${suffix}`;
+  const authorContext = await teacher(browser, baseURL, "editor", suffix);
+  const reviewerContext = await teacher(browser, baseURL, "checker", suffix);
+  try {
+    const author = await authorContext.newPage(), page = await reviewerContext.newPage();
+    for (const each of [author, page]) { each.setDefaultTimeout(15000); await each.goto("/teach"); }
+    const { topic } = (await api(author, "GET", `/api/topics/${id}`)).body;
+    const approvedTitle = topic.approved.content.title.en, minutes = topic.approved.content.minutes;
+    const saved = await api(author, "PUT", `/api/topics/${id}`, { ...topic.head.content, title: { ...topic.head.content.title, en: wrongTitle }, baseVersion: topic.head.version });
+    expect(saved.status).toBe(200);
+    const rejected = saved.body.version;
+    expect((await api(page, "POST", `/api/topics/${id}/versions/${rejected}`, { decision: "reject", note: "This title is wrong." })).status).toBe(200);
+
+    await page.goto(`/teach/topics?edit=${id}`);
+    const title = page.getByLabel("Title (English)", { exact: true });
+    await expect(page.getByRole("note")).toContainText(`Version ${rejected} was sent back by checker ${suffix}: This title is wrong.`);
+    await expect(title).toHaveValue(approvedTitle);
+    await page.getByRole("button", { name: "Continue from the sent-back version instead", exact: true }).click();
+    await expect(title).toHaveValue(wrongTitle);
+    await page.getByRole("button", { name: "Start again from the approved version", exact: true }).click();
+    await expect(title).toHaveValue(approvedTitle);
+
+    const readingTime = page.getByLabel("Reading time (minutes)", { exact: true });
+    await readingTime.fill(String(minutes + 2));
+    // Switching versions asks before throwing away unsaved changes.
+    page.once("dialog", (dialog) => void dialog.dismiss());
+    await page.getByRole("button", { name: "Continue from the sent-back version instead", exact: true }).click();
+    await expect(readingTime).toHaveValue(String(minutes + 2));
+    await expect(title).toHaveValue(approvedTitle);
+
+    await page.getByRole("button", { name: "Save and send for approval", exact: true }).click();
+    await expect(page.getByRole("status").filter({ hasText: "Students will not see it until" })).toBeVisible();
+    const changes = page.getByRole("region", { name: "What changed" });
+    await expect(changes).toContainText(`Reading time: ${minutes} → ${minutes + 2} minutes`);
+    await expect(changes).not.toContainText("Title (English) changed");
+    await expect(page.getByRole("region", { name: "Student view preview" }).getByRole("heading", { level: 1, name: approvedTitle, exact: true })).toBeVisible();
+
+    // Leave the topic as students already see it.
+    const waiting = (await api(page, "GET", `/api/topics/${id}`)).body.topic.head.version;
+    expect((await api(page, "POST", `/api/topics/${id}/versions/${waiting}`, { decision: "reject", note: "Test clean-up." })).status).toBe(200);
+  } finally {
+    await authorContext.close().catch(() => undefined);
+    await reviewerContext.close().catch(() => undefined);
   }
 });
