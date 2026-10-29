@@ -29,6 +29,7 @@ export function loginDestination(path: string): string {
 /** Where an adult chooses their own password while an administrator-issued one is still in use. */
 export const ADULT_PASSWORD_PATH = "/account/password";
 export const PASSWORD_CHANGE_ERROR = "Choose your own password before you continue.";
+export const PASSWORD_CHANGE_ERROR_BN = "চালিয়ে যাওয়ার আগে নিজের পাসওয়ার্ড বেছে নিন।";
 
 /**
  * While an administrator-issued password is in use, only the change form and its API stay open to

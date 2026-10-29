@@ -40,10 +40,11 @@ export function localNumber(value: number, language: Language): string {
   return value.toLocaleString(language === "bn" ? "bn-BD" : "en-AU");
 }
 
-/** A server message in the page language: its Bangla copy (`errorBn`/`messageBn`) in Bangla mode when sent, otherwise English. */
+/**
+ * A server message in the page language: its Bangla copy (`errorBn`/`messageBn`) in Bangla mode, or
+ * the caller's Bangla fallback when the server sent none, so Bangla pages never show English text.
+ */
 export function localMessage(data: { error?: unknown; errorBn?: unknown; message?: unknown; messageBn?: unknown } | null | undefined, language: Language, fallback: [string, string]): string {
-  const english = typeof data?.error === "string" ? data.error : typeof data?.message === "string" ? data.message : "";
-  const bangla = typeof data?.errorBn === "string" ? data.errorBn : typeof data?.messageBn === "string" ? data.messageBn : "";
-  if (language === "bn") return bangla || english || fallback[1];
-  return english || fallback[0];
+  if (language === "bn") return typeof data?.errorBn === "string" && data.errorBn ? data.errorBn : typeof data?.messageBn === "string" && data.messageBn ? data.messageBn : fallback[1];
+  return typeof data?.error === "string" && data.error ? data.error : typeof data?.message === "string" && data.message ? data.message : fallback[0];
 }

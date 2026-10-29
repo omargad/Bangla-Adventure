@@ -147,12 +147,13 @@ test("the class CSV adds students who already have an account and asks before a 
   assert.deepEqual(await existing.json(), { created: [], existing: [{ displayName: "Arif Picker", username: "arif.picker", alreadyInClass: false }, { displayName: "Maya Picker", username: "maya.picker", alreadyInClass: true }] });
   assert.ok(enrolledIn(classId).includes("arif.picker"));
 
-  const duplicate = await send(`/api/classes/${classId}/students/import`, "POST", { csv: "name\nNadia Picker\nBrand New Picker\n" }, teacherCookie);
+  const duplicate = await send(`/api/classes/${classId}/students/import`, "POST", { csv: "name,username\nNadia Picker,\nBrand New Picker,\nArif Picker,arif.pikcer\n" }, teacherCookie);
   assert.equal(duplicate.status, 400);
   const refused = await duplicate.json();
   assert.equal(refused.sameNames, true);
-  assert.deepEqual(refused.errors.map((error) => error.line), [2]);
+  assert.deepEqual(refused.errors.map((error) => error.line), [2, 4]);
   assert.match(refused.errors[0].message, /already has an account \(nadia\.picker\)/);
+  assert.match(refused.errors[1].message, /^No student has the username "arif\.pikcer", but a student named "Arif Picker" already has an account \(arif\.picker\)/, "a mistyped username is not a new child");
   assert.equal(fixture((db) => db.prepare("SELECT count(*) AS n FROM students").get().n), before, "nothing is created");
 
   const confirmed = await send(`/api/classes/${classId}/students/import`, "POST", { csv: "name\nNadia Picker\nBrand New Picker\n", createSameNames: true }, teacherCookie);

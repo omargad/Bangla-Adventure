@@ -56,7 +56,8 @@ and preserve real records.
    database (this also approves the waiting account), sign in again, approve a
    teacher, a parent and a student from the Waiting for approval queue, decline one
    account, create an account and reset a password from the printable sheet, import a
-   family CSV (siblings and an existing parent) and print its sheet, manage
+   family CSV (siblings and an existing parent) and print its sheet (one family per
+   page), upload it again to see the repeated rows refused, manage
    student/family links and update topic reading. Verify existing quizzes/sources and
    review notices remain.
 2. **Teacher:** request access, demonstrate no sign-in or teaching privileges before approval,

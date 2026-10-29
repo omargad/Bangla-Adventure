@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-const { checkRateLimit, resetRateLimits, clientKey } = await import("../lib/rate-limit.ts");
+const { checkRateLimit, resetRateLimits, clientKey, tooManyRequests } = await import("../lib/rate-limit.ts");
 
 test("allows up to the limit inside a window, then blocks", () => {
   resetRateLimits();
@@ -36,4 +36,13 @@ test("clientKey prefers first x-forwarded-for hop", () => {
   });
   assert.equal(clientKey(withHeader), "203.0.113.9");
   assert.equal(clientKey(new Request("http://localhost/")), "local");
+});
+
+test("the 429 answer says when to retry, in English and Bangla", async () => {
+  const response = tooManyRequests(42);
+  assert.equal(response.status, 429);
+  assert.equal(response.headers.get("retry-after"), "42");
+  const body = await response.json();
+  assert.equal(body.error, "Too many attempts. Please wait a moment and try again.");
+  assert.match(body.errorBn, /[ঀ-৿]/);
 });

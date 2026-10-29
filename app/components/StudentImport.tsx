@@ -76,7 +76,7 @@ export default function StudentImport({ classId, language = "en", onImported, on
   const [inputKey, setInputKey] = useState(0);
   const [error, setError] = useState("");
   const [rowErrors, setRowErrors] = useState<StudentImportIssue[]>([]);
-  // Offered once the server reports name-only rows whose name already has an account.
+  // Offered once the server reports rows that would give a name that already has an account a second one.
   const [sameNames, setSameNames] = useState(false);
   const [createSameNames, setCreateSameNames] = useState(false);
   const [result, setResult] = useState<{ created: SignInSheetRow[]; existing: ExistingAllocation[] } | null>(null);
@@ -126,7 +126,7 @@ export default function StudentImport({ classId, language = "en", onImported, on
       <button className="primary-button" disabled={busy || !file}>{busy ? s("Creating accounts…", "অ্যাকাউন্ট তৈরি হচ্ছে…") : s("Upload and create accounts", "আপলোড করে অ্যাকাউন্ট তৈরি করুন")}</button>
     </form>
     {error && <div role="alert" className="auth-error"><p>{error}</p><ImportRowErrors errors={rowErrors} language={language} /></div>}
-    {sameNames && <label className="import-confirm"><input type="checkbox" checked={createSameNames} onChange={(event) => setCreateSameNames(event.target.checked)} />{s("Create new accounts for matching names too", "মিলে যাওয়া নামের জন্যও নতুন অ্যাকাউন্ট তৈরি করুন")}<small>{s("Only tick this if those rows are different children. To add the existing students instead, write their usernames in the file.", "সারিগুলো অন্য শিশুদের হলে তবেই টিক দিন। আগের শিক্ষার্থীদের যোগ করতে চাইলে ফাইলে তাদের ব্যবহারকারীর নাম লিখুন।")}</small></label>}
+    {sameNames && <label className="import-confirm"><input type="checkbox" checked={createSameNames} onChange={(event) => setCreateSameNames(event.target.checked)} />{s("Create new accounts for matching names too", "মিলে যাওয়া নামের জন্যও নতুন অ্যাকাউন্ট তৈরি করুন")}<small>{s("Only tick this if those rows are different children. To add the existing students instead, write their exact usernames in the file.", "সারিগুলো অন্য শিশুদের হলে তবেই টিক দিন। আগের শিক্ষার্থীদের যোগ করতে চাইলে ফাইলে তাদের ঠিক ব্যবহারকারীর নামটি লিখুন।")}</small></label>}
     {result && <div className="student-import-result">
       <p role="status" className="teach-message">{[
         result.created.length > 0 || existing.length === 0 ? s(`${result.created.length} student account${result.created.length === 1 ? "" : "s"} created and added to this class.`, `${number(result.created.length)}টি শিক্ষার্থী অ্যাকাউন্ট তৈরি হয়ে এই ক্লাসে যোগ হয়েছে।`) : "",

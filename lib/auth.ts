@@ -13,7 +13,7 @@ import {
   verifyPassword,
 } from "./password";
 import { canManageUsers, canTeach, type AdultRole, type AccountStatus, type ApprovalStatus, type TeacherStatus } from "./roles";
-import { PASSWORD_CHANGE_ERROR, passwordChangeDestination } from "./learning-policy";
+import { PASSWORD_CHANGE_ERROR, PASSWORD_CHANGE_ERROR_BN, passwordChangeDestination } from "./learning-policy";
 
 export type Adult = {
   id: string;
@@ -91,15 +91,17 @@ export async function requireTeacher(returnTo: string): Promise<Adult> {
 
 /** What every adult API answers while an administrator-issued password is still in use. */
 export function adultPasswordChangeRequired(): Response {
-  return Response.json({ error: PASSWORD_CHANGE_ERROR, mustChangePassword: true }, { status: 403 });
+  return Response.json({ error: PASSWORD_CHANGE_ERROR, errorBn: PASSWORD_CHANGE_ERROR_BN, mustChangePassword: true }, { status: 403 });
 }
 
 export async function getStaffAccess(permission: "teach" | "admin" = "teach"): Promise<Adult | Response> {
   const adult = await getSignedInAdult();
-  if (!adult) return Response.json({ error: "Sign in required." }, { status: 401 });
+  if (!adult) return Response.json({ error: "Sign in required.", errorBn: "সাইন ইন করা প্রয়োজন।" }, { status: 401 });
   if (adult.mustChangePassword) return adultPasswordChangeRequired();
   if (!(permission === "admin" ? canManageUsers(adult) : canTeach(adult))) {
-    return Response.json({ error: permission === "admin" ? "Administrator access required." : "An approved teacher account is required." }, { status: 403 });
+    return Response.json(permission === "admin"
+      ? { error: "Administrator access required.", errorBn: "প্রশাসকের অ্যাকাউন্ট প্রয়োজন।" }
+      : { error: "An approved teacher account is required.", errorBn: "অনুমোদিত শিক্ষকের অ্যাকাউন্ট প্রয়োজন।" }, { status: 403 });
   }
   return adult;
 }

@@ -16,8 +16,11 @@ export const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export type FamilyImportRow = { line: number; studentName: string; parentName: string; parentEmail: string; username?: string };
 export type FamilyImportResult = { rows: FamilyImportRow[]; errors: ImportIssue[] };
-/** One imported student with their parent; `parentTemporaryPassword` is null when an existing parent account was linked. */
-export type FamilySheetRow = { studentName: string; username: string; temporaryPassword: string; parentName: string; parentEmail: string; parentTemporaryPassword: string | null };
+/**
+ * One imported student with their parent. `temporaryPassword` is null for a student who already had an
+ * account, and `parentTemporaryPassword` for an existing parent account: their passwords are unchanged.
+ */
+export type FamilySheetRow = { studentName: string; username: string; temporaryPassword: string | null; parentName: string; parentEmail: string; parentTemporaryPassword: string | null };
 export type FamilyGroup = { parentName: string; parentEmail: string; parentTemporaryPassword: string | null; children: FamilySheetRow[] };
 
 type Column = "studentName" | "parentName" | "parentEmail" | "username";
@@ -36,7 +39,9 @@ const familyHeaderKey = (value: string) => headerKey(value).replace(/\be[ -]mail
  * Parse an administrator's family list. A header row is required with student name, parent name and
  * parent email columns (case and spacing do not matter; "student", "parent" and "email" also work) and
  * an optional student username column. Rows that share a parent e-mail are siblings and must give the
- * same parent name. Every problem is reported with its line number.
+ * same parent name. Rows that share a student username are one child with two parents, so they must
+ * give the same student name; the same name under two parent e-mails needs usernames to say whether it
+ * is one child or two. Every problem is reported with its line number.
  */
 export function parseFamilyCsv(input: string): FamilyImportResult {
   if (importTooLarge(input)) return { rows: [], errors: [fileTooLargeIssue()] };
@@ -76,10 +81,12 @@ export function parseFamilyCsv(input: string): FamilyImportResult {
   const cell = (record: { fields: string[] }, column: Column) => columns.has(column) ? (record.fields[columns.get(column)!] ?? "").trim() : "";
   const rows: FamilyImportRow[] = [];
   const errors: ImportIssue[] = [];
-  const usernameLines = new Map<string, number>();
-  // The first row for each parent e-mail, so siblings can be checked against it.
+  // The first row for each username, parent e-mail and parent-and-child pair, so later rows can be checked against it.
+  const usernames = new Map<string, { line: number; studentName: string; parentEmail: string }>();
   const parents = new Map<string, { line: number; name: string }>();
   const children = new Map<string, number>();
+  // Accepted rows by student name, to catch one child listed under two parents without a shared username.
+  const named = new Map<string, FamilyImportRow[]>();
   for (const record of data) {
     const rowErrors: ImportIssue[] = [];
     if (record.fields.some((value, index) => !used.has(index) && value.trim())) {
@@ -97,9 +104,12 @@ export function parseFamilyCsv(input: string): FamilyImportResult {
     else if (parentEmail.length > MAX_EMAIL_LENGTH) rowErrors.push(issue(record.line, `E-mail addresses can be at most ${MAX_EMAIL_LENGTH} characters.`, `ইমেইল ঠিকানা সর্বোচ্চ ${bnNumber(MAX_EMAIL_LENGTH)} অক্ষরের হতে পারে।`));
     else if (!EMAIL_PATTERN.test(parentEmail)) rowErrors.push(issue(record.line, `Parent e-mail ${quote(rawEmail)} is not a valid e-mail address.`, `অভিভাবকের ইমেইল ${quote(rawEmail)} সঠিক ইমেইল ঠিকানা নয়।`));
     else emailValid = true;
-    const checked = usernameIssues(record.line, cell(record, "username"), usernameLines);
+    // Only the format here: a repeated username is allowed for one child with two parents (below).
+    const checked = usernameIssues(record.line, cell(record, "username"), new Map());
     rowErrors.push(...checked.errors);
+    const username = checked.errors.length ? "" : checked.username;
 
+    let duplicate = false;
     if (emailValid && !parentNameErrors.length) {
       const first = parents.get(parentEmail);
       if (!first) parents.set(parentEmail, { line: record.line, name: parentName });
@@ -110,13 +120,36 @@ export function parseFamilyCsv(input: string): FamilyImportResult {
       }
       if (studentName) {
         const key = `${parentEmail}\n${nameKey(studentName)}`;
-        if (children.has(key)) rowErrors.push(issue(record.line, `${quote(studentName)} is already listed with this parent on line ${children.get(key)}.`, `${quote(studentName)} এই অভিভাবকের সঙ্গে লাইন ${bnNumber(children.get(key)!)}-এ আগেই আছে।`));
+        duplicate = children.has(key);
+        if (duplicate) rowErrors.push(issue(record.line, `${quote(studentName)} is already listed with this parent on line ${children.get(key)}.`, `${quote(studentName)} এই অভিভাবকের সঙ্গে লাইন ${bnNumber(children.get(key)!)}-এ আগেই আছে।`));
         else children.set(key, record.line);
+      }
+    }
+    if (username && !duplicate) {
+      const first = usernames.get(username);
+      if (!first) usernames.set(username, { line: record.line, studentName, parentEmail });
+      else if (!sameName(first.studentName, studentName) || first.parentEmail === parentEmail) {
+        rowErrors.push(issue(record.line,
+          `Username ${quote(username)} is already used on line ${first.line}. Rows may share a username only for the same child with another parent.`,
+          `ব্যবহারকারীর নাম ${quote(username)} লাইন ${bnNumber(first.line)}-এ আগেই ব্যবহার হয়েছে। একই শিশুর অন্য অভিভাবকের সারি ছাড়া কোনো সারিতে একই ব্যবহারকারীর নাম দেওয়া যায় না।`));
+      }
+    }
+    if (!rowErrors.length) {
+      // The same name under another parent: one child with two parents shares a username; different children each have their own.
+      const other = (named.get(nameKey(studentName)) ?? []).find((row) => row.parentEmail !== parentEmail && (!row.username || !username));
+      if (other) {
+        rowErrors.push(issue(record.line,
+          `${quote(studentName)} is also listed on line ${other.line} with another parent's e-mail. If this is one child with two parents, write the same username in the "student username" column on both rows, so the child gets one account. If they are different children, give each row its own username.`,
+          `${quote(studentName)} লাইন ${bnNumber(other.line)}-এ অন্য একজন অভিভাবকের ইমেইলের সঙ্গেও আছে। একই শিশুর দুজন অভিভাবক হলে দুই সারিতেই "student username" কলামে একই ব্যবহারকারীর নাম লিখুন, যাতে শিশুটির একটিই অ্যাকাউন্ট হয়। আলাদা শিশু হলে প্রতিটি সারিতে আলাদা ব্যবহারকারীর নাম দিন।`));
       }
     }
 
     if (rowErrors.length) errors.push(...rowErrors);
-    else rows.push({ line: record.line, studentName, parentName, parentEmail, ...(checked.username ? { username: checked.username } : {}) });
+    else {
+      const row: FamilyImportRow = { line: record.line, studentName, parentName, parentEmail, ...(username ? { username } : {}) };
+      rows.push(row);
+      named.set(nameKey(studentName), [...(named.get(nameKey(studentName)) ?? []), row]);
+    }
   }
   return { rows, errors };
 }
@@ -132,12 +165,12 @@ export function groupFamilies(rows: FamilySheetRow[]): FamilyGroup[] {
   return [...groups.values()];
 }
 
-/** The family sign-in sheet as CSV (one row per student), with the formula guard. Headers follow the page language. */
+/** The family sign-in sheet as CSV (one row per student and parent), with the formula guard. Headers follow the page language. */
 export function familySheetCsv(rows: FamilySheetRow[], language: "en" | "bn" = "en"): string {
   const bn = language === "bn";
   const header = bn
     ? ["শিক্ষার্থীর নাম", "শিক্ষার্থীর ব্যবহারকারীর নাম", "শিক্ষার্থীর অস্থায়ী পাসওয়ার্ড", "অভিভাবকের নাম", "অভিভাবকের ইমেইল", "অভিভাবকের অস্থায়ী পাসওয়ার্ড"]
     : ["Student name", "Student username", "Student temporary password", "Parent name", "Parent email", "Parent temporary password"];
   const existing = bn ? "আগের অ্যাকাউন্ট, পাসওয়ার্ড বদলায়নি" : "Existing account, password unchanged";
-  return csvRows([header, ...rows.map((row) => [row.studentName, row.username, row.temporaryPassword, row.parentName, row.parentEmail, row.parentTemporaryPassword ?? existing])]);
+  return csvRows([header, ...rows.map((row) => [row.studentName, row.username, row.temporaryPassword ?? existing, row.parentName, row.parentEmail, row.parentTemporaryPassword ?? existing])]);
 }

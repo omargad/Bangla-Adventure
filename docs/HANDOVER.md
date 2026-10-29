@@ -66,8 +66,12 @@ the same way (never their own). Staff find approved students by name or username
 and tick them to allocate them, without class codes; admins link approved parents
 to approved student accounts for read-only access. **Import families (CSV)** on the
 Users page takes one file of student name, parent name and parent e-mail: it creates
-the students and any new parents, links them (siblings share one parent), can
-allocate a class, and shows one printable sign-in sheet per family. Password recovery uses saved recovery codes, not email-reset
+the students and any new parents, links them (siblings share one parent; a child
+with two parents shares one username across both rows), can allocate a class, and
+shows a printable sign-in sheet with one page per family. A student username that
+already exists links that student instead, and a name that already has a student
+account is refused unless the administrator confirms it is a different child, so a
+repeated upload never creates second accounts. Password recovery uses saved recovery codes, not email-reset
 messages. Demonstrate the flow and transfer recovery material privately.
 
 ## Verification evidence

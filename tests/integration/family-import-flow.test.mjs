@@ -151,7 +151,38 @@ test("rows whose parent e-mail cannot be used are refused with their lines and n
   assert.match(body.errors[2].message, /named "existing parent", not "Somebody Else"/);
   assert.match(body.errors[3].message, /not a valid e-mail/);
   assert.ok(body.errors.every((error) => /[ঀ-৿]/.test(error.messageBn)));
+
+  // Uploading a family again never gives the child a second account.
+  const again = await importFamilies({ csv: 'student,parent,email\n"Islam, Nadia",Existing Parent,existing-parent@example.com\n' });
+  assert.equal(again.status, 400);
+  const repeated = (await again.json()).errors;
+  assert.deepEqual(repeated.map((error) => error.line), [2]);
+  assert.match(repeated[0].message, /^"Islam, Nadia" is already linked to this parent as /);
   assert.deepEqual(totals(), before, "all or nothing");
+});
+
+test("a child with an account of their own is linked by username, never given a second account", async () => {
+  assert.equal((await send("/api/student/sign-up", "POST", { username: "rafi.self", displayName: "Rafi Hasan", password }, undefined, device("rafi"))).status, 201);
+  fixture((db) => db.prepare("UPDATE students SET approval_status = 'approved' WHERE username = 'rafi.self'").run());
+  const before = totals();
+  const refused = await importFamilies({ csv: "student name,parent name,parent email\nRafi Hasan,Rupa Hasan,rupa@example.com\n" });
+  assert.equal(refused.status, 400);
+  const body = await refused.json();
+  assert.equal(body.sameNames, true, "the page offers to confirm a different child");
+  assert.match(body.errors[0].message, /^A student named "Rafi Hasan" already has an account \(rafi\.self\)\. To link them to this parent, write their username/);
+  assert.deepEqual(totals(), before);
+
+  const linked = await importFamilies({ csv: "student name,parent name,parent email,student username\nRafi Hasan,Rupa Hasan,rupa@example.com,rafi.self\n", classId });
+  assert.equal(linked.status, 201);
+  const [row] = (await linked.json()).families;
+  assert.deepEqual([row.username, row.temporaryPassword], ["rafi.self", null]);
+  assert.match(row.parentTemporaryPassword, temporaryPattern);
+  assert.deepEqual(totals(), { ...before, adults: before.adults + 1, parent_student_links: before.parent_student_links + 1, student_class_enrollments: before.student_class_enrollments + 1 });
+  assert.equal((await send("/api/student/sign-in", "POST", { username: "rafi.self", password }, undefined, device("rafi-again"))).status, 200, "the child keeps their own password");
+
+  const different = await importFamilies({ csv: "student name,parent name,parent email\nRafi Hasan,Other Hasan,other.hasan@example.com\n", createSameNames: true });
+  assert.equal(different.status, 201, "a different child with the same name, once confirmed");
+  assert.notEqual((await different.json()).families[0].username, "rafi.self");
 });
 
 test("only administrators may import families", async () => {

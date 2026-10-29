@@ -30,6 +30,11 @@ async function temporaryPassword(admin: Page, heading: RegExp) {
   await expect(sheet).toBeVisible();
   const value = await sheet.locator(".credential-sheet dd code").nth(1).innerText();
   expect(value).toMatch(/^[a-z2-9]{4}-[a-z2-9]{4}-[a-z2-9]{2}$/);
+  // Printing shows the sign-in details and hides the rest of the page.
+  await admin.emulateMedia({ media: "print" });
+  await expect(admin.locator(".credential-sheet dd code").nth(1)).toBeVisible();
+  await expect(admin.getByRole("button", { name: "Print sign-in details" })).toBeHidden();
+  await admin.emulateMedia({ media: "screen" });
   return value;
 }
 

@@ -147,6 +147,24 @@ test("a name-only row whose name already has an account needs confirmation befor
   assert.deepEqual(confirmed.existing, []);
 });
 
+test("a row whose username matches no account but whose name does is refused as a likely typo", async () => {
+  db.insert(students).values({ id: "laila", username: "laila.h2522", displayName: "Laila Hossain", passwordHash: "fixture" }).run();
+  const before = counts();
+  const refused = await importStudents("teacher", "class", "name,username\nLaila Hossain,laila.h2521\nUnrelated Pupil,unrelated.pupil\n");
+  assert.equal(refused.sameNames, true);
+  assert.deepEqual(refused.errors.map((error) => [error.line, error.message]), [[2,
+    'No student has the username "laila.h2521", but a student named "Laila Hossain" already has an account (laila.h2522). To add them, check the username and upload again. If this is a different child, tick "Create new accounts for matching names too" and upload again.']]);
+  assert.match(refused.errors[0].messageBn, /"laila\.h2521" ব্যবহারকারীর নামে কোনো শিক্ষার্থী নেই/);
+  assert.deepEqual(counts(), before, "no second account for Laila");
+  assert.deepEqual(enrolled("laila"), []);
+
+  const fixed = await importStudents("teacher", "class", "name,username\nLaila Hossain,laila.h2522\n");
+  assert.deepEqual(fixed, { created: [], existing: [{ displayName: "Laila Hossain", username: "laila.h2522", alreadyInClass: false }] });
+
+  const confirmed = await importStudents("teacher", "class", "name,username\nLaila Hossain,laila.h2521\n", { createSameNames: true });
+  assert.deepEqual(confirmed.created.map((row) => [row.displayName, row.username]), [["Laila Hossain", "laila.h2521"]], "a different child with the same name, once confirmed");
+});
+
 test("an existing student suspended while passwords are hashed rolls the whole upload back", async () => {
   db.insert(students).values({ id: "late", username: "late.kid", displayName: "Late Kid", passwordHash: "fixture" }).run();
   const before = counts();

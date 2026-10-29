@@ -37,7 +37,8 @@ test("teacher uploads a CSV and a provisioned student replaces the temporary pas
   await expect(errors).toContainText("Line 4:");
   await expect(page.locator(".family-link-list li")).toHaveCount(0);
 
-  await file.setInputFiles({ name: "students.csv", mimeType: "text/csv", buffer: Buffer.from(`﻿name,username\r\n"Hossain, Nadia",${username}\r\nMaya Rahman,\r\n`) });
+  // Unique names: an upload refuses a second account for a name that already has one, and retries share the database.
+  await file.setInputFiles({ name: "students.csv", mimeType: "text/csv", buffer: Buffer.from(`﻿name,username\r\n"Hossain, Nadia ${suffix}",${username}\r\nMaya Rahman ${suffix},\r\n`) });
   await panel.getByRole("button", { name: "Upload and create accounts" }).click();
   await expect(panel.getByRole("status")).toHaveText("2 student accounts created and added to this class.");
   const row = panel.getByRole("row").filter({ hasText: username });
@@ -48,7 +49,13 @@ test("teacher uploads a CSV and a provisioned student replaces the temporary pas
   const [download] = await Promise.all([page.waitForEvent("download"), panel.getByRole("button", { name: "Download sign-in sheet" }).click()]);
   expect(download.suggestedFilename()).toBe("student-sign-in-sheet.csv");
   const sheet = await readFile(await download.path(), "utf8");
-  expect(sheet).toContain(`"Hossain, Nadia","${username}","${temporaryPassword}"`);
+  expect(sheet).toContain(`"Hossain, Nadia ${suffix}","${username}","${temporaryPassword}"`);
+
+  // Printing shows the sheet and hides the rest of the page.
+  await page.emulateMedia({ media: "print" });
+  await expect(page.locator(".student-import-sheet").getByRole("row").filter({ hasText: username })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Print sign-in sheet" })).toBeHidden();
+  await page.emulateMedia({ media: "screen" });
 
   // The passwords exist only on screen: other sections keep them, and leaving the class asks first.
   const prompts: string[] = [];

@@ -59,6 +59,15 @@ test("an administrator imports a family CSV and gets a printable sign-in sheet p
   const mayaPassword = await mayaRow.locator("code").nth(1).innerText();
   await expect(panel.getByRole("region", { name: `Family of Karim ${suffix}` })).toContainText(`Nadia ${suffix}`);
 
+  // Printed, only the sheet shows and every family gets a titled page of its own, so a page handed out shows one family only.
+  await page.emulateMedia({ media: "print" });
+  const groups = page.locator(".family-sheet .family-sheet-group");
+  expect(await groups.evaluateAll((items) => items.map((item) => getComputedStyle(item).breakAfter))).toEqual(["page", "auto"]);
+  await expect(groups.first().locator(".family-sheet-print-title")).toBeVisible();
+  await expect(groups.first().getByRole("row").filter({ hasText: `Maya ${suffix}` })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Print sign-in sheet" })).toBeHidden();
+  await page.emulateMedia({ media: "screen" });
+
   const [download] = await Promise.all([page.waitForEvent("download"), panel.getByRole("button", { name: "Download sign-in sheet" }).click()]);
   expect(download.suggestedFilename()).toBe("family-sign-in-sheet.csv");
   const sheet = await readFile(await download.path(), "utf8");

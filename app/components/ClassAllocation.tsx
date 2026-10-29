@@ -5,6 +5,7 @@ import StudentImport from "./StudentImport";
 
 type Allocation = { studentId: string; username: string; displayName: string; active: boolean };
 type Candidate = { id: string; username: string; displayName: string };
+const searchFailed: [string, string] = ["Students could not be loaded.", "শিক্ষার্থীদের লোড করা যায়নি।"];
 
 /**
  * A class's Students section: search every active, approved student by name or username, tick
@@ -17,6 +18,8 @@ export default function ClassAllocation({ classId, language = "en", onChange, on
   const [query, setQuery] = useState("");
   const [available, setAvailable] = useState<{ students: Candidate[]; more: boolean } | null>(null);
   const [searching, setSearching] = useState(false);
+  // Kept apart from `error` so a later successful search clears it without hiding a failed save.
+  const [searchError, setSearchError] = useState("");
   // Ticked students, kept while the teacher searches for more.
   const [selected, setSelected] = useState<Map<string, Candidate>>(new Map());
   const [refresh, setRefresh] = useState(0);
@@ -39,9 +42,9 @@ export default function ClassAllocation({ classId, language = "en", onChange, on
       try {
         const response = await fetch(`/api/classes/${classId}/students?${new URLSearchParams({ available: "1", q: query.trim() })}`, { cache: "no-store", signal: controller.signal });
         const data = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(localMessage(data, language, ["Students could not be loaded.", "শিক্ষার্থীদের লোড করা যায়নি।"]));
-        setAvailable({ students: data.students, more: data.more });
-      } catch (error) { if (!controller.signal.aborted) setError((error as Error).message); }
+        if (!response.ok) throw new Error(localMessage(data, language, searchFailed));
+        setAvailable({ students: data.students, more: data.more }); setSearchError("");
+      } catch (error) { if (!controller.signal.aborted) setSearchError(error instanceof Error && error.name !== "TypeError" ? error.message : localMessage(null, language, searchFailed)); }
       finally { if (!controller.signal.aborted) setSearching(false); }
     }, query ? 250 : 0);
     return () => { clearTimeout(timer); controller.abort(); };
@@ -93,10 +96,11 @@ export default function ClassAllocation({ classId, language = "en", onChange, on
         <button type="button" className="primary-button" disabled={busy || !selected.size} onClick={() => void addSelected()}>{busy ? s("Adding…", "যোগ হচ্ছে…") : s(`Add selected (${selected.size})`, `বাছাই করাদের যোগ করুন (${number(selected.size)})`)}</button>
       </div>
       {available === null ? <p role="status">{s("Loading students…", "শিক্ষার্থী লোড হচ্ছে…")}</p>
-        : shown.length === 0 ? <p className="teach-empty">{query.trim() ? s("No student who can be added matches this search. Only approved, active students who are not in this class are listed.", "এই খোঁজে যোগ করার মতো কোনো শিক্ষার্থী নেই। শুধু অনুমোদিত, সক্রিয় এবং এই ক্লাসের বাইরের শিক্ষার্থীদের দেখানো হয়।") : s("Every approved student is already in this class.", "সব অনুমোদিত শিক্ষার্থী আগেই এই ক্লাসে আছে।")}</p>
+        : shown.length === 0 ? <p className="teach-empty">{query.trim() ? s("No student who can be added matches this search. Only approved, active students who are not in this class are listed.", "এই খোঁজে যোগ করার মতো কোনো শিক্ষার্থী নেই। শুধু অনুমোদিত, সক্রিয় এবং এই ক্লাসের বাইরের শিক্ষার্থীদের দেখানো হয়।") : s("No students can be added right now. Only approved, active students who are not in this class are listed.", "এখন যোগ করার মতো কোনো শিক্ষার্থী নেই। শুধু অনুমোদিত, সক্রিয় এবং এই ক্লাসের বাইরের শিক্ষার্থীদের দেখানো হয়।")}</p>
         : <ul className="allocation-choices" aria-label={s("Students you can add", "যাদের যোগ করা যায়")} aria-busy={searching}>{shown.map((student) => <li key={student.id}>
           <label><input type="checkbox" checked={selected.has(student.id)} disabled={busy} onChange={(event) => toggle(student, event.target.checked)} /><span><strong>{student.displayName}</strong> <small>{student.username}</small></span></label>
         </li>)}</ul>}
+      {searchError && <p role="alert" className="auth-error">{searchError}</p>}
       {available?.more && <p className="allocation-more">{s(`Showing the first ${shown.length} students. Type part of a name or username to find others.`, `প্রথম ${number(shown.length)} জন দেখানো হচ্ছে। অন্যদের খুঁজতে নাম বা ব্যবহারকারীর নামের অংশ লিখুন।`)}</p>}
     </div>
     {error && <p role="alert" className="auth-error">{error}</p>}{message && <p role="status" className="teach-message">{message}</p>}

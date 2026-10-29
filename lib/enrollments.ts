@@ -14,7 +14,8 @@ function authorize(tx: Tx, actorId: string, classId: string) {
   const classroom = tx.select().from(classes).where(eq(classes.id, classId)).get();
   if (!classroom || (actor.role !== "admin" && classroom.teacherId !== actor.id)) throw new UserManagementError("Class not found.", 404, "ক্লাসটি পাওয়া যায়নি।");
 }
-const addable = and(eq(students.status, "active"), eq(students.approvalStatus, "approved"))!;
+/** Students a class, or a family, can take in: active and approved. */
+export const addable = and(eq(students.status, "active"), eq(students.approvalStatus, "approved"))!;
 export async function roster(actorId: string, classId: string) {
   const db = await getDb();
   return db.transaction((tx) => {
@@ -129,7 +130,7 @@ type Account = { id: string; username: string; displayName: string; status: stri
 type PlannedRow = { account: Account } | { displayName: string; username: string };
 
 /** "a, b, c and 2 more" in English and Bangla, for listing the usernames that share a name. */
-function usernameList(usernames: string[]): [string, string] {
+export function usernameList(usernames: string[]): [string, string] {
   const shown = usernames.slice(0, 3).join(", ");
   const more = usernames.length - 3;
   return more > 0 ? [`${shown} and ${more} more`, `${shown} এবং আরও ${bnNumber(more)} জন`] : [shown, shown];
@@ -138,8 +139,9 @@ function usernameList(usernames: string[]): [string, string] {
 /**
  * Put every row of a teacher's CSV in the class. A row whose username belongs to an active, approved
  * student (with the same name) allocates that student; other rows create a student account, roster row
- * and enrollment. A name-only row whose name already has an account is refused unless `createSameNames`,
- * so a list of existing students does not silently create second accounts.
+ * and enrollment. A row that would create an account (no username, or a username no account has, often
+ * a mistyped one) for a name that already has an account is refused unless `createSameNames`, so a list
+ * of existing students does not silently create second accounts.
  * All or nothing: any invalid row creates nothing and returns every row error.
  * Temporary passwords are returned once and only their hashes are stored.
  */
@@ -151,10 +153,11 @@ export async function importStudents(actorId: string, classId: string, csv: stri
     const requested = parsed.rows.flatMap((row) => row.username ? [row.username] : []);
     const accounts = new Map<string, Account>(requested.length ? tx.select({ id: students.id, username: students.username, displayName: students.displayName, status: students.status, approvalStatus: students.approvalStatus })
       .from(students).where(inArray(students.username, requested)).all().map((account) => [account.username, account]) : []);
-    // Students who already have an account under the name of a name-only row, by name.
+    // Students who already have an account under the name of a row that would create one, by name.
+    const creating = parsed.rows.filter((row) => !row.username || !accounts.has(row.username));
     const namesakes = new Map<string, string[]>();
-    if (!options.createSameNames && parsed.rows.some((row) => !row.username)) {
-      const wanted = new Set(parsed.rows.filter((row) => !row.username).map((row) => nameKey(row.displayName)));
+    if (!options.createSameNames && creating.length) {
+      const wanted = new Set(creating.map((row) => nameKey(row.displayName)));
       for (const student of tx.select({ username: students.username, displayName: students.displayName }).from(students).where(addable).orderBy(students.username).all()) {
         const key = nameKey(student.displayName);
         if (wanted.has(key)) namesakes.set(key, [...(namesakes.get(key) ?? []), student.username]);
@@ -164,7 +167,7 @@ export async function importStudents(actorId: string, classId: string, csv: stri
     let sameNames = false;
     for (const row of parsed.rows) {
       const account = row.username ? accounts.get(row.username) : undefined;
-      const namesake = row.username ? undefined : namesakes.get(nameKey(row.displayName));
+      const namesake = account ? undefined : namesakes.get(nameKey(row.displayName));
       if (account && (account.status !== "active" || account.approvalStatus !== "approved")) {
         errors.push({ line: row.line, message: `The username "${row.username}" is already taken. Choose another or leave it blank to generate one.`, messageBn: `ব্যবহারকারীর নাম "${row.username}" আগেই নেওয়া হয়েছে। অন্য একটি দিন, অথবা ফাঁকা রাখুন—নাম থেকে তৈরি হবে।` });
       } else if (account && !sameName(account.displayName, row.displayName)) {
@@ -174,7 +177,9 @@ export async function importStudents(actorId: string, classId: string, csv: stri
       } else if (namesake) {
         const [list, listBn] = usernameList(namesake);
         sameNames = true;
-        errors.push({ line: row.line,
+        errors.push(row.username ? { line: row.line,
+          message: `No student has the username "${row.username}", but a student named ${quote(row.displayName)} already has an account (${list}). To add them, check the username and upload again. If this is a different child, tick "Create new accounts for matching names too" and upload again.`,
+          messageBn: `"${row.username}" ব্যবহারকারীর নামে কোনো শিক্ষার্থী নেই, তবে ${quote(row.displayName)} নামে একজন শিক্ষার্থীর আগেই অ্যাকাউন্ট আছে (${listBn})। তাকে যোগ করতে ব্যবহারকারীর নামটি মিলিয়ে দেখে আবার আপলোড করুন। এটি অন্য কোনো শিশু হলে "মিলে যাওয়া নামের জন্যও নতুন অ্যাকাউন্ট তৈরি করুন" টিক দিয়ে আবার আপলোড করুন।` } : { line: row.line,
           message: `A student named ${quote(row.displayName)} already has an account (${list}). To add them, write their username in the "username" column. If this is a different child, tick "Create new accounts for matching names too" and upload again.`,
           messageBn: `${quote(row.displayName)} নামে একজন শিক্ষার্থীর আগেই অ্যাকাউন্ট আছে (${listBn})। তাকে যোগ করতে "username" কলামে তার ব্যবহারকারীর নাম লিখুন। এটি অন্য কোনো শিশু হলে "মিলে যাওয়া নামের জন্যও নতুন অ্যাকাউন্ট তৈরি করুন" টিক দিয়ে আবার আপলোড করুন।` });
       }

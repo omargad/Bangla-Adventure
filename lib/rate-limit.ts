@@ -45,7 +45,7 @@ export function clientKey(request: Request): string {
 
 export function tooManyRequests(retryAfterSeconds: number): Response {
   return Response.json(
-    { error: "Too many attempts. Please wait a moment and try again." },
+    { error: "Too many attempts. Please wait a moment and try again.", errorBn: "অনেকবার চেষ্টা করা হয়েছে। একটু অপেক্ষা করে আবার চেষ্টা করুন।" },
     { status: 429, headers: { "Retry-After": String(retryAfterSeconds) } },
   );
 }
