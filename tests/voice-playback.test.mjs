@@ -4,7 +4,7 @@ import { readdirSync, readFileSync } from "node:fs";
 
 const playback = await import("../lib/voice-playback.ts");
 const { lessons } = await import("../app/curriculum.ts");
-const { bundledClip, lessonClip, playbackPlan, deviceVoiceFor, voiceLabel, noVoiceNote, voiceStatusText, isNeuralClip } = playback;
+const { bundledClip, lessonClip, playbackPlan, deviceVoiceFor, voiceLabel, noVoiceNote, voiceStatusText, isNeuralClip, lessonRecordingsUrl, withLessonRecordings } = playback;
 
 const english = [{ lang: "en-US", name: "English (US)" }, { lang: "en-GB", name: "English (UK)" }];
 const banglaIndia = { lang: "bn-IN", name: "Bangla (India)" };
@@ -21,9 +21,24 @@ test("an approved human recording plays first, then the device's Bangla voice, t
   assert.deepEqual(sources(steps), ["human", "device", "computer"]);
   assert.equal(steps[0].url, "/api/audio/hello-me/word-1?v=rec-1", "word recordings go through /api/audio, versioned by the recording");
   assert.equal(steps[1].voice, banglaBangladesh);
-  assert.equal(steps[2].url, "/audio/lesson-hello-me-word-1.ogg", "behind a known recording, the bundled clip comes straight from public/audio");
+  assert.equal(steps[2].url, "/audio/lesson-hello-me-word-1.ogg", "the bundled clip comes straight from public/audio");
   const plain = playbackPlan({ lang: "bn-BD", voices: [], clip: lessonClip("hello-me", "word-1"), files: espeakFiles });
-  assert.deepEqual(plain, [{ source: "computer", url: "/api/audio/hello-me/word-1" }], "without one, it goes through /api/audio, which serves a newly approved recording");
+  assert.deepEqual(plain, [{ source: "computer", url: "/audio/lesson-hello-me-word-1.ogg" }], "without a known recording, the computer voice step can only play the bundled clip, so its label is true");
+  const neural = playbackPlan({ lang: "bn-BD", voices: [], clip: lessonClip("hello-me", "word-1"), files: neuralFiles });
+  assert.deepEqual(neural, [{ source: "provider", url: "/audio/lesson-hello-me-word-1.ogg" }]);
+});
+
+test("a page learns of recordings approved or retired after it loaded, one lesson at a time", () => {
+  assert.equal(lessonRecordingsUrl("hello-me"), "/api/audio/hello-me");
+  const known = { "hello-me/dialogue": "old", "hello-me/word-1": "retired-since", "my-day/word-2": "rec-2" };
+  const next = withLessonRecordings(known, "hello-me", { "hello-me/dialogue": "new", "hello-me/pattern-1": "rec-3" });
+  assert.deepEqual(next, { "my-day/word-2": "rec-2", "hello-me/dialogue": "new", "hello-me/pattern-1": "rec-3" });
+  assert.deepEqual(sources(playbackPlan({ lang: "bn-BD", voices: [], clip: lessonClip("hello-me", "word-1"), recordings: next, files: espeakFiles })), ["computer"]);
+  assert.equal(playbackPlan({ lang: "bn-BD", voices: [], clip: lessonClip("hello-me", "pattern-1"), recordings: next, files: espeakFiles })[0].url, "/api/audio/hello-me/pattern-1?v=rec-3");
+  // Another lesson's entries and odd slots in the answer are ignored; an unchanged answer keeps the same object.
+  assert.deepEqual(withLessonRecordings(known, "my-day", { "hello-me/dialogue": "sneaky", "my-day/word-9": "odd", "my-day/word-2": "rec-2" }), known);
+  assert.equal(withLessonRecordings(known, "my-day", { "my-day/word-2": "rec-2" }), known);
+  assert.deepEqual(withLessonRecordings(known, "hello-me", {}), { "my-day/word-2": "rec-2" });
 });
 
 test("a neural provider's clip plays before the device voice; an eSpeak clip only after it", () => {
@@ -49,7 +64,7 @@ test("Bangla is never read by an English voice: the bundled clip plays, or nothi
 
 test("a recording for another lesson part does not apply", () => {
   const steps = playbackPlan({ lang: "bn-BD", voices: [], clip: lessonClip("hello-me", "word-2"), recordings: { "hello-me/word-1": "rec-1", "my-day/word-2": "rec-2" }, files: espeakFiles });
-  assert.deepEqual(steps, [{ source: "computer", url: "/api/audio/hello-me/word-2" }]);
+  assert.deepEqual(steps, [{ source: "computer", url: "/audio/lesson-hello-me-word-2.ogg" }]);
 });
 
 test("the device voice is a bn-BD voice when there is one, then bn-IN, then any Bangla voice", () => {

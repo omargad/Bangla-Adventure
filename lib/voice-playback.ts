@@ -64,15 +64,31 @@ export function deviceVoiceFor<V extends VoiceLike>(voices: readonly V[], lang: 
 }
 
 const lessonAudioUrl = (clip: Clip) => `/api/audio/${encodeURIComponent(clip.lessonId!)}/${encodeURIComponent(clip.slot!)}`;
+/**
+ * The bundled clip always comes straight from public/audio, so its label is
+ * true: a recording only ever plays as the human step, asked for by id. Pages
+ * learn of a recording approved after they loaded from lessonRecordingsUrl.
+ */
+const bundledUrl = (clip: Clip) => `/audio/${clip.file}.ogg`;
+
+/** Where a learner page asks which parts of one lesson have an approved human recording now. */
+export const lessonRecordingsUrl = (lessonId: string) => `/api/audio/${encodeURIComponent(lessonId)}`;
 
 /**
- * Where the bundled clip is fetched from. Lesson parts go through /api/audio,
- * which serves a recording a teacher approved after this page loaded; once the
- * page knows of a recording, the bundled clip is its fallback and comes
- * straight from public/audio.
+ * The recordings a page knows, with one lesson's entries replaced by what the
+ * server says now: a newly approved recording is added and one a teacher
+ * stopped using is dropped. Returns `current` itself when nothing changed.
  */
-function bundledUrl(clip: Clip, recordingId?: string): string {
-  return clip.lessonId && clip.slot && !recordingId ? lessonAudioUrl(clip) : `/audio/${clip.file}.ogg`;
+export function withLessonRecordings(current: RecordingMap, lessonId: string, fresh: RecordingMap): RecordingMap {
+  const prefix = `${lessonId}/`;
+  const next: RecordingMap = {};
+  for (const [key, id] of Object.entries(current)) if (!key.startsWith(prefix)) next[key] = id;
+  for (const [key, id] of Object.entries(fresh)) {
+    if (key.startsWith(prefix) && LESSON_AUDIO_SLOT.test(key.slice(prefix.length)) && typeof id === "string") next[key] = id;
+  }
+  const keys = Object.keys(next);
+  const same = keys.length === Object.keys(current).length && keys.every((key) => current[key] === next[key]);
+  return same ? current : next;
 }
 
 /**
@@ -93,11 +109,11 @@ export function playbackPlan<V extends VoiceLike>({ lang, voices, clip, recordin
   if (clip && recordingId) steps.push({ source: "human", url: `${lessonAudioUrl(clip)}?v=${encodeURIComponent(recordingId)}` });
   const bundled = clip ? bundledVoice(clip.file, files) : null;
   const neural = Boolean(clip && bundled && NEURAL_PROVIDERS.has(bundled.provider));
-  if (clip && neural) steps.push({ source: "provider", url: bundledUrl(clip, recordingId) });
+  if (clip && neural) steps.push({ source: "provider", url: bundledUrl(clip) });
   const voice = deviceVoiceFor(voices, lang);
   if (voice) steps.push({ source: "device", voice });
   // A clip missing from the manifest was made before it existed, which means with eSpeak.
-  if (clip && !neural) steps.push({ source: "computer", url: bundledUrl(clip, recordingId) });
+  if (clip && !neural) steps.push({ source: "computer", url: bundledUrl(clip) });
   return steps;
 }
 

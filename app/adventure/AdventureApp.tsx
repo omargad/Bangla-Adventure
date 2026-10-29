@@ -11,6 +11,7 @@ import FourSkillDiagnostic from "../components/FourSkillDiagnostic";
 import VoiceNote from "../components/VoiceNote";
 import { bundledClip, lessonClip, playbackPlan, voiceStatusText, type Clip, type RecordingMap, type VoiceStatus } from "../../lib/voice-playback";
 import { deviceVoices, runPlayback, stopPlayback } from "../../lib/voice-player";
+import { useLessonRecordings } from "../../lib/use-voice-player";
 
 type Language = "en" | "bn";
 type LessonStep = "start" | "learn" | "practice" | "watch" | "check";
@@ -436,10 +437,10 @@ type AmbienceNodes = {
 /**
  * The learner adventure page. The server passes the lessons a teacher has
  * approved (learners never see withdrawn ones), the replacement for any video a
- * teacher took down, the approved human recordings, and the lesson a ?module=
- * link asks for when it may open.
+ * teacher took down, the approved human recordings (asked for again whenever a
+ * lesson opens), and the lesson a ?module= link asks for when it may open.
  */
-export default function AdventureApp({ approvedLessonIds, videos, recordings, initialModuleId, moduleUnavailable }: {
+export default function AdventureApp({ approvedLessonIds, videos, recordings: initialRecordings, initialModuleId, moduleUnavailable }: {
   approvedLessonIds: string[];
   videos: Record<string, LearnerVideo | null>;
   recordings: RecordingMap;
@@ -448,6 +449,7 @@ export default function AdventureApp({ approvedLessonIds, videos, recordings, in
 }) {
   const lessons = useMemo(() => visibleLessons(allLessons, approvedLessonIds), [approvedLessonIds]);
   const videoFor = (lesson: Lesson): LearnerVideo | null => (lesson.id in videos ? videos[lesson.id] : lesson.video);
+  const { recordings, refresh: refreshRecordings } = useLessonRecordings(initialRecordings);
   const [language, setLanguage] = useState<Language>("en");
   const [stars, setStars] = useState(0);
   const [completed, setCompleted] = useState<string[]>([]);
@@ -974,6 +976,7 @@ export default function AdventureApp({ approvedLessonIds, videos, recordings, in
   function openLesson(id: string) {
     stopNarration();
     playCue("tap");
+    refreshRecordings(id);
     setLessonStep("start");
     setLessonQuizAnswers({});
     setLessonQuizSubmitted(false);

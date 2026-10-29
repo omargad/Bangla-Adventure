@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { playbackPlan, type Clip, type RecordingMap, type VoiceStatus } from "./voice-playback";
+import { lessonRecordingsUrl, playbackPlan, withLessonRecordings, type Clip, type RecordingMap, type VoiceStatus } from "./voice-playback";
 import { deviceVoices, runPlayback, stopPlayback } from "./voice-player";
 
 type SpeakOptions = { key?: string; lang?: string; clip?: Clip; rate?: number };
@@ -74,4 +74,24 @@ export function useVoicePlayer(recordings?: RecordingMap) {
   }, [recordings, show]);
 
   return { speak, stop, speakingKey, status, supported };
+}
+
+/**
+ * The approved human recordings a learner page knows, starting from the list
+ * the server rendered. `refresh(lessonId)` asks again (when a lesson opens), so
+ * a recording a teacher approved after the page loaded plays as a recording,
+ * and one a teacher stopped using is skipped, without a reload. Until the
+ * answer arrives, or if it fails, the page keeps what it knew.
+ */
+export function useLessonRecordings(initial: RecordingMap) {
+  const [recordings, setRecordings] = useState(initial);
+  const refresh = useCallback((lessonId: string) => {
+    void fetch(lessonRecordingsUrl(lessonId), { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() as Promise<{ recordings?: RecordingMap }> : null))
+      .then((body) => {
+        if (body?.recordings && typeof body.recordings === "object") setRecordings((current) => withLessonRecordings(current, lessonId, body.recordings!));
+      })
+      .catch(() => undefined);
+  }, []);
+  return { recordings, refresh };
 }

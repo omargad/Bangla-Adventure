@@ -10661,8 +10661,12 @@ body.modal-open .pwa-status {
   pointer-events: none;
 }
 
+/* Empty, the note shows nothing but stays in the accessibility tree, so screen readers announce its next text. */
 .voice-note:empty {
-  display: none;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .voice-note-warning {

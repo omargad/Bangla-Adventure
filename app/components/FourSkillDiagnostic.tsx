@@ -155,7 +155,7 @@ export default function FourSkillDiagnostic({ soundEnabled, onSpeak, onCue, onCh
                   <h4>{task.prompt}</h4>
                   {task.kind === "choice" ? (
                     <>
-                      {task.audio && <button type="button" className="diagnostic-audio-button" disabled={!soundEnabled} onClick={() => onSpeak(task.audio!, "bn-BD", task.audioClip ? bundledClip(task.audioClip) : undefined)}>♪ Play recording <small>Replay freely</small></button>}
+                      {task.audio && <button type="button" className="diagnostic-audio-button" disabled={!soundEnabled} onClick={() => onSpeak(task.audio!, "bn-BD", task.audioClip ? bundledClip(task.audioClip) : undefined)}>♪ Listen <span lang="bn">· শোনো</span> <small>Replay freely</small></button>}
                       {task.stimulus && <p className="diagnostic-stimulus" lang="bn">{task.stimulus}</p>}
                       <div className="diagnostic-options">
                         {task.options.map((option, optionIndex) => <button type="button" key={option} className={answers[task.id] === optionIndex ? "selected" : ""} aria-pressed={answers[task.id] === optionIndex} onClick={() => setAnswer(task.id, optionIndex)}><span>{String.fromCharCode(65 + optionIndex)}</span>{option}</button>)}

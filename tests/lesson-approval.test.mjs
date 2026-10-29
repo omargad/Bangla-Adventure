@@ -223,6 +223,23 @@ test("learner pages get the newest approved, consented recording of each lesson 
   assert.equal(await approval.approvedRecording("not-a-lesson", "dialogue"), null);
 });
 
+test("the Studio preview plays the recording learners hear, even when older data left two approved for one part", async () => {
+  // Before approval retired every uploader's track, two teachers could each have one approved for the same part.
+  const legacy = (id, ownerEmail, createdAt, updatedAt) => ({
+    id, ownerEmail, lessonId: "school-home", slot: "reading", objectKey: `human-audio/school-home/reading/${id}.ogg`, originalName: `${id}.ogg`,
+    contentType: "audio/ogg", byteSize: 10, speakerName: "Nadia", dialect: "Dhaka", consentConfirmed: true, reviewStatus: "approved", createdAt, updatedAt,
+  });
+  db.insert(mediaAssets).values([
+    legacy("uploaded-first-approved-last", "teacher@example.com", "2026-10-01 00:00:00", "2026-10-04T00:00:00.000Z"),
+    legacy("uploaded-last-approved-first", "colleague@example.com", "2026-10-02 00:00:00", "2026-10-03T00:00:00.000Z"),
+  ]).run();
+  const detail = await approval.lessonStudioDetail("school-home");
+  assert.equal(detail.recordings[0].id, "uploaded-last-approved-first", "the Studio list shows the newest upload first");
+  assert.deepEqual(detail.learnerRecordings, { "school-home/reading": "uploaded-first-approved-last" });
+  assert.deepEqual(detail.learnerRecordings, await approval.approvedRecordings(["school-home"]));
+  assert.equal((await approval.approvedRecording("school-home", "reading")).id, "uploaded-first-approved-last", "what /api/audio serves");
+});
+
 test("the newest video check from any teacher decides the video learners get", async () => {
   const check = (id, ownerEmail, status, suitabilityStatus, replacementUrl, updatedAt) => ({ id, ownerEmail, lessonId: "my-family", videoId: "uHTorwKsVFg", status, suitabilityStatus, replacementUrl, captionsStatus: "available", updatedAt });
   db.insert(videoReviews).values(check("first", "teacher@example.com", "approved", "suitable", "", "2026-10-01T00:00:00.000Z")).run();

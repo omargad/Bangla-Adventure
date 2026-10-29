@@ -66,11 +66,15 @@ stories pages) plays the best sound it has, in this order
 (`lib/voice-playback.ts`):
 
 1. an **approved human recording** of that lesson part (dialogue, reading, any
-   of the six words or two sentence patterns), served by `/api/audio`;
+   of the six words or two sentence patterns), served by `/api/audio`. A page
+   that is already open asks again which parts have one each time a lesson
+   opens (or, in word practice, a lesson's word comes up), so a newly approved
+   recording plays without a reload;
 2. a **neural provider clip**, when `public/audio/voice-manifest.json` says the
    bundled clip was made by a neural provider such as Azure;
 3. the **device's own Bangla voice** (bn-BD first, then bn-IN);
-4. the **bundled eSpeak clip** in `public/audio`;
+4. the **bundled eSpeak clip**, fetched straight from `public/audio` so the
+   "Computer voice" label is always true;
 5. nothing: the page shows "No Bangla voice on this device". Bangla text is
    never handed to a voice for another language.
 

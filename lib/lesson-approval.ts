@@ -109,19 +109,23 @@ export async function approvedRecording(lessonId: string, slot: string) {
   return approvedRecordingRows(await getDb(), lessonId, slot)[0] ?? null;
 }
 
-/**
- * Which parts of these lessons have an approved human recording, keyed
- * `${lessonId}/${slot}` with the recording id, so learner pages play it before
- * any computer or device voice.
- */
-export async function approvedRecordings(lessonIds: readonly string[]): Promise<RecordingMap> {
+function recordingMap(db: Reader, lessonIds: readonly string[]): RecordingMap {
   const wanted = new Set(lessonIds);
   const recordings: RecordingMap = {};
-  for (const asset of approvedRecordingRows(await getDb())) {
+  for (const asset of approvedRecordingRows(db, lessonIds.length === 1 ? lessonIds[0] : undefined)) {
     const key = `${asset.lessonId}/${asset.slot}`;
     if (wanted.has(asset.lessonId) && LESSON_AUDIO_SLOT.test(asset.slot) && !(key in recordings)) recordings[key] = asset.id;
   }
   return recordings;
+}
+
+/**
+ * Which parts of these lessons have an approved human recording, keyed
+ * `${lessonId}/${slot}` with the recording id, so learner pages play it before
+ * any computer or device voice. It is the same choice /api/audio makes.
+ */
+export async function approvedRecordings(lessonIds: readonly string[]): Promise<RecordingMap> {
+  return recordingMap(await getDb(), lessonIds);
 }
 
 /** Every lesson's shared state for the Studio list, with every staff member's recordings waiting for review. */
@@ -151,8 +155,9 @@ export async function lessonStudioList() {
 
 /**
  * One lesson for the Studio: its approval and history, every staff member's
- * recordings, the newest video check (and what learners get because of it) and
- * every optional specialist check.
+ * recordings (and the one learners hear for each part, chosen exactly as
+ * /api/audio chooses it), the newest video check (and what learners get
+ * because of it) and every optional specialist check.
  */
 export async function lessonStudioDetail(lessonId: string) {
   const lesson = lessonById.get(lessonId);
@@ -172,6 +177,7 @@ export async function lessonStudioDetail(lessonId: string) {
       consentConfirmed: asset.consentConfirmed, reviewStatus: asset.reviewStatus, notes: asset.notes, createdAt: asset.createdAt,
       uploaderName: account(asset.ownerEmail), reviewerName: name(asset.reviewedBy), reviewedAt: asset.reviewedAt,
     })),
+    learnerRecordings: recordingMap(db, [lessonId]),
     video: check ? {
       status: check.status, captionsStatus: check.captionsStatus, suitabilityStatus: check.suitabilityStatus, replacementUrl: check.replacementUrl,
       notes: check.notes, checkedAt: check.checkedAt ?? check.updatedAt, checkerName: account(check.ownerEmail),

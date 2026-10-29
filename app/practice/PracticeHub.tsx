@@ -7,7 +7,7 @@ import { lessons, type Lesson } from "../curriculum";
 import { visibleLessons } from "../../lib/lesson-model";
 import { isStrong, newCard, pickQueue, review, type CardState } from "../../lib/srs";
 import { lessonClip, type Clip, type RecordingMap } from "../../lib/voice-playback";
-import { useVoicePlayer } from "../../lib/use-voice-player";
+import { useLessonRecordings, useVoicePlayer } from "../../lib/use-voice-player";
 import VoiceNote from "../components/VoiceNote";
 
 type WordCard = {
@@ -44,7 +44,7 @@ function loadStates(): Record<string, CardState> {
   }
 }
 
-export default function PracticeHub({ approvedLessonIds, recordings }: { approvedLessonIds: string[]; recordings: RecordingMap }) {
+export default function PracticeHub({ approvedLessonIds, recordings: initialRecordings }: { approvedLessonIds: string[]; recordings: RecordingMap }) {
   const allCards = useMemo(() => cardsFor(visibleLessons(lessons, approvedLessonIds)), [approvedLessonIds]);
   const [language, toggleLanguage] = useLanguage();
   const s = (en: string, bn: string) => (language === "bn" ? bn : en);
@@ -53,6 +53,7 @@ export default function PracticeHub({ approvedLessonIds, recordings }: { approve
   const [flipped, setFlipped] = useState(false);
   const [done, setDone] = useState(0);
   const [knewCount, setKnewCount] = useState(0);
+  const { recordings, refresh: refreshRecordings } = useLessonRecordings(initialRecordings);
   const voice = useVoicePlayer(recordings);
 
   useEffect(() => {
@@ -76,6 +77,12 @@ export default function PracticeHub({ approvedLessonIds, recordings }: { approve
   }, [states]);
 
   const current = queue[0];
+  const currentLessonId = current?.clip.lessonId;
+
+  // Each lesson's recordings are asked for again when one of its words comes up, so a newly approved one plays.
+  useEffect(() => {
+    if (currentLessonId) refreshRecordings(currentLessonId);
+  }, [currentLessonId, refreshRecordings]);
 
   function answer(knewIt: boolean) {
     if (!current || !states) return;

@@ -113,6 +113,14 @@ test("word and pattern audio from /api/audio is the approved human recording, ah
   const practice = await send("/practice", "GET", undefined, studentCookie);
   assert.equal(practice.status, 200);
   assert.ok((await practice.text()).includes(wordId), "word practice knows the approved word recording");
+  // A page that loaded earlier asks again when the lesson opens.
+  const fresh = await send("/api/audio/hello-me", "GET", undefined, studentCookie);
+  assert.equal(fresh.status, 200);
+  assert.match(fresh.headers.get("cache-control"), /no-store/);
+  assert.deepEqual((await fresh.json()).recordings, { "hello-me/word-1": wordId, "hello-me/pattern-2": patternId });
+  assert.deepEqual((await (await send("/api/audio/my-day", "GET", undefined, studentCookie)).json()).recordings, {});
+  assert.equal((await send("/api/audio/not-a-lesson", "GET", undefined, studentCookie)).status, 404);
+  assert.equal((await send("/api/audio/hello-me")).status, 401, "recordings need a signed-in learner");
 
   // A recording waiting for review is not served to learners.
   const waitingForm = new FormData();
@@ -127,4 +135,10 @@ test("word and pattern audio from /api/audio is the approved human recording, ah
   assert.equal((await send("/api/audio/hello-me/word-1", "GET", undefined, studentCookie)).status, 307);
   assert.equal((await send(`/api/audio/hello-me/word-1?v=${wordId}`, "GET", undefined, studentCookie)).status, 404);
   assert.ok(!(await (await send("/adventure", "GET", undefined, studentCookie)).text()).includes(wordId));
+  assert.deepEqual((await (await send("/api/audio/hello-me", "GET", undefined, studentCookie)).json()).recordings, { "hello-me/pattern-2": patternId });
+
+  // A withdrawn lesson's recordings are for staff previewing it, not for learners.
+  assert.equal((await send("/api/studio/lessons/my-day", "POST", { decision: "withdraw", note: "Checking the audio" }, teacherCookie)).status, 200);
+  assert.equal((await send("/api/audio/my-day", "GET", undefined, studentCookie)).status, 404);
+  assert.equal((await send("/api/audio/my-day", "GET", undefined, teacherCookie)).status, 200);
 });
