@@ -30,7 +30,7 @@ const manifestFiles: Record<string, ManifestEntry | undefined> = (voiceManifest 
 /** Text-to-speech providers whose clips sound better than a device voice. eSpeak is not one. */
 export const NEURAL_PROVIDERS: ReadonlySet<string> = new Set(["azure", "elevenlabs"]);
 /** The name a label gives each neural provider's clips. */
-const PROVIDER_NAMES: ReadonlyMap<string, string> = new Map([["azure", "Microsoft Azure"], ["elevenlabs", "ElevenLabs"]]);
+const PROVIDER_NAMES: ReadonlyMap<string, string> = new Map([["azure", "Microsoft Azure"], ["elevenlabs", "ElevenLabs, elevenlabs.io"]]);
 export const LESSON_AUDIO_SLOT = /^(dialogue|reading|word-[1-6]|pattern-[1-2])$/;
 
 export const lessonClip = (lessonId: string, slot: string): Clip => ({ file: `lesson-${lessonId}-${slot}`, lessonId, slot });

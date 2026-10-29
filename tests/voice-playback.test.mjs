@@ -136,8 +136,8 @@ test("ElevenLabs clips play before the device voice and are labelled as a named 
 
   const status = playingStatus("provider", "bn-BD", bundledClip("story-1-bn"), elevenFiles);
   assert.deepEqual(status, { state: "playing", source: "provider", lang: "bn-BD", provider: "elevenlabs" });
-  assert.equal(voiceStatusText(status, "en"), "Neural computer voice (ElevenLabs): may mispronounce some words");
-  assert.equal(voiceStatusText(status, "bn"), "উন্নত কম্পিউটার কণ্ঠ (ElevenLabs): কিছু শব্দ ভুল উচ্চারণ হতে পারে");
+  assert.equal(voiceStatusText(status, "en"), "Neural computer voice (ElevenLabs, elevenlabs.io): may mispronounce some words");
+  assert.equal(voiceStatusText(status, "bn"), "উন্নত কম্পিউটার কণ্ঠ (ElevenLabs, elevenlabs.io): কিছু শব্দ ভুল উচ্চারণ হতে পারে");
   assert.equal(voiceLabel("provider", "en", "azure"), "Neural computer voice (Microsoft Azure): may mispronounce some words");
   for (const language of ["en", "bn"]) {
     for (const label of [voiceLabel("provider", language, "elevenlabs"), voiceLabel("provider", language, "azure")]) {

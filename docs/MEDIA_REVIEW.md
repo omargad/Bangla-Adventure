@@ -79,7 +79,8 @@ stories pages) plays the best sound it has, in this order
    never handed to a voice for another language.
 
 A small note says what is playing: "Recorded voice", "Neural computer voice
-(ElevenLabs): may mispronounce some words" (the provider named in the manifest),
+(ElevenLabs, elevenlabs.io): may mispronounce some words" (the provider named in the
+manifest; the elevenlabs.io credit is what ElevenLabs asks for on its free plan),
 "Device voice" or "Computer voice: may mispronounce names", in English or
 Bangla. No label says a computer clip was checked by a person. The dialogue is
 played without the speakers' names. The pages without lesson clips (alphabet,
@@ -174,8 +175,9 @@ are sent; no learner names, accounts or other personal data.
    else fails instead of being written (the app cannot play an MP3 in its
    place). `public/audio/voice-manifest.json` records `elevenlabs`, the voice id
    and the model for each clip, so learners hear these clips before the device
-   voice, labelled "Neural computer voice (ElevenLabs): may mispronounce some
-   words". To remake only some clips, name them (or the start of their names)
+   voice, labelled "Neural computer voice (ElevenLabs, elevenlabs.io): may
+   mispronounce some words". The free plan is for non-commercial use and asks
+   for this elevenlabs.io credit; the app and the safety page show it. To remake only some clips, name them (or the start of their names)
    with `--only`, for example
    `npm run audio:generate -- --provider elevenlabs --force --only lesson-hello-me,story-`.
    `--model eleven_v3` is the alternative; `eleven_multilingual_v2` does not

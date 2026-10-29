@@ -627,7 +627,7 @@ async function generate(options, { assets, fetch, sleep, synthesize, log = (line
     log(`would make ${clips(planned.clips)} with ${options.provider}, ${planned.characters} characters in all`);
     if (planned.bn.clips) log(`  ${clips(planned.bn.clips)} in Bangla, ${planned.bn.characters} characters (${describeMaker(options, "bn")})`);
     if (planned.en.clips) log(`  ${clips(planned.en.clips)} in English, ${planned.en.characters} characters (${describeMaker(options, "en")})`);
-    if (kept > 0) log(`would keep ${clips(kept)}${options.resume ? " already made this way" : " that exist; add --force to count them too"}`);
+    if (kept > 0) log(`would keep ${clips(kept)}${options.resume ? " already made this way" : (kept === 1 ? " that exists" : " that exist") + "; add --force to count them too"}`);
     return { generated: 0, kept, planned, manifest };
   }
 
