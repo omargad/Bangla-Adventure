@@ -28,7 +28,7 @@ export async function linkParent(actorId: string, studentId: string, parentEmail
   return db.transaction((tx) => {
     requireAdministrator(tx, actorId);
     const parent = tx.select({ id: adults.id }).from(adults)
-      .where(and(eq(adults.email, parentEmail.trim().toLowerCase()), eq(adults.role, "parent"), eq(adults.status, "active"))).get();
+      .where(and(eq(adults.email, parentEmail.trim().toLowerCase()), eq(adults.role, "parent"), eq(adults.status, "active"), eq(adults.approvalStatus, "approved"))).get();
     if (!parent) throw new UserManagementError("No active parent account matches that email.", 404);
     if (!tx.select({ id: students.id }).from(students).where(eq(students.id, studentId)).get()) throw new UserManagementError("Student not found.", 404);
     const link = tx.insert(parentStudentLinks).values({ id: crypto.randomUUID(), parentId: parent.id, studentId })

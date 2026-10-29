@@ -17,9 +17,11 @@ test("complete approved-teacher, allocated-student, curriculum and recovery work
   await page.context().setExtraHTTPHeaders({ "x-forwarded-for": `admin-${suffix}` });
   expect((await page.request.post("/api/auth/sign-up", { data: { email: adminEmail, displayName: "Workflow Administrator", password } })).status()).toBe(201);
   if (!process.env.BANGLA_E2E_DB?.includes("bangla-e2e-")) throw new Error("Isolated test database required.");
+  // Self sign-ups wait for an administrator: the first one is approved directly, as the server-side grant does.
   const fixture = new Database(process.env.BANGLA_E2E_DB);
-  fixture.prepare("UPDATE adults SET role = 'admin' WHERE email = ?").run(adminEmail);
+  fixture.prepare("UPDATE adults SET role = 'admin', approval_status = 'approved' WHERE email = ?").run(adminEmail);
   fixture.close();
+  expect((await page.request.post("/api/auth/sign-in", { data: { email: adminEmail, password } })).status()).toBe(200);
   const teacherContext = await browser.newContext({ baseURL, extraHTTPHeaders: { "x-forwarded-for": `teacher-${suffix}` } });
   const studentContext = await browser.newContext({ baseURL, extraHTTPHeaders: { "x-forwarded-for": `student-${suffix}` } });
   try {
@@ -34,8 +36,8 @@ test("complete approved-teacher, allocated-student, curriculum and recovery work
     await expect(codes).toHaveCount(8);
     const recoveryCode = await codes.first().innerText();
     await teacher.getByRole("button", { name: /saved them/ }).click();
-    await expect(teacher.getByRole("heading", { name: /teacher request is with us/ })).toBeVisible();
-    expect((await api(teacher, "/api/classes", { name: "Not approved" })).status).toBe(403);
+    await expect(teacher.getByRole("status").filter({ hasText: "waiting for an administrator to approve it" })).toBeVisible();
+    expect((await api(teacher, "/api/classes", { name: "Not approved" })).status).toBe(401);
 
     await page.goto("/admin");
     await page.getByLabel("Search users").fill(teacherEmail);
@@ -60,6 +62,9 @@ test("complete approved-teacher, allocated-student, curriculum and recovery work
 
     expect((await student.request.post("/api/student/sign-up", { data: { username, displayName: "Workflow Student", password } })).status()).toBe(201);
     await studentContext.clearCookies();
+    const approvals = new Database(process.env.BANGLA_E2E_DB);
+    approvals.prepare("UPDATE students SET approval_status = 'approved' WHERE username = ?").run(username);
+    approvals.close();
     await teacher.getByLabel("Student username", { exact: true }).fill("does-not-exist");
     await teacher.getByRole("button", { name: "Allocate student", exact: true }).click();
     await expect(teacher.locator(".auth-error[role=alert]")).toContainText("No active student");
@@ -176,7 +181,14 @@ test("learning pages, media and content bundles require a real session", async (
   const html = await (await page.request.get("/")).text();
   expect(html).not.toContain("Maya and the moonlit boat");
   await page.context().setExtraHTTPHeaders({ "x-forwarded-for": `gate-${randomUUID()}` });
-  expect((await page.request.post("/api/student/sign-up", { data: { username: `gate-${randomUUID().slice(0, 8)}`, displayName: "Gate learner", password: "Gate-test-password" } })).status()).toBe(201);
+  const username = `gate-${randomUUID().slice(0, 8)}`;
+  expect((await page.request.post("/api/student/sign-up", { data: { username, displayName: "Gate learner", password: "Gate-test-password" } })).status()).toBe(201);
+  // Self sign-ups wait for an administrator: approve directly, then sign in.
+  if (!process.env.BANGLA_E2E_DB?.includes("bangla-e2e-")) throw new Error("Isolated test database required.");
+  const fixture = new Database(process.env.BANGLA_E2E_DB);
+  fixture.prepare("UPDATE students SET approval_status = 'approved' WHERE username = ?").run(username);
+  fixture.close();
+  expect((await page.request.post("/api/student/sign-in", { data: { username, password: "Gate-test-password" } })).status()).toBe(200);
   await page.goto("/student");
   const privateScript = await page.evaluate(async () => {
     const text = await (await fetch("/adventure")).text();

@@ -29,8 +29,11 @@ const quiz = [{ prompt: "Which month starts the Bengali year?", options: ["Boish
 async function adult(email, role) {
   const signUp = await send("/api/auth/sign-up", "POST", { email, displayName: email.split("@")[0], password });
   assert.equal(signUp.status, 201);
-  fixture((db) => db.prepare(role === "admin" ? "UPDATE adults SET role = 'admin' WHERE email = ?" : "UPDATE adults SET role = 'teacher', teacher_status = 'approved' WHERE email = ?").run(email));
-  return cookieFrom(signUp);
+  // Self sign-ups wait for an administrator: approve directly, then sign in.
+  fixture((db) => db.prepare(role === "admin" ? "UPDATE adults SET role = 'admin', approval_status = 'approved' WHERE email = ?" : "UPDATE adults SET role = 'teacher', teacher_status = 'approved', approval_status = 'approved' WHERE email = ?").run(email));
+  const signIn = await send("/api/auth/sign-in", "POST", { email, password });
+  assert.equal(signIn.status, 200);
+  return cookieFrom(signIn);
 }
 async function createClass(cookie, name) {
   const created = await send("/api/classes", "POST", { name }, cookie);

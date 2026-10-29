@@ -6,7 +6,7 @@ import {
   verifyAdultCredentials,
 } from "../../../../lib/auth";
 import { checkRateLimit, clientKey, tooManyRequests } from "../../../../lib/rate-limit";
-import { canManageUsers } from "@/lib/roles";
+import { approvalNotice, canManageUsers } from "@/lib/roles";
 
 export const dynamic = "force-dynamic";
 
@@ -25,12 +25,17 @@ export async function POST(request: Request) {
   if (!adult) {
     return NextResponse.json({ error: "That email and password do not match." }, { status: 401 });
   }
+  // Only someone who knows the password learns that the account is still waiting for approval.
+  if (adult.approvalStatus !== "approved") {
+    return NextResponse.json({ error: approvalNotice(adult.approvalStatus, "adult")[0], approvalStatus: adult.approvalStatus }, { status: 403 });
+  }
   if (body.requireAdmin === true && !canManageUsers(adult)) {
     return NextResponse.json({ error: "This account does not have administrator access. Sign in with your administrator account." }, { status: 403 });
   }
 
   const { token, expiresAt } = await createAdultSession(adult.id);
-  const response = NextResponse.json({ adult });
+  // An administrator-issued password must be replaced before anything else.
+  const response = NextResponse.json({ adult, mustChangePassword: adult.mustChangePassword });
   response.cookies.set(SESSION_COOKIE, token, sessionCookieOptions(expiresAt));
   response.cookies.set("ba_student_session", "", { httpOnly: true, path: "/", maxAge: 0 });
   return response;

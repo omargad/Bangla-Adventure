@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import Database from "better-sqlite3";
 import { randomUUID } from "node:crypto";
 
@@ -10,17 +10,30 @@ test.beforeEach(async ({ context }) => {
   await context.setExtraHTTPHeaders({ "x-forwarded-for": `2001:db8:${key.slice(0, 4)}:${key.slice(4, 8)}::1` });
 });
 
+// Self sign-ups wait for an administrator; this approves the account (and sets its role) directly.
 function fixtureRole(address: string, role: string) {
   if (!process.env.BANGLA_E2E_DB?.includes("bangla-e2e-")) throw new Error("An isolated E2E database is required.");
   const db = new Database(process.env.BANGLA_E2E_DB);
-  db.prepare("UPDATE adults SET role = ?, teacher_status = ? WHERE email = ?").run(role, role === "teacher" ? "approved" : "none", address);
+  db.prepare("UPDATE adults SET role = ?, teacher_status = ?, approval_status = 'approved' WHERE email = ?").run(role, role === "teacher" ? "approved" : "none", address);
   db.close();
+}
+
+function approveStudent(username: string) {
+  if (!process.env.BANGLA_E2E_DB?.includes("bangla-e2e-")) throw new Error("An isolated E2E database is required.");
+  const db = new Database(process.env.BANGLA_E2E_DB);
+  db.prepare("UPDATE students SET approval_status = 'approved' WHERE username = ?").run(username);
+  db.close();
+}
+
+async function signIn(page: Page, address: string) {
+  expect((await page.request.post("/api/auth/sign-in", { data: { email: address, password } })).status()).toBe(200);
 }
 
 test("admin home and refresh retain the current portal", async ({ page }) => {
   const owner = email();
   await page.request.post("/api/auth/sign-up", { data: { email: owner, displayName: "Refresh Administrator", password } });
   fixtureRole(owner, "admin");
+  await signIn(page, owner);
   await page.goto("/admin");
   await expect(page.getByRole("heading", { name: "People make the adventure" })).toBeVisible();
   await page.reload();
@@ -35,6 +48,8 @@ test("a signed-in parent can switch to the administrator account without an acce
   await page.request.post("/api/auth/sign-up", { data: { email: owner, displayName: "Switch Administrator", password } });
   fixtureRole(owner, "admin");
   await page.request.post("/api/auth/sign-up", { data: { email: parent, displayName: "Switch Parent", password } });
+  fixtureRole(parent, "parent");
+  await signIn(page, parent);
   await page.goto("/admin");
   await expect(page.getByText(parent, { exact: false })).toBeVisible();
   await page.getByRole("link", { name: "Sign in as administrator", exact: true }).click();
@@ -56,8 +71,10 @@ test("a signed-in parent can switch to the administrator account without an acce
 test("an open admin tab follows an account switch and cannot keep stale admin access", async ({ page, context }) => {
   const owner = email(), parent = email();
   await page.request.post("/api/auth/sign-up", { data: { email: parent, displayName: "Other Parent", password } });
+  fixtureRole(parent, "parent");
   await page.request.post("/api/auth/sign-up", { data: { email: owner, displayName: "Tab Administrator", password } });
   fixtureRole(owner, "admin");
+  await signIn(page, owner);
   await page.goto("/admin");
   await expect(page.getByRole("heading", { name: "People make the adventure" })).toBeVisible();
   const otherTab = await context.newPage();
@@ -75,18 +92,25 @@ test("an open admin tab follows an account switch and cannot keep stale admin ac
   } finally { await otherTab.close(); }
 });
 
-test("teacher registration waits for approval and cannot access staff APIs", async ({ page }) => {
+test("teacher registration waits for approval and cannot sign in or access staff APIs", async ({ page }) => {
+  const applicant = email();
   await page.goto("/teach");
   await page.getByRole("tab", { name: "Create account", exact: true }).click();
   await expect(page.getByLabel("Account type")).toHaveValue("teacher");
   await page.getByLabel(/Your name/).fill("Teacher Applicant");
-  await page.getByLabel("Email", { exact: true }).fill(email());
+  await page.getByLabel("Email", { exact: true }).fill(applicant);
   await page.getByLabel(/Password/).fill(password);
   await page.getByRole("button", { name: "Create account", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Account created — waiting for approval" })).toBeVisible();
   await page.getByRole("button", { name: /saved them/ }).click();
-  await expect(page.getByRole("heading", { name: "Your teacher request is with us" })).toBeVisible();
-  expect(await page.evaluate(async () => (await fetch("/api/classes")).status)).toBe(403);
-  expect(await page.evaluate(async () => (await fetch("/api/admin/users")).status)).toBe(403);
+  await expect(page.getByRole("status").filter({ hasText: "waiting for an administrator to approve it" })).toBeVisible();
+  expect(await page.evaluate(async () => (await fetch("/api/classes")).status)).toBe(401);
+  expect(await page.evaluate(async () => (await fetch("/api/admin/users")).status)).toBe(401);
+  await page.getByLabel("Email", { exact: true }).fill(applicant);
+  await page.getByLabel("Password", { exact: true }).fill(password);
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(page.locator(".auth-error")).toContainText("waiting for an administrator to approve it");
+  await expect(page).toHaveURL(/\/grown-ups/);
 });
 
 test("administrator approves a teacher and manages accounts through the UI", async ({ page }) => {
@@ -97,6 +121,7 @@ test("administrator approves a teacher and manages accounts through the UI", asy
   await page.request.post("/api/auth/sign-up", { data: { email: parent, displayName: "Managed Parent", password } });
   await page.request.post("/api/auth/sign-up", { data: { email: owner, displayName: "Test Administrator", password } });
   fixtureRole(owner, "admin");
+  await signIn(page, owner);
   await page.goto("/admin");
   await expect(page.getByRole("heading", { name: "People make the adventure" })).toBeVisible();
   await expect(page.getByRole("table")).toBeVisible();
@@ -124,6 +149,7 @@ test("approved teacher can create a class and sees its dashboard totals", async 
   const teacher = email();
   await page.request.post("/api/auth/sign-up", { data: { email: teacher, displayName: "Class Teacher", password } });
   fixtureRole(teacher, "teacher");
+  await signIn(page, teacher);
   await page.goto("/teach");
   await page.getByLabel("New class name").fill("Adventure Club");
   await page.getByRole("button", { name: "Create class", exact: true }).click();
@@ -137,7 +163,10 @@ test("approved teacher can create a class and sees its dashboard totals", async 
 test("student dashboard does not continuously reload its feed", async ({ page }) => {
   let feeds = 0;
   page.on("request", (request) => { if (new URL(request.url()).pathname === "/api/student/feed") feeds++; });
-  await page.request.post("/api/student/sign-up", { data: { username: `child-${randomUUID().slice(0, 12)}`, displayName: "Learner", password } });
+  const username = `child-${randomUUID().slice(0, 12)}`;
+  await page.request.post("/api/student/sign-up", { data: { username, displayName: "Learner", password } });
+  approveStudent(username);
+  expect((await page.request.post("/api/student/sign-in", { data: { username, password } })).status()).toBe(200);
   await page.goto("/student");
   await expect(page.getByRole("link", { name: "Sign out", exact: true })).toBeVisible();
   await page.waitForTimeout(1200);
@@ -152,10 +181,13 @@ test("administrator links a parent who can monitor only their child and cannot e
   const childResponse = await page.request.post("/api/student/sign-up", { data: { username, displayName: "Family Test Learner", password } });
   expect(childResponse.status()).toBe(201);
   const childId = (await childResponse.json()).student.id;
+  approveStudent(username);
   await page.request.post("/api/auth/sign-up", { data: { email: parent, displayName: "Family Test Parent", password } });
+  fixtureRole(parent, "parent");
   const ownerResponse = await page.request.post("/api/auth/sign-up", { data: { email: owner, displayName: "Family Administrator", password } });
   const ownerId = (await ownerResponse.json()).adult.id;
   fixtureRole(owner, "admin");
+  await signIn(page, owner);
   const fixture = new Database(process.env.BANGLA_E2E_DB!);
   const classId = randomUUID(), rosterId = randomUUID(), activityId = randomUUID();
   fixture.prepare("INSERT INTO classes (id, teacher_id, name, join_code) VALUES (?, ?, ?, ?)").run(classId, ownerId, "Family Reading Class", randomUUID());

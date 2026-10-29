@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { isPublicPath, loginDestination, learningReturnPath } from "../lib/learning-policy.ts";
+import { allowedDuringPasswordChange, isPublicPath, loginDestination, learningReturnPath, passwordChangeDestination, passwordChangeReturnPath } from "../lib/learning-policy.ts";
 
 const url = (path) => new URL(path, "https://school.example");
 
@@ -19,4 +19,20 @@ test("redirects preserve local destinations without trusting origins", () => {
   assert.equal(learningReturnPath("/student?returnTo=/student"), "/");
   assert.equal(learningReturnPath("/welcome"), "/");
   assert.equal(learningReturnPath("/stories?book=1"), "/stories?book=1");
+});
+
+test("an administrator-issued password opens only the change form and its API", () => {
+  for (const path of ["/account/password", "/account/password/", "/api/account/password"]) assert.equal(allowedDuringPasswordChange(path), true, path);
+  for (const path of ["/account", "/account/passwords", "/teach", "/admin", "/family", "/api/classes", "/api/account/recovery-codes", "/api/account/delete", "/api/admin/users", "/"]) assert.equal(allowedDuringPasswordChange(path), false, path);
+});
+
+test("the change form returns only to safe pages, never to itself or an API", () => {
+  assert.equal(passwordChangeDestination("/teach"), "/account/password?returnTo=%2Fteach");
+  assert.equal(passwordChangeDestination("/admin/results?class=1"), "/account/password?returnTo=%2Fadmin%2Fresults%3Fclass%3D1");
+  assert.equal(passwordChangeReturnPath("/account/password?returnTo=/teach"), "/");
+  assert.equal(passwordChangeReturnPath("/api/classes"), "/");
+  assert.equal(passwordChangeReturnPath("//evil.example"), "/");
+  assert.equal(passwordChangeReturnPath("/grown-ups"), "/");
+  assert.equal(passwordChangeReturnPath(undefined), "/");
+  assert.equal(passwordChangeReturnPath("/family"), "/family");
 });

@@ -4,17 +4,20 @@ import { randomUUID } from "node:crypto";
 
 const password = "Classes-admin-password-2026";
 
+// Self sign-ups wait for an administrator: this approves the account and grants the role directly.
 function grant(address: string, role: "teacher" | "admin") {
   if (!process.env.BANGLA_E2E_DB?.includes("bangla-e2e-")) throw new Error("An isolated E2E database is required.");
   const db = new Database(process.env.BANGLA_E2E_DB);
-  db.prepare(role === "admin" ? "UPDATE adults SET role = 'admin' WHERE email = ?" : "UPDATE adults SET role = 'teacher', teacher_status = 'approved' WHERE email = ?").run(address);
+  db.prepare(role === "admin" ? "UPDATE adults SET role = 'admin', approval_status = 'approved' WHERE email = ?" : "UPDATE adults SET role = 'teacher', teacher_status = 'approved', approval_status = 'approved' WHERE email = ?").run(address);
   db.close();
 }
 
 // API setup sends the session cookie itself: the request context does not resend Secure cookies over http.
-async function signUp(api: APIRequestContext, data: Record<string, string>) {
-  const response = await api.post("/api/auth/sign-up", { data });
-  expect(response.status()).toBe(201);
+async function signUp(api: APIRequestContext, data: Record<string, string>, role: "teacher" | "admin") {
+  expect((await api.post("/api/auth/sign-up", { data })).status()).toBe(201);
+  grant(data.email, role);
+  const response = await api.post("/api/auth/sign-in", { data: { email: data.email, password: data.password } });
+  expect(response.status()).toBe(200);
   const cookie = response.headersArray().find((header) => header.name.toLowerCase() === "set-cookie" && header.value.startsWith("ba_adult_session="));
   return cookie!.value.split(";")[0];
 }
@@ -26,8 +29,7 @@ test("an administrator opens and manages another teacher's class from the teache
 
   const teacher = await apiRequest.newContext({ baseURL, extraHTTPHeaders: { "x-forwarded-for": `classes-teacher-${suffix}` } });
   try {
-    const headers = { cookie: await signUp(teacher, { email: teacherEmail, displayName: "Owning Teacher", password }) };
-    grant(teacherEmail, "teacher");
+    const headers = { cookie: await signUp(teacher, { email: teacherEmail, displayName: "Owning Teacher", password }, "teacher") };
     const created = await teacher.post("/api/classes", { headers, data: { name: className } });
     expect(created.status()).toBe(201);
     const classId = (await created.json()).class.id;
@@ -42,6 +44,7 @@ test("an administrator opens and manages another teacher's class from the teache
   await page.context().setExtraHTTPHeaders({ "x-forwarded-for": `classes-admin-${suffix}` });
   expect((await page.request.post("/api/auth/sign-up", { data: { email: adminEmail, displayName: "Classes Admin", password } })).status()).toBe(201);
   grant(adminEmail, "admin");
+  expect((await page.request.post("/api/auth/sign-in", { data: { email: adminEmail, password } })).status()).toBe(200);
 
   await page.goto("/admin");
   await page.getByRole("navigation", { name: "Portal navigation" }).getByRole("link", { name: "Teacher workspace" }).click();

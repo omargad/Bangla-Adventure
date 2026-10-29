@@ -149,9 +149,17 @@ export const adults = sqliteTable(
     status: text("status", { enum: ["active", "suspended"] }).notNull().default("active"),
     teacherStatus: text("teacher_status", { enum: ["none", "pending", "approved", "rejected"] }).notNull().default("none"),
     teacherRequestedAt: text("teacher_requested_at"),
+    // Self sign-ups wait for an administrator; existing and administrator-created accounts are approved.
+    approvalStatus: text("approval_status", { enum: ["pending", "approved", "declined"] }).notNull().default("approved"),
+    // Set for administrator-issued passwords until the account owner chooses their own.
+    mustChangePassword: integer("must_change_password", { mode: "boolean" }).notNull().default(false),
     createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   },
-  (table) => [uniqueIndex("adults_email_unique").on(table.email), index("adults_access_idx").on(table.role, table.status, table.teacherStatus)],
+  (table) => [
+    uniqueIndex("adults_email_unique").on(table.email),
+    index("adults_access_idx").on(table.role, table.status, table.teacherStatus),
+    index("adults_approval_idx").on(table.approvalStatus),
+  ],
 );
 
 export const adultSessions = sqliteTable(
@@ -205,9 +213,11 @@ export const students = sqliteTable(
     status: text("status", { enum: ["active", "suspended"] }).notNull().default("active"),
     // Set for teacher-provisioned accounts until the student replaces the temporary password.
     mustChangePassword: integer("must_change_password", { mode: "boolean" }).notNull().default(false),
+    // Self sign-ups wait for an administrator; existing, imported and administrator-created accounts are approved.
+    approvalStatus: text("approval_status", { enum: ["pending", "approved", "declined"] }).notNull().default("approved"),
     createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   },
-  (table) => [uniqueIndex("students_username_unique").on(table.username)],
+  (table) => [uniqueIndex("students_username_unique").on(table.username), index("students_approval_idx").on(table.approvalStatus)],
 );
 
 export const parentStudentLinks = sqliteTable("parent_student_links", {

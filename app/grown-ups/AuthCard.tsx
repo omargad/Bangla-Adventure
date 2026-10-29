@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import type { Language } from "../../lib/use-language";
-import { accountHome, canManageUsers, type AccountAccess } from "../../lib/roles";
+import { accountHome, approvalNotice, canManageUsers, type AccountAccess, type ApprovalStatus } from "../../lib/roles";
+import { passwordChangeDestination } from "../../lib/learning-policy";
 
 type Mode = "sign-in" | "sign-up" | "recover";
 
@@ -17,6 +18,9 @@ export default function AuthCard({ returnTo, language = "en", initialMode = "sig
   const [busy, setBusy] = useState(false);
   const [issuedCodes, setIssuedCodes] = useState<string[] | null>(null);
   const [codesCopied, setCodesCopied] = useState(false);
+  // Set after a self sign-up: the account cannot sign in until an administrator approves it.
+  const [awaitingApproval, setAwaitingApproval] = useState(false);
+  const pendingNotice = approvalNotice("pending", "adult");
   const [accountType, setAccountType] = useState<"parent" | "teacher">(returnTo === "/teach" || returnTo === "/studio" ? "teacher" : "parent");
   const [destination, setDestination] = useState(returnTo);
 
@@ -24,6 +28,10 @@ export default function AuthCard({ returnTo, language = "en", initialMode = "sig
     setMode(next);
     setError(null);
   }
+  const approvalError = (status: Exclude<ApprovalStatus, "approved">) => {
+    const [en, bn] = approvalNotice(status, "adult");
+    return s(en, bn);
+  };
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -50,10 +58,20 @@ export default function AuthCard({ returnTo, language = "en", initialMode = "sig
       const data = (await response.json().catch(() => ({}))) as {
         error?: string;
         recoveryCodes?: string[];
-        adult?: AccountAccess;
+        adult?: AccountAccess & { mustChangePassword?: boolean };
+        approvalStatus?: Exclude<ApprovalStatus, "approved">;
+        pendingApproval?: boolean;
       };
       if (!response.ok) {
-        setError(data.error ?? s("Something went wrong. Please try again.", "কিছু একটা সমস্যা হয়েছে। আবার চেষ্টা করুন।"));
+        setError(data.approvalStatus ? approvalError(data.approvalStatus) : data.error ?? s("Something went wrong. Please try again.", "কিছু একটা সমস্যা হয়েছে। আবার চেষ্টা করুন।"));
+        return;
+      }
+      if (data.pendingApproval) {
+        // No session starts: show the recovery codes once, then the sign-in form with the waiting notice.
+        setPassword("");
+        setAwaitingApproval(true);
+        if (data.recoveryCodes?.length) setIssuedCodes(data.recoveryCodes);
+        else switchMode("sign-in");
         return;
       }
       if (requireAdmin && (!data.adult || !canManageUsers(data.adult))) {
@@ -62,12 +80,13 @@ export default function AuthCard({ returnTo, language = "en", initialMode = "sig
       }
       const target = returnTo === "/family" && data.adult ? accountHome(data.adult) : returnTo;
       setDestination(target);
-      if (mode === "sign-up" && data.recoveryCodes?.length) {
-        // Show the one-time recovery codes before leaving the page.
+      if (data.recoveryCodes?.length) {
+        // Recovery of an account an administrator set up renews its codes: show them once before leaving.
         setIssuedCodes(data.recoveryCodes);
         return;
       }
-      window.location.replace(target);
+      // An administrator-issued password is replaced before anything else.
+      window.location.replace(data.adult?.mustChangePassword ? passwordChangeDestination(target) : target);
     } catch {
       setError(s("Could not reach the server. Check your connection and try again.", "সার্ভারে পৌঁছানো যায়নি। সংযোগ পরীক্ষা করে আবার চেষ্টা করুন।"));
     } finally {
@@ -88,6 +107,10 @@ export default function AuthCard({ returnTo, language = "en", initialMode = "sig
   if (issuedCodes) {
     return (
       <section className="auth-card" aria-label="Recovery codes">
+        {awaitingApproval && <>
+          <h2>{s("Account created — waiting for approval", "অ্যাকাউন্ট তৈরি হয়েছে — অনুমোদনের অপেক্ষায়")}</h2>
+          <p className="auth-success" role="status">{s(...pendingNotice)}</p>
+        </>}
         <h2 className="auth-codes-title">{s("Save your recovery codes", "আপনার পুনরুদ্ধার কোড সংরক্ষণ করুন")}</h2>
         <p className="auth-note">
           {s(
@@ -110,10 +133,15 @@ export default function AuthCard({ returnTo, language = "en", initialMode = "sig
             type="button"
             className="auth-submit"
             onClick={() => {
-              window.location.replace(destination);
+              if (!awaitingApproval) {
+                window.location.replace(destination);
+                return;
+              }
+              setIssuedCodes(null);
+              switchMode("sign-in");
             }}
           >
-            {s("I’ve saved them — continue", "সংরক্ষণ করেছি — এগিয়ে যান")}
+            {awaitingApproval ? s("I’ve saved them — back to sign in", "সংরক্ষণ করেছি — সাইন ইনে ফিরুন") : s("I’ve saved them — continue", "সংরক্ষণ করেছি — এগিয়ে যান")}
           </button>
         </div>
       </section>
@@ -143,6 +171,10 @@ export default function AuthCard({ returnTo, language = "en", initialMode = "sig
         </button>}
       </div>
 
+      {awaitingApproval && mode === "sign-in" && !error && (
+        <p className="auth-success" role="status">{s(...pendingNotice)}</p>
+      )}
+
       {mode === "recover" && (
         <p className="auth-note" role="note">
           {s(
@@ -161,9 +193,10 @@ export default function AuthCard({ returnTo, language = "en", initialMode = "sig
           </select>
           {accountType === "teacher" && <small>{s("An administrator reviews your request before you can teach.", "পড়ানো শুরু করার আগে প্রশাসক আপনার আবেদন পর্যালোচনা করবেন।")}</small>}
         </label>}
+        {mode === "sign-up" && <p className="auth-note">{s("An administrator approves every new account before it can sign in.", "প্রতিটি নতুন অ্যাকাউন্ট দিয়ে সাইন ইন করার আগে প্রশাসকের অনুমোদন প্রয়োজন।")}</p>}
         {mode === "sign-up" && (
           <label>
-            {s("Your name (shown to learners)", "আপনার নাম (শিক্ষার্থীরা দেখবে)")}
+            {accountType === "teacher" ? s("Your name (shown to learners)", "আপনার নাম (শিক্ষার্থীরা দেখবে)") : s("Your name", "আপনার নাম")}
             <input
               type="text"
               value={displayName}

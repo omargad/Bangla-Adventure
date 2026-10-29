@@ -9,7 +9,8 @@ const dir = mkdtempSync(path.join(os.tmpdir(), "bangla-users-test-"));
 process.env.DATABASE_PATH = path.join(dir, "users.db");
 const { getDb } = await import("../db/index.ts");
 const { adults, adultSessions, students, studentSessions, userAuditEvents } = await import("../db/schema.ts");
-const { createUser, listUsers, updateUser } = await import("../lib/user-management.ts");
+const { createUser, listUsers, resetPassword, updateUser } = await import("../lib/user-management.ts");
+const { verifyPassword } = await import("../lib/password.ts");
 const db = await getDb();
 db.insert(adults).values([
   { id: "admin", email: "admin@example.com", displayName: "Administrator", passwordHash: "test-only", role: "admin" },
@@ -76,4 +77,110 @@ test("listing is paginated and contains no session, password or recovery secrets
   assert.equal(result.users[0].recoveryCodes, undefined);
   assert.ok(!JSON.stringify(result).includes("test-password-strong"));
   await assert.rejects(listUsers(new URLSearchParams({ filter: "unknown" })), /Invalid/);
+});
+
+const temporaryPattern = /^[a-z2-9]{4}-[a-z2-9]{4}-[a-z2-9]{2}$/;
+const auditFor = (targetId) => db.select().from(userAuditEvents).where(eq(userAuditEvents.targetId, targetId)).all().map((event) => event.action);
+
+test("administrator-created accounts are approved and get a temporary password that must be replaced", async () => {
+  const child = await createUser("admin", { kind: "student", username: "made-by-admin", displayName: "Admin Child", password: "ignored-admin-choice" });
+  assert.match(child.temporaryPassword, temporaryPattern);
+  const childRow = db.select().from(students).where(eq(students.id, child.user.id)).get();
+  assert.equal(childRow.mustChangePassword, true);
+  assert.equal(childRow.approvalStatus, "approved");
+  assert.ok(verifyPassword(child.temporaryPassword, childRow.passwordHash));
+  assert.ok(!verifyPassword("ignored-admin-choice", childRow.passwordHash), "the administrator no longer invents passwords");
+
+  const teacher = await createUser("admin", { kind: "adult", role: "teacher", email: "made-teacher@example.com", displayName: "Made Teacher" });
+  assert.match(teacher.temporaryPassword, temporaryPattern);
+  assert.equal(teacher.recoveryCodes.length, 8);
+  assert.equal(teacher.user.mustChangePassword, true);
+  assert.equal(teacher.user.approvalStatus, "approved");
+  assert.equal(teacher.user.teacherStatus, "approved");
+  const parent = await createUser("admin", { kind: "adult", role: "parent", email: "made-parent@example.com", displayName: "Made Parent" });
+  assert.equal(parent.user.mustChangePassword, true);
+  assert.ok(!JSON.stringify(db.select().from(userAuditEvents).all()).includes(teacher.temporaryPassword), "audit never stores the password");
+});
+
+test("the approval queue lists waiting students, parents and teacher requests, oldest first", async () => {
+  db.insert(adults).values([
+    { id: "self-parent", email: "self-parent@example.com", displayName: "Self Parent", passwordHash: "test-only", approvalStatus: "pending", createdAt: "2026-10-01 09:00:00" },
+    { id: "self-teacher", email: "self-teacher@example.com", displayName: "Self Applicant", passwordHash: "test-only", teacherStatus: "pending", approvalStatus: "pending", createdAt: "2026-10-03 09:00:00" },
+    { id: "declined-parent", email: "declined@example.com", displayName: "Declined Parent", passwordHash: "test-only", approvalStatus: "declined", createdAt: "2026-10-04 09:00:00" },
+  ]).run();
+  db.insert(students).values({ id: "self-child", username: "self-child", displayName: "Self Child", passwordHash: "test-only", approvalStatus: "pending", createdAt: "2026-10-02 09:00:00" }).run();
+  const result = await listUsers(new URLSearchParams());
+  assert.deepEqual(result.approvals.users.map((user) => [user.id, user.kind]), [["self-parent", "adult"], ["self-child", "student"], ["self-teacher", "adult"]]);
+  assert.equal(result.approvals.total, 3);
+  assert.equal(result.stats.pending, 3);
+  assert.ok(!JSON.stringify(result.approvals).includes("test-only"), "no password hashes");
+  const ids = async (params) => (await listUsers(new URLSearchParams(params))).users.map((user) => user.id).sort();
+  assert.deepEqual(await ids({ kind: "adult", filter: "pending" }), ["self-parent", "self-teacher"]);
+  assert.deepEqual(await ids({ kind: "student", filter: "pending" }), ["self-child"]);
+  assert.deepEqual(await ids({ kind: "adult", filter: "declined" }), ["declined-parent"]);
+  await assert.rejects(listUsers(new URLSearchParams({ kind: "student", filter: "teacher" })), /Invalid student filter/);
+});
+
+test("approving and declining self sign-ups is audited, and a declined account can be approved later", async () => {
+  await updateUser("admin", "self-child", { kind: "student", action: "approve" });
+  assert.equal(db.select().from(students).where(eq(students.id, "self-child")).get().approvalStatus, "approved");
+  await assert.rejects(updateUser("admin", "self-child", { kind: "student", action: "approve" }), /no longer awaiting approval/);
+  await assert.rejects(updateUser("admin", "self-child", { kind: "student", action: "reject" }), /no longer awaiting approval/);
+
+  db.insert(adultSessions).values({ tokenHash: "self-parent-session", adultId: "self-parent", expiresAt: "2099-01-01" }).run();
+  await updateUser("admin", "self-parent", { kind: "adult", action: "reject" });
+  const declined = db.select().from(adults).where(eq(adults.id, "self-parent")).get();
+  assert.equal(declined.approvalStatus, "declined");
+  assert.equal(declined.status, "active", "declining is not suspension");
+  assert.equal(db.select().from(adultSessions).where(eq(adultSessions.adultId, "self-parent")).all().length, 0);
+  await assert.rejects(updateUser("admin", "self-parent", { kind: "adult", action: "reject" }), /no longer awaiting approval/);
+  await updateUser("admin", "self-parent", { kind: "adult", action: "approve" });
+  assert.equal(db.select().from(adults).where(eq(adults.id, "self-parent")).get().approvalStatus, "approved");
+  assert.deepEqual(auditFor("self-parent"), ["account-declined", "account-approved"]);
+  assert.deepEqual(auditFor("self-child"), ["account-approved"]);
+  await assert.rejects(updateUser("parent", "declined-parent", { kind: "adult", action: "approve" }), /Administrator access required/);
+});
+
+test("a teacher request made at sign-up decides the account; an existing parent's request does not", async () => {
+  const approved = await updateUser("admin", "self-teacher", { kind: "adult", action: "approve" });
+  assert.deepEqual([approved.role, approved.teacherStatus, approved.approvalStatus], ["teacher", "approved", "approved"]);
+  db.insert(adults).values([
+    { id: "existing-parent", email: "existing-parent@example.com", displayName: "Existing Parent", passwordHash: "test-only", teacherStatus: "pending" },
+    { id: "refused-applicant", email: "refused@example.com", displayName: "Refused Applicant", passwordHash: "test-only", teacherStatus: "pending", approvalStatus: "pending" },
+  ]).run();
+  const kept = await updateUser("admin", "existing-parent", { kind: "adult", action: "reject" });
+  assert.deepEqual([kept.role, kept.teacherStatus, kept.approvalStatus], ["parent", "rejected", "approved"], "an existing parent keeps their account");
+  const refused = await updateUser("admin", "refused-applicant", { kind: "adult", action: "reject" });
+  assert.deepEqual([refused.role, refused.teacherStatus, refused.approvalStatus], ["parent", "rejected", "declined"]);
+  assert.equal((await listUsers(new URLSearchParams())).approvals.total, 0);
+});
+
+test("administrators reset student and adult passwords, including other administrators', but never their own", async () => {
+  const before = db.select().from(students).where(eq(students.id, "self-child")).get().passwordHash;
+  db.insert(studentSessions).values({ tokenHash: "self-child-session", studentId: "self-child", expiresAt: "2099-01-01" }).run();
+  const child = await resetPassword("admin", "self-child", { kind: "student" });
+  assert.match(child.temporaryPassword, temporaryPattern);
+  assert.deepEqual(child.user, { id: "self-child", username: "self-child", displayName: "Self Child", kind: "student" });
+  const childRow = db.select().from(students).where(eq(students.id, "self-child")).get();
+  assert.notEqual(childRow.passwordHash, before);
+  assert.ok(verifyPassword(child.temporaryPassword, childRow.passwordHash));
+  assert.equal(childRow.mustChangePassword, true);
+  assert.equal(db.select().from(studentSessions).where(eq(studentSessions.studentId, "self-child")).all().length, 0);
+
+  db.insert(adultSessions).values({ tokenHash: "self-teacher-session", adultId: "self-teacher", expiresAt: "2099-01-01" }).run();
+  const teacher = await resetPassword("admin", "self-teacher", { kind: "adult" });
+  const teacherRow = db.select().from(adults).where(eq(adults.id, "self-teacher")).get();
+  assert.ok(verifyPassword(teacher.temporaryPassword, teacherRow.passwordHash));
+  assert.equal(teacherRow.mustChangePassword, true);
+  assert.equal(db.select().from(adultSessions).where(eq(adultSessions.adultId, "self-teacher")).all().length, 0);
+
+  db.insert(adults).values({ id: "second-admin", email: "second-admin@example.com", displayName: "Second Administrator", passwordHash: "test-only", role: "admin" }).run();
+  assert.match((await resetPassword("admin", "second-admin", { kind: "adult" })).temporaryPassword, temporaryPattern);
+  await assert.rejects(resetPassword("admin", "admin", { kind: "adult" }), (error) => error.status === 409 && /your own password/.test(error.message));
+  await assert.rejects(resetPassword("self-teacher", "self-child", { kind: "student" }), /Administrator access required/);
+  await assert.rejects(resetPassword("admin", "missing", { kind: "student" }), (error) => error.status === 404);
+  await assert.rejects(resetPassword("admin", "self-child", { kind: "robot" }), /account type/);
+  for (const id of ["self-child", "self-teacher", "second-admin"]) assert.ok(auditFor(id).includes("password-reset"), id);
+  const everything = JSON.stringify(db.select().from(userAuditEvents).all());
+  for (const secret of [child.temporaryPassword, teacher.temporaryPassword]) assert.ok(!everything.includes(secret));
 });

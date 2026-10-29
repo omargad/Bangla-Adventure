@@ -22,7 +22,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json().catch(() => null);
     if (!body || typeof body !== "object" || Array.isArray(body)) return Response.json({ error: "Provide account details." }, { status: 400 });
-    return Response.json(await createUser(actor.id, body), { status: 201 });
+    return Response.json(await createUser(actor.id, body), { status: 201, headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     return Response.json({ error: error instanceof UserManagementError ? error.message : "The account could not be created." }, { status: error instanceof UserManagementError ? error.status : 503 });
   }

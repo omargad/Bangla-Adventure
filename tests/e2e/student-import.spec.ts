@@ -5,10 +5,11 @@ import { readFile } from "node:fs/promises";
 
 const password = "Import-teacher-password-2026";
 
+// Self sign-ups wait for an administrator: this approves the account as a teacher directly.
 function approveTeacher(address: string) {
   if (!process.env.BANGLA_E2E_DB?.includes("bangla-e2e-")) throw new Error("An isolated E2E database is required.");
   const db = new Database(process.env.BANGLA_E2E_DB);
-  db.prepare("UPDATE adults SET role = 'teacher', teacher_status = 'approved' WHERE email = ?").run(address);
+  db.prepare("UPDATE adults SET role = 'teacher', teacher_status = 'approved', approval_status = 'approved' WHERE email = ?").run(address);
   db.close();
 }
 
@@ -19,6 +20,7 @@ test("teacher uploads a CSV and a provisioned student replaces the temporary pas
   await page.context().setExtraHTTPHeaders({ "x-forwarded-for": `import-teacher-${suffix}` });
   expect((await page.request.post("/api/auth/sign-up", { data: { email: teacherEmail, displayName: "Import Teacher", password } })).status()).toBe(201);
   approveTeacher(teacherEmail);
+  expect((await page.request.post("/api/auth/sign-in", { data: { email: teacherEmail, password } })).status()).toBe(200);
 
   await page.goto("/teach");
   await page.getByLabel("New class name").fill(className);

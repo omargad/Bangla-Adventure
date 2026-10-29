@@ -43,17 +43,27 @@ client-owned hosting instead of transferring shared-server root access.
 ## Administrator and role handover
 
 1. Confirm the client's account identity. Have the intended owner register an
-   adult account through HTTPS and privately save the recovery codes.
+   adult account through HTTPS and privately save the recovery codes. Like every
+   self-registered account, it then waits for administrator approval and cannot
+   sign in yet.
 2. On the intended deployment, run `npm run admin:grant -- YOUR_REGISTERED_EMAIL`
-   using the **same `DATABASE_PATH`** as the app. Native/Compose commands are in
+   using the **same `DATABASE_PATH`** as the app. The command makes the account an
+   administrator **and approves it**. Native/Compose commands are in
    [`DEPLOYMENT.md`](DEPLOYMENT.md#first-administrator-and-recovery).
 3. Sign in again at `/grown-ups?returnTo=/admin&switchAccount=1`. Promotion revokes
    previous sessions. There are no default admin credentials or public admin signup.
 
-Teachers require administrator approval. Staff allocate students without class
-codes; admins link parents to exact registered student accounts for read-only
-access. Password recovery uses saved recovery codes, not email-reset messages.
-Demonstrate the flow and transfer recovery material privately.
+Students, parents and teachers who register themselves wait in the administrator's
+**Waiting for approval** queue on the Users page until they are approved (approving
+a teacher request also approves the account); declined accounts cannot sign in
+until an administrator approves them later. Accounts an administrator creates are
+approved and get a generated temporary password, shown once on a printable sheet;
+the person must choose their own password at first sign-in, and adults then receive
+fresh recovery codes. Administrators can reset a forgotten student or adult password
+the same way (never their own). Staff allocate approved students without class
+codes; admins link approved parents to exact registered student accounts for
+read-only access. Password recovery uses saved recovery codes, not email-reset
+messages. Demonstrate the flow and transfer recovery material privately.
 
 ## Verification evidence
 

@@ -10522,6 +10522,22 @@ body.modal-open .pwa-status {
 .role-badge, .status-badge { display: inline-flex; padding: 5px 10px; border-radius: 30px; background: #eef0fa; color: #303a75; font-size: .76rem; font-weight: 700; text-transform: capitalize; }
 .status-badge.active { color: #075b4c; background: #dff6eb; }
 .status-badge.suspended { color: #9c342d; background: #ffebe6; }
+.status-badge.pending { color: #7a4a00; background: #fff3d6; margin-left: 6px; text-transform: none; }
+.status-badge.declined { color: #9c342d; background: #ffebe6; margin-left: 6px; text-transform: none; }
+.approval-list { list-style: none; padding: 0; margin: 16px 0 0; }
+.approval-list li { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; padding: 14px 0; border-top: 1px solid var(--line); }
+.approval-list li > div:first-child { flex: 1 1 200px; min-width: 0; }
+.approval-list small { display: block; color: var(--muted); margin-top: 4px; overflow-wrap: anywhere; }
+.approval-list .role-badge { text-transform: none; }
+.approval-list .management-row-actions { min-width: 0; }
+.approval-queue h2:focus { outline: 3px solid var(--emerald); outline-offset: 4px; }
+.credential-sheet { margin-top: 12px; padding: 18px; border: 2px dashed var(--line); border-radius: 14px; background: var(--paper); }
+.credential-sheet h3 { margin-top: 0; }
+.credential-sheet dl { display: grid; gap: 10px; margin: 0 0 14px; }
+.credential-sheet dl > div { display: grid; grid-template-columns: minmax(120px, 180px) minmax(0, 1fr); gap: 12px; }
+.credential-sheet dt { font-weight: 700; color: #405667; }
+.credential-sheet dd { margin: 0; overflow-wrap: anywhere; }
+.credential-sheet code { font-size: 1.05rem; letter-spacing: .04em; }
 .management-pagination { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 24px; font-size: .85rem; }
 .audit-list { list-style: none; padding: 0; }
 .audit-list li { display: flex; flex-wrap: wrap; gap: 12px 20px; padding: 14px 0; border-bottom: 1px solid var(--line); font-size: .85rem; }

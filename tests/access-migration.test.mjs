@@ -38,3 +38,21 @@ test("temporary-password flag is added to existing student tables with a safe de
   db.close();
   fresh.close();
 });
+
+test("approval and administrator-issued password columns default to approved, unflagged accounts", () => {
+  const db = new Database(":memory:");
+  db.exec(bootstrapSql);
+  db.prepare("INSERT INTO adults(id,email,display_name,password_hash) VALUES(?,?,?,?)").run("legacy", "legacy@example.com", "Existing user", "unchanged-hash");
+  db.prepare("INSERT INTO students(id,username,display_name,password_hash) VALUES(?,?,?,?)").run("child", "existing-child", "Learner", "unchanged-child-hash");
+  migrateAccessControl(db);
+  migrateAccessControl(db);
+  const adult = db.prepare("SELECT approval_status, must_change_password, password_hash FROM adults WHERE id = ?").get("legacy");
+  assert.deepEqual({ ...adult }, { approval_status: "approved", must_change_password: 0, password_hash: "unchanged-hash" });
+  assert.equal(db.prepare("SELECT approval_status FROM students WHERE id = ?").get("child").approval_status, "approved");
+  assert.throws(() => db.prepare("UPDATE adults SET approval_status = 'maybe' WHERE id = ?").run("legacy"), /CHECK/);
+  assert.throws(() => db.prepare("UPDATE students SET approval_status = 'maybe' WHERE id = ?").run("child"), /CHECK/);
+  db.prepare("UPDATE students SET approval_status = 'pending' WHERE id = ?").run("child");
+  const indexes = db.prepare("SELECT name FROM sqlite_master WHERE type = 'index'").all().map((row) => row.name);
+  assert.ok(indexes.includes("adults_approval_idx") && indexes.includes("students_approval_idx"));
+  db.close();
+});

@@ -1,10 +1,18 @@
 import { test, expect } from "@playwright/test";
+import Database from "better-sqlite3";
 import { randomUUID } from "node:crypto";
 
 test.beforeEach(async ({ page, context }) => {
   await context.setExtraHTTPHeaders({ "x-forwarded-for": `learner-test-${randomUUID()}` });
-  const response = await page.request.post("/api/student/sign-up", { data: { username: `learner-${randomUUID().slice(0, 12)}`, displayName: "Learning test", password: "Learning-test-password" } });
+  const username = `learner-${randomUUID().slice(0, 12)}`, password = "Learning-test-password";
+  const response = await page.request.post("/api/student/sign-up", { data: { username, displayName: "Learning test", password } });
   expect(response.status()).toBe(201);
+  // Self sign-ups wait for an administrator: approve directly, then sign in.
+  if (!process.env.BANGLA_E2E_DB?.includes("bangla-e2e-")) throw new Error("An isolated E2E database is required.");
+  const db = new Database(process.env.BANGLA_E2E_DB);
+  db.prepare("UPDATE students SET approval_status = 'approved' WHERE username = ?").run(username);
+  db.close();
+  expect((await page.request.post("/api/student/sign-in", { data: { username, password } })).status()).toBe(200);
 });
 
 for (const width of [1366, 390]) {

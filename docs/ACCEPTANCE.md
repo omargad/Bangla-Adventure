@@ -53,9 +53,12 @@ database. Production smoke checks must use explicitly authorized test accounts
 and preserve real records.
 
 1. **Administrator:** register the confirmed test owner, grant admin on the same
-   database, sign in again, approve a teacher, manage student/family links and
-   update topic reading. Verify existing quizzes/sources and review notices remain.
-2. **Teacher:** request access, demonstrate no teaching privileges before approval,
+   database (this also approves the waiting account), sign in again, approve a
+   teacher, a parent and a student from the Waiting for approval queue, decline one
+   account, create an account and reset a password from the printable sheet, manage
+   student/family links and update topic reading. Verify existing quizzes/sources and
+   review notices remain.
+2. **Teacher:** request access, demonstrate no sign-in or teaching privileges before approval,
    create a class and activity/quiz, allocate an exact registered student, inspect
    submissions/results, and post an announcement visible only to that class.
 3. **Student:** sign in to My Learning, open Learning topics and sources, complete
@@ -64,8 +67,9 @@ and preserve real records.
 4. **Parent:** link an exact registered account through admin controls; confirm it
    sees only the linked student's academic records, cannot submit as the child or
    edit grades, and loses access when the link is removed without losing records.
-5. **Session/recovery:** demonstrate one-time recovery codes, role change/session
-   invalidation and logout/account switching. Confirm a stale tab does not retain
+5. **Session/recovery:** demonstrate one-time recovery codes, the forced password
+   change (and fresh recovery codes) for an administrator-created account, role
+   change/session invalidation and logout/account switching. Confirm a stale tab does not retain
    another user's portal or private cached content. Do not record recovery secrets.
 6. **Accessibility/responsiveness:** cover the same journeys at desktop/tablet/mobile
    widths, with keyboard only, visible focus, screen-reader labels and zoom/reflow.

@@ -1,14 +1,11 @@
 import { NextResponse } from "next/server";
-import {
-  STUDENT_SESSION_COOKIE,
-  createStudentSession,
-  registerStudent,
-  studentCookieOptions,
-} from "@/lib/student-auth";
+import { registerStudent } from "@/lib/student-auth";
 import { checkRateLimit, clientKey, tooManyRequests } from "@/lib/rate-limit";
+import { approvalNotice } from "@/lib/roles";
 
 export const dynamic = "force-dynamic";
 
+/** Student self sign-up. The account waits for an administrator, so no session starts here. */
 export async function POST(request: Request) {
   const limit = checkRateLimit(`student-sign-up:${clientKey(request)}`, 8, 60 * 60 * 1000);
   if (!limit.allowed) return tooManyRequests(limit.retryAfterSeconds);
@@ -20,9 +17,5 @@ export async function POST(request: Request) {
   const result = await registerStudent(username, displayName, password);
   if ("error" in result) return NextResponse.json({ error: result.error }, { status: 400 });
 
-  const { token, expiresAt } = await createStudentSession(result.id);
-  const response = NextResponse.json({ student: result }, { status: 201 });
-  response.cookies.set(STUDENT_SESSION_COOKIE, token, studentCookieOptions(expiresAt));
-  response.cookies.set("ba_adult_session", "", { httpOnly: true, path: "/", maxAge: 0 });
-  return response;
+  return NextResponse.json({ student: result, pendingApproval: true, message: approvalNotice("pending", "student")[0] }, { status: 201 });
 }

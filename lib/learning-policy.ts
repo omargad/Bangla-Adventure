@@ -25,3 +25,26 @@ export function loginDestination(path: string): string {
   const adult = ["/teach", "/admin", "/family", "/studio", "/account"].some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
   return `${adult ? "/grown-ups" : "/welcome"}?returnTo=${encodeURIComponent(learningReturnPath(path))}`;
 }
+
+/** Where an adult chooses their own password while an administrator-issued one is still in use. */
+export const ADULT_PASSWORD_PATH = "/account/password";
+export const PASSWORD_CHANGE_ERROR = "Choose your own password before you continue.";
+
+/**
+ * While an administrator-issued password is in use, only the change form and its API stay open to
+ * that adult. Sign-out, recovery and the session check are public paths and stay open as well.
+ */
+export function allowedDuringPasswordChange(pathname: string): boolean {
+  const path = pathname.replace(/\/$/, "") || "/";
+  return path === ADULT_PASSWORD_PATH || path === "/api/account/password";
+}
+
+/** Where the change form returns to: a safe page, never the form itself, an API or a sign-in page. */
+export function passwordChangeReturnPath(value?: string | null): string {
+  const path = learningReturnPath(value);
+  return new URL(path, "https://learning.internal").pathname.replace(/\/$/, "") === ADULT_PASSWORD_PATH ? "/" : path;
+}
+
+export function passwordChangeDestination(returnTo: string): string {
+  return `${ADULT_PASSWORD_PATH}?returnTo=${encodeURIComponent(passwordChangeReturnPath(returnTo))}`;
+}

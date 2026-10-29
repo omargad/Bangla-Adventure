@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { getDb } from "../db";
 import { studentSessions, students, userAuditEvents } from "../db/schema";
 import { createSessionToken, hashPassword, hashPasswordAsync, hashSessionToken, verifyPassword } from "./password";
+import type { ApprovalStatus } from "./roles";
 
 export type Student = {
   id: string;
@@ -37,6 +38,7 @@ export function studentCookieOptions(expiresAt: Date) {
   };
 }
 
+/** Self sign-up: the account waits for an administrator before it can sign in. */
 export async function registerStudent(
   username: string,
   displayName: string,
@@ -55,21 +57,24 @@ export async function registerStudent(
 
   const [student] = await db
     .insert(students)
-    .values({ id: crypto.randomUUID(), username: normalized, displayName: cleanName, passwordHash: hashPassword(password) })
+    .values({ id: crypto.randomUUID(), username: normalized, displayName: cleanName, passwordHash: hashPassword(password), approvalStatus: "pending" })
     .returning(studentFields);
   return student;
 }
 
-export async function verifyStudentCredentials(username: string, password: string): Promise<Student | null> {
+/** The active account with this username and password, approved or not: callers decide what approval allows. */
+export async function verifyStudentCredentials(username: string, password: string): Promise<(Student & { approvalStatus: ApprovalStatus }) | null> {
   const db = await getDb();
   const normalized = normalizeStudentUsername(username);
   const [row] = await db.select().from(students).where(eq(students.username, normalized)).limit(1);
   if (!row || row.status !== "active" || password.length > 200 || !verifyPassword(password, row.passwordHash)) return null;
-  return { id: row.id, username: row.username, displayName: row.displayName, mustChangePassword: row.mustChangePassword };
+  return { id: row.id, username: row.username, displayName: row.displayName, mustChangePassword: row.mustChangePassword, approvalStatus: row.approvalStatus };
 }
 
 export async function createStudentSession(studentId: string): Promise<{ token: string; expiresAt: Date }> {
   const db = await getDb();
+  const usable = db.select({ id: students.id }).from(students).where(and(eq(students.id, studentId), eq(students.status, "active"), eq(students.approvalStatus, "approved"))).get();
+  if (!usable) throw new Error("Account unavailable.");
   const token = createSessionToken();
   const expiresAt = new Date(Date.now() + STUDENT_SESSION_DAYS * 24 * 60 * 60 * 1000);
   await db.insert(studentSessions).values({ tokenHash: hashSessionToken(token), studentId, expiresAt: expiresAt.toISOString() });
@@ -88,7 +93,7 @@ export async function getSessionStudent(): Promise<Student | null> {
       .select(studentFields)
       .from(studentSessions)
       .innerJoin(students, eq(studentSessions.studentId, students.id))
-      .where(and(eq(studentSessions.tokenHash, hashSessionToken(token)), gt(studentSessions.expiresAt, now), eq(students.status, "active")))
+      .where(and(eq(studentSessions.tokenHash, hashSessionToken(token)), gt(studentSessions.expiresAt, now), eq(students.status, "active"), eq(students.approvalStatus, "approved")))
       .limit(1);
     return row ?? null;
   } catch {

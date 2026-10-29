@@ -113,8 +113,11 @@ release, and separately verify the production host configuration.
 
 1. Confirm the client's intended account identity. Have that person register an
    adult account through HTTPS and privately retain the displayed recovery codes.
-2. Run the grant command against the **same database as the app**. From a native
-   release directory, as the app account:
+   Self-registered accounts wait for administrator approval, so this one cannot
+   sign in until the next step.
+2. Run the grant command against the **same database as the app**. It grants the
+   administrator role and approves the account. From a native release directory,
+   as the app account:
 
    ```sh
    sudo -u bangla-adventures env \
@@ -132,10 +135,14 @@ release, and separately verify the production host configuration.
    previous sessions. Public registration never grants admin access; no default
    administrator credentials exist.
 
-Approve teacher requests explicitly. Staff allocate students to classes; admins
-link parents to exact registered student accounts. Parents have read-only academic
-access. Recovery codes are the implemented password-reset mechanism; this release
-does not require SMTP or promise email reset. Transfer recovery material privately.
+Approve self-registered students, parents and teacher requests explicitly from the
+Users page queue. Accounts an administrator creates, and passwords an administrator
+resets, use a generated temporary password shown once on a printable sheet; the
+owner must replace it at first sign-in. Staff allocate approved students to classes;
+admins link approved parents to exact registered student accounts. Parents have
+read-only academic access. Recovery codes are the implemented password-reset
+mechanism for adults; this release does not require SMTP or promise email reset.
+Transfer recovery material privately.
 
 ## Backups and existing data
 

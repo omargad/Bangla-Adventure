@@ -73,7 +73,7 @@ test("anonymous home redirects safely behind an HTTPS reverse proxy", async () =
   assert.ok(!response.headers.get("location").includes("localhost:3300"));
 });
 
-test("sign-up issues a session and recovery codes", async () => {
+test("sign-up issues recovery codes and the account signs in once approved", async () => {
   const response = await fetch(`${BASE}/api/auth/sign-up`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -86,9 +86,27 @@ test("sign-up issues a session and recovery codes", async () => {
   assert.equal(response.status, 201);
   const data = await response.json();
   assert.equal(data.adult.email, "it@example.com");
+  assert.equal(data.adult.approvalStatus, "pending");
+  assert.equal(data.pendingApproval, true);
   assert.equal(data.recoveryCodes.length, 8);
   recoveryCodes = data.recoveryCodes;
-  cookie = cookieFrom(response);
+  assert.equal(cookieFrom(response), null, "no session until an administrator approves");
+
+  const signIn = () => fetch(`${BASE}/api/auth/sign-in`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email: "it@example.com", password: "integration-pass-1" }),
+  });
+  const waiting = await signIn();
+  assert.equal(waiting.status, 403);
+  assert.equal((await waiting.json()).approvalStatus, "pending");
+  assert.equal(cookieFrom(waiting), null);
+  const fixture = new Database(path.join(stateDir, "test.db"));
+  fixture.prepare("UPDATE adults SET approval_status = 'approved' WHERE email = ?").run("it@example.com");
+  fixture.close();
+  const approved = await signIn();
+  assert.equal(approved.status, 200);
+  cookie = cookieFrom(approved);
   assert.ok(cookie, "session cookie set");
 });
 

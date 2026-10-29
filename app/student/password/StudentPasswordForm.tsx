@@ -55,7 +55,7 @@ export default function StudentPasswordForm({ name, username, required }: { name
     <header className="adult-header"><Link className="adult-brand" href="/student"><span>বা</span><strong>Bangla Adventures</strong></Link><a href="/api/student/sign-out?returnTo=%2Fstudent">{s("Sign out", "সাইন আউট")}</a><button className="outline-button" onClick={toggleLanguage}>{s("বাংলা", "English")}</button></header>
     <div className="auth-layout"><section className="auth-intro"><p className="adult-eyebrow">{s("Keep your account safe", "তোমার অ্যাকাউন্ট নিরাপদ রাখো")}</p>
       <h1>{s("Choose your own password", "নিজের পাসওয়ার্ড বেছে নাও")}</h1>
-      <p>{s("Your teacher gave you a temporary password so you could sign in for the first time. Now choose a password that only you know. You will use it every time you sign in.", "প্রথমবার সাইন ইন করার জন্য শিক্ষক তোমাকে একটি অস্থায়ী পাসওয়ার্ড দিয়েছেন। এখন এমন একটি পাসওয়ার্ড বেছে নাও যা শুধু তুমি জানো। প্রতিবার সাইন ইন করতে এটি লাগবে।")}</p>
+      <p>{s("Your teacher or an administrator gave you a temporary password so you could sign in. Now choose a password that only you know. You will use it every time you sign in.", "সাইন ইন করার জন্য শিক্ষক বা প্রশাসক তোমাকে একটি অস্থায়ী পাসওয়ার্ড দিয়েছেন। এখন এমন একটি পাসওয়ার্ড বেছে নাও যা শুধু তুমি জানো। প্রতিবার সাইন ইন করতে এটি লাগবে।")}</p>
       {signedInAs}
     </section>
       {form}

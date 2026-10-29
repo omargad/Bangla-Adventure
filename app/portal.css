@@ -84,5 +84,9 @@
  body:has(.student-import-sheet) * { visibility:hidden; }
  .student-import-sheet,.student-import-sheet * { visibility:visible; }
  .student-import-sheet { position:absolute; left:0; top:0; width:100%; overflow:visible; }
+ body:has(.credential-sheet) * { visibility:hidden; }
+ .credential-sheet,.credential-sheet * { visibility:visible; }
+ .credential-sheet { position:absolute; left:0; top:0; width:100%; border:0; }
 }
+@media(max-width:650px) { .credential-sheet dl > div { grid-template-columns:minmax(0,1fr); gap:2px; } }
 .portal-content .student-password-card { max-width:520px; margin:20px 0; }

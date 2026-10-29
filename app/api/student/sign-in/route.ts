@@ -7,6 +7,7 @@ import {
   verifyStudentCredentials,
 } from "@/lib/student-auth";
 import { checkRateLimit, clientKey, tooManyRequests } from "@/lib/rate-limit";
+import { approvalNotice } from "@/lib/roles";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +29,9 @@ export async function POST(request: Request) {
 
   const student = await verifyStudentCredentials(username, password);
   if (!student) return NextResponse.json({ error: "That username and password do not match." }, { status: 401 });
+  if (student.approvalStatus !== "approved") {
+    return NextResponse.json({ error: approvalNotice(student.approvalStatus, "student")[0], approvalStatus: student.approvalStatus }, { status: 403 });
+  }
 
   const { token, expiresAt } = await createStudentSession(student.id);
   // A teacher-issued temporary password must be replaced before anything else.

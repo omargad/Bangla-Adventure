@@ -1,17 +1,16 @@
 import { NextResponse } from "next/server";
-import {
-  SESSION_COOKIE,
-  createAdultSession,
-  issueRecoveryCodes,
-  registerAdult,
-  sessionCookieOptions,
-} from "../../../../lib/auth";
+import { issueRecoveryCodes, registerAdult } from "../../../../lib/auth";
 import { checkRateLimit, clientKey, tooManyRequests } from "../../../../lib/rate-limit";
+import { approvalNotice } from "../../../../lib/roles";
 
 export const dynamic = "force-dynamic";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+/**
+ * Self sign-up for parents and teacher applicants. The account waits for an administrator,
+ * so no session starts here; the recovery codes are the owner's own and are shown once.
+ */
 export async function POST(request: Request) {
   const limit = checkRateLimit(`sign-up:${clientKey(request)}`, 5, 60 * 60 * 1000);
   if (!limit.allowed) return tooManyRequests(limit.retryAfterSeconds);
@@ -26,7 +25,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Enter a valid email address." }, { status: 400 });
   }
   if (!displayName) {
-    return NextResponse.json({ error: "Enter the name learners should see." }, { status: 400 });
+    return NextResponse.json({ error: "Enter your name." }, { status: 400 });
   }
   if (password.length < 10 || password.length > 200) {
     return NextResponse.json(
@@ -42,9 +41,8 @@ export async function POST(request: Request) {
   if ("error" in result) return NextResponse.json({ error: result.error }, { status: 409 });
 
   const recoveryCodes = await issueRecoveryCodes(result.id);
-  const { token, expiresAt } = await createAdultSession(result.id);
-  const response = NextResponse.json({ adult: result, recoveryCodes }, { status: 201 });
-  response.cookies.set(SESSION_COOKIE, token, sessionCookieOptions(expiresAt));
-  response.cookies.set("ba_student_session", "", { httpOnly: true, path: "/", maxAge: 0 });
-  return response;
+  return NextResponse.json(
+    { adult: result, recoveryCodes, pendingApproval: true, message: approvalNotice("pending", "adult")[0] },
+    { status: 201, headers: { "Cache-Control": "no-store" } },
+  );
 }

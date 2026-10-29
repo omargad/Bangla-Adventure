@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { validateMutation } from "./lib/request-security";
-import { isPublicPath, loginDestination } from "./lib/learning-policy";
-import { hasLearningSession } from "./lib/learning-session";
+import { allowedDuringPasswordChange, isPublicPath, loginDestination, PASSWORD_CHANGE_ERROR, passwordChangeDestination } from "./lib/learning-policy";
+import { learningSession } from "./lib/learning-session";
 import { isPublicScript } from "./lib/public-assets";
 
 function privateResponse(response: NextResponse) {
@@ -24,9 +24,15 @@ export async function proxy(request: NextRequest) {
   if (pathname === "/api/student/join" || pathname.startsWith("/api/classroom/")) return privateResponse(NextResponse.json({ error: "Staff allocate classes. Use your student account; class-code access is retired." }, { status: 410 }));
   if (pathname === "/classroom") return privateResponse(NextResponse.redirect(new URL("/student", origin), 307));
   if (isPublicPath(request.nextUrl) || isPublicScript(pathname)) return privateResponse(NextResponse.next());
-  const signedIn = await hasLearningSession(request.cookies.get("ba_adult_session")?.value, request.cookies.get("ba_student_session")?.value);
-  if (signedIn) return privateResponse(NextResponse.next());
-  if (pathname.startsWith("/api/") || pathname.startsWith("/_next/") || /\.[a-z0-9]+$/i.test(pathname)) {
+  const session = await learningSession(request.cookies.get("ba_adult_session")?.value, request.cookies.get("ba_student_session")?.value);
+  const asset = pathname.startsWith("/_next/") || /\.[a-z0-9]+$/i.test(pathname);
+  // An adult with an administrator-issued password reaches only the change form (and its scripts) until it is replaced.
+  if (session.adultMustChangePassword && !asset && !allowedDuringPasswordChange(pathname)) {
+    if (pathname.startsWith("/api/")) return privateResponse(NextResponse.json({ error: PASSWORD_CHANGE_ERROR, mustChangePassword: true }, { status: 403 }));
+    return privateResponse(NextResponse.redirect(new URL(passwordChangeDestination(pathname + request.nextUrl.search), origin), 307));
+  }
+  if (session.signedIn) return privateResponse(NextResponse.next());
+  if (pathname.startsWith("/api/") || asset) {
     return privateResponse(NextResponse.json({ error: "Sign in to access learning content." }, { status: 401 }));
   }
   if (pathname === "/") {

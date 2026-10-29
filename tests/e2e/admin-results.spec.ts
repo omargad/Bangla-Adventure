@@ -4,17 +4,20 @@ import { randomUUID } from "node:crypto";
 
 const password = "Results-admin-password-2026";
 
-function grant(address: string, role: "teacher" | "admin") {
+// Self sign-ups wait for an administrator: this approves the account and grants the role directly.
+function grant(address: string, role: "teacher" | "admin" | "student") {
   if (!process.env.BANGLA_E2E_DB?.includes("bangla-e2e-")) throw new Error("An isolated E2E database is required.");
   const db = new Database(process.env.BANGLA_E2E_DB);
-  db.prepare(role === "admin" ? "UPDATE adults SET role = 'admin' WHERE email = ?" : "UPDATE adults SET role = 'teacher', teacher_status = 'approved' WHERE email = ?").run(address);
+  db.prepare(role === "student" ? "UPDATE students SET approval_status = 'approved' WHERE username = ?" : role === "admin" ? "UPDATE adults SET role = 'admin', approval_status = 'approved' WHERE email = ?" : "UPDATE adults SET role = 'teacher', teacher_status = 'approved', approval_status = 'approved' WHERE email = ?").run(address);
   db.close();
 }
 
 // API setup sends the session cookie itself: the request context does not resend Secure cookies over http.
-async function signUp(api: APIRequestContext, route: string, data: Record<string, string>) {
-  const response = await api.post(route, { data });
-  expect(response.status()).toBe(201);
+async function signUp(api: APIRequestContext, kind: "auth" | "student", data: Record<string, string>, role: "teacher" | "admin" | "student") {
+  expect((await api.post(`/api/${kind}/sign-up`, { data })).status()).toBe(201);
+  grant(kind === "student" ? data.username : data.email, role);
+  const response = await api.post(`/api/${kind}/sign-in`, { data: kind === "student" ? { username: data.username, password: data.password } : { email: data.email, password: data.password } });
+  expect(response.status()).toBe(200);
   const cookie = response.headersArray().find((header) => header.name.toLowerCase() === "set-cookie" && /^ba_(adult|student)_session=/.test(header.value));
   return cookie!.value.split(";")[0];
 }
@@ -27,8 +30,7 @@ test("an administrator reviews another teacher's class results and resets a subm
   const teacher = await apiRequest.newContext({ baseURL, extraHTTPHeaders: { "x-forwarded-for": `results-teacher-${suffix}` } });
   const student = await apiRequest.newContext({ baseURL, extraHTTPHeaders: { "x-forwarded-for": `results-student-${suffix}` } });
   try {
-    const teacherCookie = { cookie: await signUp(teacher, "/api/auth/sign-up", { email: teacherEmail, displayName: "Results Teacher", password }) };
-    grant(teacherEmail, "teacher");
+    const teacherCookie = { cookie: await signUp(teacher, "auth", { email: teacherEmail, displayName: "Results Teacher", password }, "teacher") };
     const created = await teacher.post("/api/classes", { headers: teacherCookie, data: { name: className } });
     expect(created.status()).toBe(201);
     const classId = (await created.json()).class.id;
@@ -38,7 +40,7 @@ test("an administrator reviews another teacher's class results and resets a subm
     ] } });
     expect(activity.status()).toBe(201);
     const activityId = (await activity.json()).activity.id;
-    const studentCookie = { cookie: await signUp(student, "/api/student/sign-up", { username: `results-${suffix}`, displayName: "Maya Results", password }) };
+    const studentCookie = { cookie: await signUp(student, "student", { username: `results-${suffix}`, displayName: "Maya Results", password }, "student") };
     expect((await teacher.post(`/api/classes/${classId}/students`, { headers: teacherCookie, data: { username: `results-${suffix}` } })).status()).toBe(200);
     expect((await student.post("/api/student/submit", { headers: studentCookie, data: { activityId, answers: [0, 1] } })).status()).toBe(200);
   } finally {
@@ -49,6 +51,7 @@ test("an administrator reviews another teacher's class results and resets a subm
   await page.context().setExtraHTTPHeaders({ "x-forwarded-for": `results-admin-${suffix}` });
   expect((await page.request.post("/api/auth/sign-up", { data: { email: adminEmail, displayName: "Results Admin", password } })).status()).toBe(201);
   grant(adminEmail, "admin");
+  expect((await page.request.post("/api/auth/sign-in", { data: { email: adminEmail, password } })).status()).toBe(200);
 
   await page.goto("/admin");
   await page.getByRole("navigation", { name: "Portal navigation" }).getByRole("link", { name: "Grades & results" }).click();

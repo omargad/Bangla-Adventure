@@ -28,8 +28,11 @@ const submit = () => send("/api/student/submit", "POST", { activityId, answers: 
 async function adult(email, role) {
   const signUp = await send("/api/auth/sign-up", "POST", { email, displayName: email.split("@")[0], password });
   assert.equal(signUp.status, 201);
-  fixture((db) => db.prepare(role === "admin" ? "UPDATE adults SET role = 'admin' WHERE email = ?" : "UPDATE adults SET role = 'teacher', teacher_status = 'approved' WHERE email = ?").run(email));
-  return cookieFrom(signUp);
+  // Self sign-ups wait for an administrator: approve directly, then sign in.
+  fixture((db) => db.prepare(role === "admin" ? "UPDATE adults SET role = 'admin', approval_status = 'approved' WHERE email = ?" : "UPDATE adults SET role = 'teacher', teacher_status = 'approved', approval_status = 'approved' WHERE email = ?").run(email));
+  const signIn = await send("/api/auth/sign-in", "POST", { email, password });
+  assert.equal(signIn.status, 200);
+  return cookieFrom(signIn);
 }
 async function createClass(cookie, name) {
   const created = await send("/api/classes", "POST", { name }, cookie);
@@ -60,8 +63,9 @@ before(async () => {
   activityId = (await activity.json()).activity.id;
   const student = await send("/api/student/sign-up", "POST", { username: "results-maya", displayName: "Maya", password }, undefined, { "x-forwarded-for": "results-student" });
   assert.equal(student.status, 201);
-  studentCookie = cookieFrom(student, "ba_student_session");
   studentId = (await student.json()).student.id;
+  fixture((db) => db.prepare("UPDATE students SET approval_status = 'approved' WHERE id = ?").run(studentId));
+  studentCookie = cookieFrom(await send("/api/student/sign-in", "POST", { username: "results-maya", password }, undefined, { "x-forwarded-for": "results-student" }), "ba_student_session");
   assert.equal((await send(`/api/classes/${classId}/students`, "POST", { username: "results-maya" }, teacherCookie)).status, 200);
   const submitted = await submit();
   assert.equal(submitted.status, 200);

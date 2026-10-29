@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useLanguage } from "@/lib/use-language";
 import type { Student } from "@/lib/student-auth";
 import type { CatalogTopic } from "@/lib/curriculum-catalog";
+import { approvalNotice, type ApprovalStatus } from "@/lib/roles";
 import PortalShell from "../components/PortalShell";
 
 type Activity = { id: string; title: string; instructions: string; topicId: string | null; status: string; questions: { prompt: string; options: string[] }[]; submission: { score: number; total: number; submittedAt: string } | null };
@@ -30,6 +31,8 @@ export default function StudentPortal({ initialStudent, destination = "/student"
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  // Set after a self sign-up: the account cannot sign in until an administrator approves it.
+  const [awaitingApproval, setAwaitingApproval] = useState(false);
   const [feed, setFeed] = useState<Feed | null>(null);
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [section, setSection] = useState(["learning", "activities", "results"].includes(initialSection) ? initialSection : "learning");
@@ -57,13 +60,20 @@ export default function StudentPortal({ initialStudent, destination = "/student"
     if (busy) return;
     setBusy(true); setError("");
     try {
-      const data = await request<{ student: Student; mustChangePassword?: boolean }>(`/api/student/${mode}`, { username, displayName, password });
-      // Leave before rendering My Learning, which would load data the temporary password cannot use.
+      const response = await fetch(`/api/student/${mode}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username, displayName, password }) });
+      const data = await response.json().catch(() => ({})) as { student?: Student; mustChangePassword?: boolean; pendingApproval?: boolean; approvalStatus?: Exclude<ApprovalStatus, "approved">; error?: string };
+      if (!response.ok) {
+        setError(data.approvalStatus ? s(...approvalNotice(data.approvalStatus, "student")) : data.error ?? s("Could not sign in. Please try again.", "সাইন ইন করা যায়নি। আবার চেষ্টা করো।"));
+        return;
+      }
       setPassword("");
+      // A new account waits for an administrator: no session starts, so go back to the sign-in form.
+      if (data.pendingApproval) { setAwaitingApproval(true); setMode("sign-in"); return; }
+      // Leave before rendering My Learning, which would load data the temporary password cannot use.
       if (data.mustChangePassword) { window.location.replace(PASSWORD_PATH); return; }
-      setStudent(data.student);
+      setStudent(data.student ?? null);
       window.location.replace(destination);
-    } catch (error) { setError(error instanceof Error ? error.message : "Could not sign in."); }
+    } catch { setError(s("Could not reach the server. Check your connection and try again.", "সার্ভারে পৌঁছানো যায়নি। সংযোগ দেখে আবার চেষ্টা করো।")); }
     finally { setBusy(false); }
   }
   async function submit(event: React.FormEvent) {
@@ -84,8 +94,12 @@ export default function StudentPortal({ initialStudent, destination = "/student"
         <form onSubmit={signIn}>{mode === "sign-up" && <label>{s("Student name", "শিক্ষার্থীর নাম")}<input required maxLength={60} value={displayName} onChange={(e) => setDisplayName(e.target.value)} autoComplete="name" /></label>}
           <label>{s("Username", "ব্যবহারকারীর নাম")}<input required minLength={3} maxLength={40} pattern="[a-zA-Z0-9._-]+" title="Use letters, numbers, dots, dashes or underscores." value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="username" /></label>
           <label>{s("Password", "পাসওয়ার্ড")}<input required type="password" minLength={mode === "sign-up" ? 8 : undefined} maxLength={200} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete={mode === "sign-up" ? "new-password" : "current-password"} /></label>
+          {awaitingApproval && mode === "sign-in" && !error && <p role="status" className="auth-success">{s(...approvalNotice("pending", "student"))}</p>}
           {error && <p role="alert" className="auth-error">{error}</p>}<button className="auth-submit" disabled={busy}>{busy ? s("One moment…", "অপেক্ষা করো…") : mode === "sign-up" ? s("Create account", "অ্যাকাউন্ট তৈরি") : s("Sign in", "সাইন ইন")}</button>
         </form><p className="auth-note">{s("Ask a grown-up for help. Use a nickname; no child email or birthday is needed.", "বড়দের সাহায্য নাও। ডাকনাম ব্যবহার করো; শিশুর ইমেইল বা জন্মদিন লাগে না।")}</p>
+        <p className="auth-note">{mode === "sign-up"
+          ? s("An administrator checks every new account before you can sign in.", "নতুন অ্যাকাউন্ট দিয়ে সাইন ইন করার আগে প্রশাসক সেটি দেখে অনুমোদন করেন।")
+          : s("Forgot your password? Ask your teacher or a grown-up to ask an administrator for a new one.", "পাসওয়ার্ড ভুলে গেছ? নতুন পাসওয়ার্ডের জন্য শিক্ষক বা বড়দের মাধ্যমে প্রশাসককে বলো।")}</p>
       </section>
     </div>
   </main>;

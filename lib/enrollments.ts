@@ -28,7 +28,7 @@ export async function allocateStudent(actorId: string, classId: string, username
   const db = await getDb();
   return db.transaction((tx) => {
     authorize(tx, actorId, classId);
-    const student = tx.select().from(students).where(and(eq(students.username, username.trim().toLowerCase()), eq(students.status, "active"))).get();
+    const student = tx.select().from(students).where(and(eq(students.username, username.trim().toLowerCase()), eq(students.status, "active"), eq(students.approvalStatus, "approved"))).get();
     if (!student) throw new UserManagementError("No active student has that username.", 404);
     const existing = tx.select().from(studentClassEnrollments).where(and(eq(studentClassEnrollments.studentId, student.id), eq(studentClassEnrollments.classId, classId))).get();
     if (existing?.active) return { allocated: true };

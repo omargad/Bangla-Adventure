@@ -27,8 +27,9 @@ const signInStudent = (username, secret, device = "device-a") => send("/api/stud
 async function teacher(email, className) {
   const signUp = await send("/api/auth/sign-up", "POST", { email, displayName: email.split("@")[0], password });
   assert.equal(signUp.status, 201);
-  fixture((db) => db.prepare("UPDATE adults SET role = 'teacher', teacher_status = 'approved' WHERE email = ?").run(email));
-  const cookie = cookieFrom(signUp);
+  // Self sign-ups wait for an administrator: approve directly, then sign in.
+  fixture((db) => db.prepare("UPDATE adults SET role = 'teacher', teacher_status = 'approved', approval_status = 'approved' WHERE email = ?").run(email));
+  const cookie = cookieFrom(await send("/api/auth/sign-in", "POST", { email, password }));
   const created = await send("/api/classes", "POST", { name: className }, cookie);
   assert.equal(created.status, 201);
   return { cookie, classId: (await created.json()).class.id };
@@ -178,7 +179,8 @@ test("students can change their password voluntarily", async () => {
   const signUp = await send("/api/student/sign-up", "POST", { username: "self-registered", displayName: "Self", password }, undefined, { "x-forwarded-for": "import-self" });
   assert.equal(signUp.status, 201);
   assert.equal((await signUp.json()).student.mustChangePassword, false);
-  const cookie = cookieFrom(signUp, "ba_student_session");
+  fixture((db) => db.prepare("UPDATE students SET approval_status = 'approved' WHERE username = ?").run("self-registered"));
+  const cookie = cookieFrom(await signInStudent("self-registered", password, "self-first"), "ba_student_session");
   assert.equal((await send("/api/student/feed", "GET", undefined, cookie)).status, 200);
   assert.equal((await send("/api/student/password", "POST", { currentPassword: password, newPassword: "a-fresh-password" }, cookie)).status, 200);
   assert.equal((await signInStudent("self-registered", "a-fresh-password", "self")).status, 200);

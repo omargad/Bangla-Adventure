@@ -8,8 +8,21 @@ import Database from "better-sqlite3";
 
 function approveFixture(email) {
   const fixture = new Database(path.join(stateDir, "test.db"));
-  fixture.prepare("UPDATE adults SET role = 'teacher', teacher_status = 'approved' WHERE email = ?").run(email);
+  fixture.prepare("UPDATE adults SET role = 'teacher', teacher_status = 'approved', approval_status = 'approved' WHERE email = ?").run(email);
   fixture.close();
+}
+
+// Self sign-ups wait for an administrator; the fixture approves them, then they sign in.
+function approveStudentFixture(username) {
+  const fixture = new Database(path.join(stateDir, "test.db"));
+  fixture.prepare("UPDATE students SET approval_status = 'approved' WHERE username = ?").run(username);
+  fixture.close();
+}
+
+async function signIn(route, credentials) {
+  const response = await fetch(`${BASE}${route}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(credentials) });
+  assert.equal(response.status, 200, route);
+  return response;
 }
 
 /**
@@ -77,9 +90,10 @@ test("teacher signs up and creates a class with a join code", async () => {
     body: JSON.stringify({ email: "teacher@example.com", displayName: "Ms Rahman", password: "sunny-river-42" }),
   });
   assert.equal(signUp.status, 201);
-  teacherCookie = cookieFrom(signUp);
-  assert.ok(teacherCookie, "session cookie issued");
+  assert.equal(cookieFrom(signUp), null, "no session until an administrator approves");
   approveFixture("teacher@example.com");
+  teacherCookie = cookieFrom(await signIn("/api/auth/sign-in", { email: "teacher@example.com", password: "sunny-river-42" }));
+  assert.ok(teacherCookie, "session cookie issued");
 
   const created = await fetch(`${BASE}/api/classes`, {
     method: "POST",
@@ -135,7 +149,9 @@ test("staff allocate a registered student without a class code", async () => {
     body: JSON.stringify({ username: "maya", displayName: "Maya", password: "student-test-password" }),
   });
   assert.equal(joined.status, 201);
-  studentToken = joined.headers.getSetCookie().find((value) => value.startsWith("ba_student_session=")).split(";")[0];
+  approveStudentFixture("maya");
+  const signedIn = await signIn("/api/student/sign-in", { username: "maya", password: "student-test-password" });
+  studentToken = signedIn.headers.getSetCookie().find((value) => value.startsWith("ba_student_session=")).split(";")[0];
   assert.ok(studentToken);
   const allocated = await fetch(`${BASE}/api/classes/${classId}/students`, { method: "POST", headers: { "Content-Type": "application/json", cookie: teacherCookie }, body: JSON.stringify({ username: "maya" }) });
   assert.equal(allocated.status, 200);
@@ -216,8 +232,9 @@ test("another teacher cannot read someone else's class", async () => {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email: "other@example.com", displayName: "Mr Khan", password: "quiet-boat-77" }),
   });
-  const otherCookie = cookieFrom(other);
+  assert.equal(other.status, 201);
   approveFixture("other@example.com");
+  const otherCookie = cookieFrom(await signIn("/api/auth/sign-in", { email: "other@example.com", password: "quiet-boat-77" }));
   const denied = await fetch(`${BASE}/api/classes/${classId}`, { headers: { cookie: otherCookie } });
   assert.equal(denied.status, 404);
 });

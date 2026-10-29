@@ -8,6 +8,8 @@ export function migrateAccessControl(sqlite: Database.Database): void {
       ["status", "text NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'suspended'))"],
       ["teacher_status", "text NOT NULL DEFAULT 'none' CHECK (teacher_status IN ('none', 'pending', 'approved', 'rejected'))"],
       ["teacher_requested_at", "text"],
+      ["approval_status", "text NOT NULL DEFAULT 'approved' CHECK (approval_status IN ('pending', 'approved', 'declined'))"],
+      ["must_change_password", "integer NOT NULL DEFAULT 0"],
     ]) {
       if (!adultColumns.has(name)) sqlite.exec(`ALTER TABLE adults ADD COLUMN ${name} ${definition}`);
     }
@@ -17,6 +19,10 @@ export function migrateAccessControl(sqlite: Database.Database): void {
     }
     if (!studentColumns.some((column) => column.name === "must_change_password")) {
       sqlite.exec("ALTER TABLE students ADD COLUMN must_change_password integer NOT NULL DEFAULT 0");
+    }
+    // Accounts that existed before self sign-up needed approval keep working: the default is approved.
+    if (!studentColumns.some((column) => column.name === "approval_status")) {
+      sqlite.exec("ALTER TABLE students ADD COLUMN approval_status text NOT NULL DEFAULT 'approved' CHECK (approval_status IN ('pending', 'approved', 'declined'))");
     }
     sqlite.exec(`CREATE TABLE IF NOT EXISTS user_audit_events (
       id text PRIMARY KEY NOT NULL,
@@ -28,7 +34,9 @@ export function migrateAccessControl(sqlite: Database.Database): void {
       created_at text NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
     CREATE INDEX IF NOT EXISTS user_audit_target_idx ON user_audit_events (target_id);
-    CREATE INDEX IF NOT EXISTS adults_access_idx ON adults (role, status, teacher_status);`);
+    CREATE INDEX IF NOT EXISTS adults_access_idx ON adults (role, status, teacher_status);
+    CREATE INDEX IF NOT EXISTS adults_approval_idx ON adults (approval_status);
+    CREATE INDEX IF NOT EXISTS students_approval_idx ON students (approval_status);`);
     const enrollmentColumns = sqlite.prepare("PRAGMA table_info(student_class_enrollments)").all() as Array<{ name: string }>;
     if (!enrollmentColumns.some((column) => column.name === "active")) sqlite.exec("ALTER TABLE student_class_enrollments ADD COLUMN active integer NOT NULL DEFAULT 1");
     sqlite.exec(`CREATE TABLE IF NOT EXISTS topic_updates (
