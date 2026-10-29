@@ -24,7 +24,10 @@ export const dynamic = "force-dynamic";
 /**
  * Permanently delete the grown-up account and every record it owns:
  * learner profiles (progress and assignments cascade), studio drafts,
- * reviews, uploaded audio files and all sessions.
+ * specialist reviews, uploaded audio files and all sessions. Video checks are
+ * shared lesson decisions (the newest one decides which video learners get), so
+ * they are kept but no longer linked to the account; otherwise deleting the
+ * account would put a video a teacher took down back in front of children.
  */
 export async function POST(request: Request) {
   const limit = checkRateLimit(`account:${clientKey(request)}`, 10, 15 * 60 * 1000);
@@ -55,7 +58,7 @@ export async function POST(request: Request) {
   }
 
   await db.delete(mediaAssets).where(eq(mediaAssets.ownerEmail, adult.email));
-  await db.delete(videoReviews).where(eq(videoReviews.ownerEmail, adult.email));
+  await db.update(videoReviews).set({ ownerEmail: `deleted-staff:${crypto.randomUUID()}` }).where(eq(videoReviews.ownerEmail, adult.email));
   await db.delete(contentReviews).where(eq(contentReviews.ownerEmail, adult.email));
   await db.delete(curriculumDrafts).where(eq(curriculumDrafts.ownerEmail, adult.email));
   await db.delete(assignments).where(eq(assignments.ownerEmail, adult.email));

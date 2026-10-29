@@ -32,7 +32,8 @@ export default function LessonReview({ lessonId, language, onChanged }: { lesson
   const [previewLanguage, setPreviewLanguage] = useState<Language>(language);
   const [viewed, setViewed] = useState<LessonStep[]>([]);
   const [confirmed, setConfirmed] = useState(false);
-  const [note, setNote] = useState("");
+  const [approveNote, setApproveNote] = useState("");
+  const [withdrawNote, setWithdrawNote] = useState("");
   const [busy, setBusy] = useState(false);
 
   const url = `/api/studio/lessons/${encodeURIComponent(lessonId)}`;
@@ -47,15 +48,19 @@ export default function LessonReview({ lessonId, language, onChanged }: { lesson
   const allViewed = lessonSteps.every((step) => viewed.includes(step));
 
   async function decide(decision: "approve" | "withdraw") {
-    if (busy) return;
+    if (busy || !detail) return;
+    const wasVisible = detail.approval.status === "approved";
     setBusy(true); setError(null); setMessage(null);
     try {
-      const next = await call<LessonDetail>(url, { method: "POST", body: JSON.stringify({ decision, note, ...(decision === "approve" ? { confirmedRead: confirmed } : {}) }) });
+      const body = decision === "approve" ? { decision, note: approveNote, confirmedRead: confirmed } : { decision, note: withdrawNote };
+      const next = await call<LessonDetail>(url, { method: "POST", body: JSON.stringify(body) });
       setDetail(next);
-      setMessage(decision === "approve"
-        ? { en: "Approved. Students can open this lesson again.", bn: "অনুমোদিত। শিক্ষার্থীরা আবার এই পাঠ খুলতে পারবে।" }
-        : { en: "Withdrawn. Students and parents no longer see this lesson.", bn: "সরিয়ে নেওয়া হয়েছে। শিক্ষার্থী ও অভিভাবকেরা আর এই পাঠ দেখবে না।" });
-      setConfirmed(false); setNote("");
+      setMessage(decision === "withdraw"
+        ? { en: "Withdrawn. Students and parents no longer see this lesson.", bn: "সরিয়ে নেওয়া হয়েছে। শিক্ষার্থী ও অভিভাবকেরা আর এই পাঠ দেখবে না।" }
+        : wasVisible
+          ? { en: "Review recorded. Students keep seeing this lesson, now approved under your name.", bn: "পর্যালোচনা সংরক্ষিত হয়েছে। শিক্ষার্থীরা পাঠটি দেখতেই থাকবে, এখন আপনার নামে অনুমোদিত।" }
+          : { en: "Approved. Students can open this lesson again.", bn: "অনুমোদিত। শিক্ষার্থীরা আবার এই পাঠ খুলতে পারবে।" });
+      setConfirmed(false); setApproveNote(""); setWithdrawNote("");
       onChanged();
     } catch (caught) { setError(failure(caught)); }
     finally { setBusy(false); }
@@ -68,6 +73,20 @@ export default function LessonReview({ lessonId, language, onChanged }: { lesson
   const { approval } = detail;
   const who = (name: string | null) => name ?? s("a former staff member", "একজন সাবেক কর্মী");
   const category = lessonCategory(lesson.category);
+  const baselineOnly = approval.status === "approved" && approval.baseline;
+  // Approving needs every part opened and the full-review tick, whether the lesson is hidden or only approved as a baseline.
+  const reviewForm = <>
+    <p className={allViewed ? "lesson-review-progress done" : "lesson-review-progress"} role="status">
+      {allViewed ? "✓ " : ""}{s(`Parts of the lesson opened: ${viewed.length} of ${lessonSteps.length}`, `পাঠের যে অংশগুলো খোলা হয়েছে: ${formatNumber(lessonSteps.length, "bn")}টির মধ্যে ${formatNumber(viewed.length, "bn")}টি`)}
+    </p>
+    <label className="topic-confirm"><input type="checkbox" checked={confirmed} disabled={!allViewed} onChange={(event) => setConfirmed(event.target.checked)} /> {s("I have reviewed the whole lesson in English and Bangla", "আমি পুরো পাঠ ইংরেজি ও বাংলায় দেখেছি")}</label>
+    <label className="topic-note">{s("Note (optional)", "নোট (ঐচ্ছিক)")}
+      <textarea rows={2} maxLength={LESSON_NOTE_LIMIT} value={approveNote} onChange={(event) => setApproveNote(event.target.value)} />
+    </label>
+    <div className="access-actions">
+      <button type="button" className="primary-button" disabled={!confirmed || busy} onClick={() => void decide("approve")}>{baselineOnly ? s("Confirm my review", "আমার পর্যালোচনা নিশ্চিত করুন") : s("Approve for students", "শিক্ষার্থীদের জন্য অনুমোদন দিন")}</button>
+    </div>
+  </>;
   return (
     <>
       <section className="teach-panel topic-review-head" aria-label={s("Lesson details", "পাঠের তথ্য")}>
@@ -104,31 +123,31 @@ export default function LessonReview({ lessonId, language, onChanged }: { lesson
       <section className="teach-panel topic-decision" aria-label={s("Your decision", "আপনার সিদ্ধান্ত")}>
         <h3>{s("Your decision", "আপনার সিদ্ধান্ত")}</h3>
         {approval.status === "approved" ? <>
+          {baselineOnly && <>
+            <h4>{s("Confirm your review", "আপনার পর্যালোচনা নিশ্চিত করুন")}</h4>
+            <p className="teach-note">{s(
+              "Nobody has reviewed this lesson individually yet. Open every part of it in the preview above and read it in English and in Bangla, then confirm: students keep seeing it and the lesson is approved under your name.",
+              "এই পাঠ এখনো কেউ আলাদা করে পর্যালোচনা করেননি। ওপরের প্রিভিউতে পাঠের প্রতিটি অংশ খুলে ইংরেজি ও বাংলায় পড়ুন, তারপর নিশ্চিত করুন: শিক্ষার্থীরা পাঠটি দেখতেই থাকবে এবং আপনার নামে অনুমোদন লেখা থাকবে।",
+            )}</p>
+            {reviewForm}
+            <h4>{s("Or withdraw it", "অথবা সরিয়ে নিন")}</h4>
+          </>}
           <p className="teach-note">{s(
             "Withdrawing hides this lesson from students and parents straight away: the lesson list, links to it, practice words, worksheets and new assignments. Their saved progress is kept. Approve it again once it is fixed.",
             "সরিয়ে নিলে পাঠটি সঙ্গে সঙ্গে শিক্ষার্থী ও অভিভাবকদের কাছ থেকে লুকানো হবে: পাঠের তালিকা, পাঠের লিংক, শব্দ অনুশীলন, ওয়ার্কশিট ও নতুন কাজ। তাদের সংরক্ষিত অগ্রগতি থেকে যাবে। ঠিক করার পর আবার অনুমোদন দিন।",
           )}</p>
           <label className="topic-note">{s("Why are you withdrawing it? (needed)", "কেন সরিয়ে নিচ্ছেন? (লিখতে হবে)")}
-            <textarea rows={3} maxLength={LESSON_NOTE_LIMIT} value={note} onChange={(event) => setNote(event.target.value)} />
+            <textarea rows={3} maxLength={LESSON_NOTE_LIMIT} value={withdrawNote} onChange={(event) => setWithdrawNote(event.target.value)} />
           </label>
           <div className="access-actions">
-            <button type="button" className="danger-button" disabled={!note.trim() || busy} onClick={() => void decide("withdraw")}>{s("Withdraw from students", "শিক্ষার্থীদের কাছ থেকে সরিয়ে নিন")}</button>
+            <button type="button" className="danger-button" disabled={!withdrawNote.trim() || busy} onClick={() => void decide("withdraw")}>{s("Withdraw from students", "শিক্ষার্থীদের কাছ থেকে সরিয়ে নিন")}</button>
           </div>
         </> : <>
           <p className="teach-note">{s(
             "Open every part of the lesson in the preview above and read it in English and in Bangla before you approve. Approving shows the lesson to students and records your name.",
             "অনুমোদনের আগে ওপরের প্রিভিউতে পাঠের প্রতিটি অংশ খুলে ইংরেজি ও বাংলায় পড়ুন। অনুমোদন দিলে পাঠটি শিক্ষার্থীরা দেখবে এবং আপনার নাম লেখা থাকবে।",
           )}</p>
-          <p className={allViewed ? "lesson-review-progress done" : "lesson-review-progress"} role="status">
-            {allViewed ? "✓ " : ""}{s(`Parts of the lesson opened: ${viewed.length} of ${lessonSteps.length}`, `পাঠের যে অংশগুলো খোলা হয়েছে: ${formatNumber(lessonSteps.length, "bn")}টির মধ্যে ${formatNumber(viewed.length, "bn")}টি`)}
-          </p>
-          <label className="topic-confirm"><input type="checkbox" checked={confirmed} disabled={!allViewed} onChange={(event) => setConfirmed(event.target.checked)} /> {s("I have reviewed the whole lesson in English and Bangla", "আমি পুরো পাঠ ইংরেজি ও বাংলায় দেখেছি")}</label>
-          <label className="topic-note">{s("Note (optional)", "নোট (ঐচ্ছিক)")}
-            <textarea rows={2} maxLength={LESSON_NOTE_LIMIT} value={note} onChange={(event) => setNote(event.target.value)} />
-          </label>
-          <div className="access-actions">
-            <button type="button" className="primary-button" disabled={!confirmed || busy} onClick={() => void decide("approve")}>{s("Approve for students", "শিক্ষার্থীদের জন্য অনুমোদন দিন")}</button>
-          </div>
+          {reviewForm}
         </>}
         {error && <p className="auth-error" role="alert">{error[language]}</p>}
       </section>

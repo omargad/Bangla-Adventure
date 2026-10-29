@@ -12,8 +12,10 @@ import Database from "better-sqlite3";
  * a lesson and students can no longer open it (lesson list, ?module= link,
  * audio, worksheet), new assignments and progress for it are refused and parents
  * stop seeing its assignments; another teacher re-approves it and everything
- * comes back. Recordings waiting for review play for staff only, and a video a
- * teacher marks unsuitable disappears from the learner lesson.
+ * comes back. A baseline lesson takes a real review while students keep it.
+ * Recordings waiting for review play for staff only, and a video a teacher
+ * marks unsuitable disappears from the learner lesson, even after that teacher
+ * deletes their account.
  */
 
 const PORT = 3261;
@@ -147,6 +149,22 @@ test("a withdrawn lesson disappears for students and parents everywhere, and re-
   assert.deepEqual(audit, ["lesson-withdrawn", "lesson-approved"]);
 });
 
+test("a teacher records a full review of a baseline lesson while students keep seeing it", async () => {
+  const foodTitle = "Food, please";
+  assert.match(await html("/adventure?module=food-please", studentCookie), new RegExp(foodTitle));
+  assert.equal((await decide("food-please", { decision: "approve" }, teacherCookie)).status, 400);
+  const reviewed = await decide("food-please", { decision: "approve", confirmedRead: true }, teacherCookie);
+  assert.equal(reviewed.status, 200);
+  const { approval } = await reviewed.json();
+  assert.deepEqual([approval.status, approval.baseline, approval.changedByName], ["approved", false, "lessons-teacher"]);
+  assert.equal((await decide("food-please", { decision: "approve", confirmedRead: true }, colleagueCookie)).status, 409);
+  const listed = (await (await send("/api/studio/lessons", "GET", undefined, adminCookie)).json()).lessons.find((lesson) => lesson.lessonId === "food-please");
+  assert.deepEqual([listed.status, listed.baseline, listed.changedByName], ["approved", false, "lessons-teacher"]);
+  const stillOpen = await html("/adventure?module=food-please", studentCookie);
+  assert.match(stillOpen, new RegExp(foodTitle));
+  assert.doesNotMatch(stillOpen, /That lesson is not available at the moment/);
+});
+
 test("a recording waiting for review plays for staff only, and any teacher approves it after listening", async () => {
   const bytes = Buffer.from("OggS fake recording for the integration test");
   const form = new FormData();
@@ -203,4 +221,29 @@ test("a video a teacher marks unsuitable is not shown to learners; a YouTube rep
   assert.doesNotMatch(page, new RegExp(videoTitle));
   assert.match(page, /A video chosen by your teacher/);
   assert.equal((await (await send("/api/studio/lessons/my-family", "GET", undefined, teacherCookie)).json()).learnerVideo.id, "h-egsGh_VbQ");
+});
+
+test("a teacher's video take-down stays in place after that teacher deletes their account", async () => {
+  const videoTitle = "Basic Bengali: Asking for Directions";
+  const leaverEmail = "lessons-leaver@example.com";
+  // The deep link opens the lesson's level, where its card shows the video title.
+  const lessonPage = "/adventure?module=directions";
+  const leaverCookie = await adult(leaverEmail, "teacher");
+  assert.match(await html(lessonPage, studentCookie), new RegExp(videoTitle));
+  const takenDown = await send("/api/studio/video-reviews", "POST", { lessonId: "directions", status: "approved", captionsStatus: "available", suitabilityStatus: "unsuitable", replacementUrl: "", notes: "Not for children." }, leaverCookie);
+  assert.equal(takenDown.status, 201);
+  assert.doesNotMatch(await html(lessonPage, studentCookie), new RegExp(videoTitle));
+
+  const deleted = await send("/api/account/delete", "POST", { password }, leaverCookie);
+  assert.equal(deleted.status, 200);
+  assert.equal((await send("/api/auth/sign-in", "POST", { email: leaverEmail, password }, undefined, { "x-forwarded-for": leaverEmail })).status, 401);
+
+  // The check is kept, no longer linked to the deleted account, and learners still do not get the video.
+  assert.doesNotMatch(await html(lessonPage, studentCookie), new RegExp(videoTitle));
+  const detail = await (await send("/api/studio/lessons/directions", "GET", undefined, teacherCookie)).json();
+  assert.equal(detail.learnerVideo, null);
+  assert.deepEqual([detail.video.suitabilityStatus, detail.video.checkerName, detail.video.notes], ["unsuitable", null, "Not for children."]);
+  const owners = fixture((db) => db.prepare("SELECT owner_email FROM video_reviews WHERE lesson_id = 'directions'").all().map((row) => row.owner_email));
+  assert.equal(owners.length, 1);
+  assert.match(owners[0], /^deleted-staff:/);
 });

@@ -3,12 +3,16 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { lessons } from "../curriculum";
-import { useLanguage } from "../../lib/use-language";
+import { useLanguage, type Language } from "../../lib/use-language";
 import { groupLessonsByCategory, visibleLessons } from "../../lib/lesson-model";
 
 type Progress = { id: string; lessonId: string; sessionId: string; skill: string; score: number | null; updatedAt: string };
 type Assignment = { id: string; lessonId: string; sessionId: string | null; title: string; dueAt: string | null; status: string; lessonAvailable?: boolean };
 type Profile = { id: string; displayName: string; ageBand: string; homeLanguages: string[]; progress: Progress[]; assignments: Assignment[] };
+type ApiError = { error?: string; errorBn?: string };
+
+/** A refusal from the API in the page language, when the route gives a Bangla message. */
+const apiMessage = (data: ApiError, language: Language, fallback: string) => (language === "bn" ? data.errorBn : undefined) || data.error || fallback;
 
 const skills = ["listening", "reading", "speaking", "writing", "culture", "mastery"];
 const skillLabels: Record<string, string> = {
@@ -45,15 +49,15 @@ export default function FamilyDashboard({ adultName, approvedLessonIds }: { adul
     setError("");
     try {
       const response = await fetch("/api/profiles", { cache: "no-store" });
-      const data = await response.json() as { profiles?: Profile[]; error?: string };
-      if (!response.ok) throw new Error(data.error || s("Could not load learner profiles.", "শিক্ষার্থী প্রোফাইল লোড করা যায়নি।"));
+      const data = await response.json() as { profiles?: Profile[] } & ApiError;
+      if (!response.ok) throw new Error(apiMessage(data, language, s("Could not load learner profiles.", "শিক্ষার্থী প্রোফাইল লোড করা যায়নি।")));
       setProfiles(data.profiles || []);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : s("Could not load learner profiles.", "শিক্ষার্থী প্রোফাইল লোড করা যায়নি।"));
     } finally {
       setLoading(false);
     }
-  }, [s]);
+  }, [language, s]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => void loadProfiles(), 0);
@@ -66,8 +70,8 @@ export default function FamilyDashboard({ adultName, approvedLessonIds }: { adul
     setError("");
     try {
       const response = await fetch("/api/profiles", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ displayName: newName, ageBand: newAge, homeLanguages: newLanguages.split(",").map((item) => item.trim()).filter(Boolean) }) });
-      const data = await response.json() as { error?: string };
-      if (!response.ok) throw new Error(data.error || s("Could not create the profile.", "প্রোফাইল তৈরি করা যায়নি।"));
+      const data = await response.json() as ApiError;
+      if (!response.ok) throw new Error(apiMessage(data, language, s("Could not create the profile.", "প্রোফাইল তৈরি করা যায়নি।")));
       setNewName("");
       await loadProfiles();
     } catch (caught) {
@@ -91,8 +95,8 @@ export default function FamilyDashboard({ adultName, approvedLessonIds }: { adul
     setError("");
     try {
       const response = await fetch("/api/assignments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ profileId, lessonId: draft.lessonId, sessionId: draft.skill === "all" ? null : `session-${draft.lessonId}-${draft.skill}`, dueAt: draft.dueAt || null }) });
-      const data = await response.json() as { error?: string };
-      if (!response.ok) throw new Error(data.error || s("Could not create the assignment.", "কাজটি তৈরি করা যায়নি।"));
+      const data = await response.json() as ApiError;
+      if (!response.ok) throw new Error(apiMessage(data, language, s("Could not create the assignment.", "কাজটি তৈরি করা যায়নি।")));
       await loadProfiles();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : s("Could not create the assignment.", "কাজটি তৈরি করা যায়নি।"));
@@ -118,8 +122,8 @@ export default function FamilyDashboard({ adultName, approvedLessonIds }: { adul
     setError("");
     try {
       const response = await fetch(`/api/profiles/${encodeURIComponent(profile.id)}`, { method: "DELETE" });
-      const data = await response.json() as { error?: string };
-      if (!response.ok) throw new Error(data.error || s("Could not remove the profile.", "প্রোফাইল মোছা যায়নি।"));
+      const data = await response.json() as ApiError;
+      if (!response.ok) throw new Error(apiMessage(data, language, s("Could not remove the profile.", "প্রোফাইল মোছা যায়নি।")));
       await loadProfiles();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : s("Could not remove the profile.", "প্রোফাইল মোছা যায়নি।"));

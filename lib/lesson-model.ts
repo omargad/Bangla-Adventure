@@ -29,9 +29,11 @@ export function lessonStatus(latest: { status: string } | null | undefined): Les
  * Checks an approve or withdraw request against the lesson's current state and
  * returns the decision with its trimmed note. Approving needs the reviewer's
  * confirmation that they went through the whole lesson in both languages;
- * withdrawing needs a reason so colleagues know what to fix.
+ * withdrawing needs a reason so colleagues know what to fix. A lesson approved
+ * only as a baseline can be approved again while students keep seeing it, so a
+ * teacher can record a real review without hiding the lesson first.
  */
-export function checkLessonDecision(current: LessonStatus, raw: Record<string, unknown>): { decision: LessonDecision; note: string } {
+export function checkLessonDecision(current: LessonStatus, raw: Record<string, unknown>, baseline = false): { decision: LessonDecision; note: string } {
   const decision = raw.decision;
   if (decision !== "approve" && decision !== "withdraw") throw new LessonError("Choose to approve or withdraw the lesson.", "পাঠটি অনুমোদন বা সরিয়ে নেওয়ার একটি বেছে নিন।");
   if (raw.note !== undefined && raw.note !== null && typeof raw.note !== "string") throw new LessonError("The note must be text.", "নোট লেখা আকারে দিন।");
@@ -41,7 +43,7 @@ export function checkLessonDecision(current: LessonStatus, raw: Record<string, u
     if (raw.confirmedRead !== true) {
       throw new LessonError("Tick “I have reviewed the whole lesson in English and Bangla” before approving.", "অনুমোদনের আগে “আমি পুরো পাঠ ইংরেজি ও বাংলায় দেখেছি” টিক দিন।");
     }
-    if (current === "approved") throw new LessonError("This lesson is already approved. Reload to see who approved it.", "পাঠটি আগেই অনুমোদিত। কে অনুমোদন করেছেন দেখতে আবার খুলুন।", 409);
+    if (current === "approved" && !baseline) throw new LessonError("This lesson is already approved. Reload to see who approved it.", "পাঠটি আগেই অনুমোদিত। কে অনুমোদন করেছেন দেখতে আবার খুলুন।", 409);
   } else {
     if (!note) throw new LessonError("Say why you are withdrawing the lesson, so colleagues know what to fix.", "পাঠটি কেন সরিয়ে নিচ্ছেন লিখুন, যাতে সহকর্মীরা জানেন কী ঠিক করতে হবে।");
     if (current !== "approved") throw new LessonError("Students already cannot see this lesson. Reload to see its status.", "শিক্ষার্থীরা এই পাঠ আগে থেকেই দেখতে পায় না। অবস্থা দেখতে আবার খুলুন।", 409);

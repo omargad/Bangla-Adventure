@@ -62,6 +62,11 @@ test("the decision rules: approving needs the full-review tick, withdrawing need
   assert.deepEqual(model.checkLessonDecision("approved", { decision: "withdraw", note: "  Wrong Bangla spelling  " }), { decision: "withdraw", note: "Wrong Bangla spelling" });
   assert.deepEqual(model.checkLessonDecision("waiting", confirmRead), { decision: "approve", note: "" });
   assert.deepEqual(model.checkLessonDecision("withdrawn", { ...confirmRead, note: "Fixed" }), { decision: "approve", note: "Fixed" });
+  // A lesson approved only as a baseline takes a real review while students keep seeing it.
+  assert.deepEqual(model.checkLessonDecision("approved", { ...confirmRead, note: "Read it all" }, true), { decision: "approve", note: "Read it all" });
+  assert.throws(() => model.checkLessonDecision("approved", { decision: "approve" }, true), /reviewed the whole lesson/);
+  assert.throws(() => model.checkLessonDecision("approved", confirmRead, false), (error) => error.status === 409);
+  assert.deepEqual(model.checkLessonDecision("approved", { decision: "withdraw", note: "Typo" }, true), { decision: "withdraw", note: "Typo" });
 });
 
 test("learners get approved lessons in curriculum order, and parents only see assignments of approved lessons", () => {
@@ -124,6 +129,17 @@ test("a teacher withdraws a lesson for everyone, it leaves every learner view, a
   assert.equal((await approval.learnerLessonView()).approvedIds.includes("six-seasons"), false);
   assert.equal(await approval.isLessonApproved("made-up"), false);
 
+  // A server restart re-runs the migration; it must never re-approve a withdrawn lesson.
+  const recordsOf = () => db.select().from(contentApprovals).where(eq(contentApprovals.contentId, "six-seasons")).all().length;
+  const before = recordsOf();
+  const sqlite = new Database(process.env.DATABASE_PATH);
+  try {
+    migrateContent(sqlite);
+    migrateContent(sqlite);
+  } finally { sqlite.close(); }
+  assert.equal(await approval.isLessonApproved("six-seasons"), false);
+  assert.equal(recordsOf(), before);
+
   // The state is shared: the administrator and every teacher see the same decision.
   const listed = (await approval.lessonStudioList()).lessons.find((row) => row.lessonId === "six-seasons");
   assert.deepEqual([listed.status, listed.changedByName, listed.note], ["withdrawn", "Teacher Tania", "The Bangla season names need checking."]);
@@ -139,6 +155,21 @@ test("a teacher withdraws a lesson for everyone, it leaves every learner view, a
   const audit = db.select().from(userAuditEvents).all().filter((event) => event.targetId === "six-seasons");
   assert.deepEqual(audit.map((event) => [event.actorId, event.action, event.targetType]), [["teacher", "lesson-withdrawn", "lesson"], ["colleague", "lesson-approved", "lesson"]]);
   assert.equal(JSON.parse(audit[0].detailsJson).note, "The Bangla season names need checking.");
+});
+
+test("a teacher confirms a full review of a baseline lesson without hiding it from students", async () => {
+  await assert.rejects(approval.decideLesson("teacher", "food-please", { decision: "approve" }), (error) => error.status === 400);
+  const reviewed = await approval.decideLesson("teacher", "food-please", { ...confirmRead, note: "Read every part in both languages." });
+  assert.deepEqual([reviewed.status, reviewed.baseline, reviewed.changedByName, reviewed.note], ["approved", false, "Teacher Tania", "Read every part in both languages."]);
+  assert.equal(await approval.isLessonApproved("food-please"), true, "students keep the lesson throughout");
+  // Once reviewed, a second approval is stale.
+  await assert.rejects(approval.decideLesson("colleague", "food-please", confirmRead), (error) => error.status === 409);
+  const detail = await approval.lessonStudioDetail("food-please");
+  assert.deepEqual(detail.history.map((entry) => [entry.status, entry.baseline, entry.changedByName]), [["approved", false, "Teacher Tania"], ["approved", true, null]]);
+  const listed = (await approval.lessonStudioList()).lessons.find((row) => row.lessonId === "food-please");
+  assert.deepEqual([listed.status, listed.baseline], ["approved", false]);
+  const event = db.select().from(userAuditEvents).all().find((item) => item.targetId === "food-please");
+  assert.deepEqual([event.action, JSON.parse(event.detailsJson).reviewedBaseline], ["lesson-approved", true]);
 });
 
 test("any teacher can approve a colleague's recording after listening, and the approval names them", async () => {

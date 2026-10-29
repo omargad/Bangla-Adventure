@@ -80,6 +80,8 @@ test("a teacher previews a lesson in Bangla, withdraws it from students and appr
 
     // Withdrawing needs a reason and hides the lesson from the student at once.
     const decision = teacher.getByRole("region", { name: "Your decision" });
+    // A lesson approved only as a baseline can also take a real review without being hidden first.
+    await expect(decision.getByRole("button", { name: "Confirm my review", exact: true })).toBeDisabled();
     const withdraw = decision.getByRole("button", { name: "Withdraw from students", exact: true });
     await expect(withdraw).toBeDisabled();
     await decision.getByLabel("Why are you withdrawing it? (needed)").fill("The Bangla season names need a native speaker's check.");

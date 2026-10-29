@@ -166,20 +166,25 @@ function audit(tx: Transaction, actorId: string, lessonId: string, action: strin
 
 /**
  * A teacher or administrator approves a lesson (students see it again) or
- * withdraws it (students and parents stop seeing it at once). The decision is
- * recorded under the signed-in account, never a typed name.
+ * withdraws it (students and parents stop seeing it at once). Approving a
+ * lesson that is approved only as a baseline records the teacher's review while
+ * students keep seeing it. The decision is recorded under the signed-in
+ * account, never a typed name.
  */
 export async function decideLesson(actorId: string, lessonId: string, raw: Record<string, unknown>): Promise<LessonApproval> {
   if (!isLessonId(lessonId)) throw new LessonError("Lesson not found.", "পাঠটি পাওয়া যায়নি।", 404);
   const db = await getDb();
   db.transaction((tx) => {
     requireStaff(tx, actorId);
-    const { decision, note } = checkLessonDecision(lessonStatus(approvalRows(tx, lessonId).at(-1)), raw);
+    const latest = approvalRows(tx, lessonId).at(-1);
+    const current = lessonStatus(latest);
+    const { decision, note } = checkLessonDecision(current, raw, latest?.baseline ?? false);
     tx.insert(contentApprovals).values({
       id: crypto.randomUUID(), contentType: "lesson", contentId: lessonId, status: decision === "approve" ? "approved" : "withdrawn",
       baseline: false, changedBy: actorId, changedAt: new Date().toISOString(), note,
     }).run();
-    audit(tx, actorId, lessonId, decision === "approve" ? "lesson-approved" : "lesson-withdrawn", note ? { note } : {});
+    const reviewedBaseline = decision === "approve" && current === "approved";
+    audit(tx, actorId, lessonId, decision === "approve" ? "lesson-approved" : "lesson-withdrawn", { ...(note ? { note } : {}), ...(reviewedBaseline ? { reviewedBaseline: true } : {}) });
   });
   const rows = approvalRows(db, lessonId);
   return approvalOf(lessonId, rows.at(-1), namesById(db, [actorId]));

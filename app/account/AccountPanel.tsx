@@ -204,7 +204,7 @@ export default function AccountPanel({ email, displayName }: { email: string; di
 
           <section className="account-card account-danger" aria-labelledby="account-delete">
             <h2 id="account-delete">{s("Delete account", "অ্যাকাউন্ট মুছুন")}</h2>
-            <p>{s("Permanently removes this grown-up account and everything it owns: all learner profiles, progress, assignments, drafts, reviews and uploaded audio. Children’s device-local stars are unaffected. This cannot be undone — export your data first if you want a copy.", "এই বড়দের অ্যাকাউন্ট ও এর সবকিছু স্থায়ীভাবে মুছে ফেলে: সব শিক্ষার্থী প্রোফাইল, অগ্রগতি, কাজ, খসড়া, পর্যালোচনা ও আপলোড করা অডিও। শিশুদের ডিভাইসে থাকা তারা অক্ষত থাকে। এটি ফেরানো যায় না — কপি চাইলে আগে তথ্য রপ্তানি করুন।")}</p>
+            <p>{s("Permanently removes this grown-up account and everything it owns: all learner profiles, progress, assignments, drafts, reviews and uploaded audio. Lesson decisions and video checks you made for students stay in place, shown as made by a former staff member. Children’s device-local stars are unaffected. This cannot be undone — export your data first if you want a copy.", "এই বড়দের অ্যাকাউন্ট ও এর সবকিছু স্থায়ীভাবে মুছে ফেলে: সব শিক্ষার্থী প্রোফাইল, অগ্রগতি, কাজ, খসড়া, পর্যালোচনা ও আপলোড করা অডিও। শিক্ষার্থীদের জন্য আপনার নেওয়া পাঠের সিদ্ধান্ত ও ভিডিও যাচাই থেকে যাবে, একজন সাবেক কর্মীর নামে দেখানো হবে। শিশুদের ডিভাইসে থাকা তারা অক্ষত থাকে। এটি ফেরানো যায় না — কপি চাইলে আগে তথ্য রপ্তানি করুন।")}</p>
             <form onSubmit={deleteAccount}>
               <label>
                 {s("Current password", "বর্তমান পাসওয়ার্ড")}
