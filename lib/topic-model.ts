@@ -3,11 +3,12 @@
 // API, the staff editor and the tests; database access lives in
 // lib/curriculum-catalog.ts.
 import { topicThemes, type Bilingual, type Topic, type TopicQuizQuestion, type TopicTheme } from "../app/topics-content";
+import { localDateTime, storedTime, type Language } from "./local-format";
 
 export type TopicContent = Omit<Topic, "id">;
 export type TopicDraft = Omit<TopicContent, "sources">;
 export type TopicVersionStatus = "pending" | "approved" | "rejected" | "superseded";
-export type Language = "en" | "bn";
+export type { Language };
 
 /** A refusal with a message in both languages and the HTTP status to answer with. */
 export class TopicError extends Error {
@@ -196,16 +197,10 @@ export function topicChanged(candidate: TopicDraft, base: TopicDraft): boolean {
   return describeTopicChanges(candidate, base).length > 0;
 }
 
-/** A date and time in the page language; SQLite UTC timestamps are read as UTC. */
+/** A date and time in the page language (see localDateTime), or "" when there is none. */
 export function formatWhen(value: string | null | undefined, language: Language): string {
-  if (!value) return "";
-  const iso = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(value) ? `${value.replace(" ", "T")}Z` : value;
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return "";
-  return new Intl.DateTimeFormat(language === "bn" ? "bn-BD" : "en-AU", { dateStyle: "medium", timeStyle: "short" }).format(date);
+  return value && storedTime(value) ? localDateTime(value, language) : "";
 }
 
 /** Numbers in the page language: Bangla digits in Bangla mode. */
-export function formatNumber(value: number, language: Language): string {
-  return value.toLocaleString(language === "bn" ? "bn-BD" : "en-AU");
-}
+export { localNumber as formatNumber } from "./local-format";
