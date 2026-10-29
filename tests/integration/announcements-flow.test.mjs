@@ -98,8 +98,12 @@ test("a teacher posts to everyone (the default), to students only and to parents
   const longest = await post("ক".repeat(2000), "students");
   assert.equal(longest.status, 201);
   assert.equal((await longest.json()).announcement.body.length, 2000);
-  assert.equal((await post("Intruder note", "parents", otherTeacherCookie)).status, 404, "another teacher cannot post in this class");
-  assert.equal((await post("A note", "all", parentCookie)).status, 403, "parents cannot post");
+  const intruder = await post("Intruder note", "parents", otherTeacherCookie);
+  assert.equal(intruder.status, 404, "another teacher cannot post in this class");
+  assert.equal((await intruder.json()).errorBn, "ক্লাসটি পাওয়া যায়নি।", "refusals come in Bangla too");
+  const byParent = await post("A note", "all", parentCookie);
+  assert.equal(byParent.status, 403, "parents cannot post");
+  assert.ok((await byParent.json()).errorBn);
 });
 
 test("the teacher sees every post with its audience, author and time", async () => {
@@ -159,6 +163,9 @@ test("removing a post takes it from everyone and is audited", async () => {
   assert.equal((await send(`/api/classes/${classId}/announcements`, "DELETE", { announcementId: posts.parents }, otherTeacherCookie)).status, 404);
   assert.equal((await send(`/api/classes/${otherClassId}/announcements`, "DELETE", { announcementId: posts.parents }, otherTeacherCookie)).status, 404);
   assert.equal((await send(`/api/classes/${classId}/announcements`, "DELETE", { announcementId: posts.parents }, teacherCookie)).status, 200);
+  const again = await send(`/api/classes/${classId}/announcements`, "DELETE", { announcementId: posts.parents }, teacherCookie);
+  assert.equal(again.status, 404);
+  assert.deepEqual(await again.json(), { error: "Announcement not found.", errorBn: "ঘোষণাটি পাওয়া যায়নি।" });
   const family = await (await send("/api/family", "GET", undefined, parentCookie)).json();
   assert.ok(!family.announcements.some((item) => item.id === posts.parents));
   const audit = fixture((db) => db.prepare("SELECT actor_id, target_id, target_type, details_json FROM user_audit_events WHERE action = 'announcement-removed'").all());

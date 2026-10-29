@@ -84,7 +84,7 @@ export default function ParentDashboard({ parentName }: { parentName: string }) 
           : <ul className="classroom-announcements parent-announcements">{announcements.map((notice) => <li key={notice.id}>
             <p className="announcement-meta"><strong>{notice.children.map((child) => child.displayName).join(", ")} · {notice.className}</strong><span className={`audience-badge ${notice.audience}`}>{s(...AUDIENCE_BADGES[notice.audience])}</span></p>
             <p className="announcement-body">{notice.body}</p>
-            <small>{s(`From ${notice.authorName}`, `${notice.authorName} পাঠিয়েছেন`)} · <time>{localDateTime(notice.createdAt, language)}</time></small>
+            <small>{notice.authorName ? s(`From ${notice.authorName}`, `${notice.authorName} পাঠিয়েছেন`) : s("From a former staff member", "একজন প্রাক্তন কর্মী পাঠিয়েছেন")} · <time>{localDateTime(notice.createdAt, language)}</time></small>
           </li>)}</ul>}
       </section>}
       {children.map((child) => <section className="teach-panel parent-child" key={child.id} aria-label={child.displayName}>

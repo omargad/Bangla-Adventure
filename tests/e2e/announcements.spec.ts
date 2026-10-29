@@ -71,7 +71,9 @@ test("a teacher posts a parents-only announcement: the linked parent sees it, th
   await panel.getByLabel("Who can see it").selectOption("parents");
   await panel.getByRole("button", { name: "Post", exact: true }).click();
   await expect(page.getByText("Announcement posted to the parents.", { exact: true })).toBeVisible();
-  await expect(panel.getByLabel("Who can see it")).toHaveValue("all");
+  // The choice stays for the next post, so a second parents-only note is not sent to students too.
+  await expect(panel.getByLabel("Who can see it")).toHaveValue("parents");
+  await expect(panel.getByLabel("New announcement")).toHaveValue("");
   const posted = panel.getByRole("listitem").filter({ hasText: parentsNote });
   await expect(posted).toContainText("Parents only");
   await expect(posted).toContainText("Posted by Notice Teacher");

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { localDateTime, localNumber, useLanguage } from "../../lib/use-language";
+import { localDateTime, localMessage, localNumber, useLanguage } from "../../lib/use-language";
 import type { AttendanceSummary } from "../../lib/attendance";
 import { ANNOUNCEMENT_AUDIENCES, ANNOUNCEMENT_MAX_LENGTH, AUDIENCE_BADGES, AUDIENCE_CHOICES, POSTED_MESSAGES, type AnnouncementAudience } from "../../lib/announcements";
 import { buildGradebook } from "../../lib/gradebook";
@@ -54,7 +54,7 @@ type ClassDetail = {
   class: { id: string; name: string; joinCode: string; teacherId: string };
   /** Students now in the class, A–Z (`id` is the roster row; `studentId` is null for a class-code learner). */
   students: Array<{ id: string; studentId: string | null; username: string | null; displayName: string; createdAt: string; attendance: AttendanceSummary | null }>;
-  announcements: Array<{ id: string; body: string; audience: AnnouncementAudience; authorName: string; createdAt: string }>;
+  announcements: Array<{ id: string; body: string; audience: AnnouncementAudience; authorName: string | null; createdAt: string }>;
   activities: ActivityDetail[];
 };
 
@@ -72,10 +72,17 @@ type SourceRow = {
 
 const emptyQuestion = (): Question => ({ prompt: "", options: ["", ""], answer: 0 });
 
+/** A refused request, keeping the server's reply so its message can be shown in the page language. */
+class RequestError extends Error {
+  constructor(readonly data: Record<string, unknown>) {
+    super(typeof data.error === "string" ? data.error : "The request could not be completed. Please try again.");
+  }
+}
+
 async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await globalThis.fetch(url, init);
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.error ?? "The request could not be completed. Please try again.");
+  if (!response.ok) throw new RequestError(data);
   return data as T;
 }
 
@@ -148,7 +155,7 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
       setDetail(data);
       if (section === "classes") setSection("students");
       if (data.class.id !== detail?.class.id) setOpenSubmissions(new Set());
-    } catch (error) { setMessage(error instanceof Error ? error.message : "Could not open the class."); }
+    } catch (error) { setMessage(localMessage(error instanceof RequestError ? error.data : null, language, ["Could not open the class.", "ক্লাসটি খোলা যায়নি।"])); }
   }
 
   async function request(url: string, init?: RequestInit) {
@@ -156,13 +163,13 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
       const response = await globalThis.fetch(url, init);
       if (!response.ok) {
         const data = await response.clone().json().catch(() => ({}));
-        setMessage(data.error ?? "The change could not be saved. Please try again.");
+        setMessage(localMessage(data, language, ["The change could not be saved. Please try again.", "পরিবর্তনটি সংরক্ষণ করা যায়নি। আবার চেষ্টা করুন।"]));
       }
       return response;
     } catch {
-      const error = "Could not reach the server. Your changes have not been saved.";
-      setMessage(error);
-      return Response.json({ error }, { status: 503 });
+      const [error, errorBn] = ["Could not reach the server. Your changes have not been saved.", "সার্ভারে পৌঁছানো যায়নি। আপনার পরিবর্তন সংরক্ষণ হয়নি।"];
+      setMessage(s(error, errorBn));
+      return Response.json({ error, errorBn }, { status: 503 });
     }
   }
 
@@ -182,7 +189,7 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
       setNewClassName("");
       setMessage(s("Class created. Open it to allocate students.", "ক্লাস তৈরি হয়েছে। শিক্ষার্থী বরাদ্দ করতে খুলুন।"));
       await loadClasses();
-    } else setMessage(data.error ?? "Could not create the class.");
+    } else setMessage(localMessage(data, language, ["Could not create the class.", "ক্লাস তৈরি করা যায়নি।"]));
   };
 
   const removeClass = async (id: string) => {
@@ -212,8 +219,8 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
     });
     setBusy(false);
     if (response.ok) {
+      // The audience stays as chosen, so a run of parents-only notes never widens to everyone unnoticed.
       setAnnouncement("");
-      setAudience("all");
       setMessage(s(...POSTED_MESSAGES[audience]));
       await openClass(detail.class.id);
     }
@@ -584,7 +591,7 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
                       <div>
                         <p className="announcement-meta">
                           <span className={`audience-badge ${item.audience}`}>{s(...AUDIENCE_BADGES[item.audience])}</span>
-                          <small>{s(`Posted by ${item.authorName}`, `${item.authorName} লিখেছেন`)} · <time>{localDateTime(item.createdAt, language)}</time></small>
+                          <small>{item.authorName ? s(`Posted by ${item.authorName}`, `${item.authorName} লিখেছেন`) : s("Posted by a former staff member", "একজন প্রাক্তন কর্মী লিখেছেন")} · <time>{localDateTime(item.createdAt, language)}</time></small>
                         </p>
                         <p className="announcement-body">{item.body}</p>
                       </div>

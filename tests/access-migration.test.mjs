@@ -100,3 +100,23 @@ test("announcements gain an audience and an author: older posts stay students-on
   assert.equal(db.prepare("SELECT author_id FROM class_announcements WHERE id = ?").get("new").author_id, null, "deleting the author keeps the post");
   db.close();
 });
+
+test("a class left pointing at a removed teacher does not stop the announcement migration", () => {
+  const db = new Database(":memory:");
+  db.exec(bootstrapSql);
+  db.prepare("INSERT INTO adults(id,email,display_name,password_hash) VALUES(?,?,?,?)").run("teacher", "teacher@example.com", "Teacher", "hash");
+  db.prepare("INSERT INTO adults(id,email,display_name,password_hash) VALUES(?,?,?,?)").run("gone", "gone@example.com", "Gone", "hash");
+  db.prepare("INSERT INTO classes(id,teacher_id,name,join_code) VALUES(?,?,?,?)").run("class", "teacher", "Class", "ABC234");
+  db.prepare("INSERT INTO classes(id,teacher_id,name,join_code) VALUES(?,?,?,?)").run("orphan", "gone", "Orphan", "DEF234");
+  db.prepare("INSERT INTO class_announcements(id,class_id,body) VALUES(?,?,?)").run("kept", "class", "Festival day.");
+  db.prepare("INSERT INTO class_announcements(id,class_id,body) VALUES(?,?,?)").run("orphaned", "orphan", "Bring a photo.");
+  // Edited outside the app, where the sqlite3 shell leaves foreign keys off.
+  db.pragma("foreign_keys = OFF");
+  db.prepare("DELETE FROM adults WHERE id = ?").run("gone");
+  db.pragma("foreign_keys = ON");
+  migrateAccessControl(db);
+  migrateAccessControl(db);
+  const rows = db.prepare("SELECT id, audience, author_id FROM class_announcements ORDER BY id").all().map((row) => ({ ...row }));
+  assert.deepEqual(rows, [{ id: "kept", audience: "students", author_id: "teacher" }, { id: "orphaned", audience: "students", author_id: null }]);
+  db.close();
+});

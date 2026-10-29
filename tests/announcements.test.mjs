@@ -63,7 +63,7 @@ db.insert(classAnnouncements).values([
   { id: "everyone", classId: "sunday", body: "Festival day on Sunday.", audience: "all", authorId: "teacher", createdAt: "2026-10-20 09:00:00" },
   { id: "students", classId: "sunday", body: "Read the Pohela Boishakh topic.", audience: "students", authorId: "teacher", createdAt: "2026-10-21 09:00:00" },
   { id: "parents", classId: "sunday", body: "Parents' evening on Friday.", audience: "parents", authorId: "admin", createdAt: "2026-10-22 09:00:00" },
-  { id: "old", classId: "monday", body: "Posted before authors were kept.", audience: "students", createdAt: "2026-10-01 09:00:00" },
+  { id: "old", classId: "monday", body: "Posted by an account that is gone.", audience: "students", createdAt: "2026-10-01 09:00:00" },
   { id: "monday-parents", classId: "monday", body: "Monday pick-up is at 4.", audience: "parents", authorId: "teacher", createdAt: "2026-10-23 09:00:00" },
   { id: "left-all", classId: "left", body: "Left Class news.", audience: "all", authorId: "teacher", createdAt: "2026-10-24 09:00:00" },
 ]).run();
@@ -74,8 +74,8 @@ test("staff see every audience in a class, newest first, with who wrote each pos
   assert.deepEqual(listAnnouncements(db, []), []);
 });
 
-test("a student reader gets everyone and students-only posts; posts without an author credit the class teacher", () => {
-  assert.deepEqual(listAnnouncements(db, ["sunday", "monday"], "student").map((row) => [row.id, row.authorName]), [["students", "Teacher Rahman"], ["everyone", "Teacher Rahman"], ["old", "Teacher Rahman"]]);
+test("a student reader gets everyone and students-only posts; a post with no author on record names no one", () => {
+  assert.deepEqual(listAnnouncements(db, ["sunday", "monday"], "student").map((row) => [row.id, row.authorName]), [["students", "Teacher Rahman"], ["everyone", "Teacher Rahman"], ["old", null]]);
 });
 
 test("posts written in the same second keep the order they were written in", () => {
@@ -86,7 +86,7 @@ test("posts written in the same second keep the order they were written in", () 
   assert.deepEqual(listAnnouncements(db, ["monday"]).slice(0, 2).map((row) => row.id), ["second", "first"]);
   db.delete(classAnnouncements).where(eq(classAnnouncements.classId, "monday")).run();
   db.insert(classAnnouncements).values([
-    { id: "old", classId: "monday", body: "Posted before authors were kept.", audience: "students", createdAt: "2026-10-01 09:00:00" },
+    { id: "old", classId: "monday", body: "Posted by an account that is gone.", audience: "students", createdAt: "2026-10-01 09:00:00" },
     { id: "monday-parents", classId: "monday", body: "Monday pick-up is at 4.", audience: "parents", authorId: "teacher", createdAt: "2026-10-23 09:00:00" },
   ]).run();
 });
@@ -99,7 +99,7 @@ test("a parent sees everyone and parents-only posts from their linked children's
     ["everyone", "Sunday Class", ["Arif", "Maya"], "Teacher Rahman"],
   ]);
   const json = JSON.stringify(announcements);
-  for (const hidden of ["Read the Pohela Boishakh topic.", "Posted before authors were kept.", "Left Class news.", "Other", "authorId", "teacher@example.com"]) assert.ok(!json.includes(hidden), hidden);
+  for (const hidden of ["Read the Pohela Boishakh topic.", "Posted by an account that is gone.", "Left Class news.", "Other", "authorId", "teacher@example.com"]) assert.ok(!json.includes(hidden), hidden);
 });
 
 test("a parent with no linked children gets no announcements, and unlinking stops them at once", async () => {
@@ -119,9 +119,12 @@ test("the retired class-code feed also leaves parents-only posts out and names e
   assert.deepEqual(announcements.map((item) => [item.id, item.authorName]), [["students", "Teacher Rahman"], ["everyone", "Teacher Rahman"]]);
 });
 
-test("a post by an account that is later deleted stays, credited to the class teacher", () => {
+test("a post whose author's account is deleted stays, but is never credited to whoever teaches the class now", () => {
+  // The class moves to another teacher, then the administrator who wrote the parents' note leaves.
+  db.insert(adults).values({ id: "bashir", email: "bashir@example.com", displayName: "Teacher Bashir", passwordHash: "test-only", role: "teacher", teacherStatus: "approved" }).run();
+  db.update(classes).set({ teacherId: "bashir" }).where(eq(classes.id, "sunday")).run();
   db.delete(adults).where(eq(adults.id, "admin")).run();
   const post = db.select().from(classAnnouncements).where(eq(classAnnouncements.id, "parents")).get();
   assert.equal(post.authorId, null);
-  assert.equal(listAnnouncements(db, ["sunday"])[0].authorName, "Teacher Rahman");
+  assert.deepEqual(listAnnouncements(db, ["sunday"]).map((row) => [row.id, row.authorName]), [["parents", null], ["students", "Teacher Rahman"], ["everyone", "Teacher Rahman"]]);
 });

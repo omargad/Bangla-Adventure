@@ -69,7 +69,11 @@ export function migrateAccessControl(sqlite: Database.Database): void {
     }
     if (!announcementColumns.has("author_id")) {
       sqlite.exec("ALTER TABLE class_announcements ADD COLUMN author_id text REFERENCES adults(id) ON DELETE set null");
-      sqlite.exec("UPDATE class_announcements SET author_id = (SELECT teacher_id FROM classes WHERE classes.id = class_announcements.class_id)");
+      // Only a teacher who still exists: a class left pointing at a removed adult (edited with foreign
+      // keys off) leaves its posts without an author instead of failing the whole migration.
+      sqlite.exec(`UPDATE class_announcements SET author_id = (
+        SELECT classes.teacher_id FROM classes JOIN adults ON adults.id = classes.teacher_id WHERE classes.id = class_announcements.class_id
+      )`);
     }
   })();
 }

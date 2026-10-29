@@ -20,14 +20,14 @@ type RouteContext = { params: Promise<{ id: string }> };
 
 export async function GET(_request: Request, context: RouteContext) {
   const user = await getSessionAdult();
-  if (user && !canTeach(user)) return Response.json({ error: "An approved teacher account is required." }, { status: 403 });
-  if (!user) return Response.json({ error: "Sign in to view this class." }, { status: 401 });
+  if (user && !canTeach(user)) return Response.json({ error: "An approved teacher account is required.", errorBn: "অনুমোদিত শিক্ষকের অ্যাকাউন্ট প্রয়োজন।" }, { status: 403 });
+  if (!user) return Response.json({ error: "Sign in to view this class.", errorBn: "ক্লাসটি দেখতে সাইন ইন করুন।" }, { status: 401 });
 
   try {
     const { id } = await context.params;
     // Administrators manage every class; teachers only their own.
     const classroom = await findManagedClass(user, id);
-    if (!classroom) return Response.json({ error: "Class not found." }, { status: 404 });
+    if (!classroom) return Response.json({ error: "Class not found.", errorBn: "ক্লাসটি পাওয়া যায়নি।" }, { status: 404 });
 
     const db = await getDb();
     // The students now in the class, A–Z, with their attendance; removed students and their work are left out.
@@ -85,12 +85,12 @@ export async function PATCH(request: Request, context: RouteContext) {
 
 export async function DELETE(_request: Request, context: RouteContext) {
   const user = await getSessionAdult();
-  if (user && !canTeach(user)) return Response.json({ error: "An approved teacher account is required." }, { status: 403 });
-  if (!user) return Response.json({ error: "Sign in to manage this class." }, { status: 401 });
+  if (user && !canTeach(user)) return Response.json({ error: "An approved teacher account is required.", errorBn: "অনুমোদিত শিক্ষকের অ্যাকাউন্ট প্রয়োজন।" }, { status: 403 });
+  if (!user) return Response.json({ error: "Sign in to manage this class.", errorBn: "ক্লাসটি পরিচালনা করতে সাইন ইন করুন।" }, { status: 401 });
 
   try {
     const { id } = await context.params;
-    if (!(await deleteClass(user, id))) return Response.json({ error: "Class not found." }, { status: 404 });
+    if (!(await deleteClass(user, id))) return Response.json({ error: "Class not found.", errorBn: "ক্লাসটি পাওয়া যায়নি।" }, { status: 404 });
     return Response.json({ ok: true });
   } catch (error) {
     return databaseError(error);
@@ -119,5 +119,7 @@ function databaseError(error: unknown) {
   if (error instanceof UserManagementError) return Response.json({ error: error.message, errorBn: error.messageBn }, { status: error.status });
   const message = error instanceof Error ? error.message : "Unexpected database error";
   const unavailable = message.includes("no such table") || message.includes("SQLITE");
-  return Response.json({ error: unavailable ? "The classroom service is still being set up." : message }, { status: 500 });
+  return Response.json(unavailable
+    ? { error: "The classroom service is still being set up.", errorBn: "ক্লাসরুম সেবাটি এখনো চালু করা হচ্ছে।" }
+    : { error: message, errorBn: "ক্লাসের তথ্য এখন পাওয়া যাচ্ছে না। একটু পরে আবার চেষ্টা করুন।" }, { status: 500 });
 }

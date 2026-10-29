@@ -21,7 +21,7 @@ type FeedActivity = {
 type Feed = {
   student: { id: string; displayName: string };
   class: { id: string; name: string; teacherName: string };
-  announcements: Array<{ id: string; body: string; authorName: string; createdAt: string }>;
+  announcements: Array<{ id: string; body: string; authorName: string | null; createdAt: string }>;
   activities: FeedActivity[];
 };
 
@@ -287,7 +287,7 @@ export default function ClassroomHub() {
             {feed.announcements.map((item) => (
               <li key={item.id}>
                 <p className="announcement-body">{item.body}</p>
-                <small>{item.authorName} · {s("Posted", "প্রকাশের সময়")}: <time>{localDateTime(item.createdAt, language)}</time></small>
+                <small>{item.authorName ?? s("A former staff member", "একজন প্রাক্তন কর্মী")} · {s("Posted", "প্রকাশের সময়")}: <time>{localDateTime(item.createdAt, language)}</time></small>
               </li>
             ))}
           </ul>
