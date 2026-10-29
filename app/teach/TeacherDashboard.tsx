@@ -5,10 +5,10 @@ import Link from "next/link";
 import { useLanguage } from "../../lib/use-language";
 import type { Topic } from "../topics-content";
 import { formatNumber, groupByCategory } from "@/lib/topic-model";
-import { NCTB_PORTAL_URL } from "../library-content";
 import PortalShell from "../components/PortalShell";
 import ClassAllocation from "../components/ClassAllocation";
 import { confirmDiscardPasswords } from "../components/StudentImport";
+import ClassSources from "./ClassSources";
 
 type ClassSummary = {
   id: string;
@@ -53,18 +53,6 @@ type ClassDetail = {
   activities: ActivityDetail[];
 };
 
-type SourceRow = {
-  id: string;
-  titleBn: string;
-  titleEn: string;
-  classes: { en: string; bn: string };
-  level: "primary" | "secondary";
-  status: "listed" | "confirm";
-  hasEnglishVersion: boolean;
-  downloadUrl?: string;
-  customised: boolean;
-};
-
 type TopicProgress = {
   classId: string;
   approvedTopics: number;
@@ -86,7 +74,6 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
 
   const [classList, setClassList] = useState<ClassSummary[]>([]);
   const [detail, setDetail] = useState<ClassDetail | null>(null);
-  const [sources, setSources] = useState<SourceRow[]>([]);
   const [topics, setTopics] = useState<Topic[]>([]);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
@@ -121,13 +108,11 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
     finally { setLoading(false); }
   }, [isAdmin]);
 
-  const loadSources = useCallback(async () => {
+  const loadTopics = useCallback(async () => {
     try {
-      const data = await requestJson<{ books: SourceRow[] }>("/api/library");
-      setSources(data.books);
       const curriculum = await requestJson<{ topics: Topic[] }>("/api/curriculum");
       setTopics(curriculum.topics);
-    } catch (error) { setMessage(error instanceof Error ? error.message : "Could not load sources."); }
+    } catch (error) { setMessage(error instanceof Error ? error.message : "Could not load the learning topics."); }
   }, []);
 
   useEffect(() => {
@@ -135,8 +120,8 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
     // not synchronously in the effect body.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadClasses();
-    void loadSources();
-  }, [loadClasses, loadSources]);
+    void loadTopics();
+  }, [loadClasses, loadTopics]);
 
   // Topics read by the class's students, shown with the class results.
   const resultsClassId = section === "results" ? detail?.class.id : undefined;
@@ -286,28 +271,6 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
     await openClass(detail.class.id);
   };
 
-  const saveSourceUrl = async (source: SourceRow, downloadUrl: string) => {
-    const response = await request("/api/library", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: source.id, data: { downloadUrl } }),
-    });
-    const data = await response.json().catch(() => ({}));
-    if (response.ok) {
-      setMessage(s("Source link saved.", "উৎসের লিংক সংরক্ষিত।"));
-      await loadSources();
-    } else setMessage(data.error ?? "Could not save the source.");
-  };
-
-  const resetSource = async (id: string) => {
-    await request("/api/library", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id }),
-    });
-    await loadSources();
-  };
-
   const topicTitle = (topicId: string | null) =>
     topicId ? topics.find((topic) => topic.id === topicId)?.title[language] ?? topicId : null;
 
@@ -347,8 +310,8 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
         ["activities", s("Activities & quizzes", "কার্যক্রম ও কুইজ")],
         ["results", s("Results", "ফলাফল")],
         ["announcements", s("Announcements", "ঘোষণা")],
-        ["sources", s("Manage sources", "উৎস পরিচালনা")],
-      ].map(([id, label]) => ({ id, label, onClick: () => { if ((id === "classes" || id === "sources") && detail && !canLeaveClass()) return; setSection(id); setMessage(""); if (id === "classes" || id === "sources") { setDetail(null); void loadClasses(); } else if (detail) void openClass(detail.class.id); } })),
+        ["sources", s("Class sources", "ক্লাসের উৎস")],
+      ].map(([id, label]) => ({ id, label, onClick: () => { if (id === "classes" && detail && !canLeaveClass()) return; setSection(id); setMessage(""); if (id === "classes") { setDetail(null); void loadClasses(); } else if (detail) void openClass(detail.class.id); } })),
       { id: "lessons", label: s("Lessons", "পাঠ"), href: "/studio" },
       { id: "content", label: s("Topics", "বিষয়"), href: "/teach/topics" },
       ...(isAdmin ? [{ id: "users", label: s("Manage users", "ব্যবহারকারী পরিচালনা"), href: "/admin" }, { id: "all-results", label: s("All class results", "সব ক্লাসের ফলাফল"), href: "/admin/results" }] : []),
@@ -400,7 +363,7 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
           <div><small>{s("Submissions", "জমা কাজ")}</small><strong>{loading ? "—" : totals.submissions}</strong></div>
         </section>
 
-        {!["classes", "sources"].includes(section) && <label className="portal-field">{s("Choose a class", "ক্লাস বেছে নিন")}<select value={detail?.class.id ?? ""} onChange={(event) => { if (event.target.value !== detail?.class.id && !canLeaveClass()) return; void openClass(event.target.value); }}><option value="">{s("Select a class", "ক্লাস নির্বাচন")}</option>{classList.map((item) => <option key={item.id} value={item.id}>{otherTeacher(item) ? `${item.name} — ${otherTeacher(item)}` : item.name}</option>)}</select></label>}
+        {section !== "classes" && <label className="portal-field">{s("Choose a class", "ক্লাস বেছে নিন")}<select value={detail?.class.id ?? ""} onChange={(event) => { if (event.target.value !== detail?.class.id && !canLeaveClass()) return; void openClass(event.target.value); }}><option value="">{s("Select a class", "ক্লাস নির্বাচন")}</option>{classList.map((item) => <option key={item.id} value={item.id}>{otherTeacher(item) ? `${item.name} — ${otherTeacher(item)}` : item.name}</option>)}</select></label>}
         {!detail && (
           <>
             <section hidden={section !== "classes"} className="teach-panel" aria-label={classesLabel}>
@@ -434,28 +397,6 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
                   ))}
                 </div>
               )}
-            </section>
-
-            <section hidden={section !== "sources"} className="teach-panel" aria-label={s("Textbook knowledge sources", "পাঠ্যবই জ্ঞানভান্ডার")}>
-              <h2>{s("Textbook knowledge sources", "পাঠ্যবই জ্ঞানভান্ডার")}</h2>
-              <p className="teach-note">
-                {s(
-                  "NCTB refreshes textbooks every academic year. Update each book's official download link here after the yearly review — the public library page updates instantly, with no code change.",
-                  "এনসিটিবি প্রতি শিক্ষাবর্ষে বই হালনাগাদ করে। বার্ষিক পর্যালোচনার পর এখানে প্রতিটি বইয়ের অফিসিয়াল ডাউনলোড লিংক দিন — লাইব্রেরি পাতা সঙ্গে সঙ্গে বদলে যাবে, কোনো কোড বদলাতে হবে না।",
-                )}{" "}
-                <a href={NCTB_PORTAL_URL} target="_blank" rel="noreferrer">{s("Open the NCTB portal ↗", "এনসিটিবি পোর্টাল ↗")}</a>
-              </p>
-              <div className="teach-sources">
-                {sources.map((source) => (
-                  <SourceEditor
-                    key={`${source.id}:${source.downloadUrl ?? ""}`}
-                    source={source}
-                    language={language}
-                    onSave={saveSourceUrl}
-                    onReset={resetSource}
-                  />
-                ))}
-              </div>
             </section>
           </>
         )}
@@ -534,6 +475,8 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
                 </div>
               )}
             </section>
+
+            {section === "sources" && <ClassSources key={detail.class.id} classId={detail.class.id} language={language} isAdmin={isAdmin} />}
 
             <section hidden={section !== "announcements"} className="teach-panel" aria-label={s("Announcements", "ঘোষণা")}>
               <h3>{s("Announcements", "ঘোষণা")}</h3>
@@ -753,50 +696,5 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
       </div>
     </main>
     </PortalShell>
-  );
-}
-
-function SourceEditor({
-  source,
-  language,
-  onSave,
-  onReset,
-}: {
-  source: SourceRow;
-  language: "en" | "bn";
-  onSave: (source: SourceRow, url: string) => Promise<void>;
-  onReset: (id: string) => Promise<void>;
-}) {
-  const s = (en: string, bn: string) => (language === "bn" ? bn : en);
-  // The parent keys this component by downloadUrl, so a saved link remounts
-  // the row with a fresh initial value — no prop-sync effect needed.
-  const [url, setUrl] = useState(source.downloadUrl ?? "");
-
-  return (
-    <div className="teach-source-row">
-      <div className="teach-source-name">
-        <strong lang="bn">{source.titleBn}</strong>
-        <small>
-          {source.titleEn} · {source.classes[language]}
-          {source.customised && <span className="teach-source-custom"> · {s("customised", "কাস্টমাইজড")}</span>}
-        </small>
-      </div>
-      <input
-        value={url}
-        onChange={(event) => setUrl(event.target.value)}
-        placeholder={s("https:// official download link for this year's edition", "https:// এ বছরের সংস্করণের অফিসিয়াল লিংক")}
-        aria-label={`${source.titleEn} URL`}
-      />
-      <div className="teach-source-actions">
-        <button type="button" className="text-button" disabled={!/^https:\/\//.test(url)} onClick={() => onSave(source, url)}>
-          {s("Save", "সংরক্ষণ")}
-        </button>
-        {source.customised && (
-          <button type="button" className="text-button danger" onClick={() => onReset(source.id)}>
-            {s("Reset", "রিসেট")}
-          </button>
-        )}
-      </div>
-    </div>
   );
 }

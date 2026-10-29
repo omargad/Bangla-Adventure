@@ -55,14 +55,19 @@ and preserve real records.
 1. **Administrator:** register the confirmed test owner, grant admin on the same
    database, sign in again, approve a teacher, manage student/family links and
    edit a topic in Topics. Verify students keep the approved version
-   until the edit is previewed in English and Bangla and approved.
+   until the edit is previewed in English and Bangla and approved. In Sources,
+   replace one book's yearly NCTB link (per class where a book covers several),
+   note the warning for an address outside nctb.gov.bd, and confirm students'
+   Sources & references and the topic sources open the new link.
 2. **Teacher:** request access, demonstrate no teaching privileges before approval,
    create a class and activity/quiz, allocate an exact registered student, inspect
    submissions/results, and post an announcement visible only to that class. Write
    a new topic, confirm students cannot see it, then preview and approve it. In
    Lessons, preview a lesson in Bangla, withdraw it with a reason, confirm the
    student lesson list and its link no longer show it, then open every part of
-   the lesson and approve it again.
+   the lesson and approve it again. In Class sources, add a link for one class and
+   confirm only that class's students (and their linked parents) see it; the
+   shared NCTB links cannot be changed from a teacher account.
 3. **Student:** sign in to My Learning, open Learning topics and sources, complete
    an allocated activity, view results/progress, refresh and switch devices. Confirm
    unallocated class data is unavailable and no self-enrolment code is required.

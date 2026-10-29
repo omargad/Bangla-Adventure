@@ -5,6 +5,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useLanguage } from "@/lib/use-language";
 import type { ParentOverview } from "@/lib/parent-access";
 import PortalShell from "../components/PortalShell";
+import type { ClassSource } from "@/lib/class-sources";
+import ClassSourceList from "../references/ClassSourceList";
 
 type SavedProfile = { id: string; displayName: string; progress: { id: string; lessonId: string; skill: string; score: number | null }[]; assignments: { id: string; title: string; status: string; dueAt: string | null }[] };
 
@@ -13,6 +15,8 @@ export default function ParentDashboard({ parentName }: { parentName: string }) 
   const s = (en: string, bn: string) => language === "bn" ? bn : en;
   const [data, setData] = useState<ParentOverview | null>(null);
   const [savedProfiles, setSavedProfiles] = useState<SavedProfile[]>([]);
+  // The sources each child's teacher added for a class, by class id.
+  const [classSources, setClassSources] = useState<Record<string, ClassSource[]>>({});
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const sequence = useRef(0);
@@ -21,14 +25,16 @@ export default function ParentDashboard({ parentName }: { parentName: string }) 
     const requestId = ++sequence.current;
     if (!quiet) setLoading(true);
     try {
-      const [overviewResponse, profilesResponse] = await Promise.all([
+      const [overviewResponse, profilesResponse, sources] = await Promise.all([
         fetch("/api/family", { cache: "no-store", signal }),
         fetch("/api/profiles", { cache: "no-store", signal }),
+        // Class sources are extra: the records still load when they cannot.
+        fetch("/api/family/sources", { cache: "no-store", signal }).then((response) => (response.ok ? response.json() : null)).catch(() => null) as Promise<{ classes?: Record<string, ClassSource[]> } | null>,
       ]);
       const [overview, profiles] = await Promise.all([overviewResponse.json(), profilesResponse.json()]);
       if (!overviewResponse.ok || !profilesResponse.ok) throw new Error(overview.error ?? profiles.error ?? "Could not load learning records.");
       if (requestId !== sequence.current || signal?.aborted) return;
-      setData(overview); setSavedProfiles(profiles.profiles ?? []); setError("");
+      setData(overview); setSavedProfiles(profiles.profiles ?? []); setClassSources(sources?.classes ?? {}); setError("");
     } catch (error) {
       if (requestId !== sequence.current || signal?.aborted) return;
       setData(null); setSavedProfiles([]);
@@ -66,6 +72,7 @@ export default function ParentDashboard({ parentName }: { parentName: string }) 
         <label className="parent-completion">{s("Activities submitted", "জমা দেওয়া কার্যক্রম")}: {child.metrics.completedActivities} / {child.metrics.assignedActivities}<progress max={Math.max(1, child.metrics.assignedActivities)} value={child.metrics.completedActivities} /></label>
         {child.classes.length === 0 && <p>{s("No class enrolments yet. Learning records will appear after your child joins a class.", "এখনও কোনো ক্লাসে ভর্তি হয়নি। ক্লাসে যোগ দেওয়ার পর শেখার তথ্য দেখা যাবে।")}</p>}
         {child.classes.map((classroom) => <section className="parent-class" key={classroom.id}><h3>{classroom.name}</h3><p>{s("Teacher", "শিক্ষক")}: {classroom.teacherName}</p>
+          {(classSources[classroom.id]?.length ?? 0) > 0 && <section className="parent-class-sources" aria-label={`${classroom.name}: ${s("Class sources", "ক্লাসের উৎস")}`}><h4>{s("Class sources", "ক্লাসের উৎস")}</h4><ClassSourceList sources={classSources[classroom.id]} language={language} /></section>}
           {classroom.activities.length === 0 ? <p>{s("No activities assigned yet.", "এখনও কোনো কার্যক্রম দেওয়া হয়নি।")}</p> : <div className="management-table-wrap"><table className="management-table"><caption className="sr-only">{classroom.name} {s("learning results", "শেখার ফলাফল")}</caption><thead><tr><th>{s("Activity", "কার্যক্রম")}</th><th>{s("Progress", "অগ্রগতি")}</th><th>{s("Result", "ফলাফল")}</th></tr></thead><tbody>{classroom.activities.map((activity) => <tr key={activity.id}><td><strong>{activity.title}</strong>{activity.instructions && <small>{activity.instructions}</small>}</td><td>{activity.submission ? s("Submitted", "জমা হয়েছে") : activity.status === "closed" ? s("Closed · not submitted", "বন্ধ · জমা হয়নি") : s("To do", "করতে হবে")}{activity.submission && <small>{s("Submitted", "জমার সময়")}: {activity.submission.submittedAt}</small>}</td><td>{activity.submission && activity.submission.total > 0 ? `${activity.submission.score} / ${activity.submission.total}` : "—"}</td></tr>)}</tbody></table></div>}
         </section>)}
       </section>)}

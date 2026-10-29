@@ -3,16 +3,19 @@
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import type { Topic } from "../topics-content";
-import { bookById, NCTB_PORTAL_URL } from "../library-content";
 import { formatNumber, type Language } from "@/lib/topic-model";
+import { topicSourceLinks, type TopicReference } from "@/lib/library-links";
+import SourceLinks from "../references/SourceLinks";
 
 /**
  * One topic as students read it: heading, sections, facts, sources and the quiz.
  * The topics hub and the staff preview both render this, so a reviewer approves
  * exactly what students will see. The caller supplies the surrounding <article>.
+ * Source links come with the topic from /api/curriculum (references, including the
+ * administrator's yearly links); a preview without them uses the official NCTB pages.
  */
 export default function TopicReader({ topic, language, titleLevel = 1, best, onQuizChecked, beforeQuiz, quizNote, onPickAnother }: {
-  topic: Topic;
+  topic: Topic & { references?: TopicReference[] };
   language: Language;
   /** 2 when several readers share a page (the side-by-side preview). */
   titleLevel?: 1 | 2;
@@ -32,6 +35,7 @@ export default function TopicReader({ topic, language, titleLevel = 1, best, onQ
   const Title = titleLevel === 1 ? "h1" : "h2";
   const score = topic.quiz.reduce((total, question, index) => total + (answers[index] === question.answer ? 1 : 0), 0);
   const allAnswered = topic.quiz.every((_, index) => answers[index] !== undefined);
+  const references = topic.references ?? topicSourceLinks(topic.sources ?? []);
 
   return (
     <>
@@ -57,23 +61,19 @@ export default function TopicReader({ topic, language, titleLevel = 1, best, onQ
       )}
 
       <section className="topic-sources" aria-label={s("Trusted source", "নির্ভরযোগ্য উৎস")}>
-        <h2>📖 {topic.sources.length ? s("From the government textbooks", "সরকারি পাঠ্যবই থেকে") : s("Where this comes from", "এই লেখার উৎস")}</h2>
+        <h2>📖 {references.length ? s("From the government textbooks", "সরকারি পাঠ্যবই থেকে") : s("Where this comes from", "এই লেখার উৎস")}</h2>
         {topic.sourceNote && <p className="topic-sources-note">{topic.sourceNote[language]}</p>}
-        {topic.sources.length > 0 && <>
+        {references.length > 0 && <>
           <p className="topic-sources-note">{s("This topic is linked to these NCTB government textbooks:", "এই বিষয়টি এনসিটিবির এই সরকারি পাঠ্যবইগুলোর সঙ্গে যুক্ত:")}</p>
           <ul>
-            {topic.sources.map((source) => {
-              const book = bookById(source.bookId);
-              if (!book) return null;
-              return (
-                <li key={source.bookId}>
-                  <strong lang="bn">{book.titleBn}</strong>
-                  <span> — {language === "bn" ? book.classes.bn : `${book.titleEn}, ${book.classes.en}`}</span>
-                  <em>{source.note[language]}</em>
-                  <a href={NCTB_PORTAL_URL} target="_blank" rel="noreferrer">{s("Official NCTB source portal", "এনসিটিবির মূল উৎস")}</a>
-                </li>
-              );
-            })}
+            {references.map((reference) => (
+              <li key={reference.bookId}>
+                <strong lang="bn">{reference.titleBn}</strong>
+                <span> — {language === "bn" ? reference.classes.bn : `${reference.title}, ${reference.classes.en}`}</span>
+                <em>{reference.note[language]}</em>
+                <SourceLinks links={reference.links} language={language} bookTitle={language === "bn" ? reference.titleBn : reference.title} />
+              </li>
+            ))}
           </ul>
         </>}
         <Link href="/library">{s("Open the textbook library →", "পাঠ্যবই লাইব্রেরি খোলো →")}</Link>

@@ -1,162 +1,75 @@
-import { eq } from "drizzle-orm";
-import { getDb } from "../../../db";
-import { knowledgeSources } from "../../../db/schema";
-import { getSessionAdult } from "@/lib/auth";
-import { canTeach } from "@/lib/roles";
-import { libraryBooks } from "../../library-content";
-import type { LibraryBook } from "../../library-content";
+import { getSessionAdult, getStaffAccess } from "@/lib/auth";
+import { getSessionStudent } from "@/lib/student-auth";
+import { addLibrarySource, adminLibraryCatalog, getLibraryCatalog, libraryErrorResponse, resetLibrarySource, updateLibrarySource } from "@/lib/library-catalog";
 
 export const dynamic = "force-dynamic";
 
-// Teacher-editable knowledge sources (client requirement R13): the static
-// catalog in app/library-content.ts is the yearly baseline; rows in the
-// knowledge_sources table override it (matching id) or extend it (new id).
-// An override of { hidden: true } removes a baseline book from display.
+// The NCTB textbook catalogue (client requirement R13): app/library-content.ts is
+// the yearly baseline and knowledge_sources holds the administrator's changes
+// (this year's links per book or class, hidden books, added sources). Reading is
+// open to every signed-in user; only administrators change it, and every change
+// is audited (lib/library-catalog.ts). Teachers add sources to their own classes.
 
-export type SourceOverride = Partial<LibraryBook> & { hidden?: boolean; downloadUrl?: string };
+const MAX_BODY = 20_000;
 
-export async function GET() {
+async function readBody(request: Request): Promise<Record<string, unknown> | Response> {
+  const text = await request.text().catch(() => "");
+  if (text.length > MAX_BODY) return Response.json({ error: "This change is too large.", errorBn: "পরিবর্তনটি খুব বড়।" }, { status: 413 });
   try {
-    const db = await getDb();
-    const rows = await db.select().from(knowledgeSources).where(eq(knowledgeSources.active, true));
-    const overrides = new Map<string, SourceOverride>();
-    for (const row of rows) {
-      try {
-        overrides.set(row.id, JSON.parse(row.dataJson) as SourceOverride);
-      } catch {
-        // Skip malformed rows rather than break the public library.
-      }
-    }
-
-    const merged: Array<LibraryBook & { downloadUrl?: string; customised: boolean }> = [];
-    for (const book of libraryBooks) {
-      const override = overrides.get(book.id);
-      overrides.delete(book.id);
-      if (override?.hidden) continue;
-      merged.push({ ...book, ...override, id: book.id, customised: Boolean(override) });
-    }
-    for (const [id, override] of overrides) {
-      if (override.hidden) continue;
-      const extra = asFullBook(id, override);
-      if (extra) merged.push({ ...extra, customised: true });
-    }
-
-    return Response.json({ books: merged });
-  } catch {
-    // Database not ready — serve the static baseline so the page still works.
-    return Response.json({ books: libraryBooks.map((book) => ({ ...book, customised: false })) });
-  }
+    const body = JSON.parse(text);
+    if (body && typeof body === "object" && !Array.isArray(body)) return body;
+  } catch { /* answered below */ }
+  return Response.json({ error: "Provide the source fields.", errorBn: "উৎসের তথ্যগুলো দিন।" }, { status: 400 });
 }
 
+const bookId = (value: unknown) => (typeof value === "string" && /^[a-z0-9-]{1,60}$/.test(value) ? value : "");
+const badId = () => Response.json({ error: "Source id must be lowercase letters, digits and dashes.", errorBn: "উৎসের আইডি শুধু ছোট হাতের ইংরেজি অক্ষর, সংখ্যা ও ড্যাশ হতে পারে।" }, { status: 400 });
+
+/** The books readers see; ?scope=admin gives administrators every book with who changed it last. */
+export async function GET(request: Request) {
+  if (new URL(request.url).searchParams.get("scope") === "admin") {
+    const actor = await getStaffAccess("admin");
+    if (actor instanceof Response) return actor;
+    try { return Response.json({ books: await adminLibraryCatalog() }); } catch (error) { return libraryErrorResponse(error); }
+  }
+  if (!(await getSessionAdult()) && !(await getSessionStudent())) return Response.json({ error: "Sign in to view the textbook library." }, { status: 401 });
+  return Response.json({ books: await getLibraryCatalog() });
+}
+
+/** An administrator adds a source that is not in the shipped catalogue. */
+export async function POST(request: Request) {
+  const actor = await getStaffAccess("admin");
+  if (actor instanceof Response) return actor;
+  const body = await readBody(request);
+  if (body instanceof Response) return body;
+  try {
+    const data = typeof body.data === "object" && body.data !== null ? body.data as Record<string, unknown> : body;
+    return Response.json({ ok: true, ...(await addLibrarySource(actor, data)) }, { status: 201 });
+  } catch (error) { return libraryErrorResponse(error); }
+}
+
+/** An administrator changes one book; fields the change leaves out are kept. */
 export async function PUT(request: Request) {
-  const user = await getSessionAdult();
-  if (user && !canTeach(user)) return Response.json({ error: "An approved teacher account is required." }, { status: 403 });
-  if (!user) return Response.json({ error: "Sign in to update the knowledge sources." }, { status: 401 });
-
-  try {
-    const body = (await request.json().catch(() => ({}))) as { id?: unknown; data?: unknown };
-    const id = typeof body.id === "string" ? body.id.trim().slice(0, 60) : "";
-    if (!id || !/^[a-z0-9-]+$/.test(id)) {
-      return Response.json({ error: "Source id must be lowercase letters, digits and dashes." }, { status: 400 });
-    }
-    if (typeof body.data !== "object" || body.data === null) {
-      return Response.json({ error: "Provide the source fields to store." }, { status: 400 });
-    }
-    const proposedUrl = (body.data as Record<string, unknown>).downloadUrl;
-    if (proposedUrl !== undefined && proposedUrl !== "") {
-      try {
-        if (typeof proposedUrl !== "string" || proposedUrl.length > 500) throw new Error("Invalid URL");
-        const url = new URL(proposedUrl);
-        if (url.protocol !== "https:" || url.username || url.password || url.hostname === "localhost") throw new Error("Invalid URL");
-      } catch { return Response.json({ error: "Enter a valid HTTPS source link without credentials." }, { status: 400 }); }
-    }
-    const data = sanitizeOverride(body.data as Record<string, unknown>);
-    const isBaseline = libraryBooks.some((book) => book.id === id);
-    if (!isBaseline && !data.hidden) {
-      const full = asFullBook(id, data);
-      if (!full) {
-        return Response.json(
-          { error: "A new source needs at least both titles and its classes in English and Bangla." },
-          { status: 400 },
-        );
-      }
-    }
-
-    const db = await getDb();
-    const now = new Date().toISOString();
-    await db
-      .insert(knowledgeSources)
-      .values({ id, updatedBy: user.email, dataJson: JSON.stringify(data), active: true, updatedAt: now })
-      .onConflictDoUpdate({
-        target: knowledgeSources.id,
-        set: { updatedBy: user.email, dataJson: JSON.stringify(data), active: true, updatedAt: now },
-      });
-    return Response.json({ ok: true });
-  } catch (error) {
-    return databaseError(error);
+  const actor = await getStaffAccess("admin");
+  if (actor instanceof Response) return actor;
+  const body = await readBody(request);
+  if (body instanceof Response) return body;
+  const id = bookId(body.id);
+  if (!id) return badId();
+  if (typeof body.data !== "object" || body.data === null || Array.isArray(body.data)) {
+    return Response.json({ error: "Provide the source fields to store.", errorBn: "সংরক্ষণের জন্য উৎসের তথ্য দিন।" }, { status: 400 });
   }
+  try { return Response.json({ ok: true, ...(await updateLibrarySource(actor, id, body.data as Record<string, unknown>)) }); }
+  catch (error) { return libraryErrorResponse(error); }
 }
 
+/** An administrator undoes every change to a book. */
 export async function DELETE(request: Request) {
-  const user = await getSessionAdult();
-  if (user && !canTeach(user)) return Response.json({ error: "An approved teacher account is required." }, { status: 403 });
-  if (!user) return Response.json({ error: "Sign in to update the knowledge sources." }, { status: 401 });
-
-  try {
-    const body = (await request.json().catch(() => ({}))) as { id?: unknown };
-    const id = typeof body.id === "string" ? body.id : "";
-    if (!id) return Response.json({ error: "Choose a source to reset." }, { status: 400 });
-
-    const db = await getDb();
-    await db.delete(knowledgeSources).where(eq(knowledgeSources.id, id));
-    return Response.json({ ok: true });
-  } catch (error) {
-    return databaseError(error);
-  }
-}
-
-function sanitizeOverride(raw: Record<string, unknown>): SourceOverride {
-  const out: SourceOverride = {};
-  if (raw.hidden === true) out.hidden = true;
-  if (typeof raw.downloadUrl === "string") {
-    const url = raw.downloadUrl.trim().slice(0, 500);
-    if (url && /^https:\/\//.test(url)) out.downloadUrl = url;
-  }
-  if (typeof raw.titleBn === "string" && raw.titleBn.trim()) out.titleBn = raw.titleBn.trim().slice(0, 160);
-  if (typeof raw.titleEn === "string" && raw.titleEn.trim()) out.titleEn = raw.titleEn.trim().slice(0, 160);
-  if (raw.level === "primary" || raw.level === "secondary" || raw.level === "higher-secondary") out.level = raw.level;
-  if (raw.status === "listed" || raw.status === "confirm") out.status = raw.status;
-  if (typeof raw.hasEnglishVersion === "boolean") out.hasEnglishVersion = raw.hasEnglishVersion;
-  for (const key of ["classes", "subjectArea", "covers", "whyItMatters"] as const) {
-    const value = raw[key];
-    if (typeof value === "object" && value !== null) {
-      const pair = value as { en?: unknown; bn?: unknown };
-      if (typeof pair.en === "string" && typeof pair.bn === "string" && pair.en.trim() && pair.bn.trim()) {
-        out[key] = { en: pair.en.trim().slice(0, 400), bn: pair.bn.trim().slice(0, 400) };
-      }
-    }
-  }
-  return out;
-}
-
-function asFullBook(id: string, override: SourceOverride): LibraryBook | null {
-  if (!override.titleBn || !override.titleEn || !override.classes) return null;
-  return {
-    id,
-    titleBn: override.titleBn,
-    titleEn: override.titleEn,
-    classes: override.classes,
-    level: override.level ?? "secondary",
-    subjectArea: override.subjectArea ?? { en: "Added by a teacher", bn: "শিক্ষকের যোগ করা" },
-    covers: override.covers ?? { en: "", bn: "" },
-    whyItMatters: override.whyItMatters ?? { en: "", bn: "" },
-    hasEnglishVersion: override.hasEnglishVersion ?? false,
-    status: override.status ?? "confirm",
-  };
-}
-
-function databaseError(error: unknown) {
-  const message = error instanceof Error ? error.message : "Unexpected database error";
-  const unavailable = message.includes("no such table") || message.includes("SQLITE");
-  return Response.json({ error: unavailable ? "The knowledge-source service is still being set up." : message }, { status: 500 });
+  const actor = await getStaffAccess("admin");
+  if (actor instanceof Response) return actor;
+  const body = await readBody(request);
+  if (body instanceof Response) return body;
+  const id = bookId(body.id);
+  if (!id) return badId();
+  try { return Response.json(await resetLibrarySource(actor, id)); } catch (error) { return libraryErrorResponse(error); }
 }

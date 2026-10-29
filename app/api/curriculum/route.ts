@@ -2,6 +2,7 @@ import { getSessionAdult } from "@/lib/auth";
 import { getSessionStudent, passwordChangeRequired } from "@/lib/student-auth";
 import { getCatalog, listStaffTopics, topicProgressFor, topicReferences } from "@/lib/curriculum-catalog";
 import { canTeach } from "@/lib/roles";
+import { libraryOverrides } from "@/lib/library-catalog";
 export const dynamic = "force-dynamic";
 /**
  * Learning topics for the signed-in reader. Everyone (students, parents and staff)
@@ -20,10 +21,11 @@ export async function GET(request: Request) {
     if (new URL(request.url).searchParams.get("summary") === "1") return Response.json({ topicCount: catalog.length });
     const progress = student ? await topicProgressFor(student.id, catalog) : { readTopicIds: [], quizScores: {} };
     const staff = canTeach(adult);
+    const overrides = await libraryOverrides();
     const review = staff ? new Map((await listStaffTopics()).map((topic) => [topic.id, topic])) : null;
     return Response.json({
       topics: catalog.map(({ version, baseline, approvedAt, ...topic }) => ({
-        ...topic, references: topicReferences(topic),
+        ...topic, references: topicReferences(topic, overrides),
         ...(review ? { approval: { version, baseline, approvedAt, reviewerName: review.get(topic.id)?.approved?.reviewerName ?? null, pendingVersions: review.get(topic.id)?.pendingVersions ?? [] } } : {}),
       })),
       ...progress, learnerId: student?.id ?? null, canRecordProgress: Boolean(student), canReview: staff,

@@ -23,6 +23,7 @@ export default function PortalShell({ role, name, language, toggleLanguage, acti
     { id: "results", label: s("Grades & results", "গ্রেড ও ফলাফল"), href: "/admin/results" },
     { id: "lessons", label: s("Lessons", "পাঠ"), href: "/studio" },
     { id: "content", label: s("Topics", "বিষয়"), href: "/teach/topics" },
+    { id: "sources", label: s("Sources", "উৎস"), href: "/admin/sources" },
     { id: "teach", label: s("Teacher workspace", "শিক্ষকের কর্মক্ষেত্র"), href: "/teach" },
   ] : role === "student" ? [
     { id: "learning", label: s("My Learning", "আমার শেখা"), href: "/student" },

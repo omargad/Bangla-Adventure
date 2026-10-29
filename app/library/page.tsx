@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import LibraryHub from "./LibraryHub";
 import LearningLayout from "../components/LearningLayout";
+import { getLibraryCatalog } from "@/lib/library-catalog";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
@@ -9,6 +10,6 @@ export const metadata: Metadata = {
     "The Bangladesh government (NCTB) textbooks this platform draws its culture, history and literature content from — with official download links and a yearly review promise.",
 };
 
-export default function LibraryPage() {
-  return <LearningLayout active="references"><LibraryHub /></LearningLayout>;
+export default async function LibraryPage() {
+  return <LearningLayout active="references"><LibraryHub books={await getLibraryCatalog()} /></LearningLayout>;
 }

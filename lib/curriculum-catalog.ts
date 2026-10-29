@@ -3,7 +3,7 @@ import { and, asc, eq, inArray } from "drizzle-orm";
 import { getDb } from "../db";
 import { adults, classStudents, studentClassEnrollments, studentTopicProgress, topicVersions, userAuditEvents } from "../db/schema";
 import { topics as shippedTopics, type Bilingual, type Topic, type TopicQuizQuestion } from "../app/topics-content";
-import { bookById, NCTB_PORTAL_URL } from "../app/library-content";
+import { topicSourceLinks, type SourceOverride } from "./library-links";
 import { canTeach } from "./roles";
 import {
   canRestartFromApproved, checkReview, describeTopicChanges, gradeTopicQuiz, newTopicId, statusesAfterApproval, topicChanged, TopicError, TOPIC_LIMITS,
@@ -330,8 +330,9 @@ export async function classTopicProgress(classId: string) {
   };
 }
 
-export function topicReferences(topic: Topic) {
-  return topic.sources.map((source) => ({ bookId: source.bookId, title: bookById(source.bookId)?.titleEn ?? source.bookId, note: source.note, url: NCTB_PORTAL_URL }));
+/** A topic's cited textbooks with the links readers follow (see lib/library-links.ts for the rule). */
+export function topicReferences(topic: Topic, overrides?: Map<string, SourceOverride>) {
+  return topicSourceLinks(topic.sources, overrides);
 }
 
 const MAX_TOPIC_BODY = 400_000;

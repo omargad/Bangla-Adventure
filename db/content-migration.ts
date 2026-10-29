@@ -4,8 +4,8 @@ import { topics } from "../app/topics-content";
 const BASELINE_NOTE = "Edited before topic approval existed; approved as a baseline.";
 
 /**
- * Content approval and authoring: topic versions (below) and the shared lesson
- * approval (migrateLessons). Every new or edited topic is stored as a
+ * Content approval and authoring: topic versions (below), the shared lesson
+ * approval (migrateLessons) and per-class sources (migrateClassSources). Every new or edited topic is stored as a
  * version and only an approved version reaches learners. The topics shipped in
  * app/topics-content.ts are the approved baseline (version 0). Administrator
  * edits saved before approval existed (topic_updates) were already visible to
@@ -16,6 +16,22 @@ const BASELINE_NOTE = "Edited before topic approval existed; approved as a basel
 export function migrateContent(sqlite: Database.Database): void {
   migrateTopics(sqlite);
   migrateLessons(sqlite);
+  migrateClassSources(sqlite);
+}
+
+/** Per-class sources: links a class's teacher adds for that class only. Safe to repeat. */
+function migrateClassSources(sqlite: Database.Database): void {
+  sqlite.exec(`CREATE TABLE IF NOT EXISTS class_sources (
+    id text PRIMARY KEY NOT NULL,
+    class_id text NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
+    title_en text NOT NULL DEFAULT '',
+    title_bn text NOT NULL DEFAULT '',
+    url text NOT NULL,
+    note text NOT NULL DEFAULT '',
+    created_by text REFERENCES adults(id) ON DELETE SET NULL,
+    created_at text NOT NULL DEFAULT CURRENT_TIMESTAMP
+  );
+  CREATE INDEX IF NOT EXISTS class_sources_class_idx ON class_sources (class_id);`);
 }
 
 function migrateTopics(sqlite: Database.Database): void {

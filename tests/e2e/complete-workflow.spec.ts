@@ -136,7 +136,8 @@ test("complete approved-teacher, allocated-student, curriculum and recovery work
     await expect(student.getByRole("heading", { level: 1, name: title })).toBeVisible();
     await expect(student.getByText("Read this updated section with your teacher and check the original NCTB source.", { exact: true })).toBeVisible();
     await expect(student.getByText("Draft for educator review", { exact: true })).toHaveCount(0);
-    await expect(student.getByRole("link", { name: "Official NCTB source portal" }).first()).toHaveAttribute("href", "https://nctb.gov.bd/");
+    // Topic sources now open the book's own NCTB page for each class, not the NCTB home page.
+    await expect(student.getByRole("link", { name: "Bangladesh and Global Studies (primary) — Class 3: Official NCTB page", exact: true })).toHaveAttribute("href", /^https:\/\/nctb\.gov\.bd\/pages\/static-pages\/[0-9a-f]{24}$/);
     await student.getByRole("button", { name: "Mark reading complete", exact: true }).click();
     await expect(student.getByRole("button", { name: "Reading complete", exact: true })).toBeDisabled();
     expect((await api(student, "/api/topics/pohela-boishakh", {}, "PUT")).status).toBe(401);

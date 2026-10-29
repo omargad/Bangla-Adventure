@@ -6,12 +6,13 @@ import { useLanguage } from "../../lib/use-language";
 import type { Topic } from "../topics-content";
 import { formatNumber, formatWhen, groupByCategory } from "@/lib/topic-model";
 import TopicReader from "./TopicReader";
+import type { TopicReference } from "@/lib/library-links";
 
 const moodleUrl = process.env.NEXT_PUBLIC_MOODLE_URL?.replace(/\/+$/, "");
 const courseHref = moodleUrl || "/learn";
 
 type Approval = { version: number; baseline: boolean; approvedAt: string | null; reviewerName: string | null; pendingVersions: number[] };
-type HubTopic = Topic & { approval?: Approval };
+type HubTopic = Topic & { approval?: Approval; references?: TopicReference[] };
 type QuizScores = Record<string, { best: number; total: number }>;
 
 export default function TopicsHub({ initialTopic }: { initialTopic?: string }) {

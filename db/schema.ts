@@ -382,3 +382,15 @@ export const contentApprovals = sqliteTable("content_approvals", {
   changedAt: text("changed_at").notNull(),
   note: text("note").notNull().default(""),
 }, (table) => [index("content_approvals_item_idx").on(table.contentType, table.contentId)]);
+
+// Links a class's teacher adds for that class only; students allocated to the class and their linked parents see them.
+export const classSources = sqliteTable("class_sources", {
+  id: text("id").primaryKey(),
+  classId: text("class_id").notNull().references(() => classes.id, { onDelete: "cascade" }),
+  titleEn: text("title_en").notNull().default(""),
+  titleBn: text("title_bn").notNull().default(""),
+  url: text("url").notNull(),
+  note: text("note").notNull().default(""),
+  createdBy: text("created_by").references(() => adults.id, { onDelete: "set null" }),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [index("class_sources_class_idx").on(table.classId)]);
