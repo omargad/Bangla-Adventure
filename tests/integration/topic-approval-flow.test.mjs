@@ -36,9 +36,15 @@ const newTopic = {
 async function adult(email, role) {
   const signUp = await send("/api/auth/sign-up", "POST", { email, displayName: email.split("@")[0], password }, undefined, { "x-forwarded-for": email });
   assert.equal(signUp.status, 201);
-  if (role === "admin") fixture((db) => db.prepare("UPDATE adults SET role = 'admin' WHERE email = ?").run(email));
-  if (role === "teacher") fixture((db) => db.prepare("UPDATE adults SET role = 'teacher', teacher_status = 'approved' WHERE email = ?").run(email));
-  return cookieFrom(signUp);
+  // Self sign-ups wait for an administrator: approve directly, then sign in.
+  fixture((db) => db.prepare({
+    admin: "UPDATE adults SET role = 'admin', approval_status = 'approved' WHERE email = ?",
+    teacher: "UPDATE adults SET role = 'teacher', teacher_status = 'approved', approval_status = 'approved' WHERE email = ?",
+    parent: "UPDATE adults SET approval_status = 'approved' WHERE email = ?",
+  }[role]).run(email));
+  const signIn = await send("/api/auth/sign-in", "POST", { email, password }, undefined, { "x-forwarded-for": email });
+  assert.equal(signIn.status, 200, email);
+  return cookieFrom(signIn);
 }
 
 before(async () => {
@@ -56,7 +62,10 @@ before(async () => {
   parentCookie = await adult("topics-parent@example.com", "parent");
   const student = await send("/api/student/sign-up", "POST", { username: "topics-maya", displayName: "Maya", password }, undefined, { "x-forwarded-for": "topics-student" });
   assert.equal(student.status, 201);
-  studentCookie = cookieFrom(student, "ba_student_session");
+  fixture((db) => db.prepare("UPDATE students SET approval_status = 'approved' WHERE username = ?").run("topics-maya"));
+  const studentSignIn = await send("/api/student/sign-in", "POST", { username: "topics-maya", password }, undefined, { "x-forwarded-for": "topics-student" });
+  assert.equal(studentSignIn.status, 200);
+  studentCookie = cookieFrom(studentSignIn, "ba_student_session");
   const created = await send("/api/classes", "POST", { name: "Sunday 11:30" }, authorCookie);
   assert.equal(created.status, 201);
   classId = (await created.json()).class.id;

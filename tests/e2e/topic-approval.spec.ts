@@ -4,15 +4,20 @@ import { randomUUID } from "node:crypto";
 
 const password = "Topic-approval-password-2026";
 
-/** A signed-in browser for an approved teacher. */
+/** Runs a statement against the isolated test database. */
+function fixture(sql: string, ...values: string[]) {
+  if (!process.env.BANGLA_E2E_DB?.includes("bangla-e2e-")) throw new Error("Isolated test database required.");
+  const db = new Database(process.env.BANGLA_E2E_DB);
+  try { db.prepare(sql).run(...values); } finally { db.close(); }
+}
+
+/** A signed-in browser for an approved teacher. Self sign-ups wait for an administrator: approve directly, then sign in. */
 async function teacher(browser: Browser, baseURL: string | undefined, name: string, suffix: string) {
   const context = await browser.newContext({ baseURL, extraHTTPHeaders: { "x-forwarded-for": `${name}-${suffix}` } });
   const email = `${name}-${suffix}@example.com`;
   expect((await context.request.post("/api/auth/sign-up", { data: { email, displayName: `${name} ${suffix}`, password } })).status()).toBe(201);
-  if (!process.env.BANGLA_E2E_DB?.includes("bangla-e2e-")) throw new Error("Isolated test database required.");
-  const fixture = new Database(process.env.BANGLA_E2E_DB);
-  fixture.prepare("UPDATE adults SET role = 'teacher', teacher_status = 'approved' WHERE email = ?").run(email);
-  fixture.close();
+  fixture("UPDATE adults SET role = 'teacher', teacher_status = 'approved', approval_status = 'approved' WHERE email = ?", email);
+  expect((await context.request.post("/api/auth/sign-in", { data: { email, password } })).status()).toBe(200);
   return context;
 }
 
@@ -56,6 +61,8 @@ test("a teacher writes a bilingual topic, another previews it in Bangla and appr
 
     // The waiting topic is invisible to students.
     expect((await studentContext.request.post("/api/student/sign-up", { data: { username: `tea-${suffix}`, displayName: "Tea learner", password } })).status()).toBe(201);
+    fixture("UPDATE students SET approval_status = 'approved' WHERE username = ?", `tea-${suffix}`);
+    expect((await studentContext.request.post("/api/student/sign-in", { data: { username: `tea-${suffix}`, password } })).status()).toBe(200);
     await student.goto("/topics");
     await expect(student.getByRole("button", { name: /Symbols of Bangladesh/ })).toBeVisible();
     await expect(student.getByRole("button", { name: new RegExp(title) })).toHaveCount(0);

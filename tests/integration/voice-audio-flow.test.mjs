@@ -23,15 +23,11 @@ let server, teacherCookie, colleagueCookie, studentCookie;
 const cookieFrom = (response, name = "ba_adult_session") => response.headers.getSetCookie().find((value) => value.startsWith(`${name}=`) && !value.startsWith(`${name}=;`))?.split(";")[0];
 const send = (route, method = "GET", body, cookie, headers = {}) => fetch(`${BASE}${route}`, { method, redirect: "manual", headers: { ...(body !== undefined ? { "Content-Type": "application/json" } : {}), ...(cookie ? { cookie } : {}), ...headers }, ...(body !== undefined ? { body: JSON.stringify(body) } : {}) });
 const fixture = (callback) => { const db = new Database(path.join(stateDir, "test.db")); try { return callback(db); } finally { db.close(); } };
-/** Self sign-up may need an administrator's approval; approve it directly when the column exists. */
-const approveAccount = (table, column, value) => fixture((db) => {
-  if (db.prepare(`PRAGMA table_info(${table})`).all().some((item) => item.name === "approval_status")) db.prepare(`UPDATE ${table} SET approval_status = 'approved' WHERE ${column} = ?`).run(value);
-});
 
 async function teacher(email) {
   assert.equal((await send("/api/auth/sign-up", "POST", { email, displayName: email.split("@")[0], password }, undefined, { "x-forwarded-for": email })).status, 201);
-  approveAccount("adults", "email", email);
-  fixture((db) => db.prepare("UPDATE adults SET role = 'teacher', teacher_status = 'approved' WHERE email = ?").run(email));
+  // Self sign-ups wait for an administrator: approve directly, then sign in.
+  fixture((db) => db.prepare("UPDATE adults SET role = 'teacher', teacher_status = 'approved', approval_status = 'approved' WHERE email = ?").run(email));
   const signedIn = await send("/api/auth/sign-in", "POST", { email, password }, undefined, { "x-forwarded-for": email });
   assert.equal(signedIn.status, 200, email);
   return cookieFrom(signedIn);
@@ -62,7 +58,7 @@ before(async () => {
   teacherCookie = await teacher("voice-teacher@example.com");
   colleagueCookie = await teacher("voice-colleague@example.com");
   assert.equal((await send("/api/student/sign-up", "POST", { username: "voice-maya", displayName: "Maya", password }, undefined, { "x-forwarded-for": "voice-student" })).status, 201);
-  approveAccount("students", "username", "voice-maya");
+  fixture((db) => db.prepare("UPDATE students SET approval_status = 'approved' WHERE username = ?").run("voice-maya"));
   const signedIn = await send("/api/student/sign-in", "POST", { username: "voice-maya", password }, undefined, { "x-forwarded-for": "voice-student" });
   assert.equal(signedIn.status, 200);
   studentCookie = cookieFrom(signedIn, "ba_student_session");

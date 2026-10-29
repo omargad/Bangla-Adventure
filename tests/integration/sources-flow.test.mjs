@@ -26,20 +26,16 @@ const send = (route, method = "GET", body, cookie, headers = {}) => fetch(`${BAS
 const fixture = (callback) => { const db = new Database(path.join(stateDir, "test.db")); try { return callback(db); } finally { db.close(); } };
 const page = async (route, cookie) => { const response = await send(route, "GET", undefined, cookie); assert.equal(response.status, 200, route); return response.text(); };
 
-/** Approves a self-registered account where sign-up waits for an administrator's approval (approval_status). */
-const approve = (db, table, column, value) => {
-  if (db.prepare(`PRAGMA table_info(${table})`).all().some((item) => item.name === "approval_status")) db.prepare(`UPDATE ${table} SET approval_status = 'approved' WHERE ${column} = ?`).run(value);
-};
-// Each helper signs in explicitly after sign-up, so it does not depend on sign-up starting a session.
+// Self sign-ups wait for an administrator: each helper approves the account directly, then signs in.
 async function adult(email, role) {
   const headers = { "x-forwarded-for": email };
   const signUp = await send("/api/auth/sign-up", "POST", { email, displayName: email.split("@")[0], password }, undefined, headers);
   assert.equal(signUp.status, 201);
-  fixture((db) => {
-    if (role === "admin") db.prepare("UPDATE adults SET role = 'admin' WHERE email = ?").run(email);
-    if (role === "teacher") db.prepare("UPDATE adults SET role = 'teacher', teacher_status = 'approved' WHERE email = ?").run(email);
-    approve(db, "adults", "email", email);
-  });
+  fixture((db) => db.prepare({
+    admin: "UPDATE adults SET role = 'admin', approval_status = 'approved' WHERE email = ?",
+    teacher: "UPDATE adults SET role = 'teacher', teacher_status = 'approved', approval_status = 'approved' WHERE email = ?",
+    parent: "UPDATE adults SET approval_status = 'approved' WHERE email = ?",
+  }[role]).run(email));
   const signIn = await send("/api/auth/sign-in", "POST", { email, password }, undefined, headers);
   assert.equal(signIn.status, 200);
   return cookieFrom(signIn);
@@ -48,7 +44,7 @@ async function student(username) {
   const headers = { "x-forwarded-for": username };
   const signUp = await send("/api/student/sign-up", "POST", { username, displayName: username, password }, undefined, headers);
   assert.equal(signUp.status, 201);
-  fixture((db) => approve(db, "students", "username", username));
+  fixture((db) => db.prepare("UPDATE students SET approval_status = 'approved' WHERE username = ?").run(username));
   const signIn = await send("/api/student/sign-in", "POST", { username, password }, undefined, headers);
   assert.equal(signIn.status, 200);
   return cookieFrom(signIn, "ba_student_session");

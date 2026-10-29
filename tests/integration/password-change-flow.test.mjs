@@ -49,13 +49,17 @@ async function expectHeldAtForm(cookie) {
     ["/api/studio/drafts", "GET"], ["/api/family", "GET"], ["/api/profiles", "GET"], ["/api/assignments", "GET"], ["/api/library", "GET"],
     ["/api/account/export", "GET"], ["/api/account/recovery-codes", "POST", { password: "x" }], ["/api/account/sessions", "DELETE"],
     ["/api/auth/teacher-request", "POST", {}], ["/api/admin/users", "GET"], ["/api/admin/results", "GET"], ["/api/admin/family-links?studentId=x", "GET"],
+    // Topics, lessons and sources: staff authoring, approval and class sources, and the parent's view of them.
+    ["/api/topics", "GET"], ["/api/topics", "POST", {}], ["/api/topics/pohela-boishakh", "GET"], ["/api/studio/lessons", "GET"],
+    ["/api/studio/lessons/hello-me", "POST", { decision: "withdraw" }], ["/api/studio/media", "GET"], ["/api/classes/x/sources", "GET"],
+    ["/api/classes/x/topic-progress", "GET"], ["/api/family/sources", "GET"], ["/api/library", "PUT", { id: "bgs-primary", data: {} }],
   ]) {
     const response = await send(route, method, body, cookie);
     assert.equal(response.status, 403, `${method} ${route}`);
     const payload = await response.json();
     assert.equal(payload.mustChangePassword, true, `${method} ${route}`);
   }
-  for (const page of ["/teach", "/admin", "/admin/classes", "/family", "/account", "/studio", "/learn", "/topics", "/", "/teach?class=1"]) {
+  for (const page of ["/teach", "/admin", "/admin/classes", "/admin/sources", "/family", "/account", "/studio", "/teach/topics", "/learn", "/topics", "/references", "/", "/teach?class=1"]) {
     const response = await send(page, "GET", undefined, cookie);
     assert.equal(response.status, 307, page);
     const location = new URL(response.headers.get("location"), BASE);

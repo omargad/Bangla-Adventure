@@ -11,24 +11,17 @@ function withFixture<T>(change: (db: Database.Database) => T): T {
   try { return change(fixture); } finally { fixture.close(); }
 }
 
-/** Approves a self-registered account where sign-up waits for an administrator's approval (approval_status). */
-function approve(db: Database.Database, table: "adults" | "students", column: "email" | "username", value: string) {
-  const columns = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
-  if (columns.some((item) => item.name === "approval_status")) db.prepare(`UPDATE ${table} SET approval_status = 'approved' WHERE ${column} = ?`).run(value);
-}
-
 /**
  * A signed-in browser for a new adult, promoted to teacher or administrator in the
- * test database. It signs in after sign-up rather than relying on sign-up's session.
+ * test database. Self sign-ups wait for an administrator: approve directly, then sign in.
  */
 async function adult(browser: Browser, baseURL: string | undefined, role: "teacher" | "admin", suffix: string) {
   const context = await browser.newContext({ baseURL, extraHTTPHeaders: { "x-forwarded-for": `sources-${role}-${suffix}` } });
   const email = `sources-${role}-${suffix}@example.com`;
   expect((await context.request.post("/api/auth/sign-up", { data: { email, displayName: `Sources ${role} ${suffix}`, password } })).status()).toBe(201);
-  withFixture((db) => {
-    db.prepare(role === "admin" ? "UPDATE adults SET role = 'admin' WHERE email = ?" : "UPDATE adults SET role = 'teacher', teacher_status = 'approved' WHERE email = ?").run(email);
-    approve(db, "adults", "email", email);
-  });
+  withFixture((db) => db.prepare(role === "admin"
+    ? "UPDATE adults SET role = 'admin', approval_status = 'approved' WHERE email = ?"
+    : "UPDATE adults SET role = 'teacher', teacher_status = 'approved', approval_status = 'approved' WHERE email = ?").run(email));
   expect((await context.request.post("/api/auth/sign-in", { data: { email, password } })).status()).toBe(200);
   return context;
 }
@@ -36,7 +29,7 @@ async function adult(browser: Browser, baseURL: string | undefined, role: "teach
 async function signedInStudent(browser: Browser, baseURL: string | undefined, username: string) {
   const context = await browser.newContext({ baseURL, extraHTTPHeaders: { "x-forwarded-for": `sources-student-${username}` } });
   expect((await context.request.post("/api/student/sign-up", { data: { username, displayName: `Learner ${username}`, password } })).status()).toBe(201);
-  withFixture((db) => approve(db, "students", "username", username));
+  withFixture((db) => db.prepare("UPDATE students SET approval_status = 'approved' WHERE username = ?").run(username));
   expect((await context.request.post("/api/student/sign-in", { data: { username, password } })).status()).toBe(200);
   return context;
 }

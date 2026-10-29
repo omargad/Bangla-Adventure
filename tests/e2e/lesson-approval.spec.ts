@@ -13,21 +13,12 @@ function fixture(sql: string, ...values: string[]) {
     db.prepare(sql).run(...values);
   } finally { db.close(); }
 }
-/** Self sign-up may wait for an administrator; approve the account directly when it does. */
-function approveAccount(table: "adults" | "students", column: string, value: string) {
-  const db = new Database(process.env.BANGLA_E2E_DB!);
-  try {
-    const columns = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
-    if (columns.some((item) => item.name === "approval_status")) db.prepare(`UPDATE ${table} SET approval_status = 'approved' WHERE ${column} = ?`).run(value);
-  } finally { db.close(); }
-}
-
 async function signedInTeacher(browser: Browser, baseURL: string | undefined, suffix: string) {
   const context = await browser.newContext({ baseURL, extraHTTPHeaders: { "x-forwarded-for": `lesson-teacher-${suffix}` } });
   const email = `lesson-teacher-${suffix}@example.com`;
   expect((await context.request.post("/api/auth/sign-up", { data: { email, displayName: `Teacher ${suffix}`, password } })).status()).toBe(201);
-  approveAccount("adults", "email", email);
-  fixture("UPDATE adults SET role = 'teacher', teacher_status = 'approved' WHERE email = ?", email);
+  // Self sign-ups wait for an administrator: approve directly, then sign in.
+  fixture("UPDATE adults SET role = 'teacher', teacher_status = 'approved', approval_status = 'approved' WHERE email = ?", email);
   expect((await context.request.post("/api/auth/sign-in", { data: { email, password } })).status()).toBe(200);
   return context;
 }
@@ -36,7 +27,7 @@ async function signedInStudent(browser: Browser, baseURL: string | undefined, su
   const context = await browser.newContext({ baseURL, extraHTTPHeaders: { "x-forwarded-for": `lesson-student-${suffix}` } });
   const username = `lessons-${suffix}`;
   expect((await context.request.post("/api/student/sign-up", { data: { username, displayName: "Lesson learner", password } })).status()).toBe(201);
-  approveAccount("students", "username", username);
+  fixture("UPDATE students SET approval_status = 'approved' WHERE username = ?", username);
   expect((await context.request.post("/api/student/sign-in", { data: { username, password } })).status()).toBe(200);
   return context;
 }

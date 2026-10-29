@@ -7,13 +7,12 @@ import path from "node:path";
 const password = "Voice-playback-password-2026";
 const dialogue = "হ্যালো! তোমার নাম কী? আমার নাম রাফি। তোমার নাম কী? আমার নাম মায়া। তুমি কেমন আছ? আমি ভালো আছি, ধন্যবাদ।";
 
-/** Self sign-up may wait for an administrator; approve the account directly when it does. */
+/** Self sign-ups wait for an administrator: approve the account directly, then sign in. */
 function approveStudent(username: string) {
   if (!process.env.BANGLA_E2E_DB?.includes("bangla-e2e-")) throw new Error("Isolated test database required.");
   const db = new Database(process.env.BANGLA_E2E_DB);
   try {
-    const columns = db.prepare("PRAGMA table_info(students)").all() as Array<{ name: string }>;
-    if (columns.some((item) => item.name === "approval_status")) db.prepare("UPDATE students SET approval_status = 'approved' WHERE username = ?").run(username);
+    db.prepare("UPDATE students SET approval_status = 'approved' WHERE username = ?").run(username);
   } finally { db.close(); }
 }
 
