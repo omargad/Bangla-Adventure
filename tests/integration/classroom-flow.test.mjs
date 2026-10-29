@@ -29,8 +29,8 @@ async function signIn(route, credentials) {
  * End-to-end classroom flow against the production server:
  * teacher signs up → creates a class → sets an activity + announcement →
  * student joins with the code → feed hides the answer key → student submits →
- * teacher sees the graded submission → knowledge-source override flows to the
- * public library API.
+ * teacher sees the graded submission → an administrator's knowledge-source
+ * override flows to the library API (teachers cannot change it).
  */
 
 const PORT = 3212;
@@ -239,18 +239,55 @@ test("another teacher cannot read someone else's class", async () => {
   assert.equal(denied.status, 404);
 });
 
-test("knowledge-source overrides flow to the public library API", async () => {
+test("knowledge-source overrides flow to the library API, and only an administrator may change them", async () => {
+  const yearly = JSON.stringify({ id: "bgs-primary", data: { downloadUrl: "https://nctb.gov.bd/some-book.pdf" } });
   const anonymousPut = await fetch(`${BASE}/api/library`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ id: "bgs-primary", data: { downloadUrl: "https://nctb.gov.bd/some-book.pdf" } }),
+    body: yearly,
   });
   assert.equal(anonymousPut.status, 401, "editing sources requires a signed-in adult");
 
-  const put = await fetch(`${BASE}/api/library`, {
+  // The yearly NCTB link is the administrator's job; teachers add sources to their own classes instead.
+  const teacherPut = await fetch(`${BASE}/api/library`, {
     method: "PUT",
     headers: { "Content-Type": "application/json", cookie: teacherCookie },
-    body: JSON.stringify({ id: "bgs-primary", data: { downloadUrl: "https://nctb.gov.bd/some-book.pdf" } }),
+    body: yearly,
+  });
+  assert.equal(teacherPut.status, 403, "a teacher cannot change the shared textbook links");
+  const teacherReset = await fetch(`${BASE}/api/library`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json", cookie: teacherCookie },
+    body: JSON.stringify({ id: "bgs-primary" }),
+  });
+  assert.equal(teacherReset.status, 403, "a teacher cannot reset the shared textbook links");
+
+  const librarian = await fetch(`${BASE}/api/auth/sign-up`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email: "librarian@example.com", displayName: "Admin Librarian", password: "yearly-books-2027" }),
+  });
+  assert.equal(librarian.status, 201);
+  const fixture = new Database(path.join(stateDir, "test.db"));
+  fixture.prepare("UPDATE adults SET role = 'admin' WHERE email = ?").run("librarian@example.com");
+  // Where self sign-up waits for an administrator's approval, approve the account directly.
+  if (fixture.prepare("PRAGMA table_info(adults)").all().some((column) => column.name === "approval_status")) {
+    fixture.prepare("UPDATE adults SET approval_status = 'approved' WHERE email = ?").run("librarian@example.com");
+  }
+  fixture.close();
+  // Sign in explicitly rather than relying on sign-up starting a session.
+  const librarianSignIn = await fetch(`${BASE}/api/auth/sign-in`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email: "librarian@example.com", password: "yearly-books-2027" }),
+  });
+  assert.equal(librarianSignIn.status, 200);
+  const adminCookie = cookieFrom(librarianSignIn);
+
+  const put = await fetch(`${BASE}/api/library`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", cookie: adminCookie },
+    body: yearly,
   });
   assert.equal(put.status, 200);
 
@@ -262,7 +299,7 @@ test("knowledge-source overrides flow to the public library API", async () => {
 
   const reset = await fetch(`${BASE}/api/library`, {
     method: "DELETE",
-    headers: { "Content-Type": "application/json", cookie: teacherCookie },
+    headers: { "Content-Type": "application/json", cookie: adminCookie },
     body: JSON.stringify({ id: "bgs-primary" }),
   });
   assert.equal(reset.status, 200);

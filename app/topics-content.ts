@@ -37,6 +37,8 @@ export type Topic = {
   quiz: TopicQuizQuestion[];
   // Which NCTB textbook(s) cover this topic — shown as the trusted source.
   sources: Array<{ bookId: string; note: Bilingual }>;
+  // Where a teacher-written topic comes from, in the author's own words.
+  sourceNote?: Bilingual;
 };
 
 export const topicThemes: TopicTheme[] = [
@@ -50,21 +52,30 @@ export const topicThemes: TopicTheme[] = [
     },
   },
   {
+    id: "our-country",
+    icon: "🏞️",
+    title: { en: "Our country — symbols, rivers & nature", bn: "আমাদের দেশ — প্রতীক, নদী ও প্রকৃতি" },
+    note: {
+      en: "The flag and anthem, the great rivers and the monsoon: the land and symbols every Bangladeshi child knows.",
+      bn: "পতাকা ও জাতীয় সংগীত, বড় বড় নদী আর বর্ষা — যে দেশ আর প্রতীক প্রতিটি বাংলাদেশি শিশু চেনে।",
+    },
+  },
+  {
     id: "culture",
     icon: "🎉",
-    title: { en: "Culture & celebrations", bn: "সংস্কৃতি ও উদযাপন" },
+    title: { en: "Culture, crafts & celebrations", bn: "সংস্কৃতি, কারুশিল্প ও উৎসব" },
     note: {
-      en: "Festivals, food, rivers and everyday life that make Bangladesh feel like Bangladesh.",
-      bn: "উৎসব, খাবার, নদী আর দৈনন্দিন জীবন — যা বাংলাদেশকে বাংলাদেশ করে তোলে।",
+      en: "Festivals, food, crafts and the many communities that make Bangladesh feel like Bangladesh.",
+      bn: "উৎসব, খাবার, কারুশিল্প আর নানা জনগোষ্ঠী — যা বাংলাদেশকে বাংলাদেশ করে তোলে।",
     },
   },
   {
     id: "literature",
     icon: "📚",
-    title: { en: "Literature & arts", bn: "সাহিত্য ও শিল্পকলা" },
+    title: { en: "Literature & stories", bn: "সাহিত্য ও গল্প" },
     note: {
-      en: "The poets, tales and crafts every Bengali child grows up hearing about.",
-      bn: "যে কবি, গল্প আর কারুশিল্পের কথা শুনে প্রতিটি বাঙালি শিশু বড় হয়।",
+      en: "The poets and tales every Bengali child grows up hearing about.",
+      bn: "যে কবি আর গল্পের কথা শুনে প্রতিটি বাঙালি শিশু বড় হয়।",
     },
   },
 ];
@@ -295,7 +306,7 @@ export const topics: Topic[] = [
   },
   {
     id: "national-symbols",
-    theme: "history",
+    theme: "our-country",
     emoji: "🌺",
     title: { en: "Symbols of Bangladesh", bn: "বাংলাদেশের প্রতীক" },
     tagline: {
@@ -622,7 +633,7 @@ export const topics: Topic[] = [
   },
   {
     id: "rivers-everyday-life",
-    theme: "culture",
+    theme: "our-country",
     emoji: "🛶",
     title: { en: "Rivers & everyday life", bn: "নদী ও দৈনন্দিন জীবন" },
     tagline: {
@@ -688,7 +699,7 @@ export const topics: Topic[] = [
 
   {
     id: "climate-and-disasters",
-    theme: "culture",
+    theme: "our-country",
     emoji: "🌧️",
     title: { en: "Monsoon, floods & the bravest volunteers", bn: "বর্ষা, বন্যা আর সাহসী স্বেচ্ছাসেবকেরা" },
     tagline: {
@@ -950,7 +961,7 @@ export const topics: Topic[] = [
   },
   {
     id: "crafts-of-bengal",
-    theme: "literature",
+    theme: "culture",
     emoji: "🧵",
     title: { en: "Nakshi kantha, Jamdani & rickshaw art", bn: "নকশি কাঁথা, জামদানি ও রিকশাচিত্র" },
     tagline: {

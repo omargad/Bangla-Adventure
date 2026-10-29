@@ -1,5 +1,11 @@
 import Link from "next/link";
 import { lessons, levelBands } from "../curriculum";
+import { getSessionAdult } from "@/lib/auth";
+import { canTeach } from "@/lib/roles";
+import { approvedLessonIds } from "@/lib/lesson-approval";
+import { visibleLessons } from "@/lib/lesson-model";
+
+export const dynamic = "force-dynamic";
 
 export const metadata = {
   title: "Printable worksheets | Bangla Adventures",
@@ -7,7 +13,9 @@ export const metadata = {
     "Print-friendly practice sheets for all 18 lessons: vocabulary tracing, sentence patterns, reading, writing and the family mission.",
 };
 
-export default function WorksheetsIndexPage() {
+/** Learners and parents get worksheets for approved lessons only; staff see every lesson. */
+export default async function WorksheetsIndexPage() {
+  const shown = canTeach(await getSessionAdult()) ? lessons : visibleLessons(lessons, await approvedLessonIds());
   return (
     <main className="adult-app worksheets-app">
       <header className="adult-header">
@@ -31,7 +39,7 @@ export default function WorksheetsIndexPage() {
         </section>
 
         {levelBands.map((band) => {
-          const bandLessons = lessons.filter((lesson) => lesson.level === band.id);
+          const bandLessons = shown.filter((lesson) => lesson.level === band.id);
           if (bandLessons.length === 0) return null;
           return (
             <section key={band.id} className="worksheet-band">

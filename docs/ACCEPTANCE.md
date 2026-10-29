@@ -59,22 +59,35 @@ and preserve real records.
    family CSV (siblings and an existing parent) and print its sheet (one family per
    page), upload it again to see the repeated rows refused, create a class for a
    teacher and give it to another teacher (the first loses access), manage
-   student/family links and update topic reading. Verify existing quizzes/sources and
-   review notices remain.
+   student/family links and edit a topic in Topics. Verify students keep the approved
+   version until the edit is previewed in English and Bangla and approved, and that
+   existing quizzes and review notices remain. In Sources, replace one book's yearly
+   NCTB link (per class where a book covers several), note the warning for an address
+   outside nctb.gov.bd, and confirm students' Sources & references and the topic
+   sources open the new link. On the first visit after deploying this version, work
+   through "Links to check" at the top of Sources: links saved earlier by a
+   non-administrator, or outside nctb.gov.bd, are held back from readers until you
+   open each one and restore or discard it.
 2. **Teacher:** request access, demonstrate no sign-in or teaching privileges before approval,
    create a class and activity/quiz, find and tick approved students to add them, inspect
-   the results gradebook (`—` for work not submitted) and each activity's submissions,
-   take attendance for today with one student unticked and reopen the date, remove a
-   student and see them leave the roster, results and export, and post announcements to
-   everyone in the class, to students only and to parents only (each shows its audience,
-   author and local time; Remove asks first). Only that class's students and its
-   students' linked parents receive them.
+   the results gradebook (`—` for work not submitted), each activity's submissions and
+   the topics each student has read, take attendance for today with one student
+   unticked and reopen the date, remove a student and see them leave the roster, results
+   and export, and post announcements to everyone in the class, to students only and to
+   parents only (each shows its audience, author and local time; Remove asks first).
+   Only that class's students and its students' linked parents receive them. Write a
+   new topic, confirm students cannot see it, then preview and approve it. In Lessons,
+   preview a lesson in Bangla, withdraw it with a reason, confirm the student lesson
+   list and its link no longer show it, then open every part of the lesson and approve
+   it again. In Class sources, add a link for one class and confirm only that class's
+   students (and their linked parents) see it; the shared NCTB links cannot be changed
+   from a teacher account.
 3. **Student:** sign in to My Learning, open Learning topics and sources, complete
    an allocated activity, view results/progress, refresh and switch devices. Confirm
    unallocated class data is unavailable and no self-enrolment code is required.
 4. **Parent:** link an exact registered account through admin controls (or a family
    import); confirm it
-   sees only the linked student's academic records and attendance, cannot submit as the child or
+   sees only the linked student's academic records, attendance and class sources, cannot submit as the child or
    edit grades, and loses access when the link is removed without losing records. The heading
    reads "Your child's learning" with one linked child and "Your children's learning" with
    several. Announcements lists the "everyone" and "parents only" posts from the classes the

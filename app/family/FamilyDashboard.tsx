@@ -3,11 +3,16 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { lessons } from "../curriculum";
-import { useLanguage } from "../../lib/use-language";
+import { useLanguage, type Language } from "../../lib/use-language";
+import { groupLessonsByCategory, visibleLessons } from "../../lib/lesson-model";
 
 type Progress = { id: string; lessonId: string; sessionId: string; skill: string; score: number | null; updatedAt: string };
-type Assignment = { id: string; lessonId: string; sessionId: string | null; title: string; dueAt: string | null; status: string };
+type Assignment = { id: string; lessonId: string; sessionId: string | null; title: string; dueAt: string | null; status: string; lessonAvailable?: boolean };
 type Profile = { id: string; displayName: string; ageBand: string; homeLanguages: string[]; progress: Progress[]; assignments: Assignment[] };
+type ApiError = { error?: string; errorBn?: string };
+
+/** A refusal from the API in the page language, when the route gives a Bangla message. */
+const apiMessage = (data: ApiError, language: Language, fallback: string) => (language === "bn" ? data.errorBn : undefined) || data.error || fallback;
 
 const skills = ["listening", "reading", "speaking", "writing", "culture", "mastery"];
 const skillLabels: Record<string, string> = {
@@ -19,7 +24,9 @@ const skillLabels: Record<string, string> = {
   mastery: "দক্ষতা",
 };
 
-export default function FamilyDashboard({ adultName }: { adultName: string }) {
+export default function FamilyDashboard({ adultName, approvedLessonIds }: { adultName: string; approvedLessonIds: string[] }) {
+  // Only lessons a teacher has approved can be assigned to learners.
+  const assignable = useMemo(() => visibleLessons(lessons, approvedLessonIds), [approvedLessonIds]);
   const [language, toggleLanguage] = useLanguage();
   const s = useCallback((en: string, bn: string) => (language === "bn" ? bn : en), [language]);
   const skillLabel = (skill: string) => (language === "bn" ? skillLabels[skill] ?? skill : skill);
@@ -42,15 +49,15 @@ export default function FamilyDashboard({ adultName }: { adultName: string }) {
     setError("");
     try {
       const response = await fetch("/api/profiles", { cache: "no-store" });
-      const data = await response.json() as { profiles?: Profile[]; error?: string };
-      if (!response.ok) throw new Error(data.error || s("Could not load learner profiles.", "শিক্ষার্থী প্রোফাইল লোড করা যায়নি।"));
+      const data = await response.json() as { profiles?: Profile[] } & ApiError;
+      if (!response.ok) throw new Error(apiMessage(data, language, s("Could not load learner profiles.", "শিক্ষার্থী প্রোফাইল লোড করা যায়নি।")));
       setProfiles(data.profiles || []);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : s("Could not load learner profiles.", "শিক্ষার্থী প্রোফাইল লোড করা যায়নি।"));
     } finally {
       setLoading(false);
     }
-  }, [s]);
+  }, [language, s]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => void loadProfiles(), 0);
@@ -63,8 +70,8 @@ export default function FamilyDashboard({ adultName }: { adultName: string }) {
     setError("");
     try {
       const response = await fetch("/api/profiles", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ displayName: newName, ageBand: newAge, homeLanguages: newLanguages.split(",").map((item) => item.trim()).filter(Boolean) }) });
-      const data = await response.json() as { error?: string };
-      if (!response.ok) throw new Error(data.error || s("Could not create the profile.", "প্রোফাইল তৈরি করা যায়নি।"));
+      const data = await response.json() as ApiError;
+      if (!response.ok) throw new Error(apiMessage(data, language, s("Could not create the profile.", "প্রোফাইল তৈরি করা যায়নি।")));
       setNewName("");
       await loadProfiles();
     } catch (caught) {
@@ -75,7 +82,7 @@ export default function FamilyDashboard({ adultName }: { adultName: string }) {
   }
 
   function assignmentDraft(profileId: string) {
-    return assignmentDrafts[profileId] || { lessonId: lessons[0].id, skill: "all", dueAt: "" };
+    return assignmentDrafts[profileId] || { lessonId: assignable[0]?.id ?? "", skill: "all", dueAt: "" };
   }
 
   function updateAssignmentDraft(profileId: string, field: "lessonId" | "skill" | "dueAt", value: string) {
@@ -88,8 +95,8 @@ export default function FamilyDashboard({ adultName }: { adultName: string }) {
     setError("");
     try {
       const response = await fetch("/api/assignments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ profileId, lessonId: draft.lessonId, sessionId: draft.skill === "all" ? null : `session-${draft.lessonId}-${draft.skill}`, dueAt: draft.dueAt || null }) });
-      const data = await response.json() as { error?: string };
-      if (!response.ok) throw new Error(data.error || s("Could not create the assignment.", "কাজটি তৈরি করা যায়নি।"));
+      const data = await response.json() as ApiError;
+      if (!response.ok) throw new Error(apiMessage(data, language, s("Could not create the assignment.", "কাজটি তৈরি করা যায়নি।")));
       await loadProfiles();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : s("Could not create the assignment.", "কাজটি তৈরি করা যায়নি।"));
@@ -115,8 +122,8 @@ export default function FamilyDashboard({ adultName }: { adultName: string }) {
     setError("");
     try {
       const response = await fetch(`/api/profiles/${encodeURIComponent(profile.id)}`, { method: "DELETE" });
-      const data = await response.json() as { error?: string };
-      if (!response.ok) throw new Error(data.error || s("Could not remove the profile.", "প্রোফাইল মোছা যায়নি।"));
+      const data = await response.json() as ApiError;
+      if (!response.ok) throw new Error(apiMessage(data, language, s("Could not remove the profile.", "প্রোফাইল মোছা যায়নি।")));
       await loadProfiles();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : s("Could not remove the profile.", "প্রোফাইল মোছা যায়নি।"));
@@ -126,7 +133,7 @@ export default function FamilyDashboard({ adultName }: { adultName: string }) {
   }
 
   function exportCsv(profile: Profile) {
-    const rows = [[s("Learner", "শিক্ষার্থী"), s("Module", "মডিউল"), s("Skill", "দক্ষতা"), s("Status", "অবস্থা"), s("Score", "স্কোর"), s("Updated", "হালনাগাদ")], ...profile.progress.map((item) => [profile.displayName, lessons.find((lesson) => lesson.id === item.lessonId)?.title || item.lessonId, item.skill, "complete", item.score ?? "", item.updatedAt])];
+    const rows = [[s("Learner", "শিক্ষার্থী"), s("Lesson", "পাঠ"), s("Skill", "দক্ষতা"), s("Status", "অবস্থা"), s("Score", "স্কোর"), s("Updated", "হালনাগাদ")], ...profile.progress.map((item) => [profile.displayName, lessons.find((lesson) => lesson.id === item.lessonId)?.title || item.lessonId, item.skill, "complete", item.score ?? "", item.updatedAt])];
     const csv = rows.map((row) => row.map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(",")).join("\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
     const link = document.createElement("a");
@@ -142,7 +149,7 @@ export default function FamilyDashboard({ adultName }: { adultName: string }) {
         <Link className="adult-brand" href="/"><span>বা</span><span><strong>Bangla Adventures</strong><small>{s("Grown-up dashboard", "বড়দের ড্যাশবোর্ড")}</small></span></Link>
         <nav aria-label="Adult tools">
           <Link className="active" href="/family">{s("Learners", "শিক্ষার্থী")}</Link>
-          <Link href="/studio">{s("Content Studio", "কনটেন্ট স্টুডিও")}</Link>
+          <Link href="/studio">{s("Lessons", "পাঠ")}</Link>
           <Link href="/worksheets">{s("Worksheets", "ওয়ার্কশিট")}</Link>
           <Link href="/safety">{s("Safety & access", "নিরাপত্তা ও প্রবেশ")}</Link>
           <Link href="/account">{s("Account", "অ্যাকাউন্ট")}</Link>
@@ -187,8 +194,8 @@ export default function FamilyDashboard({ adultName }: { adultName: string }) {
                 <header><div className="learner-avatar">{profile.displayName.slice(0, 1).toUpperCase()}</div><div><h2>{profile.displayName}</h2><p>{profile.ageBand === "not-specified" ? s("Age not recorded", "বয়স নেই") : s(`Age ${profile.ageBand}`, `বয়স ${profile.ageBand}`)} · {profile.homeLanguages.join(" · ") || s("Languages not recorded", "ভাষা নেই")}</p></div><a className="primary-button" href={`/?learner=${encodeURIComponent(profile.id)}`}>{s("Open learner view →", "শিক্ষার্থী ভিউ খুলুন →")}</a></header>
                 <div className="profile-progress-overview"><div className="profile-progress-ring" style={{ "--progress": `${completion * 3.6}deg` } as React.CSSProperties}><strong>{completion}%</strong></div><div><strong>{profile.progress.length}<small>/108</small></strong><span>{s("guided sessions complete", "সেশন সম্পন্ন")}</span><div className="profile-linear"><i style={{ width: `${completion}%` }} /></div></div><button type="button" onClick={() => exportCsv(profile)}>{s("Export CSV", "CSV রপ্তানি")}</button></div>
                 <div className="skill-summary-row">{skills.map((skill) => { const count = profile.progress.filter((item) => item.skill === skill).length; return <div key={skill}><span>{skill.slice(0, 1).toUpperCase()}</span><strong>{count}<small>/18</small></strong><em>{skillLabel(skill)}</em></div>; })}</div>
-                <section className="assignment-builder"><div><p className="adult-eyebrow">{s("Assign next", "পরবর্তী কাজ")}</p><h3>{s("Choose a module or one skill session", "একটি মডিউল বা একটি দক্ষতা সেশন বাছুন")}</h3></div><select value={draft.lessonId} onChange={(event) => updateAssignmentDraft(profile.id, "lessonId", event.target.value)}>{lessons.map((lesson) => <option key={lesson.id} value={lesson.id}>{lesson.number}. {language === "bn" ? lesson.titleBn : lesson.title}</option>)}</select><select value={draft.skill} onChange={(event) => updateAssignmentDraft(profile.id, "skill", event.target.value)}><option value="all">{s("Whole module", "পুরো মডিউল")}</option>{skills.map((skill) => <option value={skill} key={skill}>{skillLabel(skill)}</option>)}</select><input aria-label={s("Due date", "শেষ তারিখ")} type="date" value={draft.dueAt} onChange={(event) => updateAssignmentDraft(profile.id, "dueAt", event.target.value)} /><button type="button" className="outline-button" disabled={saving} onClick={() => void createAssignment(profile.id)}>{s("Assign", "বরাদ্দ")}</button><a className="worksheet-link" href={`/worksheets/${draft.lessonId}`} target="_blank" rel="noreferrer">{s("Print worksheet ↗", "ওয়ার্কশিট প্রিন্ট ↗")}</a></section>
-                {profile.assignments.length > 0 && <div className="assignment-list"><p className="adult-eyebrow">{s("Assignments", "কাজ")}</p>{profile.assignments.filter((item) => item.status !== "archived").map((assignment) => <div key={assignment.id}><span className={`assignment-status ${assignment.status}`}>{assignment.status}</span><strong>{assignment.title}</strong><small>{assignment.dueAt ? s(`Due ${assignment.dueAt}`, `শেষ ${assignment.dueAt}`) : s("No due date", "তারিখ নেই")}</small><button type="button" onClick={() => void updateAssignment(assignment.id, assignment.status === "complete" ? "archived" : "complete")}>{assignment.status === "complete" ? s("Archive", "সংরক্ষণাগার") : s("Mark complete", "সম্পন্ন চিহ্নিত")}</button></div>)}</div>}
+                <section className="assignment-builder"><div><p className="adult-eyebrow">{s("Assign next", "পরবর্তী কাজ")}</p><h3>{s("Choose a lesson or one skill session", "একটি পাঠ বা একটি দক্ষতা সেশন বাছুন")}</h3></div><select aria-label={s("Lesson", "পাঠ")} value={draft.lessonId} onChange={(event) => updateAssignmentDraft(profile.id, "lessonId", event.target.value)}>{groupLessonsByCategory(assignable).map(({ category, items }) => <optgroup key={category.id} label={category.title[language]}>{items.map((lesson) => <option key={lesson.id} value={lesson.id}>{lesson.number}. {language === "bn" ? lesson.titleBn : lesson.title}</option>)}</optgroup>)}</select><select value={draft.skill} onChange={(event) => updateAssignmentDraft(profile.id, "skill", event.target.value)}><option value="all">{s("Whole lesson", "পুরো পাঠ")}</option>{skills.map((skill) => <option value={skill} key={skill}>{skillLabel(skill)}</option>)}</select><input aria-label={s("Due date", "শেষ তারিখ")} type="date" value={draft.dueAt} onChange={(event) => updateAssignmentDraft(profile.id, "dueAt", event.target.value)} /><button type="button" className="outline-button" disabled={saving || !draft.lessonId} onClick={() => void createAssignment(profile.id)}>{s("Assign", "বরাদ্দ")}</button><a className="worksheet-link" href={`/worksheets/${draft.lessonId}`} target="_blank" rel="noreferrer">{s("Print worksheet ↗", "ওয়ার্কশিট প্রিন্ট ↗")}</a></section>
+                {profile.assignments.length > 0 && <div className="assignment-list"><p className="adult-eyebrow">{s("Assignments", "কাজ")}</p>{profile.assignments.filter((item) => item.status !== "archived").map((assignment) => <div key={assignment.id}><span className={`assignment-status ${assignment.status}`}>{assignment.status}</span><strong>{assignment.title}</strong>{assignment.lessonAvailable === false && <em className="assignment-hidden">{s("Lesson withdrawn: hidden from learners", "পাঠ সরিয়ে নেওয়া: শিক্ষার্থীরা দেখে না")}</em>}<small>{assignment.dueAt ? s(`Due ${assignment.dueAt}`, `শেষ ${assignment.dueAt}`) : s("No due date", "তারিখ নেই")}</small><button type="button" onClick={() => void updateAssignment(assignment.id, assignment.status === "complete" ? "archived" : "complete")}>{assignment.status === "complete" ? s("Archive", "সংরক্ষণাগার") : s("Mark complete", "সম্পন্ন চিহ্নিত")}</button></div>)}</div>}
                 <footer className="profile-card-footer"><button type="button" className="danger-link" disabled={saving} onClick={() => void removeProfile(profile)}>{s("Remove profile and delete its data", "প্রোফাইল ও এর তথ্য মুছুন")}</button></footer>
               </article>
             );

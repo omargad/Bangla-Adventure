@@ -196,7 +196,7 @@ Sources: [Council of Europe — CEFR level descriptions](https://www.coe.int/en/
 | FR-13 | A learner can filter 18 complete lessons by six proficiency bands or view the entire pathway. | Implemented |
 | FR-14 | A learner can use a short “can do” self-check to receive a non-diagnostic starting-level suggestion. | Implemented |
 | FR-15 | Every lesson exposes start, learn, practise, watch, and check stages. | Implemented |
-| FR-16 | Every lesson vocabulary item and model sentence has replayable Bangla pronunciation. | Implemented with device voice plus bundled fallback audio |
+| FR-16 | Every lesson vocabulary item and model sentence has replayable Bangla pronunciation. | Implemented: approved human recording, then device Bangla voice, then bundled audio |
 | FR-17 | External lesson video does not connect until the learner explicitly loads it. | Implemented |
 | FR-18 | Every lesson links to a curated topic-relevant playlist. | Implemented |
 | FR-19 | Two correct lesson-check answers award completion once and add two stars. | Implemented |

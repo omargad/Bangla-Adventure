@@ -1,45 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useLanguage } from "../../lib/use-language";
+import { useVoicePlayer } from "../../lib/use-voice-player";
+import VoiceNote from "../components/VoiceNote";
 import { phraseCategories } from "../phrasebook-content";
 
 export default function PhrasebookHub() {
   const [language, toggleLanguage] = useLanguage();
   const s = (en: string, bn: string) => (language === "bn" ? bn : en);
-  const [speaking, setSpeaking] = useState<string | null>(null);
-  const [canSpeak, setCanSpeak] = useState(true);
-  const voiceRef = useRef<SpeechSynthesisVoice | null>(null);
+  const voice = useVoicePlayer();
+  const speaking = voice.speakingKey;
+  const canSpeak = voice.supported;
 
-  useEffect(() => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setCanSpeak(false);
-      return;
-    }
-    const pickVoice = () => {
-      const voices = window.speechSynthesis.getVoices();
-      voiceRef.current =
-        voices.find((voice) => voice.lang?.toLowerCase().startsWith("bn")) ?? null;
-    };
-    pickVoice();
-    window.speechSynthesis.addEventListener("voiceschanged", pickVoice);
-    return () => window.speechSynthesis.removeEventListener("voiceschanged", pickVoice);
-  }, []);
-
-  const speak = useCallback((text: string, key: string) => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = "bn-BD";
-    if (voiceRef.current) utterance.voice = voiceRef.current;
-    utterance.rate = 0.75;
-    utterance.onstart = () => setSpeaking(key);
-    utterance.onend = () => setSpeaking(null);
-    utterance.onerror = () => setSpeaking(null);
-    window.speechSynthesis.speak(utterance);
-  }, []);
+  // Bangla is never read by a voice for another language; without a Bangla voice the page says so.
+  const speak = (text: string, key: string) => voice.speak(text, { key, rate: 0.75 });
 
   return (
     <main className="explore-app phrasebook-app" lang={language}>
@@ -114,6 +89,7 @@ export default function PhrasebookHub() {
           {s("Use these phrases in the lessons →", "পাঠে এই কথাগুলো ব্যবহার করো →")}
         </Link>
       </section>
+      <VoiceNote status={voice.status} language={language} />
     </main>
   );
 }

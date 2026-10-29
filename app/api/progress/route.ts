@@ -4,6 +4,7 @@ import { learnerProfiles, skillProgress } from "../../../db/schema";
 import { lessons } from "../../curriculum";
 import { getSessionAdult } from "@/lib/auth";
 import { canTeach } from "@/lib/roles";
+import { isLessonApproved, lessonUnavailable } from "@/lib/lesson-approval";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +35,7 @@ export async function POST(request: Request) {
   if (!profileId || !lessonIds.has(lessonId) || !sessionId.startsWith(`session-${lessonId}-`) || !skills.has(skill)) {
     return Response.json({ error: "Invalid progress event." }, { status: 400 });
   }
+  if (!(await isLessonApproved(lessonId))) return lessonUnavailable(400);
 
   const db = await getDb();
   const [profile] = await db.select({ id: learnerProfiles.id }).from(learnerProfiles).where(and(eq(learnerProfiles.id, profileId), eq(learnerProfiles.ownerEmail, user.email))).limit(1);

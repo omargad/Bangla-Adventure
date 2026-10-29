@@ -3,6 +3,8 @@ import { getDb } from "../../../db";
 import { assignments, learnerProfiles, skillProgress } from "../../../db/schema";
 import { getSessionAdult } from "@/lib/auth";
 import { canTeach } from "@/lib/roles";
+import { approvedLessonIds } from "@/lib/lesson-approval";
+import { learnerAssignments } from "@/lib/lesson-model";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +19,7 @@ export async function GET() {
     const profiles = await db.select().from(learnerProfiles).where(inArray(learnerProfiles.ownerEmail, [user.email])).orderBy(desc(learnerProfiles.updatedAt));
     const profileIds = profiles.map((profile) => profile.id);
     const progress = profileIds.length ? await db.select().from(skillProgress).where(inArray(skillProgress.profileId, profileIds)) : [];
-    const profileAssignments = profileIds.length ? await db.select().from(assignments).where(inArray(assignments.profileId, profileIds)).orderBy(desc(assignments.createdAt)) : [];
+    const profileAssignments = learnerAssignments(profileIds.length ? await db.select().from(assignments).where(inArray(assignments.profileId, profileIds)).orderBy(desc(assignments.createdAt)) : [], await approvedLessonIds(), canTeach(user));
 
     return Response.json({
       profiles: profiles.map((profile) => ({

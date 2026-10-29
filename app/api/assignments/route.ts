@@ -4,6 +4,8 @@ import { assignments, learnerProfiles } from "../../../db/schema";
 import { lessons } from "../../curriculum";
 import { getSessionAdult } from "@/lib/auth";
 import { canTeach } from "@/lib/roles";
+import { approvedLessonIds, isLessonApproved, lessonUnavailable } from "@/lib/lesson-approval";
+import { learnerAssignments } from "@/lib/lesson-model";
 
 export const dynamic = "force-dynamic";
 const lessonIds = new Set(lessons.map((lesson) => lesson.id));
@@ -16,7 +18,7 @@ export async function GET(request: Request) {
   const rows = profileId
     ? await db.select().from(assignments).where(and(eq(assignments.ownerEmail, user.email), eq(assignments.profileId, profileId))).orderBy(desc(assignments.createdAt))
     : await db.select().from(assignments).where(eq(assignments.ownerEmail, user.email)).orderBy(desc(assignments.createdAt));
-  return Response.json({ assignments: rows });
+  return Response.json({ assignments: learnerAssignments(rows, await approvedLessonIds(), canTeach(user)) });
 }
 
 export async function POST(request: Request) {
@@ -32,6 +34,7 @@ export async function POST(request: Request) {
     return Response.json({ error: "Choose a valid learner, module and session." }, { status: 400 });
   }
   const lesson = lessons.find((item) => item.id === lessonId)!;
+  if (!(await isLessonApproved(lessonId))) return lessonUnavailable(400);
   const db = await getDb();
   const [profile] = await db.select({ id: learnerProfiles.id }).from(learnerProfiles).where(and(eq(learnerProfiles.id, profileId), eq(learnerProfiles.ownerEmail, user.email))).limit(1);
   if (!profile) return Response.json({ error: "Learner profile not found." }, { status: 404 });

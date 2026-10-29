@@ -30,13 +30,15 @@ The running deployment uses the **custom English–Bangla application**, followi
 
 | Role | What they can do |
 | --- | --- |
-| 🧒&nbsp;**Students** | Use My Learning, learning topics, allocated classes, activities and results. A student given a temporary password must choose their own at first sign-in; My Learning, the learning pages and the student APIs stay closed until they do. |
-| 🧑‍🏫&nbsp;**Teachers** | Join once an administrator approves them, find approved students by name or username and add them to a class with a tick, without class codes. Upload a CSV class list (`name`, optional `username`; up to 200 rows): a row with an existing student's username adds that student, and other rows create accounts with one-time temporary passwords. Student sign-in is rate-limited per account, so a whole class can sign in together from one school network. Read results as a gradebook (students A–Z down, activities across, `—` for work not submitted, activities done, average and attendance), and take attendance by date with everyone ticked present by default. |
-| 🛡️&nbsp;**Administrators** | Approve or decline self-registered students, parents and teachers; create accounts and reset forgotten passwords with one-time temporary passwords on a printable sheet (adults and students must choose their own at first sign-in). Import families from one CSV (`student name`, `parent name`, `parent email`) to create and link students and parents, optionally in a class, with a sign-in sheet per family. Manage family links, class allocation and topic-reading updates. Review, export and reset grades and results in every class (`/admin/results`, with each class's gradebook and attendance), and open any class from the teacher workspace. Create a class for an approved teacher or give a class to another teacher at `/admin/classes` (both audited). |
-| 👪&nbsp;**Parents** | See, read-only, the learning records and class attendance ("attended 3 of 5 classes") of the children an administrator has linked to them. |
+| 🧒&nbsp;**Students** | Use My Learning, approved learning topics by category, allocated classes, activities, results and attendance, and the sources their teachers add for their classes (Sources & references). A student given a temporary password must choose their own at first sign-in; My Learning, the learning pages and the student APIs stay closed until they do. |
+| 🧑‍🏫&nbsp;**Teachers** | Join once an administrator approves them, find approved students by name or username and add them to a class with a tick, without class codes. Upload a CSV class list (`name`, optional `username`; up to 200 rows): a row with an existing student's username adds that student, and other rows create accounts with one-time temporary passwords. Student sign-in is rate-limited per account, so a whole class can sign in together from one school network. Read results as a gradebook (students A–Z down, activities across, `—` for work not submitted, activities done, average and attendance) with the topics each student has read, and take attendance by date with everyone ticked present by default. Write and edit topics, preview them in English and Bangla, and approve them for students (`/teach/topics`); preview, approve or withdraw the 18 lessons (`/studio`); and add sources for each of their classes. |
+| 🛡️&nbsp;**Administrators** | Approve or decline self-registered students, parents and teachers; create accounts and reset forgotten passwords with one-time temporary passwords on a printable sheet (adults and students must choose their own at first sign-in). Import families from one CSV (`student name`, `parent name`, `parent email`) to create and link students and parents, optionally in a class, with a sign-in sheet per family. Manage family links and class allocation, and write, preview and approve topics and lessons like teachers. Keep each NCTB textbook's yearly link up to date at `/admin/sources` (audited). Review, export and reset grades and results in every class (`/admin/results`, with each class's gradebook and attendance), and open any class from the teacher workspace. Create a class for an approved teacher or give a class to another teacher at `/admin/classes` (both audited). |
+| 👪&nbsp;**Parents** | See, read-only, the learning records, class attendance ("attended 3 of 5 classes") and class sources of the children an administrator has linked to them. |
 
-Learning content requires sign-in. Curriculum edits retain educator-review notices; saving a
-topic is not approval of its educational accuracy, rights or age suitability.
+Learning content requires sign-in. Students see only approved topics: a new or edited topic
+stays hidden until a teacher or administrator has previewed all of it in English and Bangla
+and approved it. The topics that shipped with the app are approved as a baseline and are
+marked that way for staff, because they have not been individually reviewed.
 
 `PLATFORM_MODE=legacy` is the configuration name for the custom application; it does not mean
 the running portals are retired. The Moodle pilot remains an alternative implementation, not the
@@ -107,7 +109,7 @@ intact. See the [Moodle-first MVP plan](docs/MOODLE_FIRST_MVP.md) for that earli
 | ✅ Custom platform for learners, teachers, parents and admins | Deployed; role checks, staff allocation, learning progress and parent monitoring implemented |
 | 🟡 Official NCTB catalogue and PDF audit | Source records implemented; a verified PDF is not an approved adaptation |
 | 🟡 Bilingual topic prototypes | Implemented as drafts; educational and community review remains |
-| 🟡 Bangla audio | Synthetic fallback included; reviewed human recordings remain incomplete |
+| 🟡 Bangla audio | Approved human recordings play first, then the device voice, then the bundled eSpeak voice; a neural provider (Azure) path is ready for a key; reviewed recordings remain incomplete |
 | 🟡 Application deployment and operations | Existing-host reference configuration, portable service and Compose setup, and backup and restore tools included; actual hosting ownership, off-server scheduling and recovery evidence require operator handover |
 | 🟡 Moodle pilot course | Installable hidden-course plugin implemented: 15 bilingual chapters, nine activities and nine questions |
 | 🔒 Optional Moodle publication control | Draft validation passes; pilot release validation intentionally fails while 27 human-review gates are pending |
@@ -157,7 +159,9 @@ app or LTI dependency.
 
 | Route | Pilot role |
 | --- | --- |
-| `/topics` | Draft bilingual topic review experience |
+| `/topics` | Approved bilingual topics by category, with a quiz that counts towards Topics read |
+| `/studio` | Staff Lessons: preview the 18 lessons as students see them, approve or withdraw them, review human audio and video checks |
+| `/teach/topics` | Staff Topics: write, edit, preview and approve topics |
 | `/books` | Audited NCTB Book Bridge and precise source metadata |
 | `/library` | Adult-facing textbook catalogue |
 | `/resources` | External research register; not approved curriculum |

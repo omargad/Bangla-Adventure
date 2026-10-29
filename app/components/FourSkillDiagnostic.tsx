@@ -2,13 +2,14 @@
 
 import { useMemo, useState } from "react";
 import { levelBands, type CurriculumLevel } from "../curriculum";
+import { bundledClip, type Clip } from "../../lib/voice-playback";
 
 type Skill = "listening" | "speaking" | "reading" | "writing";
 type Cue = "tap" | "success" | "retry" | "star";
 
 type DiagnosticProps = {
   soundEnabled: boolean;
-  onSpeak: (text: string, lang?: string, fallbackSource?: string) => void;
+  onSpeak: (text: string, lang?: string, clip?: Clip) => void;
   onCue: (cue: Cue) => void;
   onChoose: (level: CurriculumLevel) => void;
   onClose: () => void;
@@ -21,7 +22,8 @@ type ChoiceTask = {
   prompt: string;
   stimulus?: string;
   audio?: string;
-  audioFile?: string;
+  /** The bundled clip in public/audio for the listening prompt. */
+  audioClip?: string;
   options: string[];
   answer: number;
 };
@@ -40,9 +42,9 @@ const skillOrder: Skill[] = ["listening", "speaking", "reading", "writing"];
 
 const tasks: Record<Skill, Task[]> = {
   listening: [
-    { id: "l1", kind: "choice", weight: 1, prompt: "Who is speaking?", audio: "হ্যালো! আমার নাম মায়া।", audioFile: "/audio/diagnostic-listen-1.ogg", options: ["Maya", "Rafi", "Bagh"], answer: 0 },
-    { id: "l2", kind: "choice", weight: 2, prompt: "Which route should the traveller take?", audio: "প্রথমে সোজা যান। নদীর আগে বাঁ দিকে যান। বাজারটি স্কুলের পাশে।", audioFile: "/audio/diagnostic-listen-2.ogg", options: ["Straight, then left before the river", "Right after the river", "Back past the school"], answer: 0 },
-    { id: "l3", kind: "choice", weight: 2, prompt: "Which summary preserves the speaker’s qualification?", audio: "ভাষা পরিচয়ের গুরুত্বপূর্ণ অংশ হতে পারে, তবে সবার অভিজ্ঞতা এক নয় এবং দক্ষতাই পরিচয়ের একমাত্র মাপকাঠি নয়।", audioFile: "/audio/diagnostic-listen-3.ogg", options: ["Language never affects identity", "Language can matter, but experience varies and proficiency is not the only measure", "Everyone must have the same language history"], answer: 1 },
+    { id: "l1", kind: "choice", weight: 1, prompt: "Who is speaking?", audio: "হ্যালো! আমার নাম মায়া।", audioClip: "diagnostic-listen-1", options: ["Maya", "Rafi", "Bagh"], answer: 0 },
+    { id: "l2", kind: "choice", weight: 2, prompt: "Which route should the traveller take?", audio: "প্রথমে সোজা যান। নদীর আগে বাঁ দিকে যান। বাজারটি স্কুলের পাশে।", audioClip: "diagnostic-listen-2", options: ["Straight, then left before the river", "Right after the river", "Back past the school"], answer: 0 },
+    { id: "l3", kind: "choice", weight: 2, prompt: "Which summary preserves the speaker’s qualification?", audio: "ভাষা পরিচয়ের গুরুত্বপূর্ণ অংশ হতে পারে, তবে সবার অভিজ্ঞতা এক নয় এবং দক্ষতাই পরিচয়ের একমাত্র মাপকাঠি নয়।", audioClip: "diagnostic-listen-3", options: ["Language never affects identity", "Language can matter, but experience varies and proficiency is not the only measure", "Everyone must have the same language history"], answer: 1 },
   ],
   speaking: [
     { id: "s1", kind: "performance", prompt: "Without reading a model, greet someone, say your name and say how you are.", support: "Score 2 if you completed all three ideas understandably; 1 if you used at least one Bangla phrase; 0 if you are not ready yet.", example: "হ্যালো। আমার নাম ___. আমি ভালো আছি।" },
@@ -153,7 +155,7 @@ export default function FourSkillDiagnostic({ soundEnabled, onSpeak, onCue, onCh
                   <h4>{task.prompt}</h4>
                   {task.kind === "choice" ? (
                     <>
-                      {task.audio && <button type="button" className="diagnostic-audio-button" disabled={!soundEnabled} onClick={() => onSpeak(task.audio!, "bn-BD", task.audioFile)}>♪ Play recording <small>Replay freely</small></button>}
+                      {task.audio && <button type="button" className="diagnostic-audio-button" disabled={!soundEnabled} onClick={() => onSpeak(task.audio!, "bn-BD", task.audioClip ? bundledClip(task.audioClip) : undefined)}>♪ Listen <span lang="bn">· শোনো</span> <small>Replay freely</small></button>}
                       {task.stimulus && <p className="diagnostic-stimulus" lang="bn">{task.stimulus}</p>}
                       <div className="diagnostic-options">
                         {task.options.map((option, optionIndex) => <button type="button" key={option} className={answers[task.id] === optionIndex ? "selected" : ""} aria-pressed={answers[task.id] === optionIndex} onClick={() => setAnswer(task.id, optionIndex)}><span>{String.fromCharCode(65 + optionIndex)}</span>{option}</button>)}
@@ -179,7 +181,7 @@ export default function FourSkillDiagnostic({ soundEnabled, onSpeak, onCue, onCh
       ) : (
         <div className="diagnostic-results">
           <div className={`diagnostic-recommendation ${results.recommended.tone}`}>
-            <span><small>Suggested module band</small><strong>{results.recommended.code}</strong></span>
+            <span><small>Suggested lesson band</small><strong>{results.recommended.code}</strong></span>
             <div><h3>{results.recommended.title} <em lang="bn">· {results.recommended.titleBn}</em></h3><p>Begin where the least-developed skill can participate successfully. Use stronger-skill sessions as an accelerated route, and move one band whenever the work feels consistently too easy or too hard.</p></div>
           </div>
           <div className="skill-profile-grid">
@@ -188,14 +190,14 @@ export default function FourSkillDiagnostic({ soundEnabled, onSpeak, onCue, onCh
               return <article key={skill}><div><span>{skillMeta[skill].icon}</span><h4>{skillMeta[skill].label}<small lang="bn">{skillMeta[skill].bn}</small></h4><strong>{band.code}</strong></div><div className="skill-meter"><span style={{ width: `${(results.scores[skill] / 5) * 100}%` }} /></div><p>{band.descriptor}</p></article>;
             })}
           </div>
-          <aside className="diagnostic-caution"><span aria-hidden="true">i</span><p><strong>Use this profile as a conversation starter.</strong> Listening and reading use three sampled tasks; speaking and writing use learner/adult reflection. Recheck after several modules and seek a qualified educator for formal assessment.</p></aside>
+          <aside className="diagnostic-caution"><span aria-hidden="true">i</span><p><strong>Use this profile as a conversation starter.</strong> Listening and reading use three sampled tasks; speaking and writing use learner/adult reflection. Recheck after several lessons and seek a qualified educator for formal assessment.</p></aside>
         </div>
       )}
 
       <footer className="diagnostic-footer">
         <button type="button" className="outline-button" onClick={skillIndex === 0 || showResults ? onClose : () => { setSkillIndex((value) => value - 1); setSubmitted(false); }}>← {skillIndex === 0 || showResults ? "Close" : "Previous skill"}</button>
         {!showResults && <button type="button" className="primary-button" onClick={moveNext}>{skillIndex === skillOrder.length - 1 ? "Build my skill profile" : "Next skill"} →</button>}
-        {showResults && <button type="button" className="primary-button" onClick={() => onChoose(results.recommended.id)}>Open suggested modules →</button>}
+        {showResults && <button type="button" className="primary-button" onClick={() => onChoose(results.recommended.id)}>Open suggested lessons →</button>}
       </footer>
     </div>
   );

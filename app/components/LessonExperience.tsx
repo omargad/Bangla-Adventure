@@ -3,10 +3,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Lesson } from "../curriculum";
 import { lessonExtensions, lessonSessionSkills, type LearningSkill, type QuickCheck } from "../learning-content";
+import type { LearnerVideo } from "../../lib/lesson-model";
+import { lessonClip, voiceStatusText, type Clip, type VoiceStatus } from "../../lib/voice-playback";
 
 type Language = "en" | "bn";
 type Cue = "tap" | "success" | "retry" | "star";
-type LessonStep = "overview" | LearningSkill;
+export type LessonStep = "overview" | LearningSkill;
 
 type LevelBand = {
   code: string;
@@ -17,19 +19,27 @@ type LevelBand = {
 
 type LessonExperienceProps = {
   lesson: Lesson;
+  /** The video learners get after a teacher's video check; null when it was taken down without a replacement. */
+  video?: LearnerVideo | null;
+  /** Staff preview in the Studio: transcripts, scaffolds and answers start visible and nothing is saved. */
+  preview?: boolean;
+  /** Called with each part of the lesson the viewer opens, starting with the overview. */
+  onStepView?: (step: LessonStep) => void;
   level: LevelBand;
   language: Language;
   completed: string[];
   soundEnabled: boolean;
   isSpeaking: boolean;
-  onSpeak: (text: string, lang?: string, fallbackSource?: string) => void;
+  /** What is playing now, so the lesson can say whether it is a recorded, device or computer voice. */
+  voiceStatus?: VoiceStatus | null;
+  onSpeak: (text: string, lang?: string, clip?: Clip) => void;
   onStopAudio: () => void;
   onAward: (activity: string, amount?: number) => void;
   onCue: (cue: Cue) => void;
   onClose: () => void;
 };
 
-const steps: LessonStep[] = [
+export const lessonSteps: LessonStep[] = [
   "overview",
   "listening",
   "reading",
@@ -64,16 +74,21 @@ function sessionKey(lessonId: string, skill: LearningSkill) {
   return `session-${lessonId}-${skill}`;
 }
 
+/** Marks the right answer for staff in the Studio preview, in both languages like the other kickers. */
+const previewAnswerLabel = " ✓ correct answer · সঠিক উত্তর";
+
 function QuickCheckCard({
   check,
   answer,
   submitted,
+  showAnswer,
   onAnswer,
   onSubmit,
 }: {
   check: QuickCheck;
   answer: number | null;
   submitted: boolean;
+  showAnswer: boolean;
   onAnswer: (answer: number) => void;
   onSubmit: () => void;
 }) {
@@ -91,10 +106,11 @@ function QuickCheckCard({
             aria-pressed={answer === index}
             onClick={() => onAnswer(index)}
           >
-            <span>{String.fromCharCode(65 + index)}</span>{option}
+            <span>{String.fromCharCode(65 + index)}</span>{option}{showAnswer && index === check.answer && <em className="preview-answer">{previewAnswerLabel}</em>}
           </button>
         ))}
       </div>
+      {showAnswer && <p className="preview-answer-note">{check.explanation}</p>}
       <button className="outline-button compact-button" type="button" onClick={onSubmit}>
         Check this answer
       </button>
@@ -109,11 +125,15 @@ function QuickCheckCard({
 
 export default function LessonExperience({
   lesson,
+  video: learnerVideo,
+  preview = false,
+  onStepView,
   level,
   language,
   completed,
   soundEnabled,
   isSpeaking,
+  voiceStatus = null,
   onSpeak,
   onStopAudio,
   onAward,
@@ -121,15 +141,18 @@ export default function LessonExperience({
   onClose,
 }: LessonExperienceProps) {
   const extension = lessonExtensions[lesson.id];
+  const s = (en: string, bn: string) => (language === "bn" ? bn : en);
+  const voiceText = voiceStatusText(voiceStatus, language);
+  const video: LearnerVideo | null = learnerVideo === undefined ? lesson.video : learnerVideo;
   const [step, setStep] = useState<LessonStep>("overview");
-  const [showTranscript, setShowTranscript] = useState(false);
-  const [showEnglish, setShowEnglish] = useState(false);
+  const [showTranscript, setShowTranscript] = useState(preview);
+  const [showEnglish, setShowEnglish] = useState(preview);
   const [listenAnswer, setListenAnswer] = useState<number | null>(null);
   const [listenSubmitted, setListenSubmitted] = useState(false);
   const [readAnswer, setReadAnswer] = useState<number | null>(null);
   const [readSubmitted, setReadSubmitted] = useState(false);
   const [writing, setWriting] = useState("");
-  const [showModel, setShowModel] = useState(false);
+  const [showModel, setShowModel] = useState(preview);
   const [videoLoaded, setVideoLoaded] = useState(false);
   const [watchChecks, setWatchChecks] = useState([false, false, false]);
   const [quizAnswers, setQuizAnswers] = useState<Record<number, number>>({});
@@ -146,6 +169,10 @@ export default function LessonExperience({
     () => lessonSessionSkills.filter((skill) => completed.includes(sessionKey(lesson.id, skill))).length,
     [completed, lesson.id],
   );
+
+  useEffect(() => {
+    onStepView?.(step);
+  }, [onStepView, step]);
 
   useEffect(() => {
     const url = recordingUrl;
@@ -262,7 +289,7 @@ export default function LessonExperience({
     }
   }
 
-  const stepIndex = steps.indexOf(step);
+  const stepIndex = lessonSteps.indexOf(step);
   const isSessionStep = step !== "overview";
   const currentSessionComplete = isSessionStep && completed.includes(sessionKey(lesson.id, step));
   const sectionTitle = labels[language][step];
@@ -272,7 +299,7 @@ export default function LessonExperience({
       <header className={`lesson-modal-hero ${level.tone}`}>
         <div className="lesson-modal-meta">
           <span>{level.code}</span>
-          <span>{language === "en" ? "Module" : "মডিউল"} {lesson.number} / 18</span>
+          <span>{language === "en" ? `Lesson ${lesson.number} / 18` : `পাঠ ${lesson.number.toLocaleString("bn-BD")} / ১৮`}</span>
           <span>6 {language === "en" ? "guided sessions" : "টি শেখার ধাপ"}</span>
         </div>
         <div className="lesson-modal-title-row">
@@ -282,7 +309,7 @@ export default function LessonExperience({
             <p className="lesson-modal-title-bn" lang="bn">{lesson.titleBn}</p>
           </div>
           <span className={`module-session-seal ${completeSessions === 6 ? "complete" : ""}`}>
-            <strong>{completeSessions}/6</strong><small>{completeSessions === 6 ? "Module complete" : "sessions complete"}</small>
+            <strong>{completeSessions}/6</strong><small>{completeSessions === 6 ? "Lesson complete" : "sessions complete"}</small>
           </span>
         </div>
         <div className="lesson-step-progress" aria-label={`${completeSessions} of 6 sessions complete`}>
@@ -292,8 +319,8 @@ export default function LessonExperience({
         </div>
       </header>
 
-      <nav className="lesson-step-tabs expanded-tabs" aria-label={language === "en" ? "Module sections" : "মডিউলের অংশ"}>
-        {steps.map((item, index) => (
+      <nav className="lesson-step-tabs expanded-tabs" aria-label={language === "en" ? "Lesson sections" : "পাঠের অংশ"}>
+        {lessonSteps.map((item, index) => (
           <button
             type="button"
             key={item}
@@ -359,13 +386,13 @@ export default function LessonExperience({
                   type="button"
                   className={`primary-button coral ${isSpeaking ? "is-speaking" : ""}`}
                   disabled={!soundEnabled}
-                  onClick={() => onSpeak(extension.dialogue.map((line) => `${line.speaker}। ${line.bn}`).join(" "), "bn-BD", `/api/audio/${lesson.id}/dialogue`)}
+                  onClick={() => onSpeak(extension.dialogue.map((line) => line.bn).join(" "), "bn-BD", lessonClip(lesson.id, "dialogue"))}
                 >
                   <span aria-hidden="true">♪</span>{isSpeaking ? "Playing dialogue…" : "Play complete dialogue"}
                 </button>
                 <button type="button" className="text-button" onClick={() => setShowTranscript((value) => !value)}>{showTranscript ? "Hide transcript" : "Reveal transcript after listening"}</button>
               </div>
-              <p className="audio-source-note">Bundled Bangla voice model · replay as often as needed · no timer</p>
+              <p className="audio-source-note">{voiceText ? `${voiceText} · ` : ""}{s("Replay as often as needed · no timer", "যতবার খুশি আবার শোনো · সময়ের কোনো চাপ নেই")}</p>
               {showTranscript ? (
                 <ol className="dialogue-transcript">
                   {extension.dialogue.map((line, index) => (
@@ -379,7 +406,7 @@ export default function LessonExperience({
                 <div className="transcript-gate"><span aria-hidden="true">👂</span><p>First listen: names, places, feelings or actions.<br />Second listen: exact words and sequence.</p></div>
               )}
             </div>
-            <QuickCheckCard check={extension.listening.check} answer={listenAnswer} submitted={listenSubmitted} onAnswer={(answer) => { setListenAnswer(answer); setListenSubmitted(false); }} onSubmit={submitListen} />
+            <QuickCheckCard check={extension.listening.check} answer={listenAnswer} submitted={listenSubmitted} showAnswer={preview} onAnswer={(answer) => { setListenAnswer(answer); setListenSubmitted(false); }} onSubmit={submitListen} />
           </div>
         )}
 
@@ -392,17 +419,21 @@ export default function LessonExperience({
             </div>
             <article className="guided-reading-card">
               <div className="guided-reading-toolbar">
-                <button type="button" className="listen-line" disabled={!soundEnabled} onClick={() => onSpeak(extension.reading.bn, "bn-BD", `/api/audio/${lesson.id}/reading`)}>♪ Read aloud in Bangla</button>
+                <button type="button" className="listen-line" disabled={!soundEnabled} onClick={() => onSpeak(extension.reading.bn, "bn-BD", lessonClip(lesson.id, "reading"))}>♪ Read aloud in Bangla</button>
                 <button type="button" className="text-button" onClick={() => setShowEnglish((value) => !value)}>{showEnglish ? "Hide English scaffold" : "Show English scaffold"}</button>
               </div>
               <p className="guided-reading-bn" lang="bn">{extension.reading.bn}</p>
               {showEnglish && <p className="guided-reading-en">{extension.reading.en}</p>}
             </article>
-            <div className="reading-glossary">
-              <p className="modal-kicker">Word bank</p>
-              <div>{lesson.vocabulary.map((word) => <span key={word.bn}><strong lang="bn">{word.bn}</strong><small>{word.en}</small></span>)}</div>
+            <div className="lesson-word-bank">
+              <p className="modal-kicker">{s("Word bank · tap a word to hear it", "শব্দভান্ডার · শব্দ ছুঁয়ে শোনো")}</p>
+              <div>{lesson.vocabulary.map((word, index) => (
+                <button type="button" key={word.bn} disabled={!soundEnabled} aria-label={`${s("Listen", "শোনো")}: ${word.bn} (${word.en})`} onClick={() => onSpeak(word.bn, "bn-BD", lessonClip(lesson.id, `word-${index + 1}`))}>
+                  <span aria-hidden="true">♪</span><strong lang="bn">{word.bn}</strong><small>{word.en}</small>
+                </button>
+              ))}</div>
             </div>
-            <QuickCheckCard check={extension.reading.check} answer={readAnswer} submitted={readSubmitted} onAnswer={(answer) => { setReadAnswer(answer); setReadSubmitted(false); }} onSubmit={submitRead} />
+            <QuickCheckCard check={extension.reading.check} answer={readAnswer} submitted={readSubmitted} showAnswer={preview} onAnswer={(answer) => { setReadAnswer(answer); setReadSubmitted(false); }} onSubmit={submitRead} />
           </div>
         )}
 
@@ -413,6 +444,16 @@ export default function LessonExperience({
               <h3>Rehearse, record locally if you choose, then reflect</h3>
               <p>{extension.speaking.mission}</p>
             </div>
+            <section className="lesson-word-bank" aria-label={s("Sentence patterns", "বাক্যের ধাঁচ")}>
+              <p className="modal-kicker">{s("Sentence patterns · listen, then say them", "বাক্যের ধাঁচ · শোনো, তারপর বলো")}</p>
+              <ul className="pattern-listen-list">{lesson.patterns.map((pattern, index) => (
+                <li key={pattern.bn}>
+                  <button type="button" disabled={!soundEnabled} aria-label={`${s("Listen", "শোনো")}: ${pattern.bn} (${pattern.en})`} onClick={() => onSpeak(pattern.bn, "bn-BD", lessonClip(lesson.id, `pattern-${index + 1}`))}>
+                    <span aria-hidden="true">♪</span><strong lang="bn">{pattern.bn}</strong><small>{pattern.en}</small>
+                  </button>
+                </li>
+              ))}</ul>
+            </section>
             <div className="roleplay-grid">
               <article><span>A</span><h4>First role</h4><p>{extension.speaking.roleA}</p></article>
               <article><span>B</span><h4>Second role</h4><p>{extension.speaking.roleB}</p></article>
@@ -455,7 +496,7 @@ export default function LessonExperience({
               <label className="writing-pad">
                 <span>Your draft · তোমার লেখা</span>
                 <textarea value={writing} onChange={(event) => setWriting(event.target.value)} placeholder="Write, copy or trace here. English planning is allowed." rows={8} />
-                <small>{writing.length} characters · saved only while this module is open</small>
+                <small>{writing.length} characters · saved only while this lesson is open</small>
               </label>
               <div className="model-answer-card">
                 <button type="button" className="text-button" onClick={() => setShowModel((value) => !value)}>{showModel ? "Hide model" : "Reveal one possible model after trying"}</button>
@@ -471,8 +512,8 @@ export default function LessonExperience({
           <div className="session-pane lesson-watch-pane">
             <div className="lesson-pane-heading">
               <p className="modal-kicker">Session 5 · Video & culture · দেখা ও সংস্কৃতি</p>
-              <h3>{lesson.video.title}</h3>
-              <p>{lesson.video.reason}</p>
+              <h3>{video ? (video.replaced ? (language === "en" ? "A video chosen by your teacher" : "তোমার শিক্ষকের বেছে নেওয়া ভিডিও") : video.title) : (language === "en" ? "Culture inquiry" : "সংস্কৃতি নিয়ে খোঁজ")}</h3>
+              <p>{video ? (video.replaced ? (language === "en" ? "A teacher checked the original video and chose this one instead." : "একজন শিক্ষক আগের ভিডিওটি দেখে এর বদলে এটি বেছে নিয়েছেন।") : video.reason) : (language === "en" ? "A teacher took this lesson’s video down after checking it. Talk through the three prompts below with a grown-up instead." : "একজন শিক্ষক দেখে এই পাঠের ভিডিওটি সরিয়ে নিয়েছেন। তার বদলে বড় কারও সঙ্গে নিচের তিনটি প্রশ্ন নিয়ে কথা বলো।")}</p>
             </div>
             <div className="video-learning-cycle">
               {[{ label: "Before", text: extension.watch.before }, { label: "During", text: extension.watch.during }, { label: "After", text: extension.watch.after }].map((item, index) => (
@@ -482,22 +523,24 @@ export default function LessonExperience({
                 </label>
               ))}
             </div>
-            <div className="video-resource-meta">
-              <span>YouTube</span><strong>{lesson.video.channel}</strong><span>{lesson.video.duration}</span><em>{extension.watch.segment}</em>
-              <a href={`https://www.youtube.com/watch?v=${lesson.video.id}`} target="_blank" rel="noreferrer">Open on YouTube ↗</a>
-            </div>
-            {videoLoaded ? (
-              <div className="lesson-video-frame">
-                <iframe src={`https://www.youtube-nocookie.com/embed/${lesson.video.id}?rel=0&cc_load_policy=1`} title={lesson.video.title} loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen />
+            {video && <>
+              <div className="video-resource-meta">
+                <span>YouTube</span>{video.channel && !video.replaced && <strong>{video.channel}</strong>}{video.duration && <span>{video.duration}</span>}{!video.replaced && <em>{extension.watch.segment}</em>}
+                <a href={`https://www.youtube.com/watch?v=${video.id}`} target="_blank" rel="noreferrer">Open on YouTube ↗</a>
               </div>
-            ) : (
-              <div className="video-gate">
-                <div className="video-gate-art" aria-hidden="true"><span>▶</span><i>নদী · গল্প · বাংলা</i></div>
-                <div><h4>Load only when you are ready</h4><p>YouTube stays disconnected until this button is pressed. Loading applies YouTube’s privacy terms. A grown-up should preview and supervise external media.</p><button type="button" className="primary-button coral" onClick={() => setVideoLoaded(true)}>Load privacy-enhanced video ▶</button></div>
-              </div>
-            )}
+              {videoLoaded ? (
+                <div className="lesson-video-frame">
+                  <iframe src={`https://www.youtube-nocookie.com/embed/${video.id}?rel=0&cc_load_policy=1`} title={video.replaced ? (language === "en" ? "A video chosen by your teacher" : "তোমার শিক্ষকের বেছে নেওয়া ভিডিও") : video.title} loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen />
+                </div>
+              ) : (
+                <div className="video-gate">
+                  <div className="video-gate-art" aria-hidden="true"><span>▶</span><i>নদী · গল্প · বাংলা</i></div>
+                  <div><h4>Load only when you are ready</h4><p>YouTube stays disconnected until this button is pressed. Loading applies YouTube’s privacy terms. A grown-up should preview and supervise external media.</p><button type="button" className="primary-button coral" onClick={() => setVideoLoaded(true)}>Load privacy-enhanced video ▶</button></div>
+                </div>
+              )}
+            </>}
             <a className="playlist-card" href={`https://www.youtube.com/playlist?list=${lesson.playlist.id}`} target="_blank" rel="noreferrer"><span className="playlist-icon" aria-hidden="true">☷</span><span><small>Curated follow-on playlist</small><strong>{lesson.playlist.title}</strong><em>{lesson.playlist.channel} · external YouTube</em></span><span aria-hidden="true">↗</span></a>
-            <aside className="media-review-note"><span aria-hidden="true">CC</span><p><strong>Caption and availability check:</strong> captions and recommendations are controlled by YouTube and may change. The adult Content Studio includes a link, caption and suitability review queue.</p></aside>
+            <aside className="media-review-note"><span aria-hidden="true">CC</span><p><strong>Caption and availability check:</strong> captions and recommendations are controlled by YouTube and may change. Teachers check each lesson video; a video they mark unsuitable is taken out of the lesson.</p></aside>
             <button type="button" className="primary-button session-complete-button" disabled={!watchChecks.every(Boolean) || currentSessionComplete} onClick={() => complete("culture")}>{currentSessionComplete ? "✓ Video & culture session complete" : watchChecks.every(Boolean) ? "I completed before, during and after" : "Complete the three viewing prompts"}</button>
           </div>
         )}
@@ -518,17 +561,18 @@ export default function LessonExperience({
                     <legend><span>{questionIndex + 1}</span>{question.question}</legend>
                     <div className="lesson-quiz-options">
                       {question.options.map((option, optionIndex) => (
-                        <button type="button" key={option} className={`${selectedAnswer === optionIndex ? "selected" : ""} ${quizSubmitted && selectedAnswer === optionIndex ? (correct ? "correct" : "wrong") : ""}`} aria-pressed={selectedAnswer === optionIndex} onClick={() => { setQuizAnswers((current) => ({ ...current, [questionIndex]: optionIndex })); setQuizSubmitted(false); }}><span>{String.fromCharCode(65 + optionIndex)}</span>{option}</button>
+                        <button type="button" key={option} className={`${selectedAnswer === optionIndex ? "selected" : ""} ${quizSubmitted && selectedAnswer === optionIndex ? (correct ? "correct" : "wrong") : ""}`} aria-pressed={selectedAnswer === optionIndex} onClick={() => { setQuizAnswers((current) => ({ ...current, [questionIndex]: optionIndex })); setQuizSubmitted(false); }}><span>{String.fromCharCode(65 + optionIndex)}</span>{option}{preview && optionIndex === question.answer && <em className="preview-answer">{previewAnswerLabel}</em>}</button>
                       ))}
                     </div>
                     {quizSubmitted && selectedAnswer !== undefined && <p className={correct ? "answer-explanation correct" : "answer-explanation wrong"}><strong>{correct ? "✓" : "↻"}</strong>{question.explanation}</p>}
+                    {preview && !quizSubmitted && <p className="preview-answer-note">{question.explanation}</p>}
                   </fieldset>
                 );
               })}
             </div>
             {quizSubmitted && (
               <div className={`mastery-result ${allQuizCorrect ? "success" : "retry"}`} role="status">
-                <strong>{!allQuizAnswered ? "Choose every answer first." : allQuizCorrect ? "Module mastered—your six-session badge is complete." : "A short review will help."}</strong>
+                <strong>{!allQuizAnswered ? "Choose every answer first." : allQuizCorrect ? "Lesson mastered—your six-session badge is complete." : "A short review will help."}</strong>
                 {!allQuizCorrect && allQuizAnswered && <div><button type="button" onClick={() => changeStep("listening")}>Replay Listen</button><button type="button" onClick={() => changeStep("reading")}>Review Read</button></div>}
               </div>
             )}
@@ -538,9 +582,9 @@ export default function LessonExperience({
       </div>
 
       <div className="lesson-modal-footer expanded-footer">
-        <button type="button" onClick={() => changeStep(steps[Math.max(0, stepIndex - 1)])} disabled={stepIndex === 0}>← Previous</button>
+        <button type="button" onClick={() => changeStep(lessonSteps[Math.max(0, stepIndex - 1)])} disabled={stepIndex === 0}>← Previous</button>
         <span>{stepIndex === 0 ? "Overview" : `Session ${stepIndex} of 6`} {currentSessionComplete ? "· ✓ complete" : ""}</span>
-        {stepIndex === steps.length - 1 ? <button className="primary-button" type="button" onClick={onClose}>Close module ×</button> : <button className="primary-button" type="button" onClick={() => changeStep(steps[stepIndex + 1])}>Next <span aria-hidden="true">→</span></button>}
+        {stepIndex === lessonSteps.length - 1 ? <button className="primary-button" type="button" onClick={onClose}>{preview ? (language === "en" ? "Close preview ×" : "প্রিভিউ বন্ধ করুন ×") : "Close lesson ×"}</button> : <button className="primary-button" type="button" onClick={() => changeStep(lessonSteps[stepIndex + 1])}>Next <span aria-hidden="true">→</span></button>}
       </div>
     </div>
   );

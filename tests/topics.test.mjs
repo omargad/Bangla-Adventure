@@ -64,3 +64,12 @@ test("every topic cites at least one known NCTB library book", () => {
     }
   }
 });
+
+test("topics the client flagged sit in fitting categories, with ids unchanged", () => {
+  const themeOf = Object.fromEntries(topics.map((topic) => [topic.id, topic.theme]));
+  assert.equal(themeOf["national-symbols"], "our-country", "Symbols of Bangladesh is not history");
+  assert.notEqual(themeOf["crafts-of-bengal"], "literature", "crafts are not literature");
+  assert.equal(themeOf["rivers-everyday-life"], "our-country");
+  assert.equal(themeOf["climate-and-disasters"], "our-country");
+  for (const id of ["amar-ekushey", "pohela-boishakh", "folk-tales"]) assert.ok(themeOf[id], `${id}: Moodle pilot topic id must stay`);
+});

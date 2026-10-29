@@ -36,7 +36,7 @@
 .portal-topic-card h3 { margin:14px 0 8px; }
 .portal-topic-card p { flex:1; color:#546b62; font-size:.9rem; }
 .portal-topic-card>strong { color:#075b4c; margin-top:16px; font-size:.9rem; }
-.portal-topic-card>small { color:#536c62; text-transform:capitalize; }
+.portal-topic-card>small { color:#536c62; }
 .portal-topic-card:disabled { cursor:default; opacity:.65; }
 .portal-topic-card:hover { border-color:#43a580; }
 .portal-field { display:grid; gap:10px; max-width:550px; margin:24px 0; font-weight:700; }
@@ -170,3 +170,103 @@
 .teach-announcement-form .teach-note { margin:0; }
 .teach-count { justify-self:end; margin-top:-6px; color:var(--muted); font-size:.8rem; }
 .teach-announcements li > div { min-width:0; }
+/* Topics: writing, previewing and approving topics; approved-topic notes for learners and staff. */
+.portal-category-heading { display:flex; align-items:center; gap:8px; margin:28px 0 0; font-size:1.1rem; }
+.topics-progress { display:inline-block; margin:6px 0 0; padding:8px 14px; border-radius:999px; background:#e3f3ea; color:#075b4c; font-weight:800; }
+.topic-read-chip { display:inline-flex; padding:3px 9px; border-radius:999px; background:#dcf1e5; color:#075b4c; font-size:.75rem; font-weight:800; }
+.topic-staff-note { max-width:1160px; margin:18px auto; padding:12px 16px; border:1px solid #b8d8c9; border-left:5px solid #075b4c; border-radius:12px; background:#f1f8f4; color:#17324d; line-height:1.6; }
+.topic-staff-note a { color:#075b4c; font-weight:700; text-decoration:underline; }
+.topic-best { margin:0 0 12px; font-weight:700; color:#075b4c; }
+.topic-studio .portal-heading { flex-wrap:wrap; }
+.topic-admin-list { list-style:none; margin:0; padding:0; display:grid; gap:10px; }
+.topic-admin-row { display:flex; align-items:center; gap:14px; flex-wrap:wrap; padding:12px 14px; border:1px solid #dce5e1; border-radius:12px; background:#fbfdfc; }
+.topic-admin-title { flex:1 1 260px; display:grid; gap:4px; min-width:0; overflow-wrap:anywhere; }
+.topic-admin-title small { color:#536c62; }
+.topic-admin-actions { display:flex; flex-wrap:wrap; gap:6px; }
+.topic-admin-actions :is(.primary-button,.outline-button) { min-height:40px; margin:0; padding:8px 14px; }
+.topic-status { display:inline-flex; padding:2px 9px; border-radius:999px; font-size:.78rem; font-weight:800; background:#e8eeeb; color:#294d44; }
+.topic-status-pending { background:#fff0c2; color:#714900; }
+.topic-status-approved { background:#dcf1e5; color:#075b4c; }
+.topic-status-rejected { background:#fde3df; color:#8a2416; }
+.topic-editor-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(200px,100%),1fr)); gap:0 16px; }
+.topic-editor-pair { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr)); gap:0 16px; }
+.topic-editor-option { border-top:1px dashed #dce5e1; padding-top:6px; }
+.topic-editor-option-actions { display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin:-6px 0 8px; }
+.portal-editor .topic-editor-correct { display:inline-flex; align-items:center; gap:8px; margin:0; font-weight:600; }
+.topic-editor-correct input { width:18px; height:18px; accent-color:#075b4c; }
+.topic-editor .portal-editor h3 { margin-top:28px; }
+.topic-editor-base { padding:10px 14px; border-radius:10px; background:#f5f8f6; }
+.topic-preview { margin:20px 0; }
+.topic-preview-bar { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px; }
+.topic-preview-modes { display:inline-flex; flex-wrap:wrap; border:1.5px solid #075b4c; border-radius:999px; overflow:hidden; }
+.topic-preview-modes button { border:0; padding:9px 16px; background:white; color:#075b4c; font:inherit; font-weight:700; cursor:pointer; }
+.topic-preview-modes button[aria-pressed=true] { background:#075b4c; color:white; }
+.topic-preview-frame { padding:20px; border:2px dashed #b8d8c9; border-radius:20px; background:var(--cream); }
+.portal-content .topic-preview-pair { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(380px,100%),1fr)); gap:24px; align-items:start; }
+.portal-content .topic-preview-pair .topic-reader { margin:0; max-width:none; }
+.topic-changes { margin:0; padding-left:20px; line-height:1.7; }
+.topic-decision .topic-confirm { display:flex; align-items:center; gap:10px; padding:12px 14px; border-radius:10px; background:#f5f8f6; font-weight:700; cursor:pointer; }
+.topic-confirm input { width:20px; height:20px; accent-color:#075b4c; flex:none; }
+.topic-decision .topic-note { display:grid; gap:8px; margin-top:16px; font-weight:600; }
+.topic-studio tr[aria-current=true] { background:#f1f8f4; }
+@media(max-width:650px) { .topic-preview-frame { padding:10px; } .topic-admin-actions { width:100%; } }
+/* Lessons: one shared approval per lesson, a full student-view preview, recordings and video checks. */
+.lesson-studio-stats { margin:18px 0; }
+.lesson-number { display:grid; place-items:center; flex:none; width:36px; height:36px; border-radius:50%; background:#e3f3ea; color:#075b4c; font-weight:800; }
+.lesson-other-title { color:#536c62; font-size:.92rem; }
+.lesson-review-title-bn { margin:-6px 0 10px; color:#075b4c; font-size:1.2rem; font-weight:700; }
+.lesson-preview-frame { border:2px dashed #b8d8c9; border-radius:20px; background:#fffdf8; overflow:hidden; }
+.lesson-preview-frame .expanded-lesson-pane { min-height:0; }
+.preview-answer { color:#075b4c; font-style:normal; font-weight:800; }
+.preview-answer-note { margin:8px 0 0; padding:8px 12px; border-left:4px solid #43a580; border-radius:8px; background:#f1f8f4; color:#17324d; }
+.lesson-review-progress { margin:12px 0; padding:8px 14px; border-radius:10px; background:#fff0c2; color:#714900; font-weight:700; }
+.lesson-review-progress.done { background:#dcf1e5; color:#075b4c; }
+.topic-decision .topic-confirm:has(input:disabled) { opacity:.6; cursor:not-allowed; }
+.recording-row audio { flex:1 1 240px; max-width:100%; }
+.recording-actions { align-items:center; }
+.recording-listened { display:inline-flex; align-items:center; gap:6px; font-size:.9rem; font-weight:600; }
+.recording-listened input { width:18px; height:18px; accent-color:#075b4c; }
+.lesson-upload, .specialist-checks { margin-top:16px; }
+.lesson-upload summary, .specialist-checks summary { cursor:pointer; font-weight:800; color:#075b4c; }
+.specialist-checks[open] summary { margin-bottom:12px; }
+.assignment-hidden { display:inline-flex; margin-left:8px; padding:2px 9px; border-radius:999px; background:#fde3df; color:#8a2416; font-size:.75rem; font-style:normal; font-weight:800; }
+@media(max-width:650px) { .lesson-preview-frame { border-width:1px; border-radius:12px; } }
+/* Sources: textbook links (per class where a book covers several), class sources and the administrator's Sources page. */
+.source-links { margin:8px 0 0; padding:0; list-style:none; display:flex; flex-wrap:wrap; gap:6px 16px; }
+.source-links a { font-weight:700; color:#075b4c; text-decoration:underline; overflow-wrap:anywhere; }
+.topic-sources ul.source-links { margin:4px 0 0; display:flex; gap:4px 14px; }
+.topic-sources .source-links li { padding:0; border:0; background:none; }
+.portal-content .topic-sources .source-links a { margin:0; }
+.references-page { display:grid; gap:18px; }
+.references-actions { display:flex; flex-wrap:wrap; gap:10px; }
+.class-sources-panel { border-left:6px solid #43a580; }
+.class-sources-class + .class-sources-class { margin-top:14px; padding-top:14px; border-top:1px solid #d6e6dc; }
+.class-sources-class h3 { margin:0 0 4px; }
+.class-source-list { margin:8px 0 0; padding:0; list-style:none; display:grid; gap:10px; }
+.class-source-list li { display:grid; gap:2px; padding:10px 14px; border:1.5px solid #d6e6dc; border-radius:12px; background:#fffdf8; }
+.class-source-list a { font-weight:700; color:#075b4c; overflow-wrap:anywhere; }
+.class-source-list small { color:#536c62; overflow-wrap:anywhere; }
+.class-source-list p { margin:2px 0 0; }
+.class-source-manage .teach-activity-buttons { margin-top:4px; }
+.class-source-form, .admin-source-form { display:grid; gap:10px; margin-top:16px; max-width:640px; }
+.class-source-form label, .admin-source-form label { display:grid; gap:4px; font-weight:600; }
+.class-source-form input, .admin-source-form input, .admin-source-form select, .admin-source-link input { font:inherit; padding:8px 12px; border:2px solid #d6e6dc; border-radius:10px; background:#fff; width:100%; }
+.class-source-form h4 { margin:0; }
+.parent-class-sources { margin:10px 0 14px; }
+.parent-class-sources h4 { margin:0; font-size:1rem; }
+.admin-source-list { display:grid; gap:16px; margin:16px 0; }
+.admin-source header h2 { margin:0; font-size:1.2rem; }
+.admin-source header p { margin:2px 0 6px; }
+.admin-source-link { display:grid; gap:6px; padding:12px 0; border-top:1px solid #d6e6dc; }
+.admin-source-now { display:grid; gap:2px; }
+.admin-source-now small { color:#536c62; overflow-wrap:anywhere; }
+.admin-source-link form { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+.admin-source-link form input { flex:1 1 260px; width:auto; }
+.admin-source-footer { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:8px; padding-top:10px; border-top:1px solid #d6e6dc; color:#536c62; }
+.source-warning { margin:0; padding:8px 12px; border-left:4px solid #c98a00; border-radius:8px; background:#fff4d6; color:#5c3d00; font-weight:600; }
+.admin-source-check { border-left:6px solid #c98a00; }
+.admin-source-held { display:grid; gap:6px; padding:12px 14px; border:1.5px solid #e8d7a8; border-radius:12px; background:#fffdf5; }
+.admin-source-held h3 { margin:0; font-size:1.05rem; }
+.admin-source-held ul { margin:0; padding-left:18px; }
+.admin-source-held a { overflow-wrap:anywhere; }
+.admin-source-held small { color:#536c62; }

@@ -1,12 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useLanguage } from "../../lib/use-language";
-import { libraryBooks, NCTB_PORTAL_URL } from "../library-content";
-import type { LibraryBook } from "../library-content";
-
-type CatalogBook = LibraryBook & { downloadUrl?: string; customised?: boolean };
+import { NCTB_PORTAL_URL } from "../library-content";
+import type { CatalogBook } from "@/lib/library-links";
+import SourceLinks from "../references/SourceLinks";
 
 const levels: Array<{ id: "primary" | "secondary" | "higher-secondary"; en: string; bn: string; note: { en: string; bn: string } }> = [
   {
@@ -38,27 +36,10 @@ const levels: Array<{ id: "primary" | "secondary" | "higher-secondary"; en: stri
   },
 ];
 
-export default function LibraryHub() {
+/** The textbook library; books come merged with the administrator's yearly links (lib/library-catalog.ts). */
+export default function LibraryHub({ books }: { books: CatalogBook[] }) {
   const [language, toggleLanguage] = useLanguage();
   const s = (en: string, bn: string) => (language === "bn" ? bn : en);
-  const [books, setBooks] = useState<CatalogBook[]>(libraryBooks);
-
-  useEffect(() => {
-    // The static catalog renders immediately; teacher-maintained overrides
-    // (yearly links, added books) merge in from the knowledge-sources API.
-    let cancelled = false;
-    fetch("/api/library")
-      .then((response) => (response.ok ? response.json() : null))
-      .then((data: { books?: CatalogBook[] } | null) => {
-        if (!cancelled && data?.books?.length) setBooks(data.books);
-      })
-      .catch(() => {
-        // Offline or API unavailable — the static baseline stays up.
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   return (
     <main className="adult-app library-app" lang={language}>
@@ -70,7 +51,7 @@ export default function LibraryHub() {
             <small>{s("Textbook library", "পাঠ্যবই লাইব্রেরি")}</small>
           </span>
         </Link>
-        <nav aria-label="Sections">
+        <nav aria-label={s("Sections", "বিভাগ")}>
           <Link href="/topics">{s("Classroom topics", "শ্রেণিকক্ষের বিষয়")}</Link>
           <Link className="active" href="/library">{s("Library", "লাইব্রেরি")}</Link>
           <Link href="/books">{s("Source audit", "উৎস নিরীক্ষা")}</Link>
@@ -87,7 +68,7 @@ export default function LibraryHub() {
         <section className="adult-hero">
           <div>
             <p className="adult-eyebrow">{s("Our source of truth", "আমাদের তথ্যের উৎস")}</p>
-            <h1>{s("The government sources being checked for each candidate topic.", "প্রতিটি সম্ভাব্য বিষয়ের জন্য যাচাই করা সরকারি উৎস।")}</h1>
+            <h1>{s("The government sources being checked for each classroom topic.", "প্রতিটি শ্রেণিকক্ষের বিষয়ের জন্য যাচাই করা সরকারি উৎস।")}</h1>
             <p>
               {s(
                 "Bangladesh's National Curriculum and Textbook Board (NCTB) publishes official school textbooks and offers them free on its website. At the client's direction, these records are the starting evidence base for culture, history and literature. A source link is not lesson approval: every adaptation still needs an exact edition/page decision plus language, cultural, age, rights and accessibility review. Stories and poems are not republished unless that evidence is recorded.",
@@ -123,10 +104,12 @@ export default function LibraryHub() {
                         <span className="library-chip-confirm">{s("Edition to confirm with school", "সংস্করণ স্কুলের সঙ্গে মিলিয়ে নিন")}</span>
                       )}
                     </div>
-                    <p>{book.covers[language]}</p>
-                    <p className="library-why">
-                      <em>{book.whyItMatters[language]}</em>
-                    </p>
+                    {book.covers[language] && <p>{book.covers[language]}</p>}
+                    {book.whyItMatters[language] && (
+                      <p className="library-why">
+                        <em>{book.whyItMatters[language]}</em>
+                      </p>
+                    )}
                     {book.chapterMaps?.map((map) => (
                       <details className="library-chapters" key={map.volume.en}>
                         <summary>
@@ -152,11 +135,7 @@ export default function LibraryHub() {
                         </ol>
                       </details>
                     ))}
-                    <a href={book.downloadUrl ?? NCTB_PORTAL_URL} target="_blank" rel="noreferrer">
-                      {book.downloadUrl
-                        ? s("Download this year's edition ↗", "এ বছরের সংস্করণ নামান ↗")
-                        : s("Download from NCTB ↗", "এনসিটিবি থেকে নামান ↗")}
-                    </a>
+                    <SourceLinks links={book.links} language={language} bookTitle={language === "bn" ? book.titleBn : book.titleEn} />
                   </article>
                 ))}
             </div>
@@ -168,8 +147,8 @@ export default function LibraryHub() {
           <ul>
             <li>
               {s(
-                "Yearly refresh: NCTB issues new textbook editions each academic year (books are handed out on 1 January). We re-check this list against the new editions every year, as agreed with the client.",
-                "বার্ষিক হালনাগাদ: এনসিটিবি প্রতি শিক্ষাবর্ষে নতুন সংস্করণ দেয় (১ জানুয়ারি বই উৎসব)। ক্লায়েন্টের সঙ্গে সিদ্ধান্ত অনুযায়ী আমরা প্রতি বছর নতুন সংস্করণের সঙ্গে তালিকা মিলিয়ে দেখি।",
+                "Yearly refresh: NCTB issues new textbook editions each academic year (books are handed out on 1 January). Every year the administrator checks this list against the new editions and updates each book's link, class by class where a book covers several classes.",
+                "বার্ষিক হালনাগাদ: এনসিটিবি প্রতি শিক্ষাবর্ষে নতুন সংস্করণ দেয় (১ জানুয়ারি বই উৎসব)। প্রতি বছর প্রশাসক নতুন সংস্করণের সঙ্গে তালিকা মিলিয়ে প্রতিটি বইয়ের লিংক হালনাগাদ করেন; একাধিক শ্রেণির বইয়ে প্রতিটি শ্রেণির লিংক আলাদা।",
               )}
             </li>
             <li>
