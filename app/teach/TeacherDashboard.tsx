@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { localDateTime, localNumber, useLanguage } from "../../lib/use-language";
 import type { AttendanceSummary } from "../../lib/attendance";
+import { ANNOUNCEMENT_AUDIENCES, ANNOUNCEMENT_MAX_LENGTH, AUDIENCE_BADGES, AUDIENCE_CHOICES, POSTED_MESSAGES, type AnnouncementAudience } from "../../lib/announcements";
 import { buildGradebook } from "../../lib/gradebook";
 import type { Topic } from "../topics-content";
 import { NCTB_PORTAL_URL } from "../library-content";
@@ -53,7 +54,7 @@ type ClassDetail = {
   class: { id: string; name: string; joinCode: string; teacherId: string };
   /** Students now in the class, A–Z (`id` is the roster row; `studentId` is null for a class-code learner). */
   students: Array<{ id: string; studentId: string | null; username: string | null; displayName: string; createdAt: string; attendance: AttendanceSummary | null }>;
-  announcements: Array<{ id: string; body: string; createdAt: string }>;
+  announcements: Array<{ id: string; body: string; audience: AnnouncementAudience; authorName: string; createdAt: string }>;
   activities: ActivityDetail[];
 };
 
@@ -107,6 +108,7 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
 
   const [newClassName, setNewClassName] = useState("");
   const [announcement, setAnnouncement] = useState("");
+  const [audience, setAudience] = useState<AnnouncementAudience>("all");
 
   const [activityTitle, setActivityTitle] = useState("");
   const [activityInstructions, setActivityInstructions] = useState("");
@@ -206,17 +208,20 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
     const response = await request(`/api/classes/${detail.class.id}/announcements`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ body: announcement.trim() }),
+      body: JSON.stringify({ body: announcement.trim(), audience }),
     });
     setBusy(false);
     if (response.ok) {
       setAnnouncement("");
+      setAudience("all");
+      setMessage(s(...POSTED_MESSAGES[audience]));
       await openClass(detail.class.id);
     }
   };
 
   const removeAnnouncement = async (announcementId: string) => {
     if (!detail) return;
+    if (!window.confirm(s("Remove this announcement? Students and parents will no longer see it.", "এই ঘোষণাটি মুছবেন? শিক্ষার্থী ও অভিভাবকেরা আর এটি দেখতে পাবেন না।"))) return;
     await request(`/api/classes/${detail.class.id}/announcements`, {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
@@ -541,24 +546,48 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
 
             <section hidden={section !== "announcements"} className="teach-panel" aria-label={s("Announcements", "ঘোষণা")}>
               <h3>{s("Announcements", "ঘোষণা")}</h3>
-              <form className="teach-inline-form" onSubmit={postAnnouncement}>
-                <input
+              <form className="teach-activity-form teach-announcement-form" onSubmit={postAnnouncement}>
+                <textarea
                   value={announcement}
                   onChange={(event) => setAnnouncement(event.target.value)}
                   placeholder={s("e.g. This term's theme is festivals — read the Pohela Boishakh topic!", "যেমন: এবারের থিম উৎসব — পহেলা বৈশাখ বিষয়টি পড়ে এসো!")}
-                  maxLength={500}
+                  maxLength={ANNOUNCEMENT_MAX_LENGTH}
+                  rows={4}
                   required
                   aria-label={s("New announcement", "নতুন ঘোষণা")}
                 />
-                <button className="primary-button" type="submit" disabled={busy}>
-                  {s("Post", "প্রকাশ")}
-                </button>
+                <small className="teach-count">{number(announcement.length)} / {number(ANNOUNCEMENT_MAX_LENGTH)}</small>
+                <label className="teach-topic-pick">
+                  {s("Who can see it", "কারা দেখতে পাবে")}
+                  <select value={audience} onChange={(event) => setAudience(event.target.value as AnnouncementAudience)}>
+                    {ANNOUNCEMENT_AUDIENCES.map((value) => <option key={value} value={value}>{s(...AUDIENCE_CHOICES[value])}</option>)}
+                  </select>
+                </label>
+                <p className="teach-note">
+                  {s(
+                    "Parents see announcements in their parent portal once an administrator has linked them to a student in this class.",
+                    "প্রশাসক যে অভিভাবকদের এই ক্লাসের কোনো শিক্ষার্থীর সঙ্গে যুক্ত করেছেন, তাঁরা অভিভাবক পোর্টালে ঘোষণা দেখতে পান।",
+                  )}
+                </p>
+                <div className="teach-form-actions">
+                  <button className="primary-button" type="submit" disabled={busy}>
+                    {s("Post", "প্রকাশ")}
+                  </button>
+                </div>
               </form>
-              {detail.announcements.length > 0 && (
+              {detail.announcements.length === 0 ? (
+                <p className="teach-empty">{s("No announcements yet.", "এখনও কোনো ঘোষণা নেই।")}</p>
+              ) : (
                 <ul className="teach-announcements">
                   {detail.announcements.map((item) => (
                     <li key={item.id}>
-                      <p>{item.body}</p>
+                      <div>
+                        <p className="announcement-meta">
+                          <span className={`audience-badge ${item.audience}`}>{s(...AUDIENCE_BADGES[item.audience])}</span>
+                          <small>{s(`Posted by ${item.authorName}`, `${item.authorName} লিখেছেন`)} · <time>{localDateTime(item.createdAt, language)}</time></small>
+                        </p>
+                        <p className="announcement-body">{item.body}</p>
+                      </div>
                       <button type="button" className="text-button danger" onClick={() => removeAnnouncement(item.id)}>
                         {s("Remove", "মুছুন")}
                       </button>

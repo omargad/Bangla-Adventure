@@ -3,6 +3,7 @@ import { getDb } from "../db";
 import { adults, students, parentStudentLinks, classes, classStudents, studentClassEnrollments, classActivities, activitySubmissions, userAuditEvents } from "../db/schema";
 import { canManageUsers } from "./roles";
 import { attendanceKey, studentAttendance } from "./class-attendance";
+import { listAnnouncements } from "./class-announcements";
 import { UserManagementError } from "./user-management";
 
 type Db = Awaited<ReturnType<typeof getDb>>;
@@ -75,7 +76,14 @@ export async function getParentOverview(parentId: string) {
     const submissions = rosterIds.length ? tx.select({ activityId: activitySubmissions.activityId, studentId: activitySubmissions.studentId, score: activitySubmissions.score, total: activitySubmissions.total, submittedAt: activitySubmissions.submittedAt })
       .from(activitySubmissions).where(inArray(activitySubmissions.studentId, rosterIds)).all() : [];
     const attendance = studentAttendance(tx, ids);
-    return { children: children.map((child) => {
+    // Posts for everyone in the class and for parents, from the classes the linked children are in now,
+    // newest first. Brothers and sisters in the same class share one entry naming them both.
+    const announcements = listAnnouncements(tx, classIds, "parent").map((notice) => {
+      const inClass = enrollments.filter((enrollment) => enrollment.classId === notice.classId);
+      return { id: notice.id, body: notice.body, audience: notice.audience, authorName: notice.authorName, createdAt: notice.createdAt,
+        className: inClass[0]?.name ?? "", children: children.filter((child) => inClass.some((enrollment) => enrollment.studentId === child.id)).map((child) => ({ id: child.id, displayName: child.displayName })) };
+    });
+    return { announcements, children: children.map((child) => {
       const childClasses = enrollments.filter((enrollment) => enrollment.studentId === child.id).map((enrollment) => ({
         id: enrollment.classId, name: enrollment.name, teacherName: enrollment.teacherName,
         // Sessions attended of the sessions the teacher recorded for this child in this class.

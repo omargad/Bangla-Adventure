@@ -77,3 +77,26 @@ test("class attendance is added to existing databases: one mark per student per 
   assert.equal(db.prepare("SELECT count(*) AS n FROM class_attendance").get().n, 0, "marks go with their class");
   db.close();
 });
+
+test("announcements gain an audience and an author: older posts stay students-only and credit the class teacher", () => {
+  const db = new Database(":memory:");
+  db.exec(bootstrapSql);
+  db.pragma("foreign_keys = ON");
+  db.prepare("INSERT INTO adults(id,email,display_name,password_hash) VALUES(?,?,?,?)").run("teacher", "teacher@example.com", "Teacher", "hash");
+  db.prepare("INSERT INTO classes(id,teacher_id,name,join_code) VALUES(?,?,?,?)").run("class", "teacher", "Class", "ABC234");
+  db.prepare("INSERT INTO class_announcements(id,class_id,body) VALUES(?,?,?)").run("old", "class", "Read the festival topic.");
+  migrateAccessControl(db);
+  migrateAccessControl(db);
+  assert.deepEqual({ ...db.prepare("SELECT audience, author_id, body FROM class_announcements WHERE id = ?").get("old") }, { audience: "students", author_id: "teacher", body: "Read the festival topic." });
+  db.prepare("INSERT INTO class_announcements(id,class_id,body) VALUES(?,?,?)").run("new", "class", "Parents' evening.");
+  assert.deepEqual({ ...db.prepare("SELECT audience, author_id FROM class_announcements WHERE id = ?").get("new") }, { audience: "all", author_id: null }, "new posts default to everyone");
+  migrateAccessControl(db);
+  assert.equal(db.prepare("SELECT audience FROM class_announcements WHERE id = ?").get("new").audience, "all", "a later start does not backfill again");
+  assert.throws(() => db.prepare("UPDATE class_announcements SET audience = 'teachers' WHERE id = ?").run("new"), /CHECK/);
+  assert.throws(() => db.prepare("UPDATE class_announcements SET author_id = 'missing' WHERE id = ?").run("new"), /FOREIGN KEY/);
+  db.prepare("INSERT INTO adults(id,email,display_name,password_hash) VALUES(?,?,?,?)").run("admin", "admin@example.com", "Admin", "hash");
+  db.prepare("UPDATE class_announcements SET author_id = 'admin' WHERE id = ?").run("new");
+  db.prepare("DELETE FROM adults WHERE id = ?").run("admin");
+  assert.equal(db.prepare("SELECT author_id FROM class_announcements WHERE id = ?").get("new").author_id, null, "deleting the author keeps the post");
+  db.close();
+});

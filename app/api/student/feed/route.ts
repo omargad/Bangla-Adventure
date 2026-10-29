@@ -4,12 +4,12 @@ import {
   activitySubmissions,
   adults,
   classActivities,
-  classAnnouncements,
   classStudents,
   classes,
   studentClassEnrollments,
 } from "@/db/schema";
 import type { QuizQuestion } from "@/lib/classroom";
+import { listAnnouncements } from "@/lib/class-announcements";
 import { attendanceKey, studentAttendance } from "@/lib/class-attendance";
 import { getStudentAccess } from "@/lib/student-auth";
 
@@ -39,9 +39,8 @@ export async function GET() {
 
     const classIds = enrollments.map((item) => item.classId);
     const classStudentIds = enrollments.map((item) => item.classStudentId);
-    const announcements = classIds.length
-      ? await db.select().from(classAnnouncements).where(inArray(classAnnouncements.classId, classIds)).orderBy(desc(classAnnouncements.createdAt))
-      : [];
+    // Posts for everyone in the class and for students; parents-only posts stay out.
+    const announcements = listAnnouncements(db, classIds, "student");
     const activities = classIds.length
       ? await db.select().from(classActivities).where(inArray(classActivities.classId, classIds)).orderBy(desc(classActivities.createdAt))
       : [];

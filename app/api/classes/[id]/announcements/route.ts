@@ -1,14 +1,16 @@
 import { and, eq } from "drizzle-orm";
 import { getDb } from "../../../../../db";
-import { classAnnouncements } from "../../../../../db/schema";
+import { classAnnouncements, userAuditEvents } from "../../../../../db/schema";
 import { getSessionAdult } from "@/lib/auth";
 import { canTeach } from "@/lib/roles";
 import { findManagedClass } from "@/lib/class-access";
+import { parseAnnouncement } from "@/lib/announcements";
 
 export const dynamic = "force-dynamic";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
+/** Post to the class: { body, audience } where audience is "all" (default), "students" or "parents". */
 export async function POST(request: Request, context: RouteContext) {
   const user = await getSessionAdult();
   if (user && !canTeach(user)) return Response.json({ error: "An approved teacher account is required." }, { status: 403 });
@@ -18,16 +20,15 @@ export async function POST(request: Request, context: RouteContext) {
     const { id } = await context.params;
     if (!(await findManagedClass(user, id))) return Response.json({ error: "Class not found." }, { status: 404 });
 
-    const payload = (await request.json().catch(() => ({}))) as { body?: unknown };
-    const body = typeof payload.body === "string" ? payload.body.trim().slice(0, 500) : "";
-    if (!body) return Response.json({ error: "Write the announcement first." }, { status: 400 });
+    const input = parseAnnouncement(await request.json().catch(() => null));
+    if ("error" in input) return Response.json(input, { status: 400 });
 
     const db = await getDb();
     const [announcement] = await db
       .insert(classAnnouncements)
-      .values({ id: crypto.randomUUID(), classId: id, body })
+      .values({ id: crypto.randomUUID(), classId: id, body: input.body, audience: input.audience, authorId: user.id })
       .returning();
-    return Response.json({ announcement }, { status: 201 });
+    return Response.json({ announcement: { ...announcement, authorName: user.displayName } }, { status: 201 });
   } catch (error) {
     return databaseError(error);
   }
@@ -47,10 +48,19 @@ export async function DELETE(request: Request, context: RouteContext) {
     if (!announcementId) return Response.json({ error: "Choose an announcement to remove." }, { status: 400 });
 
     const db = await getDb();
-    const [removed] = await db
-      .delete(classAnnouncements)
-      .where(and(eq(classAnnouncements.id, announcementId), eq(classAnnouncements.classId, id)))
-      .returning();
+    // Removing a post takes it away from every student and parent, so it is audited.
+    const removed = db.transaction((tx) => {
+      const row = tx
+        .delete(classAnnouncements)
+        .where(and(eq(classAnnouncements.id, announcementId), eq(classAnnouncements.classId, id)))
+        .returning()
+        .get();
+      if (row) tx.insert(userAuditEvents).values({
+        id: crypto.randomUUID(), actorId: user.id, targetId: id, targetType: "class", action: "announcement-removed",
+        detailsJson: JSON.stringify({ announcementId: row.id, audience: row.audience, authorId: row.authorId }),
+      }).run();
+      return row;
+    });
     if (!removed) return Response.json({ error: "Announcement not found." }, { status: 404 });
     return Response.json({ ok: true });
   } catch (error) {

@@ -9,7 +9,7 @@ import PortalShell from "../components/PortalShell";
 
 type Activity = { id: string; title: string; instructions: string; topicId: string | null; status: string; questions: { prompt: string; options: string[] }[]; submission: { score: number; total: number; submittedAt: string } | null };
 type Attendance = { attended: number; recorded: number };
-type Feed = { metrics: { enrolledClasses: number; assignedActivities: number; completedActivities: number; averagePercent: number; attendedSessions: number; recordedSessions: number }; classes: { id: string; name: string; teacherName: string; attendance: Attendance; announcements: { id: string; body: string; createdAt: string }[]; activities: Activity[] }[] };
+type Feed = { metrics: { enrolledClasses: number; assignedActivities: number; completedActivities: number; averagePercent: number; attendedSessions: number; recordedSessions: number }; classes: { id: string; name: string; teacherName: string; attendance: Attendance; announcements: { id: string; body: string; authorName: string; createdAt: string }[]; activities: Activity[] }[] };
 type Catalog = { topics: CatalogTopic[]; readTopicIds: string[] };
 const PASSWORD_PATH = "/student/password";
 async function request<T>(url: string, data?: object): Promise<T> {
@@ -111,7 +111,8 @@ export default function StudentPortal({ initialStudent, destination = "/student"
     { id: "results", label: s("My results", "আমার ফলাফল") },
   ].map((item) => ({ ...item, onClick: () => { setSection(item.id); setActivity(null); setError(""); } }));
   const results = feed?.classes.flatMap((c) => c.activities.filter((a) => a.submission).map((a) => ({ ...a, className: c.name }))) ?? [];
-  const announcements = (feed?.classes.flatMap((c) => (c.announcements ?? []).map((notice) => ({ ...notice, className: c.name, teacherName: c.teacherName }))) ?? [])
+  // Each post names the teacher or administrator who wrote it (older posts name the class teacher).
+  const announcements = (feed?.classes.flatMap((c) => (c.announcements ?? []).map((notice) => ({ ...notice, className: c.name, authorName: notice.authorName || c.teacherName }))) ?? [])
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   return <PortalShell role="student" name={student.displayName} language={language} toggleLanguage={toggleLanguage} active={section} items={tabs}>
     <main className="student-workspace">
@@ -123,7 +124,7 @@ export default function StudentPortal({ initialStudent, destination = "/student"
         <h2>{s("Class announcements", "ক্লাসের ঘোষণা")}</h2>
         {announcements.length === 0 && <p>{s("No class announcements yet. Notices from your allocated classes will appear here.", "এখনও ক্লাসের ঘোষণা নেই। তোমার বরাদ্দ ক্লাসের ঘোষণা এখানে দেখা যাবে।")}</p>}
         <ul className="classroom-announcements">{announcements.map((notice) => <li key={notice.id}>
-          <strong>{notice.className}</strong><p>{notice.body}</p><small>{notice.teacherName} · {s("Posted", "প্রকাশের সময়")}: <time>{localDateTime(notice.createdAt, language)}</time></small>
+          <strong>{notice.className}</strong><p className="announcement-body">{notice.body}</p><small>{notice.authorName} · {s("Posted", "প্রকাশের সময়")}: <time>{localDateTime(notice.createdAt, language)}</time></small>
         </li>)}</ul>
       </section>}
       {activity ? <section className="teach-panel"><button className="text-button" onClick={() => setActivity(null)}>{s("Back to activities", "কার্যক্রমে ফিরি")}</button><h2>{activity.title}</h2><p>{activity.instructions}</p>{activity.topicId && <Link className="outline-button" href={`/topics?topic=${encodeURIComponent(activity.topicId)}`}>{s("Read the learning topic & references", "বিষয় ও তথ্যসূত্র পড়ো")}</Link>}

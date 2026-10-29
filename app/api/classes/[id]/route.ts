@@ -3,12 +3,12 @@ import { getDb } from "../../../../db";
 import {
   activitySubmissions,
   classActivities,
-  classAnnouncements,
 } from "../../../../db/schema";
 import { getSessionAdult, getStaffAccess } from "@/lib/auth";
 import { canTeach } from "@/lib/roles";
 import { deleteClass, findManagedClass } from "@/lib/class-access";
 import { classAttendanceSummaries } from "@/lib/class-attendance";
+import { listAnnouncements } from "@/lib/class-announcements";
 import { changeClassTeacher } from "@/lib/class-management";
 import { currentMembers } from "@/lib/class-roster";
 import type { QuizQuestion } from "@/lib/classroom";
@@ -38,7 +38,8 @@ export async function GET(_request: Request, context: RouteContext) {
     }));
     const members = new Set(students.map((student) => student.id));
     const activities = await db.select().from(classActivities).where(eq(classActivities.classId, id)).orderBy(desc(classActivities.createdAt));
-    const announcements = await db.select().from(classAnnouncements).where(eq(classAnnouncements.classId, id)).orderBy(desc(classAnnouncements.createdAt));
+    // Every audience, with who posted each one.
+    const announcements = listAnnouncements(db, [id]);
     const activityIds = activities.map((activity) => activity.id);
     const submissions = activityIds.length
       ? (await db.select().from(activitySubmissions).where(inArray(activitySubmissions.activityId, activityIds)).orderBy(desc(activitySubmissions.submittedAt))).filter((submission) => members.has(submission.studentId))

@@ -298,6 +298,11 @@ export const classAnnouncements = sqliteTable(
     id: text("id").primaryKey(),
     classId: text("class_id").notNull().references(() => classes.id, { onDelete: "cascade" }),
     body: text("body").notNull(),
+    // Everyone in the class (students and their linked parents), students only or parents only.
+    // Posts from before audiences existed were for students.
+    audience: text("audience", { enum: ["all", "students", "parents"] }).notNull().default("all"),
+    // The teacher or administrator who posted it; older posts credit the class teacher.
+    authorId: text("author_id").references(() => adults.id, { onDelete: "set null" }),
     createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   },
   (table) => [index("class_announcements_class_idx").on(table.classId)],

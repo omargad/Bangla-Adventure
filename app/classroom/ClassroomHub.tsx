@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { useLanguage } from "../../lib/use-language";
+import { localDateTime, useLanguage } from "../../lib/use-language";
 
 const STORAGE_KEY = "bangla-adventures-classroom";
 
@@ -21,7 +21,7 @@ type FeedActivity = {
 type Feed = {
   student: { id: string; displayName: string };
   class: { id: string; name: string; teacherName: string };
-  announcements: Array<{ id: string; body: string; createdAt: string }>;
+  announcements: Array<{ id: string; body: string; authorName: string; createdAt: string }>;
   activities: FeedActivity[];
 };
 
@@ -285,7 +285,10 @@ export default function ClassroomHub() {
           <h2>📣 {s("Announcements", "ঘোষণা")}</h2>
           <ul className="classroom-announcements">
             {feed.announcements.map((item) => (
-              <li key={item.id}>{item.body}</li>
+              <li key={item.id}>
+                <p className="announcement-body">{item.body}</p>
+                <small>{item.authorName} · {s("Posted", "প্রকাশের সময়")}: <time>{localDateTime(item.createdAt, language)}</time></small>
+              </li>
             ))}
           </ul>
         </section>

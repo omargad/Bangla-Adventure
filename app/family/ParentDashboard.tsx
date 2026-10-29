@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { localDateTime, localNumber, useLanguage } from "@/lib/use-language";
 import type { ParentOverview } from "@/lib/parent-access";
+import { AUDIENCE_BADGES } from "@/lib/announcements";
 import PortalShell from "../components/PortalShell";
 
 type SavedProfile = { id: string; displayName: string; progress: { id: string; lessonId: string; skill: string; score: number | null }[]; assignments: { id: string; title: string; status: string; dueAt: string | null }[] };
@@ -51,6 +52,11 @@ export default function ParentDashboard({ parentName }: { parentName: string }) 
   }, [load]);
 
   const children = data?.children ?? [];
+  const announcements = data?.announcements ?? [];
+  // "Your child's" with one linked child and "Your children's" with several; a neutral wording while
+  // loading, after an error and before an administrator links a child.
+  const linked = data ? children.length : 0;
+  const forChildren = (neutral: [string, string], one: [string, string], several: [string, string]) => s(...(linked === 1 ? one : linked > 1 ? several : neutral));
   const assigned = children.reduce((sum, child) => sum + child.metrics.assignedActivities, 0);
   const completed = children.reduce((sum, child) => sum + child.metrics.completedActivities, 0);
 
@@ -61,11 +67,26 @@ export default function ParentDashboard({ parentName }: { parentName: string }) 
       <div className="adult-account"><button className="outline-button" onClick={toggleLanguage}>{s("বাংলা", "English")}</button><a href="/api/auth/sign-out?returnTo=%2Fgrown-ups">{s("Sign out", "সাইন আউট")}</a></div>
     </header>
     <div className="adult-content">
-      <section className="management-heading"><div><p className="adult-eyebrow">{s(`Welcome, ${parentName}`, `স্বাগতম, ${parentName}`)}</p><h1>{s("Your children's learning", "আপনার সন্তানের শেখার অগ্রগতি")}</h1><p>{s("Follow your children’s classes, activities and results in one place. This is a read-only space: only students and their teachers can update class work.", "আপনার সন্তানের ক্লাস, কার্যক্রম ও ফলাফল এক জায়গায় দেখুন। এখানে শুধু দেখা যায়; শিক্ষার্থী ও শিক্ষক ক্লাসের কাজ হালনাগাদ করেন।")}</p><span className="role-badge">{s("Read-only parent access", "অভিভাবকের শুধু দেখার অনুমতি")}</span></div><button className="outline-button" disabled={loading} onClick={() => void load()}>{s("Refresh progress", "অগ্রগতি হালনাগাদ")}</button></section>
+      <section className="management-heading"><div><p className="adult-eyebrow">{s(`Welcome, ${parentName}`, `স্বাগতম, ${parentName}`)}</p><h1>{forChildren(["Learning records", "শেখার রেকর্ড"], ["Your child's learning", "আপনার সন্তানের শেখার অগ্রগতি"], ["Your children's learning", "আপনার সন্তানদের শেখার অগ্রগতি"])}</h1><p>{forChildren(
+        ["Follow classes, activities, results and announcements in one place.", "ক্লাস, কার্যক্রম, ফলাফল ও ঘোষণা এক জায়গায় দেখুন।"],
+        ["Follow your child’s classes, activities, results and announcements in one place.", "আপনার সন্তানের ক্লাস, কার্যক্রম, ফলাফল ও ঘোষণা এক জায়গায় দেখুন।"],
+        ["Follow your children’s classes, activities, results and announcements in one place.", "আপনার সন্তানদের ক্লাস, কার্যক্রম, ফলাফল ও ঘোষণা এক জায়গায় দেখুন।"],
+      )} {s("This is a read-only space: only students and their teachers can update class work.", "এখানে শুধু দেখা যায়; শিক্ষার্থী ও শিক্ষক ক্লাসের কাজ হালনাগাদ করেন।")}</p><span className="role-badge">{s("Read-only parent access", "অভিভাবকের শুধু দেখার অনুমতি")}</span></div><button className="outline-button" disabled={loading} onClick={() => void load()}>{s("Refresh progress", "অগ্রগতি হালনাগাদ")}</button></section>
       {error && <p className="auth-error" role="alert">{error}</p>}
-      {loading && <p role="status">{s("Loading your children's learning records…", "আপনার সন্তানের শেখার তথ্য লোড হচ্ছে…")}</p>}
+      {loading && <p role="status">{s("Loading learning records…", "শেখার তথ্য লোড হচ্ছে…")}</p>}
       <section className="workspace-stats" aria-label={s("Family overview", "পরিবারের সারাংশ")}><div><small>{s("Linked children", "যুক্ত সন্তান")}</small><strong>{data ? number(children.length) : "—"}</strong></div><div><small>{s("Assigned activities", "দেওয়া কার্যক্রম")}</small><strong>{data ? number(assigned) : "—"}</strong></div><div><small>{s("Completed", "সম্পন্ন")}</small><strong>{data ? number(completed) : "—"}</strong></div><div><small>{s("Not submitted", "জমা হয়নি")}</small><strong>{data ? number(assigned - completed) : "—"}</strong></div></section>
       {data && children.length === 0 && <section className="teach-panel"><h2>{s("No children linked yet", "এখনও কোনো সন্তান যুক্ত নেই")}</h2><p>{s("Ask your school administrator to connect your parent account to your child’s student account. Knowing a student’s name or username does not grant access.", "আপনার অ্যাকাউন্টের সঙ্গে সন্তানের শিক্ষার্থী অ্যাকাউন্ট যুক্ত করতে প্রশাসককে বলুন। শুধু নাম বা ব্যবহারকারীর নাম জানলেই তথ্য দেখা যায় না।")}</p></section>}
+      {data && children.length > 0 && <section className="teach-panel" aria-label={s("Announcements", "ঘোষণা")}>
+        <h2>{s("Announcements", "ঘোষণা")}</h2>
+        {announcements.length === 0 ? <p>{linked === 1
+          ? s("No announcements yet. Messages from your child’s teachers will appear here.", "এখনও কোনো ঘোষণা নেই। আপনার সন্তানের শিক্ষকদের বার্তা এখানে দেখা যাবে।")
+          : s("No announcements yet. Messages from your children’s teachers will appear here.", "এখনও কোনো ঘোষণা নেই। আপনার সন্তানদের শিক্ষকদের বার্তা এখানে দেখা যাবে।")}</p>
+          : <ul className="classroom-announcements parent-announcements">{announcements.map((notice) => <li key={notice.id}>
+            <p className="announcement-meta"><strong>{notice.children.map((child) => child.displayName).join(", ")} · {notice.className}</strong><span className={`audience-badge ${notice.audience}`}>{s(...AUDIENCE_BADGES[notice.audience])}</span></p>
+            <p className="announcement-body">{notice.body}</p>
+            <small>{s(`From ${notice.authorName}`, `${notice.authorName} পাঠিয়েছেন`)} · <time>{localDateTime(notice.createdAt, language)}</time></small>
+          </li>)}</ul>}
+      </section>}
       {children.map((child) => <section className="teach-panel parent-child" key={child.id} aria-label={child.displayName}>
         <div className="parent-child-heading"><div><h2>{child.displayName}</h2><p>{s("Student", "শিক্ষার্থী")}: {child.username} · {number(child.metrics.enrolledClasses)} {s("classes", "ক্লাস")}</p></div><div><span className={`status-badge ${child.status}`}>{child.status === "active" ? s("Active", "সক্রিয়") : s("Suspended", "স্থগিত")}</span><p>{s("Average result", "গড় ফলাফল")}: <strong>{child.metrics.averagePercent === null ? s("Not graded yet", "এখনও মূল্যায়ন হয়নি") : `${number(child.metrics.averagePercent)}%`}</strong></p></div></div>
         <label className="parent-completion">{s("Activities submitted", "জমা দেওয়া কার্যক্রম")}: {number(child.metrics.completedActivities)} / {number(child.metrics.assignedActivities)}<progress max={Math.max(1, child.metrics.assignedActivities)} value={child.metrics.completedActivities} /></label>

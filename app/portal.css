@@ -158,3 +158,15 @@
 .class-setup-form label { display:grid; gap:8px; flex:1 1 220px; font-weight:700; }
 .portal-content .student-stats { grid-template-columns:repeat(auto-fit,minmax(min(160px,100%),1fr)); }
 @media(max-width:650px) { .portal-content .teach-class-title { flex-basis:100%; } }
+/* Class announcements: who a post is for, who wrote it and when; the text keeps its line breaks. */
+.announcement-body { white-space:pre-line; overflow-wrap:anywhere; }
+.classroom-announcements .announcement-body { margin:6px 0; }
+.announcement-meta { display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px; margin:0 0 6px; }
+.announcement-meta small { color:var(--muted); }
+.audience-badge { display:inline-flex; padding:3px 10px; border-radius:30px; font-size:.76rem; font-weight:700; color:#303a75; background:#eef0fa; }
+.audience-badge.students { color:#075b4c; background:#dff6eb; }
+.audience-badge.parents { color:#7a4a00; background:#fff3d6; }
+.teach-announcement-form { margin-bottom:8px; }
+.teach-announcement-form .teach-note { margin:0; }
+.teach-count { justify-self:end; margin-top:-6px; color:var(--muted); font-size:.8rem; }
+.teach-announcements li > div { min-width:0; }

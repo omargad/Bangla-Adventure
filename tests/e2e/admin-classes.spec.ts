@@ -69,6 +69,9 @@ test("an administrator opens and manages another teacher's class from the teache
   await announcements.getByRole("button", { name: "Post", exact: true }).click();
   const note = announcements.getByRole("listitem").filter({ hasText: `Administrator note ${suffix}` });
   await expect(note).toBeVisible();
+  await expect(note).toContainText("Posted by Classes Admin");
+  // Removing an announcement asks first.
+  page.once("dialog", (dialog) => void dialog.accept());
   await note.getByRole("button", { name: "Remove" }).click();
   await expect(note).toHaveCount(0);
 

@@ -60,5 +60,16 @@ export function migrateAccessControl(sqlite: Database.Database): void {
     );
     CREATE UNIQUE INDEX IF NOT EXISTS class_attendance_session_unique ON class_attendance (class_id, student_id, session_date);
     CREATE INDEX IF NOT EXISTS class_attendance_student_idx ON class_attendance (student_id);`);
+    // Announcements name their audience and author. Posts from before then were shown to students
+    // only and were written in the class teacher's name, so they keep both.
+    const announcementColumns = new Set((sqlite.prepare("PRAGMA table_info(class_announcements)").all() as Array<{ name: string }>).map((column) => column.name));
+    if (!announcementColumns.has("audience")) {
+      sqlite.exec("ALTER TABLE class_announcements ADD COLUMN audience text NOT NULL DEFAULT 'all' CHECK (audience IN ('all', 'students', 'parents'))");
+      sqlite.exec("UPDATE class_announcements SET audience = 'students'");
+    }
+    if (!announcementColumns.has("author_id")) {
+      sqlite.exec("ALTER TABLE class_announcements ADD COLUMN author_id text REFERENCES adults(id) ON DELETE set null");
+      sqlite.exec("UPDATE class_announcements SET author_id = (SELECT teacher_id FROM classes WHERE classes.id = class_announcements.class_id)");
+    }
   })();
 }

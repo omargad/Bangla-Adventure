@@ -65,15 +65,21 @@ and preserve real records.
    create a class and activity/quiz, find and tick approved students to add them, inspect
    the results gradebook (`—` for work not submitted) and each activity's submissions,
    take attendance for today with one student unticked and reopen the date, remove a
-   student and see them leave the roster, results and export, and post an announcement
-   visible only to that class.
+   student and see them leave the roster, results and export, and post announcements to
+   everyone in the class, to students only and to parents only (each shows its audience,
+   author and local time; Remove asks first). Only that class's students and its
+   students' linked parents receive them.
 3. **Student:** sign in to My Learning, open Learning topics and sources, complete
    an allocated activity, view results/progress, refresh and switch devices. Confirm
    unallocated class data is unavailable and no self-enrolment code is required.
 4. **Parent:** link an exact registered account through admin controls (or a family
    import); confirm it
    sees only the linked student's academic records and attendance, cannot submit as the child or
-   edit grades, and loses access when the link is removed without losing records.
+   edit grades, and loses access when the link is removed without losing records. The heading
+   reads "Your child's learning" with one linked child and "Your children's learning" with
+   several. Announcements lists the "everyone" and "parents only" posts from the classes the
+   linked children are in now (never "students only" posts), with child, class, author and
+   time; students never see "parents only" posts.
 5. **Session/recovery:** demonstrate one-time recovery codes, the forced password
    change (and fresh recovery codes) for an administrator-created account, role
    change/session invalidation and logout/account switching. Confirm a stale tab does not retain

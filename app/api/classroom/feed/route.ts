@@ -1,6 +1,7 @@
 import { desc, eq } from "drizzle-orm";
 import { getDb } from "../../../../db";
-import { activitySubmissions, classActivities, classAnnouncements } from "../../../../db/schema";
+import { activitySubmissions, classActivities } from "../../../../db/schema";
+import { listAnnouncements } from "@/lib/class-announcements";
 import type { QuizQuestion } from "@/lib/classroom";
 import { getStudentFromRequest } from "@/lib/classroom-server";
 
@@ -12,11 +13,8 @@ export async function GET(request: Request) {
 
   try {
     const db = await getDb();
-    const announcements = await db
-      .select()
-      .from(classAnnouncements)
-      .where(eq(classAnnouncements.classId, student.classId))
-      .orderBy(desc(classAnnouncements.createdAt));
+    // Posts for everyone in the class and for students; parents-only posts stay out.
+    const announcements = listAnnouncements(db, [student.classId], "student");
     const activities = await db
       .select()
       .from(classActivities)

@@ -87,7 +87,7 @@ test("an open admin tab follows an account switch and cannot keep stale admin ac
     await page.bringToFront();
     await page.evaluate(() => window.dispatchEvent(new Event("focus")));
     await expect(page).toHaveURL(/\/family$/);
-    await expect(page.getByRole("heading", { name: "Your children's learning" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Learning records" })).toBeVisible();
     expect(await page.evaluate(async () => (await fetch("/api/admin/users")).status)).toBe(403);
   } finally { await otherTab.close(); }
 });
@@ -212,6 +212,7 @@ test("administrator links a parent who can monitor only their child and cannot e
     const parentPage = await parentContext.newPage();
     expect((await parentPage.request.post("/api/auth/sign-in", { data: { email: parent, password } })).status()).toBe(200);
     await parentPage.goto("/family");
+    await expect(parentPage.getByRole("heading", { level: 1, name: "Your child's learning" })).toBeVisible();
     await expect(parentPage.getByRole("heading", { name: "Family Test Learner", exact: true })).toBeVisible();
     await expect(parentPage.getByRole("heading", { name: "Family Reading Class", exact: true })).toBeVisible();
     await expect(parentPage.getByRole("cell", { name: "1 / 2", exact: true })).toBeVisible();
@@ -227,6 +228,7 @@ test("administrator links a parent who can monitor only their child and cannot e
     await expect(page.getByText("Parent access removed. Learning records are unchanged.")).toBeVisible();
     await parentPage.getByRole("button", { name: "Refresh progress", exact: true }).click();
     await expect(parentPage.getByRole("heading", { name: "No children linked yet" })).toBeVisible();
+    await expect(parentPage.getByRole("heading", { level: 1, name: "Learning records" })).toBeVisible();
     await expect(parentPage.getByRole("heading", { name: "Family Test Learner", exact: true })).toHaveCount(0);
   } finally { await parentContext.close(); }
 });
