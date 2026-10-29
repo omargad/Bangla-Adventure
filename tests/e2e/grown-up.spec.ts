@@ -27,7 +27,8 @@ test("a grown-up can create an account and reach the dashboard", async ({ page }
   await expect(page.getByRole("heading", { name: "Your children's learning" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "No children linked yet" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Create learner profile" })).toHaveCount(0);
-  await expect(page.getByRole("link", { name: "Content Studio" })).toHaveCount(0);
+  // Parents get no link to the staff lesson review.
+  await expect(page.locator("a[href=\"/studio\"]")).toHaveCount(0);
 });
 
 test("health endpoint responds ok", async ({ request }) => {

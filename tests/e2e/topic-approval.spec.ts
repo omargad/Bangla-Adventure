@@ -28,7 +28,7 @@ test("a teacher writes a bilingual topic, another previews it in Bangla and appr
     for (const page of [author, reviewer, student]) page.setDefaultTimeout(15000);
 
     await author.goto("/teach");
-    await author.getByRole("navigation", { name: "Portal navigation" }).getByRole("link", { name: "Lessons & topics", exact: true }).click();
+    await author.getByRole("navigation", { name: "Portal navigation" }).getByRole("link", { name: "Topics", exact: true }).click();
     await expect(author).toHaveURL(/\/teach\/topics$/);
     // The topic list loads after the page is interactive.
     await expect(author.getByRole("region", { name: "Waiting for approval" })).toBeVisible();

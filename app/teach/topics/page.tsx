@@ -3,7 +3,7 @@ import { TOPIC_ID_PATTERN } from "@/lib/topic-model";
 import TopicStudio from "./TopicStudio";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Lessons & topics | Bangla Adventures", robots: { index: false, follow: false } };
+export const metadata = { title: "Topics | Bangla Adventures", robots: { index: false, follow: false } };
 
 export default async function TopicsAreaPage({ searchParams }: { searchParams: Promise<{ topic?: string; version?: string; edit?: string; new?: string }> }) {
   const user = await requireTeacher("/teach/topics");

@@ -3,12 +3,14 @@ import { notFound } from "next/navigation";
 import { lessons, levelBands } from "../../curriculum";
 import { lessonExtensions } from "../../learning-content";
 import PrintButton from "../PrintButton";
+import { getSessionAdult } from "@/lib/auth";
+import { canTeach } from "@/lib/roles";
+import { isLessonApproved } from "@/lib/lesson-approval";
 
 type PageProps = { params: Promise<{ lessonId: string }> };
 
-export function generateStaticParams() {
-  return lessons.map((lesson) => ({ lessonId: lesson.id }));
-}
+// Read per request: a withdrawn lesson's worksheet is only for staff.
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: PageProps) {
   const { lessonId } = await params;
@@ -27,6 +29,7 @@ export default async function WorksheetPage({ params }: PageProps) {
   const lesson = lessons.find((item) => item.id === lessonId);
   const extension = lessonExtensions[lessonId];
   if (!lesson || !extension) notFound();
+  if (!(await isLessonApproved(lessonId)) && !canTeach(await getSessionAdult())) notFound();
 
   const band = levelBands.find((item) => item.id === lesson.level);
   const answerKey = [

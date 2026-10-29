@@ -20,7 +20,7 @@ function viewPath(view: View) {
 }
 
 /**
- * Lessons & topics: teachers and administrators write topics, edit them, preview
+ * Topics: teachers and administrators write topics, edit them, preview
  * them as students will see them and approve them. Only approved versions reach
  * students.
  */
@@ -76,7 +76,7 @@ export default function TopicStudio({ name, role, initialView }: { name: string;
         <div className="portal-heading">
           <div>
             <p className="adult-eyebrow">{s("Create · preview · approve", "তৈরি · প্রিভিউ · অনুমোদন")}</p>
-            <h1>{s("Lessons & topics", "পাঠ ও বিষয়")}</h1>
+            <h1>{s("Topics", "বিষয়")}</h1>
           </div>
           {view.kind === "list"
             ? <button type="button" className="primary-button" onClick={() => go({ kind: "edit", topicId: null })}>+ {s("New topic", "নতুন বিষয়")}</button>

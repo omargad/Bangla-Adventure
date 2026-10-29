@@ -16,7 +16,7 @@ const achievements: Achievement[] = [
   { id: "numbers", emoji: "💯", en: "counted to one hundred in Bangla", bn: "বাংলায় একশো পর্যন্ত গুনেছে" },
   { id: "phrases", emoji: "💬", en: "spoke first Bangla phrases", bn: "প্রথম বাংলা কথা বলেছে" },
   { id: "story", emoji: "📖", en: "read a whole Bangla story", bn: "একটি পুরো বাংলা গল্প পড়েছে" },
-  { id: "module", emoji: "🏵️", en: "completed a whole lesson module", bn: "একটি পুরো পাঠ-মডিউল শেষ করেছে" },
+  { id: "module", emoji: "🏵️", en: "completed a whole lesson", bn: "একটি পুরো পাঠ শেষ করেছে" },
   { id: "explorer", emoji: "🗺️", en: "explored the story of Bangladesh", bn: "বাংলাদেশের গল্প ঘুরে দেখেছে" },
 ];
 

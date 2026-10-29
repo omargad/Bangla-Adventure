@@ -109,7 +109,7 @@ export default function TopicsHub({ initialTopic }: { initialTopic?: string }) {
             )}
           />
           {canReview && active.approval && <p className="topic-staff-note" role="note">
-            {approvalLabel(active.approval)} <Link href={`/teach/topics?topic=${encodeURIComponent(active.id)}`}>{s("Edit or review in Lessons & topics →", "পাঠ ও বিষয়-এ সম্পাদনা বা পর্যালোচনা →")}</Link>
+            {approvalLabel(active.approval)} <Link href={`/teach/topics?topic=${encodeURIComponent(active.id)}`}>{s("Edit or review it in Topics →", "“বিষয়” অংশে সম্পাদনা বা পর্যালোচনা →")}</Link>
           </p>}
         </article>
       </main>
@@ -137,7 +137,7 @@ export default function TopicsHub({ initialTopic }: { initialTopic?: string }) {
       {canReview && <aside className="topic-staff-note" role="note">
         {s("Teacher view: students see only the approved topics below.", "শিক্ষকের দৃশ্য: শিক্ষার্থীরা শুধু নিচের অনুমোদিত বিষয়গুলো দেখে।")}{" "}
         {pendingCount > 0 && s(`${pendingCount} ${pendingCount === 1 ? "topic is" : "topics are"} waiting for approval.`, `${n(pendingCount)}টি বিষয় অনুমোদনের অপেক্ষায়।`)}{" "}
-        <Link href="/teach/topics">{s("Open Lessons & topics →", "পাঠ ও বিষয় খুলুন →")}</Link>
+        <Link href="/teach/topics">{s("Open Topics →", "“বিষয়” অংশ খুলুন →")}</Link>
       </aside>}
 
       {error && <p className="auth-error" role="alert">{error}</p>}
@@ -175,7 +175,7 @@ export default function TopicsHub({ initialTopic }: { initialTopic?: string }) {
         <span aria-hidden="true">🍎</span>
         <p>
           {s("Teachers: write new topics, preview them in English and Bangla and approve them in ", "শিক্ষকদের জন্য: নতুন বিষয় লিখুন, ইংরেজি ও বাংলায় দেখে নিন এবং অনুমোদন দিন ")}
-          <Link href="/teach/topics">{s("Lessons & topics →", "পাঠ ও বিষয় →")}</Link>{" "}
+          <Link href="/teach/topics">{s("Topics →", "“বিষয়” অংশে →")}</Link>{" "}
           {s("Set class quizzes in your ", "ক্লাসের কুইজ দিন ")}
           <Link href="/teach">{s("teacher workspace →", "শিক্ষকের কর্মক্ষেত্রে →")}</Link>
         </p>

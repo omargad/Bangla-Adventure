@@ -3,6 +3,9 @@ import { getDb } from "../../../../../db";
 import { mediaAssets } from "../../../../../db/schema";
 import { lessons } from "../../../../curriculum";
 import { getMediaObject } from "@/lib/storage";
+import { getSessionAdult } from "@/lib/auth";
+import { canTeach } from "@/lib/roles";
+import { isLessonApproved, lessonUnavailable } from "@/lib/lesson-approval";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +16,8 @@ export async function GET(request: Request, context: RouteContext) {
   const validLesson = lessons.some((lesson) => lesson.id === lessonId);
   const validSlot = /^(dialogue|reading|word-[1-6]|pattern-[1-2])$/.test(slot);
   if (!validLesson || !validSlot) return Response.json({ error: "Audio not found." }, { status: 404 });
+  // Learners only hear approved lessons; teachers and administrators preview any lesson.
+  if (!(await isLessonApproved(lessonId)) && !canTeach(await getSessionAdult())) return lessonUnavailable();
 
   try {
     const db = await getDb();

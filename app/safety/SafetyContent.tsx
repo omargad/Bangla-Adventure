@@ -83,7 +83,7 @@ export default function SafetyContent() {
         </section>
 
         <section className="safety-section governance-record">
-          <header><p className="adult-eyebrow">{s("Human governance", "মানুষের তত্ত্বাবধান")}</p><h2>{s("Six named gates per module", "প্রতি মডিউলে ছয়টি নির্দিষ্ট ধাপ")}</h2><p>{s("The Content Studio creates 108 review records across 18 modules. Approval is not pre-filled, and the software does not impersonate a cultural, educational, accessibility or legal reviewer.", "কনটেন্ট স্টুডিও ১৮টি মডিউল জুড়ে ১০৮টি পর্যালোচনা রেকর্ড তৈরি করে। অনুমোদন আগে থেকে দেওয়া থাকে না, এবং সফটওয়্যার সাংস্কৃতিক, শিক্ষাগত, প্রবেশগম্যতা বা আইনি পর্যালোচক সেজে ওঠে না।")}</p></header>
+          <header><p className="adult-eyebrow">{s("Human governance", "মানুষের তত্ত্বাবধান")}</p><h2>{s("A teacher approves every lesson", "প্রতিটি পাঠ একজন শিক্ষক অনুমোদন করেন")}</h2><p>{s("Students see a lesson or topic only after a teacher or administrator has previewed all of it in English and Bangla and approved it, and any teacher can withdraw a lesson at once. The 18 lessons that came with the app start approved as a baseline and are marked so for staff. Specialists can also record these optional checks; the software never pretends to be one of them.", "একজন শিক্ষক বা প্রশাসক পুরো পাঠ বা বিষয় ইংরেজি ও বাংলায় দেখে অনুমোদন দিলে তবেই শিক্ষার্থীরা তা দেখে, আর যেকোনো শিক্ষক সঙ্গে সঙ্গে একটি পাঠ সরিয়ে নিতে পারেন। অ্যাপের সঙ্গে আসা ১৮টি পাঠ শুরুতে ভিত্তি হিসেবে অনুমোদিত, কর্মীরা তা চিহ্নিত দেখতে পান। বিশেষজ্ঞরা নিচের ঐচ্ছিক যাচাইগুলোও লিখে রাখতে পারেন; সফটওয়্যার কখনো নিজে বিশেষজ্ঞ সেজে ওঠে না।")}</p></header>
           <ol>
             <li><span>01</span><strong>{s("Bangla language", "বাংলা ভাষা")}</strong><p>{s("Grammar, register, transliteration and pronunciation.", "ব্যাকরণ, ভাষারীতি, প্রতিবর্ণীকরণ ও উচ্চারণ।")}</p></li>
             <li><span>02</span><strong>{s("Cultural representation", "সাংস্কৃতিক উপস্থাপন")}</strong><p>{s("Specificity, plurality, sourcing and community perspective.", "নির্দিষ্টতা, বৈচিত্র্য, উৎস ও সম্প্রদায়ের দৃষ্টিভঙ্গি।")}</p></li>
@@ -94,7 +94,7 @@ export default function SafetyContent() {
           </ol>
         </section>
 
-        <footer className="safety-footer"><div><strong>{s("See something we should change?", "বদলানোর মতো কিছু দেখেছেন?")}</strong><p>{s("Record it in the Content Studio review notes and do not approve the affected gate until it is resolved.", "কনটেন্ট স্টুডিওর পর্যালোচনা নোটে লিখুন এবং সমাধান না হওয়া পর্যন্ত সংশ্লিষ্ট ধাপ অনুমোদন করবেন না।")}</p></div><a className="primary-button" href="/studio">{s("Open Content Studio →", "কনটেন্ট স্টুডিও খুলুন →")}</a></footer>
+        <footer className="safety-footer"><div><strong>{s("See something we should change?", "বদলানোর মতো কিছু দেখেছেন?")}</strong><p>{s("Tell a teacher. Teachers can withdraw the lesson in Lessons, with a note saying what to fix, until it is put right.", "একজন শিক্ষককে জানান। ঠিক না হওয়া পর্যন্ত শিক্ষকেরা “পাঠ” অংশে কী ঠিক করতে হবে লিখে পাঠটি সরিয়ে রাখতে পারেন।")}</p></div><a className="primary-button" href="/studio">{s("Open Lessons (staff) →", "পাঠ খুলুন (কর্মীদের জন্য) →")}</a></footer>
       </div>
     </main>
   );

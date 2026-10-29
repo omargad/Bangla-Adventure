@@ -123,7 +123,7 @@ export default function AccountPanel({ email, displayName }: { email: string; di
         <Link className="adult-brand" href="/"><span>বা</span><span><strong>Bangla Adventures</strong><small>{s("Your account", "আপনার অ্যাকাউন্ট")}</small></span></Link>
         <nav aria-label="Adult tools">
           <Link href="/family">{s("Learners", "শিক্ষার্থী")}</Link>
-          <Link href="/studio">{s("Content Studio", "কনটেন্ট স্টুডিও")}</Link>
+          <Link href="/studio">{s("Lessons", "পাঠ")}</Link>
           <Link href="/worksheets">{s("Worksheets", "ওয়ার্কশিট")}</Link>
           <Link href="/safety">{s("Safety & access", "নিরাপত্তা ও প্রবেশ")}</Link>
           <Link className="active" href="/account">{s("Account", "অ্যাকাউন্ট")}</Link>

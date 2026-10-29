@@ -160,7 +160,8 @@ app or LTI dependency.
 | Route | Pilot role |
 | --- | --- |
 | `/topics` | Approved bilingual topics by category, with a quiz that counts towards Topics read |
-| `/teach/topics` | Staff Lessons & topics: write, edit, preview and approve topics |
+| `/studio` | Staff Lessons: preview the 18 lessons as students see them, approve or withdraw them, review human audio and video checks |
+| `/teach/topics` | Staff Topics: write, edit, preview and approve topics |
 | `/books` | Audited NCTB Book Bridge and precise source metadata |
 | `/library` | Adult-facing textbook catalogue |
 | `/resources` | External research register; not approved curriculum |

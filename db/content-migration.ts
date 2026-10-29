@@ -4,7 +4,8 @@ import { topics } from "../app/topics-content";
 const BASELINE_NOTE = "Edited before topic approval existed; approved as a baseline.";
 
 /**
- * Content approval and authoring. Every new or edited topic is stored as a
+ * Content approval and authoring: topic versions (below) and the shared lesson
+ * approval (migrateLessons). Every new or edited topic is stored as a
  * version and only an approved version reaches learners. The topics shipped in
  * app/topics-content.ts are the approved baseline (version 0). Administrator
  * edits saved before approval existed (topic_updates) were already visible to
@@ -13,6 +14,11 @@ const BASELINE_NOTE = "Edited before topic approval existed; approved as a basel
  * Runs on every start and is safe to repeat.
  */
 export function migrateContent(sqlite: Database.Database): void {
+  migrateTopics(sqlite);
+  migrateLessons(sqlite);
+}
+
+function migrateTopics(sqlite: Database.Database): void {
   sqlite.transaction(() => {
     sqlite.exec(`CREATE TABLE IF NOT EXISTS topic_versions (
       id text PRIMARY KEY NOT NULL,
@@ -64,6 +70,48 @@ export function migrateContent(sqlite: Database.Database): void {
       // These edits could change only the reading text, so the category, quiz and sources come from the shipped topic.
       const data = JSON.stringify({ ...shipped, ...carried, id: undefined });
       insert.run(crypto.randomUUID(), edit.topic_id, version, data, author, edit.updated_at, edit.updated_at, BASELINE_NOTE);
+    }
+  })();
+}
+
+/** The 18 lessons students could already open before lesson approval existed. */
+const BASELINE_LESSONS = [
+  "hello-me", "my-family", "numbers-colours", "letters-sounds", "food-please", "my-day", "school-home", "directions", "six-seasons",
+  "river-journey", "sundarbans-voices", "friendship-help", "language-movement", "heritage-comparison", "living-arts", "two-homes", "poetry-place", "research-exhibition",
+];
+
+/**
+ * The shared teacher approval of the 18 lessons. content_approvals keeps one row
+ * per decision; the newest row (by rowid) is the lesson's current state, and only
+ * approved lessons reach learners. The lessons students already used start as
+ * approved baseline rows, so nothing disappears when approval starts; a lesson
+ * with no row waits for approval. Human audio records who approved it.
+ * Runs on every start and is safe to repeat.
+ */
+function migrateLessons(sqlite: Database.Database): void {
+  sqlite.transaction(() => {
+    sqlite.exec(`CREATE TABLE IF NOT EXISTS content_approvals (
+      id text PRIMARY KEY NOT NULL,
+      content_type text NOT NULL,
+      content_id text NOT NULL,
+      status text NOT NULL CHECK (status IN ('approved', 'withdrawn')),
+      baseline integer NOT NULL DEFAULT 0,
+      changed_by text REFERENCES adults(id) ON DELETE SET NULL,
+      changed_at text NOT NULL,
+      note text NOT NULL DEFAULT ''
+    );
+    CREATE INDEX IF NOT EXISTS content_approvals_item_idx ON content_approvals (content_type, content_id);`);
+    const hasRecord = sqlite.prepare("SELECT 1 FROM content_approvals WHERE content_type = 'lesson' AND content_id = ? LIMIT 1");
+    const baseline = sqlite.prepare("INSERT INTO content_approvals (id, content_type, content_id, status, baseline, changed_at) VALUES (?, 'lesson', ?, 'approved', 1, ?)");
+    const now = new Date().toISOString();
+    for (const lessonId of BASELINE_LESSONS) {
+      if (!hasRecord.get(lessonId)) baseline.run(crypto.randomUUID(), lessonId, now);
+    }
+
+    const mediaColumns = new Set((sqlite.prepare("PRAGMA table_info(media_assets)").all() as Array<{ name: string }>).map((column) => column.name));
+    if (mediaColumns.size) {
+      if (!mediaColumns.has("reviewed_by")) sqlite.exec("ALTER TABLE media_assets ADD COLUMN reviewed_by text REFERENCES adults(id) ON DELETE SET NULL");
+      if (!mediaColumns.has("reviewed_at")) sqlite.exec("ALTER TABLE media_assets ADD COLUMN reviewed_at text");
     }
   })();
 }

@@ -349,8 +349,8 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
         ["announcements", s("Announcements", "ঘোষণা")],
         ["sources", s("Manage sources", "উৎস পরিচালনা")],
       ].map(([id, label]) => ({ id, label, onClick: () => { if ((id === "classes" || id === "sources") && detail && !canLeaveClass()) return; setSection(id); setMessage(""); if (id === "classes" || id === "sources") { setDetail(null); void loadClasses(); } else if (detail) void openClass(detail.class.id); } })),
-      { id: "content", label: s("Lessons & topics", "পাঠ ও বিষয়"), href: "/teach/topics" },
-      { id: "studio", label: s("Content review", "কনটেন্ট পর্যালোচনা"), href: "/studio" },
+      { id: "lessons", label: s("Lessons", "পাঠ"), href: "/studio" },
+      { id: "content", label: s("Topics", "বিষয়"), href: "/teach/topics" },
       ...(isAdmin ? [{ id: "users", label: s("Manage users", "ব্যবহারকারী পরিচালনা"), href: "/admin" }, { id: "all-results", label: s("All class results", "সব ক্লাসের ফলাফল"), href: "/admin/results" }] : []),
     ]}>
     <main className="adult-app teach-app" lang={language}>
@@ -365,7 +365,7 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
         <nav aria-label="Sections">
           <Link className="active" href="/teach">{s("Classes", "ক্লাস")}</Link>
           <Link href="/family">{s("Family", "পরিবার")}</Link>
-          <Link href="/studio">{s("Studio", "স্টুডিও")}</Link>
+          <Link href="/studio">{s("Lessons", "পাঠ")}</Link>
           <Link href="/library">{s("Library", "লাইব্রেরি")}</Link>
           <Link href="/account">{s("My account", "আমার অ্যাকাউন্ট")}</Link>
           {isAdmin && <Link href="/admin">{s("Manage users", "ব্যবহারকারী পরিচালনা")}</Link>}

@@ -56,7 +56,7 @@ test("teacher uploads a CSV and a provisioned student replaces the temporary pas
   await teacherNav.getByRole("button", { name: "Students", exact: true }).click();
   await expect(row).toBeVisible();
   await teacherNav.getByRole("button", { name: "My classes", exact: true }).click();
-  await teacherNav.getByRole("link", { name: "Content review" }).click();
+  await teacherNav.getByRole("link", { name: "Lessons", exact: true }).click();
   await expect(page).toHaveURL(/\/teach$/);
   await expect(row).toBeVisible();
   expect(prompts).toHaveLength(2);

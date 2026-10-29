@@ -1,10 +1,10 @@
-import { and, eq } from "drizzle-orm";
 import { getDb } from "../../../../db";
-import { mediaAssets } from "../../../../db/schema";
+import { mediaAssets, userAuditEvents } from "../../../../db/schema";
 import { lessons } from "../../../curriculum";
-import { getSessionAdult } from "@/lib/auth";
+import { getSessionAdult, getStaffAccess } from "@/lib/auth";
 import { canTeach } from "@/lib/roles";
 import { putMediaObject } from "@/lib/storage";
+import { lessonErrorResponse, readLessonBody, reviewRecording } from "@/lib/lesson-approval";
 
 export const dynamic = "force-dynamic";
 const maxBytes = 12 * 1024 * 1024;
@@ -21,9 +21,9 @@ export async function POST(request: Request) {
   const speakerName = value(form.get("speakerName"), 80);
   const dialect = value(form.get("dialect"), 80) || "Bangladesh standard";
   const consentConfirmed = form.get("consentConfirmed") === "true";
-  if (!(file instanceof File) || !lessons.some((lesson) => lesson.id === lessonId) || !slots.test(slot)) return Response.json({ error: "Choose a valid lesson, audio slot and file." }, { status: 400 });
-  if (!file.type.startsWith("audio/") || file.size <= 0 || file.size > maxBytes) return Response.json({ error: "Upload an audio file no larger than 12 MB." }, { status: 400 });
-  if (!speakerName || !consentConfirmed) return Response.json({ error: "Speaker credit and recorded consent confirmation are required." }, { status: 400 });
+  if (!(file instanceof File) || !lessons.some((lesson) => lesson.id === lessonId) || !slots.test(slot)) return Response.json({ error: "Choose a valid lesson, audio slot and file.", errorBn: "সঠিক পাঠ, অডিওর অংশ ও ফাইল বেছে নিন।" }, { status: 400 });
+  if (!file.type.startsWith("audio/") || file.size <= 0 || file.size > maxBytes) return Response.json({ error: "Upload an audio file no larger than 12 MB.", errorBn: "১২ MB-এর বেশি নয় এমন একটি অডিও ফাইল দিন।" }, { status: 400 });
+  if (!speakerName || !consentConfirmed) return Response.json({ error: "Speaker credit and recorded consent confirmation are required.", errorBn: "বক্তার নাম ও সম্মতির নিশ্চয়তা দিতে হবে।" }, { status: 400 });
 
   const extension = safeExtension(file.name, file.type);
   const objectKey = `human-audio/${lessonId}/${slot}/${crypto.randomUUID()}.${extension}`;
@@ -43,27 +43,18 @@ export async function POST(request: Request) {
     consentConfirmed,
     reviewStatus: "pending",
   }).returning();
+  await db.insert(userAuditEvents).values({ id: crypto.randomUUID(), actorId: user.id, targetId: lessonId, targetType: "lesson", action: "lesson-audio-uploaded", detailsJson: JSON.stringify({ recordingId: asset.id, slot }) });
   return Response.json({ asset }, { status: 201 });
 }
 
+/** Any teacher or administrator reviews any staff member's recording; see reviewRecording. */
 export async function PATCH(request: Request) {
-  const user = await getSessionAdult();
-  if (user && !canTeach(user)) return Response.json({ error: "An approved teacher account is required." }, { status: 403 });
-  if (!user) return Response.json({ error: "Sign in required." }, { status: 401 });
-  const body = (await request.json()) as Record<string, unknown>;
-  const id = value(body.id, 80);
-  const reviewStatus = value(body.reviewStatus, 30);
-  const notes = value(body.notes, 1500);
-  if (!id || !["pending", "changes-requested", "approved", "retired"].includes(reviewStatus)) return Response.json({ error: "Invalid media review update." }, { status: 400 });
-  const db = await getDb();
-  const [owned] = await db.select().from(mediaAssets).where(and(eq(mediaAssets.id, id), eq(mediaAssets.ownerEmail, user.email))).limit(1);
-  if (!owned) return Response.json({ error: "Audio asset not found." }, { status: 404 });
-  if (reviewStatus === "approved" && !owned.consentConfirmed) return Response.json({ error: "Consent must be confirmed before approval." }, { status: 400 });
-  if (reviewStatus === "approved") {
-    await db.update(mediaAssets).set({ reviewStatus: "retired", updatedAt: new Date().toISOString() }).where(and(eq(mediaAssets.ownerEmail, user.email), eq(mediaAssets.lessonId, owned.lessonId), eq(mediaAssets.slot, owned.slot), eq(mediaAssets.reviewStatus, "approved")));
-  }
-  const [asset] = await db.update(mediaAssets).set({ reviewStatus, notes, updatedAt: new Date().toISOString() }).where(eq(mediaAssets.id, id)).returning();
-  return Response.json({ asset });
+  const actor = await getStaffAccess("teach");
+  if (actor instanceof Response) return actor;
+  const body = await readLessonBody(request);
+  if (body instanceof Response) return body;
+  try { return Response.json({ asset: await reviewRecording(actor.id, body) }); }
+  catch (error) { return lessonErrorResponse(error); }
 }
 
 function value(input: FormDataEntryValue | unknown, maxLength: number) {

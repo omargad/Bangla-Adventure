@@ -94,7 +94,7 @@ if (asJson) {
   );
   if (deadVideos.length || deadPlaylists.length) {
     console.log(
-      "Action: replace failing IDs in app/curriculum.ts, then record the check in the Content Studio video gate.",
+      "Action: replace failing IDs in app/curriculum.ts, or record the check under Lessons (/studio) -> Video check, where marking a video for replacement or as unavailable takes it out of the lesson.",
     );
     if (deadVideos.concat(deadPlaylists).every((r) => r.status === 0 || r.status === 403)) {
       console.log(

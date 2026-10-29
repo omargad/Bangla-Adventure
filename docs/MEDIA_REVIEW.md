@@ -10,7 +10,7 @@ Every lesson ships with media already wired in:
 - **Per-lesson pronunciation audio** for every slot (dialogue, reading, two
   patterns, six words). A bundled synthetic Bangla clip is the offline-safe
   fallback; a named, consented human recording replaces it once uploaded and
-  approved in the Content Studio.
+  approved in Lessons (`/studio`).
 
 ## Why the video/playlist IDs need a human check
 
@@ -50,15 +50,22 @@ channels. Update `title`, `channel` and `duration` to match reality.
 
 ## Step 3 — record the human decision
 
-In the **Content Studio → Video checks** tab, for each lesson set availability,
-captions status and child-suitability, and note the exact segment. This is the
-per-lesson video gate; approval requires a named adult reviewer, and the
-platform never claims a video is verified on its own.
+In **Lessons → Preview lesson → Video check**, set the decision, captions status
+and child-suitability for each lesson and note the exact segment. The check is
+shared by all staff: the newest one decides what learners get. A video marked
+"Replace this video", "Unavailable on YouTube" or "Unsuitable for children" is
+taken out of the lesson for learners; when a replacement YouTube link is given,
+learners see that video instead. The check is recorded under the signed-in
+account, and the platform never claims a video is verified on its own.
 
 ## Human audio (optional upgrade)
 
 Synthetic fallback audio already exists for every slot and is covered by tests.
-To add real voices: **Content Studio → Human audio**, upload a recording with a
-speaker credit and recorded consent, review it, then approve. Approved audio
-becomes the learner playback source for that slot automatically, with the
-synthetic clip retained as fallback.
+To add real voices: **Lessons → Preview lesson → Human audio recordings**, upload
+a recording with a speaker credit and recorded consent. It waits for review in
+the Lessons list, where any teacher or administrator can play it; approving
+needs consent and the reviewer's confirmation that they listened to the whole
+recording, and records who approved it. Today learners hear an approved
+recording for the complete dialogue and the guided reading on devices without
+their own Bangla voice; word and sentence-pattern recordings are kept ready but
+not yet played. The synthetic clip stays as the fallback.

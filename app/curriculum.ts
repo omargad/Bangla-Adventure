@@ -1,5 +1,21 @@
 export type CurriculumLevel = "pre-a1" | "a1" | "a2" | "b1" | "b2" | "c1-c2";
 
+export type LessonCategory = "conversation" | "letters-numbers" | "places-nature" | "history-identity" | "arts-literature" | "projects";
+
+/**
+ * What a lesson is about, shown as the group heading wherever lessons are listed
+ * (learner lesson list, Studio, assignment pickers). The level bands below say
+ * how hard a lesson is; categories say what it is about.
+ */
+export const lessonCategories: Array<{ id: LessonCategory; icon: string; title: { en: string; bn: string } }> = [
+  { id: "conversation", icon: "💬", title: { en: "General conversation", bn: "সাধারণ কথাবার্তা" } },
+  { id: "letters-numbers", icon: "🔤", title: { en: "Letters and numbers", bn: "বর্ণ ও সংখ্যা" } },
+  { id: "places-nature", icon: "🌾", title: { en: "Places and nature", bn: "স্থান ও প্রকৃতি" } },
+  { id: "history-identity", icon: "🏛️", title: { en: "History and identity", bn: "ইতিহাস ও পরিচয়" } },
+  { id: "arts-literature", icon: "🎨", title: { en: "Arts and literature", bn: "শিল্প ও সাহিত্য" } },
+  { id: "projects", icon: "🧭", title: { en: "Projects", bn: "প্রকল্প" } },
+];
+
 export type VocabularyItem = {
   bn: string;
   transliteration: string;
@@ -9,6 +25,7 @@ export type VocabularyItem = {
 export type Lesson = {
   id: string;
   level: CurriculumLevel;
+  category: LessonCategory;
   number: number;
   title: string;
   titleBn: string;
@@ -121,6 +138,7 @@ export const lessons: Lesson[] = [
   {
     id: "hello-me",
     level: "pre-a1",
+    category: "conversation",
     number: 1,
     title: "Hello, this is me",
     titleBn: "হ্যালো, এই আমি",
@@ -166,6 +184,7 @@ export const lessons: Lesson[] = [
   {
     id: "my-family",
     level: "pre-a1",
+    category: "conversation",
     number: 2,
     title: "People in my family",
     titleBn: "আমার পরিবারের মানুষ",
@@ -208,6 +227,7 @@ export const lessons: Lesson[] = [
   {
     id: "numbers-colours",
     level: "pre-a1",
+    category: "letters-numbers",
     number: 3,
     title: "Numbers and colours",
     titleBn: "সংখ্যা আর রং",
@@ -250,6 +270,7 @@ export const lessons: Lesson[] = [
   {
     id: "letters-sounds",
     level: "a1",
+    category: "letters-numbers",
     number: 4,
     title: "Letters with a roofline",
     titleBn: "মাথার রেখার অক্ষর",
@@ -292,6 +313,7 @@ export const lessons: Lesson[] = [
   {
     id: "food-please",
     level: "a1",
+    category: "conversation",
     number: 5,
     title: "Food, please!",
     titleBn: "খাবার, দয়া করে!",
@@ -334,6 +356,7 @@ export const lessons: Lesson[] = [
   {
     id: "my-day",
     level: "a1",
+    category: "conversation",
     number: 6,
     title: "My day in six actions",
     titleBn: "আমার দিনের ছয় কাজ",
@@ -376,6 +399,7 @@ export const lessons: Lesson[] = [
   {
     id: "school-home",
     level: "a2",
+    category: "conversation",
     number: 7,
     title: "Between school and home",
     titleBn: "স্কুল আর বাড়ির মাঝে",
@@ -418,6 +442,7 @@ export const lessons: Lesson[] = [
   {
     id: "directions",
     level: "a2",
+    category: "conversation",
     number: 8,
     title: "Find the river market",
     titleBn: "নদীর বাজার খুঁজে নাও",
@@ -460,6 +485,7 @@ export const lessons: Lesson[] = [
   {
     id: "six-seasons",
     level: "a2",
+    category: "places-nature",
     number: 9,
     title: "Bangladesh through six seasons",
     titleBn: "ছয় ঋতুর বাংলাদেশ",
@@ -502,6 +528,7 @@ export const lessons: Lesson[] = [
   {
     id: "river-journey",
     level: "b1",
+    category: "places-nature",
     number: 10,
     title: "Tell a river journey",
     titleBn: "নদীপথের গল্প বলি",
@@ -544,6 +571,7 @@ export const lessons: Lesson[] = [
   {
     id: "sundarbans-voices",
     level: "b1",
+    category: "places-nature",
     number: 11,
     title: "Voices of the Sundarbans",
     titleBn: "সুন্দরবনের কণ্ঠ",
@@ -591,6 +619,7 @@ export const lessons: Lesson[] = [
   {
     id: "friendship-help",
     level: "b1",
+    category: "conversation",
     number: 12,
     title: "Friendship and helping",
     titleBn: "বন্ধুত্ব আর সাহায্য",
@@ -633,6 +662,7 @@ export const lessons: Lesson[] = [
   {
     id: "language-movement",
     level: "b2",
+    category: "history-identity",
     number: 13,
     title: "Why 21 February matters",
     titleBn: "একুশে ফেব্রুয়ারি কেন গুরুত্বপূর্ণ",
@@ -680,6 +710,7 @@ export const lessons: Lesson[] = [
   {
     id: "heritage-comparison",
     level: "b2",
+    category: "places-nature",
     number: 14,
     title: "Three heritage places, three stories",
     titleBn: "তিন ঐতিহ্য, তিন গল্প",
@@ -727,6 +758,7 @@ export const lessons: Lesson[] = [
   {
     id: "living-arts",
     level: "b2",
+    category: "arts-literature",
     number: 15,
     title: "Living arts and changing traditions",
     titleBn: "জীবন্ত শিল্প আর বদলে যাওয়া ঐতিহ্য",
@@ -774,6 +806,7 @@ export const lessons: Lesson[] = [
   {
     id: "two-homes",
     level: "c1-c2",
+    category: "history-identity",
     number: 16,
     title: "Identity across two homes",
     titleBn: "দুই ঘরের পরিচয়",
@@ -821,6 +854,7 @@ export const lessons: Lesson[] = [
   {
     id: "poetry-place",
     level: "c1-c2",
+    category: "arts-literature",
     number: 17,
     title: "How poetry makes a place",
     titleBn: "কবিতায় গড়া দেশ",
@@ -863,6 +897,7 @@ export const lessons: Lesson[] = [
   {
     id: "research-exhibition",
     level: "c1-c2",
+    category: "projects",
     number: 18,
     title: "Build a Bangladesh exhibition",
     titleBn: "বাংলাদেশ প্রদর্শনী তৈরি করি",

@@ -109,6 +109,9 @@ export const mediaAssets = sqliteTable(
     notes: text("notes").notNull().default(""),
     createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
     updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+    // Who last approved, retired or sent back the recording; added by db/content-migration.ts.
+    reviewedBy: text("reviewed_by").references(() => adults.id, { onDelete: "set null" }),
+    reviewedAt: text("reviewed_at"),
   },
   (table) => [
     uniqueIndex("media_assets_object_key_unique").on(table.objectKey),
@@ -366,3 +369,16 @@ export const topicVersions = sqliteTable("topic_versions", {
   uniqueIndex("topic_versions_topic_version_unique").on(table.topicId, table.version),
   index("topic_versions_status_idx").on(table.status),
 ]);
+
+// One row per lesson approval decision; the newest row (by rowid) is the lesson's current state.
+export const contentApprovals = sqliteTable("content_approvals", {
+  id: text("id").primaryKey(),
+  contentType: text("content_type").notNull(),
+  contentId: text("content_id").notNull(),
+  status: text("status", { enum: ["approved", "withdrawn"] }).notNull(),
+  // Lessons students already used before approval existed, approved as a baseline rather than reviewed.
+  baseline: integer("baseline", { mode: "boolean" }).notNull().default(false),
+  changedBy: text("changed_by").references(() => adults.id, { onDelete: "set null" }),
+  changedAt: text("changed_at").notNull(),
+  note: text("note").notNull().default(""),
+}, (table) => [index("content_approvals_item_idx").on(table.contentType, table.contentId)]);

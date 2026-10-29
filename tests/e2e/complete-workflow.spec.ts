@@ -112,7 +112,7 @@ test("complete approved-teacher, allocated-student, curriculum and recovery work
     await expect(teacher.getByRole("cell", { name: "Workflow Student", exact: true })).toBeVisible();
     await expect(teacher.getByRole("cell", { name: "2/2", exact: true })).toBeVisible();
 
-    // The old curriculum page now leads to Lessons & topics, where an edit waits for approval
+    // The old curriculum page now leads to Topics, where an edit waits for approval
     // before students see it, and approved topics no longer carry a draft notice.
     await page.goto("/admin/curriculum");
     await expect(page).toHaveURL(/\/teach\/topics$/);

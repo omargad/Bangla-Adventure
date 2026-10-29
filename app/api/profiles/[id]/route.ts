@@ -3,6 +3,8 @@ import { getDb } from "../../../../db";
 import { assignments, learnerProfiles, skillProgress } from "../../../../db/schema";
 import { getSessionAdult } from "@/lib/auth";
 import { canTeach } from "@/lib/roles";
+import { approvedLessonIds } from "@/lib/lesson-approval";
+import { learnerAssignments } from "@/lib/lesson-model";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +18,7 @@ export async function GET(_request: Request, context: RouteContext) {
   const [profile] = await db.select().from(learnerProfiles).where(and(eq(learnerProfiles.id, id), eq(learnerProfiles.ownerEmail, user.email))).limit(1);
   if (!profile) return Response.json({ error: "Learner profile not found." }, { status: 404 });
   const progress = await db.select().from(skillProgress).where(eq(skillProgress.profileId, id));
-  const profileAssignments = await db.select().from(assignments).where(and(eq(assignments.profileId, id), eq(assignments.ownerEmail, user.email)));
+  const profileAssignments = learnerAssignments(await db.select().from(assignments).where(and(eq(assignments.profileId, id), eq(assignments.ownerEmail, user.email))), await approvedLessonIds(), canTeach(user));
   return Response.json({ profile: { ...profile, homeLanguages: safeJsonArray(profile.homeLanguages) }, progress, assignments: profileAssignments });
 }
 

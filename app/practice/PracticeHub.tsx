@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useLanguage } from "../../lib/use-language";
-import { lessons } from "../curriculum";
+import { lessons, type Lesson } from "../curriculum";
+import { visibleLessons } from "../../lib/lesson-model";
 import { isStrong, newCard, pickQueue, review, type CardState } from "../../lib/srs";
 
 type WordCard = {
@@ -18,7 +19,8 @@ type WordCard = {
 const STORAGE_KEY = "bangla-adventures-word-practice";
 const SESSION_SIZE = 12;
 
-const allCards: WordCard[] = lessons.flatMap((lesson) =>
+/** Word cards from the lessons learners may open. */
+const cardsFor = (approved: Lesson[]): WordCard[] => approved.flatMap((lesson) =>
   lesson.vocabulary.map((item, index) => ({
     id: `${lesson.id}:${index}`,
     bn: item.bn,
@@ -39,7 +41,8 @@ function loadStates(): Record<string, CardState> {
   }
 }
 
-export default function PracticeHub() {
+export default function PracticeHub({ approvedLessonIds }: { approvedLessonIds: string[] }) {
+  const allCards = useMemo(() => cardsFor(visibleLessons(lessons, approvedLessonIds)), [approvedLessonIds]);
   const [language, toggleLanguage] = useLanguage();
   const s = (en: string, bn: string) => (language === "bn" ? bn : en);
   const [states, setStates] = useState<Record<string, CardState> | null>(null);
@@ -56,7 +59,7 @@ export default function PracticeHub() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setStates(loaded);
     setQueue(pickQueue(allCards, loaded, Date.now(), SESSION_SIZE));
-  }, []);
+  }, [allCards]);
 
   useEffect(() => {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;

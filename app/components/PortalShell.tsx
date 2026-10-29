@@ -21,7 +21,8 @@ export default function PortalShell({ role, name, language, toggleLanguage, acti
     { id: "users", label: s("Users", "ব্যবহারকারী"), href: "/admin" },
     { id: "classes", label: s("Class allocation", "ক্লাস বরাদ্দ"), href: "/admin/classes" },
     { id: "results", label: s("Grades & results", "গ্রেড ও ফলাফল"), href: "/admin/results" },
-    { id: "content", label: s("Lessons & topics", "পাঠ ও বিষয়"), href: "/teach/topics" },
+    { id: "lessons", label: s("Lessons", "পাঠ"), href: "/studio" },
+    { id: "content", label: s("Topics", "বিষয়"), href: "/teach/topics" },
     { id: "teach", label: s("Teacher workspace", "শিক্ষকের কর্মক্ষেত্র"), href: "/teach" },
   ] : role === "student" ? [
     { id: "learning", label: s("My Learning", "আমার শেখা"), href: "/student" },
@@ -30,7 +31,8 @@ export default function PortalShell({ role, name, language, toggleLanguage, acti
     { id: "topics", label: s("Learning topics", "শেখার বিষয়"), href: "/topics" },
   ] : role === "teacher" ? [
     { id: "classes", label: s("My classes", "আমার ক্লাস"), href: "/teach" },
-    { id: "content", label: s("Lessons & topics", "পাঠ ও বিষয়"), href: "/teach/topics" },
+    { id: "lessons", label: s("Lessons", "পাঠ"), href: "/studio" },
+    { id: "content", label: s("Topics", "বিষয়"), href: "/teach/topics" },
     { id: "topics", label: s("Learning topics", "শেখার বিষয়"), href: "/topics" },
   ] : [{ id: "family", label: s("My children", "আমার সন্তান"), href: "/family" }];
   const primary = items ?? defaults;

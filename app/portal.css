@@ -86,7 +86,7 @@
  .student-import-sheet { position:absolute; left:0; top:0; width:100%; overflow:visible; }
 }
 .portal-content .student-password-card { max-width:520px; margin:20px 0; }
-/* Lessons & topics: writing, previewing and approving topics; approved-topic notes for learners and staff. */
+/* Topics: writing, previewing and approving topics; approved-topic notes for learners and staff. */
 .portal-category-heading { display:flex; align-items:center; gap:8px; margin:28px 0 0; font-size:1.1rem; }
 .topics-progress { display:inline-block; margin:6px 0 0; padding:8px 14px; border-radius:999px; background:#e3f3ea; color:#075b4c; font-weight:800; }
 .topic-read-chip { display:inline-flex; padding:3px 9px; border-radius:999px; background:#dcf1e5; color:#075b4c; font-size:.75rem; font-weight:800; }
@@ -126,3 +126,24 @@
 .topic-decision .topic-note { display:grid; gap:8px; margin-top:16px; font-weight:600; }
 .topic-studio tr[aria-current=true] { background:#f1f8f4; }
 @media(max-width:650px) { .topic-preview-frame { padding:10px; } .topic-admin-actions { width:100%; } }
+/* Lessons: one shared approval per lesson, a full student-view preview, recordings and video checks. */
+.lesson-studio-stats { margin:18px 0; }
+.lesson-number { display:grid; place-items:center; flex:none; width:36px; height:36px; border-radius:50%; background:#e3f3ea; color:#075b4c; font-weight:800; }
+.lesson-other-title { color:#536c62; font-size:.92rem; }
+.lesson-review-title-bn { margin:-6px 0 10px; color:#075b4c; font-size:1.2rem; font-weight:700; }
+.lesson-preview-frame { border:2px dashed #b8d8c9; border-radius:20px; background:#fffdf8; overflow:hidden; }
+.lesson-preview-frame .expanded-lesson-pane { min-height:0; }
+.preview-answer { color:#075b4c; font-style:normal; font-weight:800; }
+.preview-answer-note { margin:8px 0 0; padding:8px 12px; border-left:4px solid #43a580; border-radius:8px; background:#f1f8f4; color:#17324d; }
+.lesson-review-progress { margin:12px 0; padding:8px 14px; border-radius:10px; background:#fff0c2; color:#714900; font-weight:700; }
+.lesson-review-progress.done { background:#dcf1e5; color:#075b4c; }
+.topic-decision .topic-confirm:has(input:disabled) { opacity:.6; cursor:not-allowed; }
+.recording-row audio { flex:1 1 240px; max-width:100%; }
+.recording-actions { align-items:center; }
+.recording-listened { display:inline-flex; align-items:center; gap:6px; font-size:.9rem; font-weight:600; }
+.recording-listened input { width:18px; height:18px; accent-color:#075b4c; }
+.lesson-upload, .specialist-checks { margin-top:16px; }
+.lesson-upload summary, .specialist-checks summary { cursor:pointer; font-weight:800; color:#075b4c; }
+.specialist-checks[open] summary { margin-bottom:12px; }
+.assignment-hidden { display:inline-flex; margin-left:8px; padding:2px 9px; border-radius:999px; background:#fde3df; color:#8a2416; font-size:.75rem; font-style:normal; font-weight:800; }
+@media(max-width:650px) { .lesson-preview-frame { border-width:1px; border-radius:12px; } }

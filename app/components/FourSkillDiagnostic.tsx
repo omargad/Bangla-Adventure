@@ -179,7 +179,7 @@ export default function FourSkillDiagnostic({ soundEnabled, onSpeak, onCue, onCh
       ) : (
         <div className="diagnostic-results">
           <div className={`diagnostic-recommendation ${results.recommended.tone}`}>
-            <span><small>Suggested module band</small><strong>{results.recommended.code}</strong></span>
+            <span><small>Suggested lesson band</small><strong>{results.recommended.code}</strong></span>
             <div><h3>{results.recommended.title} <em lang="bn">· {results.recommended.titleBn}</em></h3><p>Begin where the least-developed skill can participate successfully. Use stronger-skill sessions as an accelerated route, and move one band whenever the work feels consistently too easy or too hard.</p></div>
           </div>
           <div className="skill-profile-grid">
@@ -188,14 +188,14 @@ export default function FourSkillDiagnostic({ soundEnabled, onSpeak, onCue, onCh
               return <article key={skill}><div><span>{skillMeta[skill].icon}</span><h4>{skillMeta[skill].label}<small lang="bn">{skillMeta[skill].bn}</small></h4><strong>{band.code}</strong></div><div className="skill-meter"><span style={{ width: `${(results.scores[skill] / 5) * 100}%` }} /></div><p>{band.descriptor}</p></article>;
             })}
           </div>
-          <aside className="diagnostic-caution"><span aria-hidden="true">i</span><p><strong>Use this profile as a conversation starter.</strong> Listening and reading use three sampled tasks; speaking and writing use learner/adult reflection. Recheck after several modules and seek a qualified educator for formal assessment.</p></aside>
+          <aside className="diagnostic-caution"><span aria-hidden="true">i</span><p><strong>Use this profile as a conversation starter.</strong> Listening and reading use three sampled tasks; speaking and writing use learner/adult reflection. Recheck after several lessons and seek a qualified educator for formal assessment.</p></aside>
         </div>
       )}
 
       <footer className="diagnostic-footer">
         <button type="button" className="outline-button" onClick={skillIndex === 0 || showResults ? onClose : () => { setSkillIndex((value) => value - 1); setSubmitted(false); }}>← {skillIndex === 0 || showResults ? "Close" : "Previous skill"}</button>
         {!showResults && <button type="button" className="primary-button" onClick={moveNext}>{skillIndex === skillOrder.length - 1 ? "Build my skill profile" : "Next skill"} →</button>}
-        {showResults && <button type="button" className="primary-button" onClick={() => onChoose(results.recommended.id)}>Open suggested modules →</button>}
+        {showResults && <button type="button" className="primary-button" onClick={() => onChoose(results.recommended.id)}>Open suggested lessons →</button>}
       </footer>
     </div>
   );
