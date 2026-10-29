@@ -112,23 +112,34 @@ test("complete approved-teacher, allocated-student, curriculum and recovery work
     await expect(teacher.getByRole("cell", { name: "Workflow Student", exact: true })).toBeVisible();
     await expect(teacher.getByRole("cell", { name: "2/2", exact: true })).toBeVisible();
 
+    // The old curriculum page now leads to Lessons & topics, where an edit waits for approval
+    // before students see it, and approved topics no longer carry a draft notice.
     await page.goto("/admin/curriculum");
-    await page.getByLabel("Choose a topic").selectOption("pohela-boishakh");
+    await expect(page).toHaveURL(/\/teach\/topics$/);
+    const approvedTitle: string = (await api(page, "/api/curriculum", undefined, "GET")).data.topics.find((topic: { id: string }) => topic.id === "pohela-boishakh").title.en;
+    await page.getByRole("button", { name: `Edit: ${approvedTitle}`, exact: true }).click();
     const title = `Learning update ${suffix}`;
     await page.getByLabel("Title (English)", { exact: true }).fill(title);
-    await page.getByRole("textbox", { name: "Section 1 text (en)", exact: true }).fill("Read this updated section with your teacher and check the original NCTB source.");
-    await page.getByRole("button", { name: "Save topic update", exact: true }).click();
+    await page.getByRole("textbox", { name: "Section 1 text (English)", exact: true }).fill("Read this updated section with your teacher and check the original NCTB source.");
+    await page.getByRole("button", { name: "Save and send for approval", exact: true }).click();
     // The connection banner is also a status region; target the save result.
-    await expect(page.getByRole("status").filter({ hasText: "Topic saved" })).toBeVisible();
+    await expect(page.getByRole("status").filter({ hasText: "Students will not see it until" })).toBeVisible();
+    await student.goto("/student");
+    await expect(student.getByRole("heading", { name: approvedTitle, exact: true })).toBeVisible();
+    await expect(student.getByRole("heading", { name: title, exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Approve and publish to students", exact: true })).toBeDisabled();
+    await page.getByRole("checkbox", { name: "I have read the whole lesson in English and Bangla" }).check();
+    await page.getByRole("button", { name: "Approve and publish to students", exact: true }).click();
+    await expect(page.getByRole("status").filter({ hasText: "Approved. Students now see" })).toBeVisible();
     await student.goto("/student");
     await student.getByRole("link").filter({ has: student.getByRole("heading", { name: title, exact: true }) }).click();
     await expect(student.getByRole("heading", { level: 1, name: title })).toBeVisible();
     await expect(student.getByText("Read this updated section with your teacher and check the original NCTB source.", { exact: true })).toBeVisible();
-    await expect(student.getByText("Draft for educator review", { exact: true })).toBeVisible();
+    await expect(student.getByText("Draft for educator review", { exact: true })).toHaveCount(0);
     await expect(student.getByRole("link", { name: "Official NCTB source portal" }).first()).toHaveAttribute("href", "https://nctb.gov.bd/");
     await student.getByRole("button", { name: "Mark reading complete", exact: true }).click();
     await expect(student.getByRole("button", { name: "Reading complete", exact: true })).toBeDisabled();
-    expect((await api(student, "/api/admin/curriculum", {}, "PUT")).status).toBe(401);
+    expect((await api(student, "/api/topics/pohela-boishakh", {}, "PUT")).status).toBe(401);
 
     await teacher.goto("/api/auth/sign-out?returnTo=%2Fgrown-ups%3FreturnTo%3D%252Fteach");
     await teacher.getByRole("button", { name: /Forgot your password/ }).click();

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useLanguage } from "../../lib/use-language";
 import type { Topic } from "../topics-content";
+import { formatNumber, groupByCategory } from "@/lib/topic-model";
 import { NCTB_PORTAL_URL } from "../library-content";
 import PortalShell from "../components/PortalShell";
 import ClassAllocation from "../components/ClassAllocation";
@@ -64,6 +65,12 @@ type SourceRow = {
   customised: boolean;
 };
 
+type TopicProgress = {
+  classId: string;
+  approvedTopics: number;
+  students: Array<{ rosterId: string; displayName: string; topicsRead: number; quizzesDone: number; quizPercent: number | null }>;
+};
+
 const emptyQuestion = (): Question => ({ prompt: "", options: ["", ""], answer: 0 });
 
 async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
@@ -104,6 +111,7 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
   const [activityTopic, setActivityTopic] = useState("");
   const [questions, setQuestions] = useState<Question[]>([emptyQuestion()]);
   const [openSubmissions, setOpenSubmissions] = useState<string | null>(null);
+  const [topicProgress, setTopicProgress] = useState<TopicProgress | null>(null);
 
   const loadClasses = useCallback(async () => {
     try {
@@ -129,6 +137,18 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
     void loadClasses();
     void loadSources();
   }, [loadClasses, loadSources]);
+
+  // Topics read by the class's students, shown with the class results.
+  const resultsClassId = section === "results" ? detail?.class.id : undefined;
+  useEffect(() => {
+    if (!resultsClassId) return;
+    const controller = new AbortController();
+    requestJson<Omit<TopicProgress, "classId">>(`/api/classes/${resultsClassId}/topic-progress`, { signal: controller.signal, cache: "no-store" })
+      // An abort while the body is read leaves no data: keep what is shown.
+      .then((data) => { if (!controller.signal.aborted && Array.isArray(data.students)) setTopicProgress({ ...data, classId: resultsClassId }); })
+      .catch(() => { if (!controller.signal.aborted) setTopicProgress(null); });
+    return () => controller.abort();
+  }, [resultsClassId, detail]);
 
   async function openClass(id: string) {
     try {
@@ -329,6 +349,7 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
         ["announcements", s("Announcements", "ঘোষণা")],
         ["sources", s("Manage sources", "উৎস পরিচালনা")],
       ].map(([id, label]) => ({ id, label, onClick: () => { if ((id === "classes" || id === "sources") && detail && !canLeaveClass()) return; setSection(id); setMessage(""); if (id === "classes" || id === "sources") { setDetail(null); void loadClasses(); } else if (detail) void openClass(detail.class.id); } })),
+      { id: "content", label: s("Lessons & topics", "পাঠ ও বিষয়"), href: "/teach/topics" },
       { id: "studio", label: s("Content review", "কনটেন্ট পর্যালোচনা"), href: "/studio" },
       ...(isAdmin ? [{ id: "users", label: s("Manage users", "ব্যবহারকারী পরিচালনা"), href: "/admin" }, { id: "all-results", label: s("All class results", "সব ক্লাসের ফলাফল"), href: "/admin/results" }] : []),
     ]}>
@@ -495,6 +516,25 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
               )}
             </section>
 
+            <section hidden={section !== "results"} className="teach-panel" aria-label={s("Topics read", "পড়া বিষয়")}>
+              <h3>{s("Topics read", "পড়া বিষয়")}</h3>
+              <p className="teach-note">{s("A topic counts as read when the student marks it complete or finishes its quiz. Quiz results are each student's best score.", "শিক্ষার্থী পড়া সম্পন্ন চিহ্নিত করলে বা কুইজ শেষ করলে বিষয়টি পড়া হিসেবে গোনা হয়। কুইজের ফল হলো প্রত্যেকের সেরা ফল।")}</p>
+              {topicProgress?.classId !== detail.class.id ? <p role="status">{s("Loading topics read…", "পড়া বিষয় লোড হচ্ছে…")}</p> : topicProgress.students.length === 0 ? (
+                <p className="teach-empty">{s("No students are allocated to this class yet.", "এই ক্লাসে এখনো কোনো শিক্ষার্থী বরাদ্দ নেই।")}</p>
+              ) : (
+                <div className="grade-summary-grid">
+                  {topicProgress.students.map((row) => (
+                    <div className="grade-summary-card" key={row.rosterId}>
+                      <strong>{row.displayName}</strong>
+                      <span>{s("Topics read", "পড়া বিষয়")}: {formatNumber(row.topicsRead, language)} / {formatNumber(topicProgress.approvedTopics, language)}</span>
+                      <span>{s("Topic quizzes done", "শেষ করা বিষয়-কুইজ")}: {formatNumber(row.quizzesDone, language)}</span>
+                      <span>{s("Topic quiz average", "বিষয়-কুইজের গড়")}: {row.quizPercent === null ? "—" : `${formatNumber(row.quizPercent, language)}%`}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+
             <section hidden={section !== "announcements"} className="teach-panel" aria-label={s("Announcements", "ঘোষণা")}>
               <h3>{s("Announcements", "ঘোষণা")}</h3>
               <form className="teach-inline-form" onSubmit={postAnnouncement}>
@@ -547,8 +587,10 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
                   {s("Link a classroom topic (students get a 'read this first' pointer):", "শ্রেণিকক্ষ-বিষয় যুক্ত করুন (শিক্ষার্থীরা ‘আগে এটি পড়ো’ নির্দেশ পাবে):")}
                   <select value={activityTopic} onChange={(event) => setActivityTopic(event.target.value)}>
                     <option value="">{s("No linked topic", "কোনো বিষয় নয়")}</option>
-                    {topics.map((topic) => (
-                      <option key={topic.id} value={topic.id}>{topic.title[language]}</option>
+                    {groupByCategory(topics).map(({ category, items }) => (
+                      <optgroup key={category.id} label={category.title[language]}>
+                        {items.map((topic) => <option key={topic.id} value={topic.id}>{topic.title[language]}</option>)}
+                      </optgroup>
                     ))}
                   </select>
                 </label>

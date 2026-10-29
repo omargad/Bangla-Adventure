@@ -89,10 +89,14 @@ test("language toggle switches an activity page to Bangla", async ({ page }) => 
   await expect(page.locator(".portal-topbar").getByRole("button", { name: "English", exact: true })).toBeVisible();
 });
 
-test("topic prototypes disclose their draft review status", async ({ page }) => {
+// Students now see only approved topics, so the draft notices are gone; the textbook sources stay.
+test("approved topics appear by category without draft notices", async ({ page }) => {
   await page.goto("/topics");
-  await expect(page.getByText(/Candidate content — review mode/i)).toBeVisible();
+  await expect(page.getByRole("region", { name: "Our country — symbols, rivers & nature" }).getByRole("button", { name: /Symbols of Bangladesh/ })).toBeVisible();
+  await expect(page.getByRole("region", { name: "History & the national story" }).getByRole("button", { name: /Symbols of Bangladesh/ })).toHaveCount(0);
+  await expect(page.getByText(/Candidate content — review mode/i)).toHaveCount(0);
   await page.getByRole("button", { name: /Ekushey — the day a language was defended/i }).click();
-  await expect(page.getByText(/Draft for educator review/i)).toBeVisible();
-  await expect(page.getByText(/candidate NCTB evidence anchors/i)).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: /Ekushey/ })).toBeVisible();
+  await expect(page.getByText(/Draft for educator review/i)).toHaveCount(0);
+  await expect(page.getByText(/This topic is linked to these NCTB government textbooks/i)).toBeVisible();
 });

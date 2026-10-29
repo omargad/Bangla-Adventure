@@ -3,249 +3,114 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useLanguage } from "../../lib/use-language";
-import { topicThemes } from "../topics-content";
 import type { Topic } from "../topics-content";
-import { bookById, NCTB_PORTAL_URL } from "../library-content";
+import { formatNumber, formatWhen, groupByCategory } from "@/lib/topic-model";
+import TopicReader from "./TopicReader";
 
-const DONE_KEY = "bangla-adventures-topics-done";
 const moodleUrl = process.env.NEXT_PUBLIC_MOODLE_URL?.replace(/\/+$/, "");
 const courseHref = moodleUrl || "/learn";
 
-function loadDone(learnerId?: string): Record<string, number> {
-  if (!learnerId) return {};
-  try {
-    const raw = window.localStorage.getItem(`${DONE_KEY}:${learnerId}`);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw) as Record<string, number>;
-    return typeof parsed === "object" && parsed !== null ? parsed : {};
-  } catch {
-    return {};
-  }
-}
+type Approval = { version: number; baseline: boolean; approvedAt: string | null; reviewerName: string | null; pendingVersions: number[] };
+type HubTopic = Topic & { approval?: Approval };
+type QuizScores = Record<string, { best: number; total: number }>;
 
 export default function TopicsHub({ initialTopic }: { initialTopic?: string }) {
   const [language, toggleLanguage] = useLanguage();
   const s = (en: string, bn: string) => (language === "bn" ? bn : en);
+  const n = (value: number) => formatNumber(value, language);
 
-  const [topics, setTopics] = useState<Topic[]>([]);
+  const [topics, setTopics] = useState<HubTopic[]>([]);
   const [readIds, setReadIds] = useState<string[]>([]);
+  const [scores, setScores] = useState<QuizScores>({});
   const [canRecord, setCanRecord] = useState(false);
-  const [learnerId, setLearnerId] = useState<string | null>(null);
+  const [canReview, setCanReview] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState("");
+  const [quizSaved, setQuizSaved] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(initialTopic ?? null);
-  const [answers, setAnswers] = useState<Record<number, number>>({});
-  const [checked, setChecked] = useState(false);
-  const [done, setDone] = useState<Record<string, number>>({});
   useEffect(() => {
     const controller = new AbortController();
     fetch("/api/curriculum", { signal: controller.signal, cache: "no-store" }).then(async (response) => {
       const data = await response.json(); if (!response.ok) throw new Error(data.error);
-      setTopics(data.topics); setReadIds(data.readTopicIds); setCanRecord(data.canRecordProgress); setLearnerId(data.learnerId); setDone(loadDone(data.learnerId));
+      setTopics(data.topics); setReadIds(data.readTopicIds); setScores(data.quizScores ?? {}); setCanRecord(data.canRecordProgress);
+      setCanReview(Boolean(data.canReview)); setPendingCount(data.pendingCount ?? 0); setLoaded(true);
     }).catch((error) => { if (!controller.signal.aborted) setError(error.message); });
     return () => controller.abort();
   }, []);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- read persisted quiz results after mount so server and first client render match
-    setDone(loadDone());
-  }, []);
-
-  const active: Topic | null = useMemo(
-    () => topics.find((topic) => topic.id === activeId) ?? null,
-    [activeId, topics],
-  );
+  const active = useMemo(() => topics.find((topic) => topic.id === activeId) ?? null, [activeId, topics]);
+  const groups = useMemo(() => groupByCategory(topics), [topics]);
 
   const openTopic = (id: string) => {
     setActiveId(id);
-    setAnswers({});
-    setChecked(false);
+    setQuizSaved(false);
     if (typeof window !== "undefined") window.scrollTo({ top: 0 });
   };
+  const closeTopic = () => { setActiveId(null); setQuizSaved(false); };
 
-  const closeTopic = () => {
-    setActiveId(null);
-    setAnswers({});
-    setChecked(false);
-  };
-
-  const score = active
-    ? active.quiz.reduce(
-        (total, question, index) => total + (answers[index] === question.answer ? 1 : 0),
-        0,
-      )
-    : 0;
-
-  const submitQuiz = () => {
-    if (!active) return;
-    setChecked(true);
-    const next = { ...done, [active.id]: score };
-    setDone(next);
+  async function saveProgress(topicId: string, answers?: number[]) {
+    setError(""); setQuizSaved(false);
     try {
-      if (learnerId) window.localStorage.setItem(`${DONE_KEY}:${learnerId}`, JSON.stringify(next));
-    } catch {
-      // Private browsing — the score screen still shows.
-    }
-  };
+      const response = await fetch("/api/student/topic-progress", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ topicId, ...(answers ? { answers } : {}) }) });
+      const data = await response.json(); if (!response.ok) throw new Error(language === "bn" && data.errorBn ? data.errorBn : data.error);
+      setReadIds((current) => current.includes(topicId) ? current : [...current, topicId]);
+      if (data.quiz) {
+        setScores((current) => ({ ...current, [topicId]: { best: data.quiz.best, total: data.quiz.total } }));
+        setQuizSaved(true);
+      }
+    } catch (error) { setError(error instanceof Error ? error.message : s("Could not save progress.", "অগ্রগতি সংরক্ষণ করা যায়নি।")); }
+  }
+
+  const header = (
+    <header className="explore-header">
+      <Link className="adult-brand" href="/">
+        <span>বা</span>
+        <span><strong>Bangla Adventures</strong><small>{s("Classroom topics", "শ্রেণিকক্ষের বিষয়")}</small></span>
+      </Link>
+      <nav aria-label="Sections">
+        {active ? <button type="button" className="topics-back" onClick={closeTopic}>← {s("All topics", "সব বিষয়")}</button> : <>
+          <a href={courseHref}>{s("Learning course", "শেখার কোর্স")}</a>
+          <Link className="active" href="/topics">{s("Topics", "বিষয়")}</Link>
+          <Link href="/library">{s("Textbook library", "পাঠ্যবই লাইব্রেরি")}</Link>
+        </>}
+      </nav>
+      <button type="button" className="explore-lang" onClick={toggleLanguage}>{s("বাংলায় দেখুন", "View in English")}</button>
+    </header>
+  );
+
+  function approvalLabel(approval: Approval) {
+    const who = approval.baseline
+      ? s("Teacher view: pre-existing content, approved as a baseline (not individually reviewed).", "শিক্ষকের দৃশ্য: আগে থেকে থাকা বিষয়বস্তু, ভিত্তি হিসেবে অনুমোদিত (আলাদা করে পর্যালোচনা হয়নি)।")
+      : s(`Teacher view: approved by ${approval.reviewerName ?? "a former staff member"} on ${formatWhen(approval.approvedAt, language)}.`, `শিক্ষকের দৃশ্য: ${approval.reviewerName ?? "একজন সাবেক কর্মী"} ${formatWhen(approval.approvedAt, language)}-এ অনুমোদন করেছেন।`);
+    return approval.pendingVersions.length ? `${who} ${s("A newer version is waiting for approval.", "একটি নতুন সংস্করণ অনুমোদনের অপেক্ষায়।")}` : who;
+  }
 
   if (active) {
-    const allAnswered = active.quiz.every((_, index) => answers[index] !== undefined);
+    const read = readIds.includes(active.id);
     return (
       <main className="explore-app topics-app" lang={language}>
-        <header className="explore-header">
-          <Link className="adult-brand" href="/">
-            <span>বা</span>
-            <span>
-              <strong>Bangla Adventures</strong>
-              <small>{s("Classroom topics", "শ্রেণিকক্ষের বিষয়")}</small>
-            </span>
-          </Link>
-          <nav aria-label="Sections">
-            <button type="button" className="topics-back" onClick={closeTopic}>
-              ← {s("All topics", "সব বিষয়")}
-            </button>
-          </nav>
-          <button type="button" className="explore-lang" onClick={toggleLanguage}>
-            {s("বাংলায় দেখুন", "View in English")}
-          </button>
-        </header>
-
+        {header}
         <article className="topic-reader">
           <button type="button" className="outline-button" onClick={closeTopic}>{s("All topics", "সব বিষয়")}</button>
           {error && <p className="auth-error" role="alert">{error}</p>}
-          <header className="topic-reader-head">
-            <span className="topic-emoji" aria-hidden="true">{active.emoji}</span>
-            <h1>{active.title[language]}</h1>
-            <p>{active.tagline[language]}</p>
-            <small>
-              {s(`About ${active.minutes} minutes of reading`, `পড়তে লাগবে প্রায় ${active.minutes.toLocaleString("bn-BD")} মিনিট`)}
-            </small>
-          </header>
-
-          <aside className="topics-review-banner" role="note">
-            <strong>{s("Draft for educator review", "শিক্ষক পর্যালোচনার খসড়া")}</strong>
-            <span>
-              {s(
-                "Do not treat this adaptation or quiz as approved curriculum yet. The exact source, Bangla, cultural accuracy, age suitability, rights and accessibility still need named review evidence.",
-                "এই অভিযোজন বা কুইজ এখনো অনুমোদিত পাঠ্যক্রম নয়। সঠিক উৎস, বাংলা, সাংস্কৃতিক নির্ভুলতা, বয়স-উপযোগিতা, স্বত্ব ও প্রবেশযোগ্যতার নামসহ পর্যালোচনা এখনো বাকি।",
-              )}
-            </span>
-          </aside>
-
-          {active.sections.map((section) => (
-            <section className="topic-section" key={section.heading.en}>
-              <h2>{section.heading[language]}</h2>
-              <p>{section.body[language]}</p>
-            </section>
-          ))}
-
-          <section className="topic-facts" aria-label={s("Fun facts", "মজার তথ্য")}>
-            <h2>✨ {s("Did you know?", "জানো কি?")}</h2>
-            <ul>
-              {active.funFacts.map((fact) => (
-                <li key={fact.en}>{fact[language]}</li>
-              ))}
-            </ul>
-          </section>
-
-          <section className="topic-sources" aria-label={s("Trusted source", "নির্ভরযোগ্য উৎস")}>
-            <h2>📖 {s("From the government textbooks", "সরকারি পাঠ্যবই থেকে")}</h2>
-            <p className="topic-sources-note">
-              {s(
-                "These are candidate NCTB evidence anchors for a reviewer to check. A listed book does not mean every sentence below has been approved:",
-                "এগুলো পর্যালোচকের যাচাইয়ের জন্য সম্ভাব্য এনসিটিবি প্রমাণ-উৎস। বইয়ের নাম থাকা মানে নিচের প্রতিটি বাক্য অনুমোদিত নয়:",
-              )}
-            </p>
-            <ul>
-              {active.sources.map((source) => {
-                const book = bookById(source.bookId);
-                if (!book) return null;
-                return (
-                  <li key={source.bookId}>
-                    <strong lang="bn">{book.titleBn}</strong>
-                    <span> — {language === "bn" ? book.classes.bn : `${book.titleEn}, ${book.classes.en}`}</span>
-                    <em>{source.note[language]}</em>
-                    <a href={NCTB_PORTAL_URL} target="_blank" rel="noreferrer">{s("Official NCTB source portal", "এনসিটিবির মূল উৎস")}</a>
-                  </li>
-                );
-              })}
-            </ul>
-            <Link href="/library">{s("Open the textbook library →", "পাঠ্যবই লাইব্রেরি খোলো →")}</Link>
-            <Link href="/references">{s("Sources and reference guide", "উৎস ও তথ্যসূত্রের নির্দেশিকা")}</Link>
-          </section>
-          {canRecord && <button type="button" className="primary-button" disabled={readIds.includes(active.id)} onClick={async () => {
-            try {
-              const response = await fetch("/api/student/topic-progress", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ topicId: active.id }) });
-              const data = await response.json(); if (!response.ok) throw new Error(data.error);
-              setReadIds((current) => [...current, active.id]);
-            } catch (error) { setError(error instanceof Error ? error.message : "Could not save progress."); }
-          }}>{readIds.includes(active.id) ? s("Reading complete", "পড়া সম্পন্ন") : s("Mark reading complete", "পড়া সম্পন্ন হিসেবে রাখো")}</button>}
-
-          <section className="topic-quiz" aria-label={s("Quiz", "কুইজ")}>
-            <h2>📝 {s("Show what you know", "কতটা জানলে দেখাও")}</h2>
-            {active.quiz.map((question, questionIndex) => (
-              <fieldset className="topic-question" key={question.question.en}>
-                <legend>
-                  {questionIndex + 1}. {question.question[language]}
-                </legend>
-                <div className="topic-options">
-                  {question.options.map((option, optionIndex) => {
-                    const selected = answers[questionIndex] === optionIndex;
-                    const isRight = checked && optionIndex === question.answer;
-                    const isWrong = checked && selected && optionIndex !== question.answer;
-                    return (
-                      <button
-                        type="button"
-                        key={option.en}
-                        className={`topic-option ${selected ? "is-selected" : ""} ${isRight ? "is-right" : ""} ${isWrong ? "is-wrong" : ""}`}
-                        disabled={checked}
-                        onClick={() =>
-                          setAnswers((current) => ({ ...current, [questionIndex]: optionIndex }))
-                        }
-                      >
-                        {option[language]}
-                      </button>
-                    );
-                  })}
-                </div>
-              </fieldset>
-            ))}
-
-            {checked ? (
-              <div className="topic-result" role="status">
-                <strong>
-                  {s(
-                    `You got ${score} out of ${active.quiz.length}!`,
-                    `তুমি ${active.quiz.length}টির মধ্যে ${score}টি পেরেছ!`,
-                  )}
-                </strong>
-                <p>
-                  {s(
-                    "Show this screen to your teacher or family — or read the topic again and try for a full score.",
-                    "এই পর্দাটি শিক্ষক বা পরিবারকে দেখাও — অথবা আবার পড়ে পুরো নম্বরের চেষ্টা করো।",
-                  )}
-                </p>
-                <div className="topic-result-actions">
-                  <button type="button" onClick={() => { setAnswers({}); setChecked(false); }}>
-                    {s("Try again", "আবার চেষ্টা")}
-                  </button>
-                  <button type="button" onClick={closeTopic}>
-                    {s("Pick another topic", "অন্য বিষয় বেছে নাও")}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <button
-                type="button"
-                className="primary-button topic-submit"
-                disabled={!allAnswered}
-                onClick={submitQuiz}
-              >
-                {allAnswered
-                  ? s("Check my answers", "উত্তর মিলিয়ে দেখো")
-                  : s("Answer every question first", "আগে সব প্রশ্নের উত্তর দাও")}
+          <TopicReader
+            key={active.id}
+            topic={active}
+            language={language}
+            best={scores[active.id]}
+            onQuizChecked={canRecord ? (answers) => void saveProgress(active.id, answers) : undefined}
+            quizNote={quizSaved ? s("Saved. This topic now counts as read, and your teacher can see your best score.", "সংরক্ষিত। বিষয়টি এখন পড়া হিসেবে গোনা হবে, আর শিক্ষক তোমার সেরা ফল দেখতে পাবেন।") : undefined}
+            onPickAnother={closeTopic}
+            beforeQuiz={canRecord && (
+              <button type="button" className="primary-button" disabled={read} onClick={() => void saveProgress(active.id)}>
+                {read ? s("Reading complete", "পড়া সম্পন্ন") : s("Mark reading complete", "পড়া সম্পন্ন হিসেবে রাখো")}
               </button>
             )}
-          </section>
+          />
+          {canReview && active.approval && <p className="topic-staff-note" role="note">
+            {approvalLabel(active.approval)} <Link href={`/teach/topics?topic=${encodeURIComponent(active.id)}`}>{s("Edit or review in Lessons & topics →", "পাঠ ও বিষয়-এ সম্পাদনা বা পর্যালোচনা →")}</Link>
+          </p>}
         </article>
       </main>
     );
@@ -253,71 +118,50 @@ export default function TopicsHub({ initialTopic }: { initialTopic?: string }) {
 
   return (
     <main className="explore-app topics-app" lang={language}>
-      <header className="explore-header">
-        <Link className="adult-brand" href="/">
-          <span>বা</span>
-          <span>
-            <strong>Bangla Adventures</strong>
-            <small>{s("Classroom topics", "শ্রেণিকক্ষের বিষয়")}</small>
-          </span>
-        </Link>
-        <nav aria-label="Sections">
-          <a href={courseHref}>{s("Learning course", "শেখার কোর্স")}</a>
-          <Link className="active" href="/topics">{s("Topics", "বিষয়")}</Link>
-          <Link href="/library">{s("Textbook library", "পাঠ্যবই লাইব্রেরি")}</Link>
-        </nav>
-        <button type="button" className="explore-lang" onClick={toggleLanguage}>
-          {s("বাংলায় দেখুন", "View in English")}
-        </button>
-      </header>
-
-      <aside className="topics-review-banner topics-review-banner-wide" role="note">
-        <strong>{s("Candidate content — review mode", "সম্ভাব্য বিষয়বস্তু — পর্যালোচনা মোড")}</strong>
-        <span>
-          {s(
-            "These topic prototypes are not a published curriculum. The Moodle pilot starts with three modules and stays hidden until its release gates pass.",
-            "এই বিষয়ের খসড়াগুলো প্রকাশিত পাঠ্যক্রম নয়। মুডল পাইলট তিনটি মডিউল দিয়ে শুরু হবে এবং পর্যালোচনার সব ধাপ পাস না করা পর্যন্ত গোপন থাকবে।",
-          )}
-        </span>
-      </aside>
+      {header}
 
       <section className="explore-hero">
-        <p className="adult-eyebrow">{s("Culture · history · literature", "সংস্কৃতি · ইতিহাস · সাহিত্য")}</p>
+        <p className="adult-eyebrow">{s("History · our country · culture · literature", "ইতিহাস · আমাদের দেশ · সংস্কৃতি · সাহিত্য")}</p>
         <h1>{s("Got a topic from Bangla school? Start here.", "বাংলা স্কুল থেকে বিষয় পেয়েছ? শুরু এখানেই।")}</h1>
         <p>
           {s(
-            "Read a short, kid-friendly page, check the government textbook it comes from, then take a three-question quiz you can show your teacher. Everything works in English and Bangla.",
-            "ছোট, সহজ একটি পাতা পড়ো, কোন সরকারি পাঠ্যবই থেকে এসেছে দেখো, তারপর তিন প্রশ্নের কুইজ দিয়ে শিক্ষককে দেখাও। সবকিছু ইংরেজি ও বাংলায় চলে।",
+            "Read a short, kid-friendly page, check the government textbook it comes from, then take a short quiz you can show your teacher. Everything works in English and Bangla.",
+            "ছোট, সহজ একটি পাতা পড়ো, কোন সরকারি পাঠ্যবই থেকে এসেছে দেখো, তারপর ছোট একটি কুইজ দিয়ে শিক্ষককে দেখাও। সবকিছু ইংরেজি ও বাংলায় চলে।",
           )}
         </p>
+        {canRecord && loaded && <p className="topics-progress" role="status">
+          {s(`Topics read: ${readIds.length} of ${topics.length}`, `পড়া বিষয়: ${n(topics.length)}টির মধ্যে ${n(readIds.length)}টি`)}
+        </p>}
       </section>
 
+      {canReview && <aside className="topic-staff-note" role="note">
+        {s("Teacher view: students see only the approved topics below.", "শিক্ষকের দৃশ্য: শিক্ষার্থীরা শুধু নিচের অনুমোদিত বিষয়গুলো দেখে।")}{" "}
+        {pendingCount > 0 && s(`${pendingCount} ${pendingCount === 1 ? "topic is" : "topics are"} waiting for approval.`, `${n(pendingCount)}টি বিষয় অনুমোদনের অপেক্ষায়।`)}{" "}
+        <Link href="/teach/topics">{s("Open Lessons & topics →", "পাঠ ও বিষয় খুলুন →")}</Link>
+      </aside>}
+
       {error && <p className="auth-error" role="alert">{error}</p>}
-      {!topics.length && !error && <p role="status">{s("Loading learning topics…", "শেখার বিষয় লোড হচ্ছে…")}</p>}
-      {topicThemes.map((theme) => (
-        <section className="explore-section" key={theme.id} aria-label={theme.title[language]}>
-          <h2>
-            <span aria-hidden="true">{theme.icon}</span> {theme.title[language]}
-          </h2>
-          <p className="explore-section-note">{theme.note[language]}</p>
+      {!loaded && !error && <p role="status">{s("Loading learning topics…", "শেখার বিষয় লোড হচ্ছে…")}</p>}
+      {groups.map(({ category, items }) => (
+        <section className="explore-section" key={category.id} aria-label={category.title[language]}>
+          <h2><span aria-hidden="true">{category.icon}</span> {category.title[language]}</h2>
+          <p className="explore-section-note">{category.note[language]}</p>
           <div className="topics-grid">
-            {topics.filter((topic) => topic.theme === theme.id).map((topic) => {
-              const finished = done[topic.id];
+            {items.map((topic) => {
+              const best = scores[topic.id];
               return (
-                <button
-                  type="button"
-                  className="topic-card"
-                  key={topic.id}
-                  onClick={() => openTopic(topic.id)}
-                >
+                <button type="button" className="topic-card" key={topic.id} onClick={() => openTopic(topic.id)}>
                   <span className="topic-emoji" aria-hidden="true">{topic.emoji}</span>
                   <strong>{topic.title[language]}</strong>
                   <p>{topic.tagline[language]}</p>
-                  <span className="topic-draft-chip">{s("Draft review", "খসড়া পর্যালোচনা")}</span>
+                  {canReview && topic.approval && <span className="topic-draft-chip">{topic.approval.pendingVersions.length ? s("New version waiting", "নতুন সংস্করণ অপেক্ষায়") : topic.approval.baseline ? s("Approved · baseline", "অনুমোদিত · আগে থেকে থাকা") : s("Approved", "অনুমোদিত")}</span>}
+                  {readIds.includes(topic.id) && <span className="topic-read-chip">{s("Read ✓", "পড়া হয়েছে ✓")}</span>}
                   <small>
-                    {finished !== undefined
-                      ? s(`Quiz done — best ${finished}/${topic.quiz.length} ⭐`, `কুইজ শেষ — সেরা ${finished}/${topic.quiz.length} ⭐`)
-                      : s(`${topic.minutes} min read + quiz`, `${topic.minutes.toLocaleString("bn-BD")} মিনিট পড়া + কুইজ`)}
+                    {best
+                      ? s(`Quiz done — best ${best.best}/${best.total} ⭐`, `কুইজ শেষ — সেরা ${n(best.best)}/${n(best.total)} ⭐`)
+                      : topic.quiz.length
+                        ? s(`${topic.minutes} min read + quiz`, `${n(topic.minutes)} মিনিট পড়া + কুইজ`)
+                        : s(`${topic.minutes} min read`, `${n(topic.minutes)} মিনিট পড়া`)}
                   </small>
                 </button>
               );
@@ -325,21 +169,17 @@ export default function TopicsHub({ initialTopic }: { initialTopic?: string }) {
           </div>
         </section>
       ))}
+      {loaded && !topics.length && <p>{s("No topics have been approved yet.", "এখনো কোনো বিষয় অনুমোদিত হয়নি।")}</p>}
 
-      <section className="topics-teacher-note">
+      {canReview && <section className="topics-teacher-note">
         <span aria-hidden="true">🍎</span>
         <p>
-          {s(
-            "Teachers: the source labels are a review queue, not automatic approval. Build approved quizzes and collect learner work in the ",
-            "শিক্ষকদের জন্য: উৎসের নামগুলো পর্যালোচনার তালিকা, স্বয়ংক্রিয় অনুমোদন নয়। অনুমোদিত কুইজ ও শিক্ষার্থীর কাজ রাখুন ",
-          )}
-          {moodleUrl ? (
-            <a href={moodleUrl}>{s("Moodle pilot course →", "মুডল পাইলট কোর্স →")}</a>
-          ) : (
-            <Link href="/teach">{s("legacy teacher preview →", "পুরোনো শিক্ষক প্রিভিউ →")}</Link>
-          )}
+          {s("Teachers: write new topics, preview them in English and Bangla and approve them in ", "শিক্ষকদের জন্য: নতুন বিষয় লিখুন, ইংরেজি ও বাংলায় দেখে নিন এবং অনুমোদন দিন ")}
+          <Link href="/teach/topics">{s("Lessons & topics →", "পাঠ ও বিষয় →")}</Link>{" "}
+          {s("Set class quizzes in your ", "ক্লাসের কুইজ দিন ")}
+          <Link href="/teach">{s("teacher workspace →", "শিক্ষকের কর্মক্ষেত্রে →")}</Link>
         </p>
-      </section>
+      </section>}
     </main>
   );
 }

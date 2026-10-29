@@ -339,4 +339,28 @@ export const studentTopicProgress = sqliteTable("student_topic_progress", {
   studentId: text("student_id").notNull().references(() => students.id, { onDelete: "cascade" }),
   topicId: text("topic_id").notNull(),
   completedAt: text("completed_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  // Best topic-quiz result; added by db/content-migration.ts.
+  quizBestScore: integer("quiz_best_score"),
+  quizTotal: integer("quiz_total"),
+  quizCompletedAt: text("quiz_completed_at"),
 }, (table) => [uniqueIndex("student_topic_progress_unique").on(table.studentId, table.topicId)]);
+
+// Content approval and authoring
+export const topicVersions = sqliteTable("topic_versions", {
+  id: text("id").primaryKey(),
+  topicId: text("topic_id").notNull(),
+  version: integer("version").notNull(),
+  dataJson: text("data_json").notNull(),
+  status: text("status", { enum: ["pending", "approved", "rejected", "superseded"] }).notNull().default("pending"),
+  // Content students already saw before approval existed, approved as a baseline rather than reviewed.
+  baseline: integer("baseline", { mode: "boolean" }).notNull().default(false),
+  basedOn: integer("based_on"),
+  createdBy: text("created_by").references(() => adults.id, { onDelete: "set null" }),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  reviewedBy: text("reviewed_by").references(() => adults.id, { onDelete: "set null" }),
+  reviewedAt: text("reviewed_at"),
+  reviewNote: text("review_note").notNull().default(""),
+}, (table) => [
+  uniqueIndex("topic_versions_topic_version_unique").on(table.topicId, table.version),
+  index("topic_versions_status_idx").on(table.status),
+]);

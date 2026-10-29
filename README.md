@@ -31,12 +31,14 @@ The running deployment uses the **custom English–Bangla application**, followi
 | Role | What they can do |
 | --- | --- |
 | 🧒&nbsp;**Students** | Use My Learning, learning topics, allocated classes, activities and results. A student given a temporary password must choose their own at first sign-in; My Learning, the learning pages and the student APIs stay closed until they do. |
-| 🧑‍🏫&nbsp;**Teachers** | Join once an administrator approves them, and allocate students without class codes. Upload a CSV class list (`name`, optional `username`; up to 200 rows) to create accounts with one-time temporary passwords. Student sign-in is rate-limited per account, so a whole class can sign in together from one school network. |
-| 🛡️&nbsp;**Administrators** | Manage accounts, family links, class allocation and topic-reading updates. Review, export and reset grades and results in every class (`/admin/results`), and open any class from the teacher workspace. |
+| 🧑‍🏫&nbsp;**Teachers** | Join once an administrator approves them, and allocate students without class codes. Upload a CSV class list (`name`, optional `username`; up to 200 rows) to create accounts with one-time temporary passwords. Student sign-in is rate-limited per account, so a whole class can sign in together from one school network. Write and edit topics, preview them in English and Bangla, and approve them for students (`/teach/topics`). |
+| 🛡️&nbsp;**Administrators** | Manage accounts, family links and class allocation, and write, preview and approve topics like teachers. Review, export and reset grades and results in every class (`/admin/results`), and open any class from the teacher workspace. |
 | 👪&nbsp;**Parents** | See, read-only, the learning records of the children an administrator has linked to them. |
 
-Learning content requires sign-in. Curriculum edits retain educator-review notices; saving a
-topic is not approval of its educational accuracy, rights or age suitability.
+Learning content requires sign-in. Students see only approved topics: a new or edited topic
+stays hidden until a teacher or administrator has previewed all of it in English and Bangla
+and approved it. The topics that shipped with the app are approved as a baseline and are
+marked that way for staff, because they have not been individually reviewed.
 
 `PLATFORM_MODE=legacy` is the configuration name for the custom application; it does not mean
 the running portals are retired. The Moodle pilot remains an alternative implementation, not the
@@ -157,7 +159,8 @@ app or LTI dependency.
 
 | Route | Pilot role |
 | --- | --- |
-| `/topics` | Draft bilingual topic review experience |
+| `/topics` | Approved bilingual topics by category, with a quiz that counts towards Topics read |
+| `/teach/topics` | Staff Lessons & topics: write, edit, preview and approve topics |
 | `/books` | Audited NCTB Book Bridge and precise source metadata |
 | `/library` | Adult-facing textbook catalogue |
 | `/resources` | External research register; not approved curriculum |

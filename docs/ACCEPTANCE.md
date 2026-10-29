@@ -54,10 +54,12 @@ and preserve real records.
 
 1. **Administrator:** register the confirmed test owner, grant admin on the same
    database, sign in again, approve a teacher, manage student/family links and
-   update topic reading. Verify existing quizzes/sources and review notices remain.
+   edit a topic in Lessons & topics. Verify students keep the approved version
+   until the edit is previewed in English and Bangla and approved.
 2. **Teacher:** request access, demonstrate no teaching privileges before approval,
    create a class and activity/quiz, allocate an exact registered student, inspect
-   submissions/results, and post an announcement visible only to that class.
+   submissions/results, and post an announcement visible only to that class. Write
+   a new topic, confirm students cannot see it, then preview and approve it.
 3. **Student:** sign in to My Learning, open Learning topics and sources, complete
    an allocated activity, view results/progress, refresh and switch devices. Confirm
    unallocated class data is unavailable and no self-enrolment code is required.

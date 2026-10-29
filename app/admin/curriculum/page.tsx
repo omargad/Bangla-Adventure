@@ -1,9 +1,8 @@
-import { requireAdult } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import CurriculumEditor from "./CurriculumEditor";
+import { requireTeacher } from "@/lib/auth";
 export const dynamic = "force-dynamic";
+// The administrator-only curriculum editor became the shared Lessons & topics area.
 export default async function Page() {
-  const user = await requireAdult("/admin/curriculum");
-  if (user.role !== "admin") redirect("/family");
-  return <CurriculumEditor name={user.displayName} />;
+  await requireTeacher("/teach/topics");
+  redirect("/teach/topics");
 }

@@ -5,7 +5,7 @@ import { getSessionAdult } from "@/lib/auth";
 import { canTeach } from "@/lib/roles";
 import { findManagedClass } from "@/lib/class-access";
 import { validateQuizQuestions } from "@/lib/classroom";
-import { topics } from "../../../../topics-content";
+import { findApprovedTopic } from "@/lib/curriculum-catalog";
 
 export const dynamic = "force-dynamic";
 
@@ -29,10 +29,11 @@ export async function POST(request: Request, context: RouteContext) {
     const title = typeof body.title === "string" ? body.title.trim() : "";
     if (!title || title.length > 120) return Response.json({ error: "Give the activity a title of 1–120 characters." }, { status: 400 });
     if (body.instructions !== undefined && (typeof body.instructions !== "string" || body.instructions.length > 1000)) return Response.json({ error: "Instructions must be text of at most 1000 characters." }, { status: 400 });
-    if (body.topicId !== undefined && body.topicId !== null && body.topicId !== "" && !topics.some((topic) => topic.id === body.topicId)) return Response.json({ error: "Choose a valid learning topic." }, { status: 400 });
+    // Activities link only to approved topics, so students never get a pointer to unapproved content.
+    const linked = body.topicId === undefined || body.topicId === null || body.topicId === "" ? null : await findApprovedTopic(body.topicId);
+    if (body.topicId !== undefined && body.topicId !== null && body.topicId !== "" && !linked) return Response.json({ error: "Choose a valid learning topic." }, { status: 400 });
     const instructions = typeof body.instructions === "string" ? body.instructions.trim().slice(0, 1000) : "";
-    const topicId =
-      typeof body.topicId === "string" && topics.some((topic) => topic.id === body.topicId) ? body.topicId : null;
+    const topicId = linked?.id ?? null;
 
     const validated = validateQuizQuestions(body.questions);
     if ("error" in validated) return Response.json({ error: validated.error }, { status: 400 });

@@ -4,7 +4,6 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { lessons, levelBands, type CurriculumLevel } from "../curriculum";
-import { topics } from "../topics-content";
 import { libraryBooks } from "../library-content";
 import LessonExperience from "../components/LessonExperience";
 import FourSkillDiagnostic from "../components/FourSkillDiagnostic";
@@ -457,6 +456,16 @@ export default function Home() {
     () => placementStatements.map(() => null),
   );
   const [placementSubmitted, setPlacementSubmitted] = useState(false);
+  // Learners count only approved classroom topics, so the number comes from the server.
+  const [topicCount, setTopicCount] = useState<number | null>(null);
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch("/api/curriculum?summary=1", { signal: controller.signal, cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => { if (typeof data?.topicCount === "number") setTopicCount(data.topicCount); })
+      .catch(() => undefined);
+    return () => controller.abort();
+  }, []);
   const audioContextRef = useRef<AudioContext | null>(null);
   const ambienceRef = useRef<AmbienceNodes | null>(null);
   const recordedAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -1178,7 +1187,7 @@ export default function Home() {
               </Link>
             </div>
             <div className="hero-mini-stats" aria-label="What is inside">
-              <span><strong>{topics.length}</strong> {language === "en" ? "topic drafts" : "বিষয়ের খসড়া"}</span>
+              <span><strong>{topicCount === null ? "—" : language === "en" ? topicCount : topicCount.toLocaleString("bn-BD")}</strong> {language === "en" ? "classroom topics" : "শ্রেণিকক্ষের বিষয়"}</span>
               <span><strong>{libraryBooks.length}</strong> {language === "en" ? "textbook sources" : "পাঠ্যবইয়ের উৎস"}</span>
               <span><strong>{lessons.length}</strong> {language === "en" ? "Bangla lessons" : "বাংলা পাঠ"}</span>
               <span><strong>2</strong> {language === "en" ? "languages" : "ভাষা"}</span>
@@ -1200,7 +1209,7 @@ export default function Home() {
           <div className="adventure-choices-heading"><div><p className="eyebrow">{language === "en" ? "Small steps. Big discoveries." : "ছোট্ট পা। বড় আবিষ্কার।"}</p><h2 id="adventure-choices-title">{language === "en" ? "What shall we explore today?" : "আজ কী আবিষ্কার করব?"}</h2></div><p>{language === "en" ? "Choose your own adventure. There’s no rush." : "নিজের অভিযান বেছে নাও। কোনো তাড়া নেই।"}</p></div>
           <nav className="adventure-paths" aria-label={language === "en" ? "Choose your adventure" : "তোমার অভিযান বেছে নাও"}>
             <Link href="/stories" className="adventure-path path-story"><span className="path-illustration" aria-hidden="true"><svg viewBox="0 0 64 64" fill="none"><path d="M32 17C24 10 14 10 6 13v36c9-4 17-3 26 4 9-7 17-8 26-4V13c-8-3-18-3-26 4Z" fill="#fff8e9" stroke="currentColor" strokeWidth="3"/><path d="M32 17v36M14 23l10 2m-10 7 10 2m16-9 10-2m-10 11 10-2" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/></svg></span><span><small>{language === "en" ? "Once upon a river" : "এক নদীর গল্প"}</small><strong>{language === "en" ? "Read a story" : "গল্প পড়ি"}</strong><p>{language === "en" ? "Meet new friends, one page at a time." : "পাতায় পাতায় নতুন বন্ধুর সঙ্গে দেখা হোক।"}</p></span><span className="path-arrow" aria-hidden="true">→</span></Link>
-            <Link href="/topics" className="adventure-path path-explore"><span className="path-illustration" aria-hidden="true"><svg viewBox="0 0 64 64" fill="none"><circle cx="32" cy="32" r="25" fill="#fff8e9" stroke="currentColor" strokeWidth="3"/><path d="m42 19-6 17-16 9 7-18 15-8Z" fill="#f6b93b" stroke="currentColor" strokeWidth="3"/><circle cx="32" cy="32" r="3" fill="currentColor"/></svg></span><span><small>{language === "en" ? "A world to discover" : "আবিষ্কারের এক জগৎ"}</small><strong>{language === "en" ? "Explore Bangladesh" : "বাংলাদেশকে জানি"}</strong><p>{language === "en" ? "Explore topic drafts with your teacher." : "শিক্ষকের সঙ্গে বিষয়ের খসড়াগুলো দেখো।"}</p></span><span className="path-arrow" aria-hidden="true">→</span></Link>
+            <Link href="/topics" className="adventure-path path-explore"><span className="path-illustration" aria-hidden="true"><svg viewBox="0 0 64 64" fill="none"><circle cx="32" cy="32" r="25" fill="#fff8e9" stroke="currentColor" strokeWidth="3"/><path d="m42 19-6 17-16 9 7-18 15-8Z" fill="#f6b93b" stroke="currentColor" strokeWidth="3"/><circle cx="32" cy="32" r="3" fill="currentColor"/></svg></span><span><small>{language === "en" ? "A world to discover" : "আবিষ্কারের এক জগৎ"}</small><strong>{language === "en" ? "Explore Bangladesh" : "বাংলাদেশকে জানি"}</strong><p>{language === "en" ? "Read classroom topics about Bangladesh with your teacher." : "শিক্ষকের সঙ্গে বাংলাদেশ নিয়ে শ্রেণিকক্ষের বিষয়গুলো পড়ো।"}</p></span><span className="path-arrow" aria-hidden="true">→</span></Link>
             <Link href="/student" className="adventure-path path-class"><span className="path-illustration" aria-hidden="true"><svg viewBox="0 0 64 64" fill="none"><rect x="10" y="19" width="44" height="36" rx="10" fill="#fff8e9" stroke="currentColor" strokeWidth="3"/><path d="M23 19v-7a9 9 0 0 1 18 0v7" stroke="currentColor" strokeWidth="3"/><rect x="20" y="34" width="24" height="13" rx="4" fill="#bde7f5" stroke="currentColor" strokeWidth="3"/></svg></span><span><small>{language === "en" ? "Your learning crew" : "তোমার শেখার দল"}</small><strong>{language === "en" ? "My classroom" : "আমার শ্রেণিকক্ষ"}</strong><p>{language === "en" ? "Sign in, join your class and try a quiz." : "সাইন ইন করে ক্লাসে যোগ দাও আর কুইজ করো।"}</p></span><span className="path-arrow" aria-hidden="true">→</span></Link>
           </nav>
           <p className="adventure-grownup-note">{language === "en" ? "Exploring together?" : "একসঙ্গে ঘুরে দেখছ?"} <Link href="/grown-ups">{language === "en" ? "Parents, start here" : "অভিভাবকেরা এখানে শুরু করুন"}</Link><span aria-hidden="true"> · </span><Link href="/teach">{language === "en" ? "Teacher workspace" : "শিক্ষকের কর্মক্ষেত্র"}</Link></p>

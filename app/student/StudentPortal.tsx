@@ -3,12 +3,13 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useLanguage } from "@/lib/use-language";
 import type { Student } from "@/lib/student-auth";
-import type { CatalogTopic } from "@/lib/curriculum-catalog";
+import type { Topic } from "../topics-content";
+import { formatNumber, groupByCategory } from "@/lib/topic-model";
 import PortalShell from "../components/PortalShell";
 
 type Activity = { id: string; title: string; instructions: string; topicId: string | null; status: string; questions: { prompt: string; options: string[] }[]; submission: { score: number; total: number; submittedAt: string } | null };
 type Feed = { metrics: { enrolledClasses: number; assignedActivities: number; completedActivities: number; averagePercent: number }; classes: { id: string; name: string; teacherName: string; announcements: { id: string; body: string; createdAt: string }[]; activities: Activity[] }[] };
-type Catalog = { topics: CatalogTopic[]; readTopicIds: string[] };
+type Catalog = { topics: Topic[]; readTopicIds: string[]; quizScores?: Record<string, { best: number; total: number }> };
 const PASSWORD_PATH = "/student/password";
 async function request<T>(url: string, data?: object): Promise<T> {
   const response = await fetch(url, data ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) } : { cache: "no-store" });
@@ -23,6 +24,7 @@ export default function StudentPortal({ initialStudent, destination = "/student"
 }) {
   const [language, toggleLanguage] = useLanguage();
   const s = (en: string, bn: string) => language === "bn" ? bn : en;
+  const n = (value: number) => formatNumber(value, language);
   const [student, setStudent] = useState(initialStudent);
   const [mode, setMode] = useState(initialMode);
   const [username, setUsername] = useState("");
@@ -102,7 +104,7 @@ export default function StudentPortal({ initialStudent, destination = "/student"
       <div className="portal-heading"><div><p className="adult-eyebrow">{s("A little progress, every day", "প্রতিদিন একটু অগ্রগতি")}</p><h1>{s("My Learning", "আমার শেখা")}</h1></div><button className="outline-button" onClick={() => void load()}>{s("Refresh", "হালনাগাদ")}</button></div>
       {error && <p className="auth-error" role="alert">{error}</p>}
       {!feed && !error && <p role="status">{s("Loading your learning…", "তোমার বিষয় লোড হচ্ছে…")}</p>}
-      {!activity && <section className="workspace-stats" aria-label="Student progress"><div><small>{s("Topics read", "পড়া বিষয়")}</small><strong>{catalog?.readTopicIds.length ?? "—"} / {catalog?.topics.length ?? "—"}</strong></div><div><small>{s("Activities complete", "সম্পন্ন কার্যক্রম")}</small><strong>{feed?.metrics.completedActivities ?? "—"} / {feed?.metrics.assignedActivities ?? "—"}</strong></div><div><small>{s("My classes", "আমার ক্লাস")}</small><strong>{feed?.metrics.enrolledClasses ?? "—"}</strong></div><div><small>{s("Average result", "গড় ফলাফল")}</small><strong>{results.length ? `${feed?.metrics.averagePercent}%` : "—"}</strong></div></section>}
+      {!activity && <section className="workspace-stats" aria-label="Student progress"><div><small>{s("Topics read", "পড়া বিষয়")}</small><strong>{catalog ? `${n(catalog.readTopicIds.length)} / ${n(catalog.topics.length)}` : "— / —"}</strong></div><div><small>{s("Activities complete", "সম্পন্ন কার্যক্রম")}</small><strong>{feed?.metrics.completedActivities ?? "—"} / {feed?.metrics.assignedActivities ?? "—"}</strong></div><div><small>{s("My classes", "আমার ক্লাস")}</small><strong>{feed?.metrics.enrolledClasses ?? "—"}</strong></div><div><small>{s("Average result", "গড় ফলাফল")}</small><strong>{results.length ? `${feed?.metrics.averagePercent}%` : "—"}</strong></div></section>}
       {!activity && section !== "results" && feed && <section className="teach-panel" aria-label={s("Class announcements", "ক্লাসের ঘোষণা")}>
         <h2>{s("Class announcements", "ক্লাসের ঘোষণা")}</h2>
         {announcements.length === 0 && <p>{s("No class announcements yet. Notices from your allocated classes will appear here.", "এখনও ক্লাসের ঘোষণা নেই। তোমার বরাদ্দ ক্লাসের ঘোষণা এখানে দেখা যাবে।")}</p>}
@@ -116,7 +118,9 @@ export default function StudentPortal({ initialStudent, destination = "/student"
           <button className="primary-button" disabled={busy}>{busy ? s("Saving…", "সংরক্ষণ হচ্ছে…") : s("Submit answers", "উত্তর জমা দাও")}</button>
         </form>}
       </section> : <>
-        {section === "learning" && <section aria-label="Learning topics"><h2>{s("Choose a topic", "একটি বিষয় বেছে নাও")}</h2><p>{s("Read, explore and mark your progress. Topic drafts keep their educator-review notices.", "পড়ো, জানো ও অগ্রগতি রাখো। বিষয়ের খসড়ায় পর্যালোচনার বিজ্ঞপ্তি থাকবে।")}</p><div className="portal-topic-grid">{catalog?.topics.map((topic) => <Link className="portal-topic-card" key={topic.id} href={`/topics?topic=${encodeURIComponent(topic.id)}`}><small>{topic.theme} · {s(`${topic.minutes} min`, `${topic.minutes.toLocaleString("bn-BD")} মিনিট`)}</small><h3>{topic.title[language]}</h3><p>{topic.tagline[language]}</p><strong>{catalog.readTopicIds.includes(topic.id) ? s("Read · revisit", "পড়া হয়েছে · আবার পড়ি") : s("Start reading", "পড়া শুরু করি")} →</strong></Link>)}</div><Link className="outline-button" href="/learn">{s("More language activities", "আরও ভাষার কার্যক্রম")}</Link></section>}
+        {section === "learning" && <section aria-label="Learning topics"><h2>{s("Choose a topic", "একটি বিষয় বেছে নাও")}</h2><p>{s("Read, explore and mark your progress. Finishing a topic's quiz also counts as reading it.", "পড়ো, জানো ও অগ্রগতি রাখো। কোনো বিষয়ের কুইজ শেষ করলেও সেটি পড়া হিসেবে গোনা হয়।")}</p>
+          {catalog && groupByCategory(catalog.topics).map(({ category, items }) => <section key={category.id} aria-label={category.title[language]}><h3 className="portal-category-heading"><span aria-hidden="true">{category.icon}</span> {category.title[language]}</h3><div className="portal-topic-grid">{items.map((topic) => { const best = catalog.quizScores?.[topic.id]; return <Link className="portal-topic-card" key={topic.id} href={`/topics?topic=${encodeURIComponent(topic.id)}`}><small>{s(`${topic.minutes} min`, `${n(topic.minutes)} মিনিট`)}{best ? ` · ${s("quiz best", "কুইজে সেরা")} ${n(best.best)}/${n(best.total)}` : ""}</small><h3>{topic.title[language]}</h3><p>{topic.tagline[language]}</p><strong>{catalog.readTopicIds.includes(topic.id) ? s("Read · revisit", "পড়া হয়েছে · আবার পড়ি") : s("Start reading", "পড়া শুরু করি")} →</strong></Link>; })}</div></section>)}
+          <Link className="outline-button" href="/learn">{s("More language activities", "আরও ভাষার কার্যক্রম")}</Link></section>}
         {section === "activities" && <section><h2>{s("My class activities", "আমার ক্লাসের কার্যক্রম")}</h2>{feed?.classes.length === 0 && <div className="teach-panel"><h3>{s("Your teacher will add your class", "শিক্ষক তোমার ক্লাস যোগ করবেন")}</h3><p>{s("You can explore your learning topics while you wait.", "অপেক্ষার সময় শেখার বিষয়গুলো পড়তে পারো।")}</p></div>}{feed?.classes.map((c) => <section className="teach-panel" key={c.id}><h3>{c.name}</h3><p>{s("Teacher", "শিক্ষক")}: {c.teacherName}</p>{!c.activities.length && <p>{s("Your teacher has not added activities yet.", "শিক্ষক এখনও কার্যক্রম যোগ করেননি।")}</p>}<div className="portal-topic-grid">{c.activities.map((a) => <button className="portal-topic-card" key={a.id} disabled={a.status !== "open"} onClick={() => { setActivity(a); setAnswers({}); setResult(null); setError(""); }}><h3>{a.title}</h3><p>{a.instructions}</p><strong>{a.submission ? `${s("Result", "ফলাফল")}: ${a.submission.score}/${a.submission.total}` : a.status === "open" ? s("Start activity", "কার্যক্রম শুরু") : s("Closed", "বন্ধ")}</strong></button>)}</div></section>)}</section>}
         {section === "results" && <section className="teach-panel"><h2>{s("My results", "আমার ফলাফল")}</h2>{!results.length ? <p>{s("Complete a class activity to see your results here.", "এখানে ফলাফল দেখতে ক্লাসের কার্যক্রম সম্পন্ন করো।")}</p> : <div className="portal-table"><table><thead><tr><th>Class</th><th>Activity</th><th>Result</th><th>Submitted</th></tr></thead><tbody>{results.map((a) => <tr key={a.id}><td>{a.className}</td><td>{a.title}</td><td>{a.submission!.score}/{a.submission!.total}</td><td>{new Date(a.submission!.submittedAt).toLocaleString()}</td></tr>)}</tbody></table></div>}</section>}
       </>}

@@ -10,7 +10,8 @@ process.env.DATABASE_PATH = path.join(dir, "test.db");
 const { getDb } = await import("../db/index.ts");
 const { adults, students, classes, studentClassEnrollments, classStudents, activitySubmissions, classActivities } = await import("../db/schema.ts");
 const { allocateStudent, removeAllocation, roster } = await import("../lib/enrollments.ts");
-const { getCatalog, saveTopic, validateTopicEdit } = await import("../lib/curriculum-catalog.ts");
+const { getCatalog, submitTopicEdit, reviewTopicVersion } = await import("../lib/curriculum-catalog.ts");
+const { validateTopicDraft } = await import("../lib/topic-model.ts");
 const db = await getDb();
 db.insert(adults).values([
   { id: "admin", email: "admin@example.com", displayName: "Admin", role: "admin", passwordHash: "fixture" },
@@ -42,21 +43,24 @@ test("removing and restoring allocation preserves submitted work", async () => {
   await allocateStudent("teacher", "class", "learner");
   assert.equal(db.select().from(studentClassEnrollments).get().classStudentId, enrollment.classStudentId);
 });
-test("admin reading updates reach the catalogue without changing source mappings or review status", async () => {
+// Teachers now write topics too, and an edit reaches students only once someone approves it.
+test("topic edits wait for approval, then reach the catalogue without changing source mappings", async () => {
   const initial = (await getCatalog())[0];
-  const edit = { ...initial, title: { ...initial.title, en: "Updated learning title" } };
-  await assert.rejects(saveTopic("teacher", edit), /Administrator/);
-  const saved = await saveTopic("admin", edit);
+  const edit = { ...initial, title: { ...initial.title, en: "Updated learning title" }, baseVersion: 0 };
+  await assert.rejects(submitTopicEdit("parent", initial.id, edit), /teacher or administrator/);
+  const saved = await submitTopicEdit("teacher", initial.id, edit);
   assert.equal(saved.version, 1);
+  assert.equal((await getCatalog())[0].title.en, initial.title.en, "students keep the approved version");
+  await reviewTopicVersion("admin", initial.id, 1, { decision: "approve", confirmedRead: true });
   const current = (await getCatalog())[0];
   assert.equal(current.title.en, edit.title.en);
   assert.deepEqual(current.sources, initial.sources);
   assert.deepEqual(current.quiz, initial.quiz);
-  await assert.rejects(saveTopic("admin", edit), /Reload before saving/);
+  await assert.rejects(submitTopicEdit("admin", initial.id, edit), /Reload it before saving/);
 });
 test("curriculum validation rejects missing fields and invalid reading time without changing stored content", async () => {
   const current = (await getCatalog())[0];
-  for (const edit of [{ ...current, title: { en: "", bn: "বিষয়" } }, { ...current, sections: [] }, { ...current, minutes: 0 }, { ...current, sections: [{ heading: current.title, body: { en: "", bn: "" } }] }]) assert.throws(() => validateTopicEdit(edit));
+  for (const edit of [{ ...current, title: { en: "", bn: "বিষয়" } }, { ...current, sections: [] }, { ...current, minutes: 0 }, { ...current, sections: [{ heading: current.title, body: { en: "", bn: "" } }] }]) assert.throws(() => validateTopicDraft(edit));
   assert.equal((await getCatalog())[0].version, 1);
   db.update(adults).set({ status: "suspended" }).where(eq(adults.id, "teacher")).run();
   await assert.rejects(allocateStudent("teacher", "class", "learner"), /teacher access/);
