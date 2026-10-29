@@ -49,7 +49,8 @@ const view = (row: Row): ClassSource => {
   return { id: row.id, classId: row.classId, titleEn: row.titleEn, titleBn: row.titleBn, url: row.url, host, note: row.note, createdAt: row.createdAt };
 };
 
-async function sourcesOf(classIds: string[]) {
+/** The sources of these classes, oldest first. Callers decide who may see which classes. */
+export async function sourcesOf(classIds: string[]): Promise<ClassSource[]> {
   if (!classIds.length) return [];
   const db = await getDb();
   return db.select().from(classSources).where(inArray(classSources.classId, classIds)).orderBy(asc(classSources.createdAt), asc(classSources.id)).all().map(view);

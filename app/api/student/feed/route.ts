@@ -11,6 +11,7 @@ import {
 import type { QuizQuestion } from "@/lib/classroom";
 import { listAnnouncements } from "@/lib/class-announcements";
 import { attendanceKey, studentAttendance } from "@/lib/class-attendance";
+import { sourcesOf } from "@/lib/class-sources";
 import { getStudentAccess } from "@/lib/student-auth";
 
 export const dynamic = "force-dynamic";
@@ -41,6 +42,8 @@ export async function GET() {
     const classStudentIds = enrollments.map((item) => item.classStudentId);
     // Posts for everyone in the class and for students; parents-only posts stay out.
     const announcements = listAnnouncements(db, classIds, "student");
+    // The links each class's teacher added for that class (also on Sources & references).
+    const sources = await sourcesOf(classIds);
     const activities = classIds.length
       ? await db.select().from(classActivities).where(inArray(classActivities.classId, classIds)).orderBy(desc(classActivities.createdAt))
       : [];
@@ -73,6 +76,7 @@ export async function GET() {
         joinedAt: enrollment.joinedAt,
         attendance: classAttendance(enrollment.classId),
         announcements: announcements.filter((item) => item.classId === enrollment.classId),
+        sources: sources.filter((source) => source.classId === enrollment.classId),
         activities: activities.filter((activity) => activity.classId === enrollment.classId).map((activity) => {
           const submission = submissions.find((item) => item.activityId === activity.id && item.studentId === enrollment.classStudentId);
           return {

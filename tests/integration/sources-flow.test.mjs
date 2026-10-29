@@ -217,6 +217,10 @@ test("a class source reaches the allocated student and linked parent, not other 
   const raviPage = await page("/references", raviCookie);
   assert.ok(raviPage.includes("My class sources"));
   assert.equal(raviPage.includes(url), false, "an unallocated student does not");
+  // My Learning shows the same sources with each class the student is in.
+  const mayaFeed = await (await send("/api/student/feed", "GET", undefined, mayaCookie)).json();
+  assert.deepEqual(mayaFeed.classes.find((item) => item.id === classId).sources.map((item) => item.url), [url]);
+  assert.deepEqual((await (await send("/api/student/feed", "GET", undefined, raviCookie)).json()).classes, []);
 
   const family = await (await send("/api/family/sources", "GET", undefined, parentCookie)).json();
   assert.deepEqual(family.classes[classId].map((item) => item.url), [url]);
@@ -229,5 +233,6 @@ test("a class source reaches the allocated student and linked parent, not other 
   assert.ok((await page("/references", mayaCookie)).includes("https://example.org/boishakh-songs-2"));
   assert.equal((await send(`/api/classes/${classId}/sources`, "DELETE", { sourceId: id }, teacherCookie)).status, 200);
   assert.equal((await page("/references", mayaCookie)).includes("https://example.org/boishakh-songs-2"), false);
+  assert.deepEqual((await (await send("/api/student/feed", "GET", undefined, mayaCookie)).json()).classes.find((item) => item.id === classId).sources, []);
   assert.deepEqual((await (await send("/api/family/sources", "GET", undefined, parentCookie)).json()).classes[classId], []);
 });

@@ -1,9 +1,10 @@
 import { createHash } from "node:crypto";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { getDb } from "../db";
-import { adults, classStudents, studentClassEnrollments, studentTopicProgress, topicVersions, userAuditEvents } from "../db/schema";
+import { adults, studentTopicProgress, topicVersions, userAuditEvents } from "../db/schema";
 import { topics as shippedTopics, type Bilingual, type Topic, type TopicQuizQuestion } from "../app/topics-content";
 import { topicSourceLinks, type SourceOverride } from "./library-links";
+import { currentMembers } from "./class-roster";
 import { canTeach } from "./roles";
 import {
   canRestartFromApproved, checkReview, describeTopicChanges, gradeTopicQuiz, newTopicId, statusesAfterApproval, topicChanged, TopicError, TOPIC_LIMITS,
@@ -315,9 +316,8 @@ export async function topicProgressFor(studentId: string, approvedTopics: Array<
 export async function classTopicProgress(classId: string) {
   const db = await getDb();
   const keys = quizKeys(await getCatalog());
-  const roster = db.select({ rosterId: classStudents.id, studentId: studentClassEnrollments.studentId, displayName: classStudents.displayName })
-    .from(studentClassEnrollments).innerJoin(classStudents, eq(studentClassEnrollments.classStudentId, classStudents.id))
-    .where(and(eq(studentClassEnrollments.classId, classId), eq(studentClassEnrollments.active, true))).all();
+  // The class's current students with an account, A–Z and by their current name, as in the gradebook.
+  const roster = currentMembers(db, [classId]).flatMap((member) => member.studentId ? [{ rosterId: member.id, studentId: member.studentId, displayName: member.displayName }] : []);
   const progress = roster.length ? db.select().from(studentTopicProgress).where(inArray(studentTopicProgress.studentId, roster.map((row) => row.studentId))).all().filter((row) => keys.has(row.topicId)) : [];
   return {
     approvedTopics: keys.size,
@@ -326,7 +326,7 @@ export async function classTopicProgress(classId: string) {
       const quizzes = rows.flatMap((row) => currentScore(row, keys.get(row.topicId) ?? null) ?? []);
       const score = quizzes.reduce((sum, quiz) => sum + quiz.best, 0), total = quizzes.reduce((sum, quiz) => sum + quiz.total, 0);
       return { rosterId: student.rosterId, displayName: student.displayName, topicsRead: rows.length, quizzesDone: quizzes.length, quizPercent: total ? Math.round((score / total) * 100) : null };
-    }).sort((a, b) => a.displayName.localeCompare(b.displayName)),
+    }),
   };
 }
 

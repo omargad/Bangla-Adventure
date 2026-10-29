@@ -120,6 +120,9 @@ test("a teacher adds a class source that the class's student sees", async ({ bro
     await expect(mine).toContainText("Listen before Sunday.");
     await student.getByRole("button", { name: "বাংলা", exact: true }).click();
     await expect(student.getByRole("region", { name: "আমার ক্লাসের উৎস" }).getByRole("link", { name: "বৈশাখের গান", exact: true })).toBeVisible();
+    // My activities shows the same sources with the class (the page stays in Bangla).
+    await student.goto("/student?section=activities");
+    await expect(student.getByRole("region", { name: `${className}: ক্লাসের উৎস` }).getByRole("link", { name: "বৈশাখের গান", exact: true })).toHaveAttribute("href", "https://example.org/boishakh-songs");
 
     // A student who is not in the class does not see it.
     await outsider.goto("/references");

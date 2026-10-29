@@ -252,8 +252,9 @@
 .class-source-form label, .admin-source-form label { display:grid; gap:4px; font-weight:600; }
 .class-source-form input, .admin-source-form input, .admin-source-form select, .admin-source-link input { font:inherit; padding:8px 12px; border:2px solid #d6e6dc; border-radius:10px; background:#fff; width:100%; }
 .class-source-form h4 { margin:0; }
-.parent-class-sources { margin:10px 0 14px; }
-.parent-class-sources h4 { margin:0; font-size:1rem; }
+/* A class's sources inside a parent's or student's class card. */
+.class-sources-inline { margin:10px 0 14px; }
+.class-sources-inline h4 { margin:0; font-size:1rem; }
 .admin-source-list { display:grid; gap:16px; margin:16px 0; }
 .admin-source header h2 { margin:0; font-size:1.2rem; }
 .admin-source header p { margin:2px 0 6px; }

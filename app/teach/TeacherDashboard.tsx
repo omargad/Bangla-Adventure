@@ -518,7 +518,7 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
                 <p className="teach-empty">{s("No students are allocated to this class yet.", "এই ক্লাসে এখনো কোনো শিক্ষার্থী বরাদ্দ নেই।")}</p>
               ) : (
                 <div className="management-table-wrap">
-                  <table className="management-table topic-progress-table">
+                  <table className="management-table">
                     <caption className="sr-only">{s("Topics read and topic quiz results by student", "শিক্ষার্থী অনুযায়ী পড়া বিষয় ও বিষয়-কুইজের ফল")}</caption>
                     <thead><tr><th scope="col">{s("Student", "শিক্ষার্থী")}</th><th scope="col">{s("Topics read", "পড়া বিষয়")}</th><th scope="col">{s("Topic quizzes done", "শেষ করা বিষয়-কুইজ")}</th><th scope="col">{s("Topic quiz average", "বিষয়-কুইজের গড়")}</th></tr></thead>
                     <tbody>{topicProgress.students.map((row) => (
