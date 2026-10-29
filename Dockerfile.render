@@ -1,0 +1,49 @@
+# Render variant of ./Dockerfile. Everything above the RENDER section must stay
+# identical to ./Dockerfile apart from the extra COPY line for the Render scripts
+# (tests/dockerfile-render.test.mjs checks this).
+FROM node:22-slim AS builder
+WORKDIR /app
+# Build tools so better-sqlite3 can compile if no prebuilt binary matches.
+RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ \
+  && rm -rf /var/lib/apt/lists/*
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+FROM node:22-slim
+WORKDIR /app
+# The backup/restore utility uses Python's standard-library SQLite backup API.
+RUN apt-get update && apt-get install -y --no-install-recommends python3 \
+  && rm -rf /var/lib/apt/lists/*
+ENV NODE_ENV=production
+ENV PORT=3000
+ENV PLATFORM_MODE=legacy
+ENV DATABASE_PATH=/app/.data/bangla-adventures.db
+ENV MEDIA_ROOT=/app/.data/media
+COPY --from=builder /app/package.json /app/package-lock.json ./
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/next.config.ts ./next.config.ts
+COPY --from=builder /app/lib ./lib
+COPY --from=builder /app/db ./db
+COPY --from=builder /app/scripts/grant-admin.ts ./scripts/grant-admin.ts
+COPY --from=builder /app/scripts/backup_restore.py /app/scripts/backup.sh /app/scripts/restore.sh ./scripts/
+COPY --from=builder /app/scripts/render-start.sh /app/scripts/render-run-as-app.sh ./scripts/
+COPY --from=builder /app/tsconfig.json ./tsconfig.json
+
+# RENDER: Render mounts its persistent disk at /app/.data owned by root, so the
+# container starts as root only to give that directory to the unprivileged
+# `node` user, then runs the app as `node` (scripts/render-start.sh).
+RUN mkdir -p .data/media .next/cache && chown -R node:node .data .next/cache \
+  && chmod 0755 scripts/render-start.sh scripts/render-run-as-app.sh
+USER root
+
+EXPOSE 3000
+
+# Container-level liveness probe hitting the app's health endpoint.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+
+CMD ["scripts/render-start.sh"]
