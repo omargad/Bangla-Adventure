@@ -225,6 +225,21 @@ function readFlag(argv, name) {
   return next;
 }
 
+/** API keys are printable ASCII without spaces. */
+const API_KEY = /^[\x21-\x7e]+$/;
+
+/**
+ * Stops on a key that holds a space, a line break or an invisible character
+ * (easily picked up when copying from a chat or a document): fetch would refuse
+ * it the same way on every try, as if the network were down. The value is never
+ * repeated in the message.
+ */
+function checkKey(key, name) {
+  if (key && !API_KEY.test(key)) {
+    throw new Error(`${name} contains characters an API key cannot have (a space, line break or invisible character from copying?). Paste it again.`);
+  }
+}
+
 /** Command-line options, checked before anything is generated. Secrets come only from the environment. */
 function parseOptions(argv = [], env = {}) {
   const provider = (readFlag(argv, "provider") ?? "espeak").toLowerCase();
@@ -246,10 +261,14 @@ function parseOptions(argv = [], env = {}) {
   if (provider === "espeak") return { ...options, voices: { ...ESPEAK_VOICES } };
   if (provider === "elevenlabs") return { ...options, ...elevenLabsOptions(argv, env, options.dryRun) };
 
+  // As with ElevenLabs, a dry run sends nothing, so it needs neither the key nor the region.
   const key = (env.AZURE_SPEECH_KEY ?? "").trim();
   const region = (env.AZURE_SPEECH_REGION ?? "").trim().toLowerCase();
-  if (!key) throw new Error("Set AZURE_SPEECH_KEY to the Speech resource key (ask Faysal) before using --provider azure.");
-  if (!AZURE_REGION.test(region)) throw new Error("Set AZURE_SPEECH_REGION to the Speech resource region, for example southeastasia.");
+  if (!key && !options.dryRun) {
+    throw new Error("Set AZURE_SPEECH_KEY to the Speech resource key (ask Faysal) before using --provider azure (or add --dry-run to count the clips and characters without one).");
+  }
+  checkKey(key, "AZURE_SPEECH_KEY");
+  if ((region || !options.dryRun) && !AZURE_REGION.test(region)) throw new Error("Set AZURE_SPEECH_REGION to the Speech resource region, for example southeastasia.");
   const voices = {
     bn: readFlag(argv, "voice") ?? env.AZURE_SPEECH_VOICE ?? AZURE_DEFAULT_VOICES.bn,
     en: readFlag(argv, "voice-en") ?? env.AZURE_SPEECH_VOICE_EN ?? AZURE_DEFAULT_VOICES.en,
@@ -271,6 +290,7 @@ function elevenLabsOptions(argv, env, dryRun) {
   if (!key && !dryRun) {
     throw new Error("Set ELEVENLABS_API_KEY to the client's ElevenLabs API key before using --provider elevenlabs (or add --dry-run to count the clips and characters without one).");
   }
+  checkKey(key, "ELEVENLABS_API_KEY");
   const model = (readFlag(argv, "model") ?? ELEVENLABS_DEFAULT_MODEL).trim();
   if (!Object.hasOwn(ELEVENLABS_MODELS, model)) throw new Error("--model must be eleven_v4 (the default), eleven_v3 or eleven_multilingual_v2.");
   const bn = (readFlag(argv, "voice") ?? env.ELEVENLABS_VOICE_ID_BN ?? "").trim();
@@ -430,7 +450,8 @@ async function errorReason(response, key) {
  * One clip from ElevenLabs as Ogg Opus bytes. Throttling (429), server errors
  * and network failures are retried after the wait ElevenLabs asks for (or
  * 2, 4, 8… seconds); a refused key or a request ElevenLabs rejects as invalid
- * stops at once. The key is never part of an error message.
+ * stops at once, as does a request fetch cannot build. The key is never part
+ * of an error message.
  */
 async function synthesizeElevenLabs(asset, options, { fetch = globalThis.fetch, sleep = wait, attempts = 5, timeout = REQUEST_TIMEOUT_MS } = {}) {
   const { url, init } = elevenLabsRequest({
@@ -440,6 +461,14 @@ async function synthesizeElevenLabs(asset, options, { fetch = globalThis.fetch, 
     model: options.model,
     key: options.key,
   });
+  // A header fetch cannot send fails the same way on every try, so it is not
+  // retried as a network error. fetch's own message can quote the key, so it is
+  // replaced by a fixed one.
+  try {
+    void new Request(url, init);
+  } catch {
+    throw new Error(`The ElevenLabs request for ${asset.file} could not be made: ELEVENLABS_API_KEY holds characters a request cannot carry. Paste the key again.`);
+  }
   for (let attempt = 1; ; attempt += 1) {
     let response;
     let bytes = null;

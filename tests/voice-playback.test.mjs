@@ -119,8 +119,9 @@ test("the voice manifest lists every bundled clip with the engine and voice that
     assert.ok(["espeak", "azure", "elevenlabs"].includes(entry.provider), `${file}: unknown provider ${entry.provider}`);
     assert.ok(entry.voice, `${file}: no voice recorded`);
     if (entry.provider === "elevenlabs") assert.ok(entry.model, `${file}: no ElevenLabs model recorded`);
-    assert.equal(isNeuralClip(file), NEURAL_PROVIDERS.has(entry.provider), file);
+    assert.equal(isNeuralClip(file), ["azure", "elevenlabs"].includes(entry.provider), file);
   }
+  assert.deepEqual([...NEURAL_PROVIDERS].sort(), ["azure", "elevenlabs"]);
 });
 
 test("ElevenLabs clips play before the device voice and are labelled as a named computer voice, never as a person or as reviewed", () => {

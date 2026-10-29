@@ -47,6 +47,12 @@ test("options: eSpeak by default; Azure needs a key and region from the environm
   assert.throws(() => voice.parseOptions(["--provider", "polly"], azureEnv), /Unknown provider/);
   assert.throws(() => voice.parseOptions(["--provider", "azure"], {}), /AZURE_SPEECH_KEY/);
   assert.throws(() => voice.parseOptions(["--provider", "azure"], { AZURE_SPEECH_KEY: "k" }), /AZURE_SPEECH_REGION/);
+  // A dry run sends nothing, so it needs neither the key nor the region; a region that is set is still checked.
+  const dry = voice.parseOptions(["--provider", "azure", "--dry-run"], {});
+  assert.deepEqual([dry.dryRun, dry.key, dry.voices.bn], [true, "", "bn-BD-NabanitaNeural"]);
+  assert.throws(() => voice.parseOptions(["--provider", "azure", "--dry-run"], { AZURE_SPEECH_REGION: "evil.example.com/" }), /AZURE_SPEECH_REGION/);
+  const pasted = "test-key\u200b123";
+  assert.throws(() => voice.parseOptions(["--provider", "azure"], { ...azureEnv, AZURE_SPEECH_KEY: pasted }), (error) => /AZURE_SPEECH_KEY contains characters an API key cannot have/.test(error.message) && !error.message.includes(pasted));
   const azure = voice.parseOptions(["--provider", "azure", "--force"], azureEnv);
   assert.deepEqual([azure.provider, azure.force, azure.region, azure.key, azure.voices.bn, azure.voices.en], ["azure", true, "southeastasia", "test-key-123", "bn-BD-NabanitaNeural", "en-AU-NatashaNeural"]);
   assert.equal(voice.parseOptions(["--provider=azure", "--voice=bn-BD-PradeepNeural"], azureEnv).voices.bn, "bn-BD-PradeepNeural");
@@ -200,6 +206,12 @@ test("ElevenLabs options: the key comes from the environment, the model and voic
   // An API key pasted as the voice id would end up in the URL and the logs.
   const pasted = { ...elevenEnv, ELEVENLABS_API_KEY: "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6", ELEVENLABS_VOICE_ID_BN: "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6" };
   assert.throws(() => voice.parseOptions(["--provider", "elevenlabs"], pasted), (error) => /holds the API key/.test(error.message) && !error.message.includes(pasted.ELEVENLABS_API_KEY));
+  // A key with a space, a line break or an invisible character copied with it is refused before anything is sent, without repeating it.
+  for (const bad of ["xi-test\u200bkey-456", "\u201cxi-test-key-456\u201d", "xi-test key-456", "xi-test\nkey-456", "xi-test\u00a0key-456"]) {
+    const refused = (error) => /ELEVENLABS_API_KEY contains characters an API key cannot have/.test(error.message) && !error.message.includes("xi-test");
+    assert.throws(() => voice.parseOptions(["--provider", "elevenlabs"], { ...elevenEnv, ELEVENLABS_API_KEY: bad }), refused, JSON.stringify(bad));
+    assert.throws(() => voice.parseOptions(["--provider", "elevenlabs", "--dry-run"], { ELEVENLABS_API_KEY: bad }), refused, JSON.stringify(bad));
+  }
   // A dry run sends nothing, so it needs neither the key nor a voice.
   const dry = voice.parseOptions(["--provider", "elevenlabs", "--dry-run"], {});
   assert.deepEqual([dry.dryRun, dry.key, dry.voices.bn], [true, "", ""]);
@@ -249,7 +261,12 @@ test("ElevenLabs clips: 429 waits as long as Retry-After asks, 5xx and network f
     /failed for story-1-bn \(422\): stability out of range/,
   );
   assert.equal(invalid, 1, "a request ElevenLabs rejects is not retried");
-  await assert.rejects(voice.synthesizeElevenLabs(asset, options, { fetch: async () => answer(404, { detail: { status: "voice_not_found", message: "A voice with that id was not found." } }), sleep: async () => undefined }), /\(404\): voice_not_found/);
+  let missing = 0;
+  await assert.rejects(
+    voice.synthesizeElevenLabs(asset, options, { fetch: async () => { missing += 1; return answer(404, { detail: { status: "voice_not_found", message: "A voice with that id was not found." } }); }, sleep: async () => undefined }),
+    /\(404\): voice_not_found/,
+  );
+  assert.equal(missing, 1, "an unknown voice is not retried");
 
   const networkWaits = [];
   let attempts = 0;
@@ -266,6 +283,46 @@ test("ElevenLabs clips: 429 waits as long as Retry-After asks, 5xx and network f
   let throttled = 0;
   await assert.rejects(voice.synthesizeElevenLabs(asset, options, { fetch: async () => { throttled += 1; return response(429); }, sleep: async () => undefined, attempts: 3 }), /\(429\)/);
   assert.equal(throttled, 3);
+});
+
+test("an ElevenLabs request with no answer in time, or audio that stops arriving, is retried and then stops", async () => {
+  const options = voice.parseOptions(["--provider", "elevenlabs"], elevenEnv);
+  const asset = { file: "story-1-bn", text: "মায়া একটি চওড়া নদীর পাশে দাঁড়াল।", language: "bn" };
+  // Settles only when the request's own time limit fires, as fetch does. The
+  // interval stands in for the open connection, since the time limit's own timer
+  // does not keep Node running.
+  const untilAborted = (signal) => new Promise((resolve, reject) => {
+    let connection;
+    signal.addEventListener("abort", () => { clearInterval(connection); reject(signal.reason); }, { once: true });
+    connection = setInterval(() => undefined, 1000);
+  });
+  let silent = 0;
+  await assert.rejects(
+    voice.synthesizeElevenLabs(asset, options, { fetch: (url, init) => { silent += 1; return untilAborted(init.signal); }, sleep: async () => {}, timeout: 20, attempts: 2 }),
+    /could not be reached for story-1-bn \(no answer in time\)/,
+  );
+  assert.equal(silent, 2);
+  let stalled = 0;
+  await assert.rejects(
+    voice.synthesizeElevenLabs(asset, options, { fetch: async (url, init) => { stalled += 1; return { ...response(200), arrayBuffer: () => untilAborted(init.signal) }; }, sleep: async () => {}, timeout: 20, attempts: 2 }),
+    /no answer in time/,
+  );
+  assert.equal(stalled, 2, "the time limit covers the audio as it arrives");
+});
+
+test("a key fetch cannot send stops the clip at once, without retrying or quoting the key", async () => {
+  const options = voice.parseOptions(["--provider", "elevenlabs"], elevenEnv);
+  const asset = { file: "hello-bn", text: "হ্যালো, বন্ধু!", language: "bn" };
+  // Keys that get past the options (for example from code calling this directly): fetch's own error would quote the line-break one.
+  for (const key of ["xi-test\nkey-456", "xi-test\u200bkey-456"]) {
+    let sent = 0;
+    let waited = 0;
+    await assert.rejects(
+      voice.synthesizeElevenLabs(asset, { ...options, key }, { fetch: async () => { sent += 1; return response(200, oggOpus("x")); }, sleep: async () => { waited += 1; } }),
+      (error) => /request for hello-bn could not be made: ELEVENLABS_API_KEY holds characters/.test(error.message) && !error.message.includes("xi-test") && error.cause === undefined,
+    );
+    assert.deepEqual([sent, waited], [0, 0], JSON.stringify(key));
+  }
 });
 
 test("every ElevenLabs answer must be an Ogg Opus stream, since the app plays bundled clips only as .ogg", async () => {
@@ -386,6 +443,9 @@ test("a dry run counts the clips and characters it would send and calls nothing"
   await voice.generate(voice.parseOptions(["--out", out], {}), { assets: assets.slice(0, 1), synthesize: async () => ogg("espeak"), log: () => undefined });
   const partial = await voice.generate(voice.parseOptions(["--provider", "elevenlabs", "--dry-run", "--out", out], elevenEnv), { assets, fetch: noFetch, log: () => undefined });
   assert.deepEqual([partial.planned.clips, partial.planned.characters, partial.kept], [2, 9, 1]);
+  // An Azure dry run needs neither its key nor its region either.
+  const azure = await voice.generate(voice.parseOptions(["--provider", "azure", "--dry-run", "--force", "--out", out], {}), { assets, fetch: noFetch, log: () => undefined });
+  assert.deepEqual([azure.planned.clips, azure.planned.characters, azure.generated], [3, 12, 0]);
 });
 
 test("eleven_multilingual_v2 is refused for Bangla clips before anything is sent, and allowed for English ones", async () => {

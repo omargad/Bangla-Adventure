@@ -149,10 +149,16 @@ are sent; no learner names, accounts or other personal data.
    ```
    They are `story-1-bn` (মায়া), `lesson-hello-me-dialogue` (মায়া and রাফি),
    `word-boat-example-bn`, `place-sundarbans-bn` and `story-1-en`. To compare
-   another voice or the older model, give each try its own folder, for example
-   `--voice <other id> --out voice-samples/voice-2` or
-   `--model eleven_v3 --out voice-samples/v3`. Any other 3 to 5 clips can be
-   tried with `--only story-1-bn,diagnostic-listen-1,hello-bn --out voice-samples/mine`.
+   another voice or the older model, give each try its own folder:
+   ```bash
+   npm run audio:generate -- --provider elevenlabs --samples --voice <other voice id> --out voice-samples/voice-2
+   npm run audio:generate -- --provider elevenlabs --samples --model eleven_v3 --out voice-samples/v3
+   ```
+   To try any other 3 to 5 clips, name them with `--only` instead of
+   `--samples` (the two cannot be used together):
+   ```bash
+   npm run audio:generate -- --provider elevenlabs --force --only story-1-bn,diagnostic-listen-1,hello-bn --out voice-samples/mine
+   ```
 6. **Full generation.** When the samples are approved, remake every clip:
    ```bash
    npm run audio:generate -- --provider elevenlabs --force
@@ -169,14 +175,22 @@ are sent; no learner names, accounts or other personal data.
    place). `public/audio/voice-manifest.json` records `elevenlabs`, the voice id
    and the model for each clip, so learners hear these clips before the device
    voice, labelled "Neural computer voice (ElevenLabs): may mispronounce some
-   words". Use `--only lesson-hello-me,story-` to remake some clips only.
+   words". To remake only some clips, name them (or the start of their names)
+   with `--only`, for example
+   `npm run audio:generate -- --provider elevenlabs --force --only lesson-hello-me,story-`.
    `--model eleven_v3` is the alternative; `eleven_multilingual_v2` does not
    speak Bangla and is refused for Bangla clips.
 7. **Native-speaker review, then commit.** A native Bangla speaker listens to
    the regenerated clips, especially every dialogue and the names in it. Remake
-   any wrong clip with `--only`, or record that part as human audio in Lessons.
-   Then commit `public/audio` (the `.ogg` files and `voice-manifest.json`)
-   together and deploy it as a normal release. No label claims this review; it
+   a wrong clip with `--force` and its name, for example:
+   ```bash
+   npm run audio:generate -- --provider elevenlabs --force --only lesson-hello-me-dialogue
+   ```
+   Without `--force` the clip that exists is kept and nothing is remade
+   (`--resume` keeps it too, because it was made with the same voice and
+   model). Or record that part as human audio in Lessons. Then commit
+   `public/audio` (the `.ogg` files and `voice-manifest.json`) together and
+   deploy it as a normal release. No label claims this review; it
    is recorded in the acceptance notes.
 
 ### Azure (alternative)
@@ -191,9 +205,10 @@ AZURE_SPEECH_KEY=... AZURE_SPEECH_REGION=southeastasia \
 
 The default voice is `bn-BD-NabanitaNeural`; choose another with
 `--voice bn-BD-PradeepNeural` (or `AZURE_SPEECH_VOICE`), and the English story
-voice with `--voice-en` (default `en-AU-NatashaNeural`). `--dry-run`,
-`--samples` and `--resume` work the same way, and the same review applies
-before committing `public/audio`.
+voice with `--voice-en` (default `en-AU-NatashaNeural`). `--dry-run` (which,
+as with ElevenLabs, needs neither the key nor the region), `--samples` and
+`--resume` work the same way, and the same review applies before committing
+`public/audio`.
 
 Without `--provider` the script uses eSpeak as before, and without `--force` it
 only makes clips that are missing.
