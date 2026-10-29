@@ -5,7 +5,7 @@ import { libraryBooks } from "../app/library-content";
 import type { Bilingual } from "../app/topics-content";
 import {
   editionsOf, isNctbLink, linkProblem, mergeCatalog, NOT_NCTB_WARNING, resolveBookLink,
-  type CatalogBook, type SourceOverride,
+  type CatalogBook, type HeldLinks, type SourceOverride,
 } from "./library-links";
 import type { Staff } from "./class-access";
 
@@ -43,18 +43,29 @@ export async function getLibraryCatalog(): Promise<CatalogBook[]> {
   return mergeCatalog(await libraryOverrides());
 }
 
-export type AdminCatalogBook = CatalogBook & { updatedBy: string | null; updatedAt: string | null };
+export type AdminCatalogBook = CatalogBook & {
+  updatedBy: string | null;
+  updatedAt: string | null;
+  /** Links saved before only administrators could change them, waiting for a check (setBy is a name when the account still exists). */
+  held: HeldLinks | null;
+};
 
-/** Every book, hidden ones included, with who changed it last, for the administrator's Sources page. */
+/** Every book, hidden ones included, with who changed it last and any held links, for the administrator's Sources page. */
 export async function adminLibraryCatalog(): Promise<AdminCatalogBook[]> {
   const db = await getDb();
   const { rows, overrides } = readOverrides(db);
-  const emails = [...new Set(rows.map((row) => row.updatedBy).filter(Boolean))];
+  const emails = [...new Set([...rows.map((row) => row.updatedBy), ...[...overrides.values()].map((item) => item.heldLinks?.setBy ?? "")].filter(Boolean))];
   const names = new Map(emails.length ? db.select({ email: adults.email, name: adults.displayName }).from(adults).where(inArray(adults.email, emails)).all().map((row) => [row.email, row.name]) : []);
   const meta = new Map(rows.map((row) => [row.id, row]));
   return mergeCatalog(overrides, { includeHidden: true }).map((book) => {
     const row = meta.get(book.id);
-    return { ...book, updatedBy: row ? names.get(row.updatedBy) ?? (row.updatedBy || null) : null, updatedAt: row?.updatedAt ?? null };
+    const held = overrides.get(book.id)?.heldLinks;
+    return {
+      ...book,
+      updatedBy: row ? names.get(row.updatedBy) ?? (row.updatedBy || null) : null,
+      updatedAt: row?.updatedAt ?? null,
+      held: held ? { ...held, setBy: held.setBy ? names.get(held.setBy) ?? held.setBy : null } : null,
+    };
   });
 }
 
@@ -96,20 +107,23 @@ function audit(tx: Transaction, actorId: string, bookId: string, action: string,
   tx.insert(userAuditEvents).values({ id: crypto.randomUUID(), actorId, targetId: bookId, targetType: "library-source", action, detailsJson: JSON.stringify(details) }).run();
 }
 
+/** Saves a record an administrator changed; it is marked checked so the start-up check leaves it alone. */
 function store(tx: Transaction, actor: Staff & { email: string }, id: string, data: SourceOverride) {
   const now = new Date().toISOString();
-  const values = { updatedBy: actor.email, dataJson: JSON.stringify(data), active: true, updatedAt: now };
+  const values = { updatedBy: actor.email, dataJson: JSON.stringify({ ...data, reviewed: true }), active: true, updatedAt: now };
   tx.insert(knowledgeSources).values({ id, ...values }).onConflictDoUpdate({ target: knowledgeSources.id, set: values }).run();
 }
 
-const isEmpty = (override: SourceOverride) => Object.keys(override).length === 0;
+const isEmpty = (override: SourceOverride) => Object.keys(override).every((key) => key === "reviewed");
+const heldUrls = (held: HeldLinks) => ({ ...(held.downloadUrl ? { downloadUrl: held.downloadUrl } : {}), ...(held.classLinks ? { classLinks: held.classLinks } : {}) });
 const warningsFor = (urls: Array<string | null>) => (urls.some((url) => url && !isNctbLink(url)) ? [NOT_NCTB_WARNING] : []);
 
 /**
  * Apply an administrator's change to one book, keeping every field the change does
  * not mention: this year's link for the whole book (downloadUrl) or for one class
- * (classLinks), hiding or showing it, and descriptive fields. An empty link clears
- * it. Each changed link is audited with the link readers saw before and after.
+ * (classLinks), hiding or showing it, descriptive fields, and restoring or
+ * discarding held links (heldLinks: "restore" | "discard"). An empty link clears
+ * it. Each changed link is audited with where readers went before and after.
  */
 export async function updateLibrarySource(actor: Staff & { email: string }, id: string, raw: Record<string, unknown>) {
   const db = await getDb();
@@ -119,19 +133,28 @@ export async function updateLibrarySource(actor: Staff & { email: string }, id: 
     if (!isBaseline && !row) throw refuse({ en: "Source not found.", bn: "উৎসটি পাওয়া যায়নি।" }, 404);
     let before: SourceOverride = {};
     if (row) { try { before = JSON.parse(row.dataJson) as SourceOverride; } catch { before = {}; } }
-    const next: SourceOverride = { ...before, ...describedFields(raw) };
+    const decision = raw.heldLinks;
+    if (decision !== undefined && decision !== "restore" && decision !== "discard") {
+      throw refuse({ en: "Choose to restore or discard the held link.", bn: "আটকে রাখা লিংকটি ফিরিয়ে আনবেন না বাদ দেবেন, বেছে নিন।" });
+    }
+    const held = before.heldLinks;
+    if (decision && !held) throw refuse({ en: "This source has no links waiting to be checked.", bn: "এই উৎসে যাচাইয়ের অপেক্ষায় কোনো লিংক নেই।" }, 409);
+    // Restoring saves the held links as this year's links, with the same checks and audit as a new link.
+    const input: Record<string, unknown> = decision === "restore" && held ? { ...raw, ...heldUrls(held) } : raw;
+    const next: SourceOverride = { ...before, ...describedFields(input) };
+    if (decision) delete next.heldLinks;
     const savedLinks: Array<string | null> = [];
 
-    if ("downloadUrl" in raw) {
-      const url = linkValue(raw.downloadUrl);
+    if ("downloadUrl" in input) {
+      const url = linkValue(input.downloadUrl);
       if (url) next.downloadUrl = url; else delete next.downloadUrl;
       savedLinks.push(url);
     }
-    if (raw.classLinks !== undefined) {
-      if (typeof raw.classLinks !== "object" || raw.classLinks === null) throw refuse({ en: "Give the class links by class.", bn: "ক্লাস অনুযায়ী লিংক দিন।" });
+    if (input.classLinks !== undefined) {
+      if (typeof input.classLinks !== "object" || input.classLinks === null) throw refuse({ en: "Give the class links by class.", bn: "ক্লাস অনুযায়ী লিংক দিন।" });
       const editions = editionsOf(id);
       const links = { ...(next.classLinks ?? {}) };
-      for (const [key, value] of Object.entries(raw.classLinks as Record<string, unknown>)) {
+      for (const [key, value] of Object.entries(input.classLinks as Record<string, unknown>)) {
         if (editions.length < 2 || !editions.some((item) => item.key === key)) {
           throw refuse({ en: "This book does not have a separate link for that class.", bn: "এই বইয়ের ওই ক্লাসের জন্য আলাদা লিংক নেই।" });
         }
@@ -149,16 +172,23 @@ export async function updateLibrarySource(actor: Staff & { email: string }, id: 
     }
 
     // One event per link the administrator changed: the whole book's, then each class's.
+    const editions = editionsOf(id);
     const changedSlots: Array<string | undefined> = [
       ...(before.downloadUrl !== next.downloadUrl ? [undefined] : []),
-      ...editionsOf(id).map((item) => item.key).filter((key) => before.classLinks?.[key] !== next.classLinks?.[key]),
+      ...editions.map((item) => item.key).filter((key) => before.classLinks?.[key] !== next.classLinks?.[key]),
     ];
+    const perClass = (override: SourceOverride) => Object.fromEntries(editions.map((item) => [item.key, resolveBookLink(id, override, item.key).url]));
     for (const key of changedSlots) {
-      const oldUrl = resolveBookLink(id, before, key).url, newUrl = resolveBookLink(id, next, key).url;
-      audit(tx, actor.id, id, "library-link-updated", { bookId: id, classKey: key ?? null, oldUrl, newUrl, ...(isNctbLink(newUrl) ? {} : { notNctb: true }) });
+      // A book that covers several classes has no single link: record the stored whole-book
+      // link and where each class's readers went before and after.
+      const change = key === undefined && editions.length > 1
+        ? { oldUrl: before.downloadUrl ?? null, newUrl: next.downloadUrl ?? null, oldLinks: perClass(before), newLinks: perClass(next) }
+        : { oldUrl: resolveBookLink(id, before, key).url, newUrl: resolveBookLink(id, next, key).url };
+      audit(tx, actor.id, id, "library-link-updated", { bookId: id, classKey: key ?? null, ...change, ...(change.newUrl && !isNctbLink(change.newUrl) ? { notNctb: true } : {}) });
     }
+    if (decision && held) audit(tx, actor.id, id, decision === "restore" ? "library-link-restored" : "library-link-discarded", { bookId: id, ...heldUrls(held), setBy: held.setBy });
     if (Boolean(before.hidden) !== Boolean(next.hidden)) audit(tx, actor.id, id, next.hidden ? "library-source-hidden" : "library-source-shown", { bookId: id });
-    const described = Object.keys(describedFields(raw)).filter((key) => JSON.stringify(before[key as keyof SourceOverride]) !== JSON.stringify(next[key as keyof SourceOverride]));
+    const described = Object.keys(describedFields(input)).filter((key) => JSON.stringify(before[key as keyof SourceOverride]) !== JSON.stringify(next[key as keyof SourceOverride]));
     if (described.length) audit(tx, actor.id, id, "library-source-updated", { bookId: id, fields: described });
 
     if (isBaseline && isEmpty(next)) tx.delete(knowledgeSources).where(eq(knowledgeSources.id, id)).run();
@@ -177,7 +207,7 @@ export async function addLibrarySource(actor: Staff & { email: string }, raw: Re
   const url = linkValue(raw.downloadUrl);
   if (!url) throw refuse({ en: "Add the link to the source.", bn: "উৎসের লিংক দিন।" });
   const id = `${slug(fields.titleEn)}-${crypto.randomUUID().slice(0, 6)}`;
-  const data: SourceOverride = { level: "secondary", status: "confirm", ...fields, downloadUrl: url };
+  const data: SourceOverride = { level: "secondary", status: "confirm", subjectArea: { en: "Added by an administrator", bn: "প্রশাসকের যোগ করা" }, ...fields, downloadUrl: url };
   const db = await getDb();
   db.transaction((tx) => {
     store(tx, actor, id, data);

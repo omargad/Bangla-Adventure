@@ -331,7 +331,7 @@ export async function classTopicProgress(classId: string) {
 }
 
 /** A topic's cited textbooks with the links readers follow (see lib/library-links.ts for the rule). */
-export function topicReferences(topic: Topic, overrides?: Map<string, SourceOverride>) {
+export function topicReferences(topic: Pick<Topic, "sources">, overrides?: Map<string, SourceOverride>) {
   return topicSourceLinks(topic.sources, overrides);
 }
 

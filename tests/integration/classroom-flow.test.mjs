@@ -251,10 +251,21 @@ test("knowledge-source overrides flow to the library API, and only an administra
     body: JSON.stringify({ email: "librarian@example.com", displayName: "Admin Librarian", password: "yearly-books-2027" }),
   });
   assert.equal(librarian.status, 201);
-  const adminCookie = cookieFrom(librarian);
   const fixture = new Database(path.join(stateDir, "test.db"));
   fixture.prepare("UPDATE adults SET role = 'admin' WHERE email = ?").run("librarian@example.com");
+  // Where self sign-up waits for an administrator's approval, approve the account directly.
+  if (fixture.prepare("PRAGMA table_info(adults)").all().some((column) => column.name === "approval_status")) {
+    fixture.prepare("UPDATE adults SET approval_status = 'approved' WHERE email = ?").run("librarian@example.com");
+  }
   fixture.close();
+  // Sign in explicitly rather than relying on sign-up starting a session.
+  const librarianSignIn = await fetch(`${BASE}/api/auth/sign-in`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email: "librarian@example.com", password: "yearly-books-2027" }),
+  });
+  assert.equal(librarianSignIn.status, 200);
+  const adminCookie = cookieFrom(librarianSignIn);
 
   const put = await fetch(`${BASE}/api/library`, {
     method: "PUT",

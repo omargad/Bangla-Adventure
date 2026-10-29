@@ -11,8 +11,9 @@ import SourceLinks from "../references/SourceLinks";
  * One topic as students read it: heading, sections, facts, sources and the quiz.
  * The topics hub and the staff preview both render this, so a reviewer approves
  * exactly what students will see. The caller supplies the surrounding <article>.
- * Source links come with the topic from /api/curriculum (references, including the
- * administrator's yearly links); a preview without them uses the official NCTB pages.
+ * Source links come with the topic (references, including the administrator's yearly
+ * links) from /api/curriculum or, for the staff preview, the topic version API; a
+ * topic without them falls back to the official NCTB pages.
  */
 export default function TopicReader({ topic, language, titleLevel = 1, best, onQuizChecked, beforeQuiz, quizNote, onPickAnother }: {
   topic: Topic & { references?: TopicReference[] };

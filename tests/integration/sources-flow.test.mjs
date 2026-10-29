@@ -10,8 +10,9 @@ import Database from "better-sqlite3";
 /**
  * Sources and references against the production server: only an administrator
  * changes the yearly NCTB links (audited, other fields kept, reaching every
- * reader), and a teacher's per-class sources reach the students allocated to that
- * class and their linked parents, nobody else.
+ * reader), a link saved before that rule is held back until an administrator
+ * checks it, and a teacher's per-class sources reach the students allocated to
+ * that class and their linked parents, nobody else.
  */
 
 const PORT = 3262;
@@ -25,20 +26,43 @@ const send = (route, method = "GET", body, cookie, headers = {}) => fetch(`${BAS
 const fixture = (callback) => { const db = new Database(path.join(stateDir, "test.db")); try { return callback(db); } finally { db.close(); } };
 const page = async (route, cookie) => { const response = await send(route, "GET", undefined, cookie); assert.equal(response.status, 200, route); return response.text(); };
 
+/** Approves a self-registered account where sign-up waits for an administrator's approval (approval_status). */
+const approve = (db, table, column, value) => {
+  if (db.prepare(`PRAGMA table_info(${table})`).all().some((item) => item.name === "approval_status")) db.prepare(`UPDATE ${table} SET approval_status = 'approved' WHERE ${column} = ?`).run(value);
+};
+// Each helper signs in explicitly after sign-up, so it does not depend on sign-up starting a session.
 async function adult(email, role) {
-  const signUp = await send("/api/auth/sign-up", "POST", { email, displayName: email.split("@")[0], password }, undefined, { "x-forwarded-for": email });
+  const headers = { "x-forwarded-for": email };
+  const signUp = await send("/api/auth/sign-up", "POST", { email, displayName: email.split("@")[0], password }, undefined, headers);
   assert.equal(signUp.status, 201);
-  if (role === "admin") fixture((db) => db.prepare("UPDATE adults SET role = 'admin' WHERE email = ?").run(email));
-  if (role === "teacher") fixture((db) => db.prepare("UPDATE adults SET role = 'teacher', teacher_status = 'approved' WHERE email = ?").run(email));
-  return cookieFrom(signUp);
+  fixture((db) => {
+    if (role === "admin") db.prepare("UPDATE adults SET role = 'admin' WHERE email = ?").run(email);
+    if (role === "teacher") db.prepare("UPDATE adults SET role = 'teacher', teacher_status = 'approved' WHERE email = ?").run(email);
+    approve(db, "adults", "email", email);
+  });
+  const signIn = await send("/api/auth/sign-in", "POST", { email, password }, undefined, headers);
+  assert.equal(signIn.status, 200);
+  return cookieFrom(signIn);
 }
 async function student(username) {
-  const signUp = await send("/api/student/sign-up", "POST", { username, displayName: username, password }, undefined, { "x-forwarded-for": username });
+  const headers = { "x-forwarded-for": username };
+  const signUp = await send("/api/student/sign-up", "POST", { username, displayName: username, password }, undefined, headers);
   assert.equal(signUp.status, 201);
-  return cookieFrom(signUp, "ba_student_session");
+  fixture((db) => approve(db, "students", "username", username));
+  const signIn = await send("/api/student/sign-in", "POST", { username, password }, undefined, headers);
+  assert.equal(signIn.status, 200);
+  return cookieFrom(signIn, "ba_student_session");
 }
 
+// A link a teacher saved before only administrators could change textbook links (as in the client's demo).
+const OLD_LINK = "https://random.example.com/amar-bangla-boi.pdf";
+
 before(async () => {
+  // The database exists before this version starts, with a record written under the old rules.
+  fixture((db) => {
+    db.exec("CREATE TABLE IF NOT EXISTS knowledge_sources (id text PRIMARY KEY NOT NULL, updated_by text DEFAULT '' NOT NULL, data_json text DEFAULT '{}' NOT NULL, active integer DEFAULT true NOT NULL, updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)");
+    db.prepare("INSERT INTO knowledge_sources (id, updated_by, data_json) VALUES ('amar-bangla-boi', 'old-teacher@example.com', ?)").run(JSON.stringify({ downloadUrl: OLD_LINK }));
+  });
   server = spawn(process.execPath, ["node_modules/next/dist/bin/next", "start", "-H", "127.0.0.1", "-p", String(PORT)], {
     cwd: new URL("../..", import.meta.url).pathname,
     env: { ...process.env, NODE_ENV: "production", PLATFORM_MODE: "legacy", DATABASE_PATH: path.join(stateDir, "test.db"), MEDIA_ROOT: path.join(stateDir, "media") }, stdio: "ignore",
@@ -85,24 +109,34 @@ test("only an administrator changes a yearly textbook link; the change is audite
   assert.equal(saved.status, 200);
   assert.deepEqual((await saved.json()).warnings, []);
   const stored = fixture((db) => JSON.parse(db.prepare("SELECT data_json FROM knowledge_sources WHERE id = 'bgs-primary'").get().data_json));
-  assert.deepEqual(stored, { titleEn: "Bangladesh and Global Studies (primary, 2027)", downloadUrl: link.data.downloadUrl }, "saving the link keeps the title change");
+  assert.deepEqual(stored, { titleEn: "Bangladesh and Global Studies (primary, 2027)", downloadUrl: link.data.downloadUrl, reviewed: true }, "saving the link keeps the title change");
   const audit = fixture((db) => db.prepare("SELECT actor_id, details_json FROM user_audit_events WHERE action = 'library-link-updated' AND target_id = 'bgs-primary'").all());
   assert.equal(audit.length, 1);
-  assert.deepEqual(JSON.parse(audit[0].details_json), { bookId: "bgs-primary", classKey: null, oldUrl: "https://nctb.gov.bd/", newUrl: link.data.downloadUrl });
+  // The book covers Classes 3–5: the stored whole-book link, and where each class's readers went before and after.
+  const { oldLinks, newLinks, ...change } = JSON.parse(audit[0].details_json);
+  assert.deepEqual(change, { bookId: "bgs-primary", classKey: null, oldUrl: null, newUrl: link.data.downloadUrl });
+  assert.deepEqual(Object.keys(oldLinks), ["class-3", "class-4", "class-5"]);
+  assert.ok(Object.values(oldLinks).every((url) => /^https:\/\/nctb\.gov\.bd\/pages\/static-pages\//.test(url)), "readers went to each class's official page");
+  assert.deepEqual(newLinks, { "class-3": link.data.downloadUrl, "class-4": link.data.downloadUrl, "class-5": link.data.downloadUrl });
   assert.equal(audit[0].actor_id, fixture((db) => db.prepare("SELECT id FROM adults WHERE email = 'sources-admin@example.com'").get().id));
 
   // Readers see the link everywhere: the library API, Sources & references, and each topic's sources.
   const books = (await (await send("/api/library", "GET", undefined, mayaCookie)).json()).books;
   const bgs = books.find((book) => book.id === "bgs-primary");
   assert.equal(bgs.titleEn, "Bangladesh and Global Studies (primary, 2027)");
-  assert.ok(bgs.links.every((item) => item.url === link.data.downloadUrl && item.kind === "override"));
+  assert.deepEqual(bgs.links, [{ url: link.data.downloadUrl, kind: "override", label: null }], "one link for the whole book, not one per class");
   assert.ok((await page("/references", mayaCookie)).includes(link.data.downloadUrl));
   assert.ok((await page("/library", parentCookie)).includes(link.data.downloadUrl));
   const topics = (await (await send("/api/curriculum", "GET", undefined, mayaCookie)).json()).topics;
   const festival = topics.find((topic) => topic.id === "pohela-boishakh").references.find((ref) => ref.bookId === "bgs-primary");
   assert.equal(festival.url, link.data.downloadUrl);
+  // A teacher's preview of the topic shows the same links students follow.
+  const { topic: history } = await (await send("/api/topics/pohela-boishakh", "GET", undefined, teacherCookie)).json();
+  const preview = await (await send(`/api/topics/pohela-boishakh/versions/${history.head.version}`, "GET", undefined, teacherCookie)).json();
+  assert.deepEqual(preview.references.find((ref) => ref.bookId === "bgs-primary").links, [{ url: link.data.downloadUrl, kind: "override", label: null }]);
 
   // Without a yearly link, a book goes to its own official NCTB page, per class where it covers several.
+  // (Amar Bangla Boi's old link from a teacher is held back: see the next test.)
   const bangla = books.find((book) => book.id === "amar-bangla-boi");
   assert.deepEqual(bangla.links.map((item) => item.label.en), ["Class 1", "Class 2", "Class 3", "Class 4", "Class 5"]);
   assert.ok(bangla.links.every((item) => item.kind === "official" && /^https:\/\/nctb\.gov\.bd\/pages\/static-pages\//.test(item.url)));
@@ -127,6 +161,34 @@ test("only an administrator changes a yearly textbook link; the change is audite
   const added = await send("/api/library", "POST", { titleEn: "Class 7 reader", titleBn: "৭ম শ্রেণির পাঠ", classes: { en: "Class 7", bn: "৭ম শ্রেণি" }, downloadUrl: "https://nctb.gov.bd/pages/static-pages/class-7-reader" }, adminCookie);
   assert.equal(added.status, 201);
   assert.ok((await page("/references", raviCookie)).includes("https://nctb.gov.bd/pages/static-pages/class-7-reader"));
+});
+
+test("a link saved before only administrators could change links is held back until an administrator checks it", async () => {
+  // Readers never follow it: not on Sources & references, the library or any topic's sources.
+  assert.equal((await page("/references", mayaCookie)).includes(OLD_LINK), false);
+  assert.equal((await page("/library", parentCookie)).includes(OLD_LINK), false);
+  assert.equal(JSON.stringify((await (await send("/api/library", "GET", undefined, mayaCookie)).json()).books).includes(OLD_LINK), false);
+  const topics = (await (await send("/api/curriculum", "GET", undefined, mayaCookie)).json()).topics;
+  assert.ok(topics.some((topic) => topic.references.some((ref) => ref.bookId === "amar-bangla-boi")));
+  assert.equal(JSON.stringify(topics).includes(OLD_LINK), false);
+  const [held] = fixture((db) => db.prepare("SELECT actor_id, details_json FROM user_audit_events WHERE action = 'library-link-held' AND target_id = 'amar-bangla-boi'").all());
+  assert.equal(held.actor_id, null);
+  assert.deepEqual(JSON.parse(held.details_json), { bookId: "amar-bangla-boi", downloadUrl: OLD_LINK, setBy: "old-teacher@example.com", reasons: ["not-admin", "not-nctb"] });
+
+  // The administrator sees it under Links to check, and only an administrator decides.
+  const listed = (await (await send("/api/library?scope=admin", "GET", undefined, adminCookie)).json()).books.find((book) => book.id === "amar-bangla-boi");
+  assert.equal(listed.held.downloadUrl, OLD_LINK);
+  assert.deepEqual(listed.held.reasons, ["not-admin", "not-nctb"]);
+  await page("/admin/sources", adminCookie);
+  assert.equal((await send("/api/library", "PUT", { id: "amar-bangla-boi", data: { heldLinks: "restore" } }, teacherCookie)).status, 403);
+  assert.equal((await send("/api/library", "PUT", { id: "amar-bangla-boi", data: { heldLinks: "discard" } }, adminCookie)).status, 200);
+  const after = (await (await send("/api/library?scope=admin", "GET", undefined, adminCookie)).json()).books.find((book) => book.id === "amar-bangla-boi");
+  assert.equal(after.held, null);
+  // The administrator's own class link from the previous test is kept.
+  assert.equal(after.editions.find((item) => item.key === "class-3").link.url, "https://example.org/bangla-3.pdf");
+  const discarded = fixture((db) => db.prepare("SELECT details_json FROM user_audit_events WHERE action = 'library-link-discarded' AND target_id = 'amar-bangla-boi'").all());
+  assert.deepEqual(discarded.map((row) => JSON.parse(row.details_json).downloadUrl), [OLD_LINK]);
+  assert.equal((await send("/api/library", "PUT", { id: "amar-bangla-boi", data: { heldLinks: "discard" } }, adminCookie)).status, 409);
 });
 
 test("a teacher manages sources for their own class only", async () => {

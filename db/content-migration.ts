@@ -1,11 +1,13 @@
 import type Database from "better-sqlite3";
 import { topics } from "../app/topics-content";
+import { checkStoredLinks, type SourceOverride } from "../lib/library-links";
 
 const BASELINE_NOTE = "Edited before topic approval existed; approved as a baseline.";
 
 /**
  * Content approval and authoring: topic versions (below), the shared lesson
- * approval (migrateLessons) and per-class sources (migrateClassSources). Every new or edited topic is stored as a
+ * approval (migrateLessons), per-class sources (migrateClassSources) and the check
+ * of older textbook links (migrateLibraryLinks). Every new or edited topic is stored as a
  * version and only an approved version reaches learners. The topics shipped in
  * app/topics-content.ts are the approved baseline (version 0). Administrator
  * edits saved before approval existed (topic_updates) were already visible to
@@ -17,6 +19,39 @@ export function migrateContent(sqlite: Database.Database): void {
   migrateTopics(sqlite);
   migrateLessons(sqlite);
   migrateClassSources(sqlite);
+  migrateLibraryLinks(sqlite);
+}
+
+/**
+ * Textbook links saved before only administrators could change them. Any approved
+ * teacher could then store any HTTPS link for a book, and it showed only in the
+ * textbook library; the same link now replaces the official NCTB pages on Sources &
+ * references and in every topic's sources. So each record not yet checked has its
+ * links held back from readers when the account that saved it is not an active
+ * administrator or a link is not on nctb.gov.bd (see checkStoredLinks), with a
+ * library-link-held audit event, until an administrator restores or discards them
+ * under "Links to check" on the Sources page. Checked records are marked, so this
+ * runs once per record and is safe to repeat.
+ */
+function migrateLibraryLinks(sqlite: Database.Database): void {
+  if (!sqlite.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'knowledge_sources'").get()) return;
+  sqlite.transaction(() => {
+    const rows = sqlite.prepare("SELECT id, updated_by, data_json FROM knowledge_sources").all() as Array<{ id: string; updated_by: string; data_json: string }>;
+    const isAdmin = sqlite.prepare("SELECT 1 FROM adults WHERE email = ? AND role = 'admin' AND status = 'active'");
+    const save = sqlite.prepare("UPDATE knowledge_sources SET data_json = ? WHERE id = ?");
+    const audit = sqlite.prepare("INSERT INTO user_audit_events (id, actor_id, target_id, target_type, action, details_json) VALUES (?, NULL, ?, 'library-source', 'library-link-held', ?)");
+    const now = new Date().toISOString();
+    for (const row of rows) {
+      let stored: SourceOverride;
+      try { stored = JSON.parse(row.data_json) as SourceOverride; } catch { continue; }
+      if (!stored || typeof stored !== "object" || Array.isArray(stored)) continue;
+      const next = checkStoredLinks(stored, { email: row.updated_by, admin: Boolean(row.updated_by && isAdmin.get(row.updated_by)) }, now);
+      if (!next) continue;
+      save.run(JSON.stringify(next), row.id);
+      const held = next.heldLinks;
+      if (held) audit.run(crypto.randomUUID(), row.id, JSON.stringify({ bookId: row.id, ...(held.downloadUrl ? { downloadUrl: held.downloadUrl } : {}), ...(held.classLinks ? { classLinks: held.classLinks } : {}), setBy: held.setBy, reasons: held.reasons }));
+    }
+  })();
 }
 
 /** Per-class sources: links a class's teacher adds for that class only. Safe to repeat. */

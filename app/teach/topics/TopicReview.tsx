@@ -6,6 +6,7 @@ import type { Bilingual } from "@/app/topics-content";
 import type { VersionSummary } from "@/lib/curriculum-catalog";
 import { categoryTitle, formatWhen, TOPIC_LIMITS, type Language, type TopicContent } from "@/lib/topic-model";
 import TopicReader from "@/app/topics/TopicReader";
+import type { TopicReference } from "@/lib/library-links";
 import { authorLabel, call, failure, statusLabel, versionLabel } from "./shared";
 
 type VersionDetail = {
@@ -13,6 +14,8 @@ type VersionDetail = {
   version: VersionSummary & { content: TopicContent };
   approved: { version: number; baseline: boolean; content: TopicContent } | null;
   changes: Bilingual[];
+  /** The version's source links as students would follow them, the administrator's yearly links included. */
+  references: TopicReference[];
 };
 type History = { versions: VersionSummary[]; approvedVersion: number | null; head: { version: number } };
 type PreviewMode = "en" | "bn" | "both";
@@ -74,7 +77,7 @@ export default function TopicReview({ topicId, version, language, onOpenVersion,
   }
 
   const current = detail.version;
-  const topic = { ...current.content, id: topicId };
+  const topic = { ...current.content, id: topicId, references: detail.references };
   const reader = (lang: Language, titleLevel: 1 | 2) => (
     <article className="topic-reader" lang={lang} key={lang}>
       <TopicReader topic={topic} language={lang} titleLevel={titleLevel} />

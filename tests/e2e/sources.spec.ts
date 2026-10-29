@@ -4,21 +4,40 @@ import { randomUUID } from "node:crypto";
 
 const password = "Sources-e2e-password-2026";
 
-/** A signed-in browser for a new adult, promoted to teacher or administrator in the test database. */
+/** Changes the isolated test database directly (account roles and approvals, older records). */
+function withFixture<T>(change: (db: Database.Database) => T): T {
+  if (!process.env.BANGLA_E2E_DB?.includes("bangla-e2e-")) throw new Error("Isolated test database required.");
+  const fixture = new Database(process.env.BANGLA_E2E_DB);
+  try { return change(fixture); } finally { fixture.close(); }
+}
+
+/** Approves a self-registered account where sign-up waits for an administrator's approval (approval_status). */
+function approve(db: Database.Database, table: "adults" | "students", column: "email" | "username", value: string) {
+  const columns = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
+  if (columns.some((item) => item.name === "approval_status")) db.prepare(`UPDATE ${table} SET approval_status = 'approved' WHERE ${column} = ?`).run(value);
+}
+
+/**
+ * A signed-in browser for a new adult, promoted to teacher or administrator in the
+ * test database. It signs in after sign-up rather than relying on sign-up's session.
+ */
 async function adult(browser: Browser, baseURL: string | undefined, role: "teacher" | "admin", suffix: string) {
   const context = await browser.newContext({ baseURL, extraHTTPHeaders: { "x-forwarded-for": `sources-${role}-${suffix}` } });
   const email = `sources-${role}-${suffix}@example.com`;
   expect((await context.request.post("/api/auth/sign-up", { data: { email, displayName: `Sources ${role} ${suffix}`, password } })).status()).toBe(201);
-  if (!process.env.BANGLA_E2E_DB?.includes("bangla-e2e-")) throw new Error("Isolated test database required.");
-  const fixture = new Database(process.env.BANGLA_E2E_DB);
-  fixture.prepare(role === "admin" ? "UPDATE adults SET role = 'admin' WHERE email = ?" : "UPDATE adults SET role = 'teacher', teacher_status = 'approved' WHERE email = ?").run(email);
-  fixture.close();
+  withFixture((db) => {
+    db.prepare(role === "admin" ? "UPDATE adults SET role = 'admin' WHERE email = ?" : "UPDATE adults SET role = 'teacher', teacher_status = 'approved' WHERE email = ?").run(email);
+    approve(db, "adults", "email", email);
+  });
+  expect((await context.request.post("/api/auth/sign-in", { data: { email, password } })).status()).toBe(200);
   return context;
 }
 
 async function signedInStudent(browser: Browser, baseURL: string | undefined, username: string) {
   const context = await browser.newContext({ baseURL, extraHTTPHeaders: { "x-forwarded-for": `sources-student-${username}` } });
   expect((await context.request.post("/api/student/sign-up", { data: { username, displayName: `Learner ${username}`, password } })).status()).toBe(201);
+  withFixture((db) => approve(db, "students", "username", username));
+  expect((await context.request.post("/api/student/sign-in", { data: { username, password } })).status()).toBe(200);
   return context;
 }
 
@@ -117,5 +136,43 @@ test("a teacher adds a class source that the class's student sees", async ({ bro
     await teacherContext.close();
     await studentContext.close();
     await outsiderContext.close();
+  }
+});
+
+test("an administrator restores a link held back from before only administrators could change links", async ({ browser, baseURL }) => {
+  test.setTimeout(90000);
+  const suffix = randomUUID().slice(0, 8);
+  const title = "The secondary Bangla readers (Charupath & Anandapath for Class 6, Saptabarna, Sahitya Kanika)";
+  const oldLink = `https://nctb.gov.bd/pages/static-pages/readers-${suffix}`;
+  // What the start-up check leaves for a link a teacher saved under the old rules.
+  withFixture((db) => db.prepare("INSERT OR REPLACE INTO knowledge_sources (id, updated_by, data_json) VALUES ('literature-secondary', 'old-teacher@example.com', ?)").run(JSON.stringify({
+    reviewed: true, heldLinks: { downloadUrl: oldLink, setBy: "old-teacher@example.com", heldAt: new Date().toISOString(), reasons: ["not-admin"] },
+  })));
+  const adminContext = await adult(browser, baseURL, "admin", `held-${suffix}`);
+  const studentContext = await signedInStudent(browser, baseURL, `held-${suffix}`);
+  try {
+    const admin = await adminContext.newPage(), student = await studentContext.newPage();
+    admin.setDefaultTimeout(15000); student.setDefaultTimeout(15000);
+    await student.goto("/references");
+    await expect(student.getByRole("link", { name: `${title} — Class 6: Official NCTB page`, exact: true })).toBeVisible();
+    await expect(student.locator(`a[href="${oldLink}"]`)).toHaveCount(0);
+
+    await admin.goto("/admin/sources");
+    const checks = admin.getByRole("region", { name: "Links to check" });
+    const card = checks.getByRole("article", { name: title, exact: true });
+    await expect(card.getByRole("link", { name: oldLink, exact: true })).toHaveAttribute("href", oldLink);
+    await expect(card).toContainText("Not saved by an administrator");
+    await expect(card).toContainText("old-teacher@example.com");
+    await card.getByRole("button", { name: `Restore: ${title}`, exact: true }).click();
+    await expect(admin.getByRole("status").filter({ hasText: "Link restored" })).toBeVisible();
+    await expect(checks).toHaveCount(0);
+
+    // One link for the whole book now, instead of one per class.
+    await student.reload();
+    await expect(student.getByRole("link", { name: `${title} — This year's edition`, exact: true })).toHaveAttribute("href", oldLink);
+    await expect(student.getByRole("link", { name: `${title} — Class 6: Official NCTB page`, exact: true })).toHaveCount(0);
+  } finally {
+    await adminContext.close();
+    await studentContext.close();
   }
 });

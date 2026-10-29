@@ -4,12 +4,13 @@ import { useCallback, useEffect, useState } from "react";
 import PortalShell from "@/app/components/PortalShell";
 import { useLanguage, type Language } from "@/lib/use-language";
 import { formatWhen } from "@/lib/topic-model";
-import { isNctbLink, linkProblem, type ResolvedLink } from "@/lib/library-links";
+import { isNctbLink, linkProblem, type HeldLinks, type HoldReason, type ResolvedLink } from "@/lib/library-links";
 import type { AdminCatalogBook } from "@/lib/library-catalog";
 import type { Bilingual } from "@/app/topics-content";
 
 type Notice = Bilingual & { tone: "ok" | "warn" | "error" };
 type SaveLink = (book: AdminCatalogBook, classKey: string | null, url: string) => Promise<void>;
+type Decision = "restore" | "discard";
 const levels = [
   { id: "primary", en: "Pre-primary & primary", bn: "প্রাক-প্রাথমিক ও প্রাথমিক" },
   { id: "secondary", en: "Secondary", bn: "মাধ্যমিক" },
@@ -19,6 +20,14 @@ const levels = [
 const notNctbYet: Bilingual = {
   en: "This link is not on the NCTB website (nctb.gov.bd). You can still save it, but check that it is the official textbook before students use it.",
   bn: "এই লিংকটি এনসিটিবির ওয়েবসাইটে (nctb.gov.bd) নয়। তবু সংরক্ষণ করা যাবে, কিন্তু শিক্ষার্থীরা ব্যবহারের আগে দেখে নিন এটি সরকারি পাঠ্যবই কি না।",
+};
+const holdReason: Record<HoldReason, Bilingual> = {
+  "not-admin": { en: "Not saved by an administrator", bn: "প্রশাসক সংরক্ষণ করেননি" },
+  "not-nctb": { en: "Not on the NCTB website", bn: "এনসিটিবির ওয়েবসাইটে নয়" },
+};
+const decided: Record<Decision, Bilingual> = {
+  restore: { en: "Link restored. Readers follow it again.", bn: "লিংক ফিরিয়ে আনা হয়েছে। পাঠকেরা আবার এটি ব্যবহার করবেন।" },
+  discard: { en: "Link discarded. Readers keep the NCTB link.", bn: "লিংক বাদ দেওয়া হয়েছে। পাঠকেরা এনসিটিবির লিংকটিই পাবেন।" },
 };
 const emptySource = { titleEn: "", titleBn: "", classesEn: "", classesBn: "", level: "secondary", coversEn: "", coversBn: "", url: "" };
 
@@ -98,6 +107,7 @@ export default function AdminSources({ name }: { name: string }) {
 
   const sourceField = (key: keyof typeof emptySource) => ({ value: source[key], onChange: (event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setSource((current) => ({ ...current, [key]: event.target.value })) });
   const visible = (books ?? []).filter((book) => !book.hidden), hidden = (books ?? []).filter((book) => book.hidden);
+  const toCheck = (books ?? []).flatMap((book) => (book.held ? [{ book, held: book.held }] : []));
 
   return <PortalShell role="admin" name={name} active="sources" language={language} toggleLanguage={toggleLanguage}>
     <h1>{s("Sources", "উৎস")}</h1>
@@ -109,6 +119,16 @@ export default function AdminSources({ name }: { name: string }) {
     {notice && <p className={notice.tone === "error" ? "auth-error" : notice.tone === "warn" ? "source-warning" : "teach-message"} role={notice.tone === "ok" ? "status" : "alert"}>{notice[language]}</p>}
 
     {books === null ? (notice?.tone !== "error" && <p role="status">{s("Loading the sources…", "উৎস লোড হচ্ছে…")}</p>) : <>
+      {toCheck.length > 0 && <section className="teach-panel admin-source-check" aria-label={s("Links to check", "যাচাই করার লিংক")}>
+        <h2>{s("Links to check", "যাচাই করার লিংক")}</h2>
+        <p>{s(
+          "These links were saved before only administrators could change textbook links, by an account that is not an administrator or to a website other than NCTB. Readers do not see them for now and go to the NCTB page instead. Open each link, then restore it if it is this year's official textbook, or discard it.",
+          "শুধু প্রশাসকেরা পাঠ্যবইয়ের লিংক বদলাতে পারার আগে এই লিংকগুলো সংরক্ষণ করা হয়েছিল, প্রশাসক নন এমন কারও অ্যাকাউন্ট থেকে বা এনসিটিবি ছাড়া অন্য ওয়েবসাইটের। পাঠকেরা এখন এগুলো দেখেন না, তার বদলে এনসিটিবির পাতায় যান। প্রতিটি লিংক খুলে দেখুন: এটি এ বছরের সরকারি পাঠ্যবই হলে ফিরিয়ে আনুন, না হলে বাদ দিন।",
+        )}</p>
+        <div className="admin-source-list">
+          {toCheck.map(({ book, held }) => <HeldCard key={book.id} book={book} held={held} language={language} busy={busy} onDecide={(decision) => change({ id: book.id, data: { heldLinks: decision } }, decided[decision])} />)}
+        </div>
+      </section>}
       <div className="admin-source-list">
         {visible.map((book) => <BookCard key={book.id} book={book} language={language} busy={busy} onSave={saveLink} onHidden={(value) => change({ id: book.id, data: { hidden: value } }, { en: "Hidden from readers. You can show it again below.", bn: "পাঠকদের কাছ থেকে লুকানো হয়েছে। নিচে থেকে আবার দেখাতে পারবেন।" })} />)}
       </div>
@@ -140,6 +160,36 @@ export default function AdminSources({ name }: { name: string }) {
   </PortalShell>;
 }
 
+/**
+ * A book whose links were saved under the old rules and are held back from readers:
+ * each link, who saved it and why it is held, with Restore and Discard.
+ */
+function HeldCard({ book, held, language, busy, onDecide }: { book: AdminCatalogBook; held: HeldLinks; language: Language; busy: boolean; onDecide: (decision: Decision) => void }) {
+  const s = (en: string, bn: string) => (language === "bn" ? bn : en);
+  const title = language === "bn" ? book.titleBn : book.titleEn;
+  const slots = [
+    ...(held.downloadUrl ? [{ key: "book", label: book.editions.length > 1 ? s("Whole book (all classes)", "পুরো বই (সব শ্রেণি)") : s("Whole book", "পুরো বই"), url: held.downloadUrl }] : []),
+    ...Object.entries(held.classLinks ?? {}).map(([key, url]) => ({ key, label: book.editions.find((item) => item.key === key)?.label[language] ?? key, url })),
+  ];
+  return (
+    <article className="admin-source admin-source-held" aria-label={title}>
+      <h3>{title}</h3>
+      <ul>
+        {slots.map((slot) => <li key={slot.key}><strong>{slot.label}</strong>: <a href={slot.url} target="_blank" rel="noreferrer noopener">{slot.url}</a></li>)}
+      </ul>
+      <p className="library-chips">{held.reasons.map((reason) => <span key={reason} className="library-chip-confirm">{holdReason[reason][language]}</span>)}</p>
+      <small>{s(
+        `Saved by ${held.setBy ?? "an unknown account"}. Held back from readers since ${formatWhen(held.heldAt, "en")}.`,
+        `সংরক্ষণ করেছেন ${held.setBy ?? "অজানা একটি অ্যাকাউন্ট"}। ${formatWhen(held.heldAt, "bn")} থেকে পাঠকদের কাছ থেকে আটকে রাখা।`,
+      )}</small>
+      <div className="access-actions">
+        <button type="button" className="outline-button" disabled={busy} aria-label={`${s("Restore", "ফিরিয়ে আনুন")}: ${title}`} onClick={() => onDecide("restore")}>{s("Restore", "ফিরিয়ে আনুন")}</button>
+        <button type="button" className="text-button danger" disabled={busy} aria-label={`${s("Discard", "বাদ দিন")}: ${title}`} onClick={() => onDecide("discard")}>{s("Discard", "বাদ দিন")}</button>
+      </div>
+    </article>
+  );
+}
+
 /** Warns, before saving, that a link is not on the NCTB website; it can still be saved. */
 function LinkWarning({ url, language }: { url: string; language: Language }) {
   const value = url.trim();
@@ -158,8 +208,9 @@ function BookCard({ book, language, busy, onSave, onHidden }: { book: AdminCatal
         <p lang={language === "bn" ? "en" : "bn"}>{language === "bn" ? book.titleEn : book.titleBn}</p>
         <p className="library-chips">
           <span>{book.classes[language]}</span>
-          {book.added && <span>{s("Added by an administrator", "প্রশাসকের যোগ করা")}</span>}
+          {book.added && <span>{s("Added source", "যোগ করা উৎস")}</span>}
           {book.hidden && <span className="library-chip-confirm">{s("Hidden from readers", "পাঠকদের কাছে লুকানো")}</span>}
+          {book.held && <span className="library-chip-confirm">{s("Link to check (see the top of this page)", "লিংক যাচাই বাকি (পাতার ওপরে দেখুন)")}</span>}
         </p>
       </header>
       <LinkRow key={`book:${book.downloadUrl ?? ""}`} book={book} classKey={null} label={perClass ? s("Whole book (all classes)", "পুরো বই (সব শ্রেণি)") : s("Whole book", "পুরো বই")} current={book.link} stored={book.downloadUrl} perClass={perClass} language={language} busy={busy} onSave={onSave} />
@@ -192,9 +243,11 @@ function LinkRow({ book, classKey, label, current, stored, perClass = false, lan
     <div className="admin-source-link">
       <div className="admin-source-now">
         <strong>{label}</strong>
-        {perClass && !stored
-          // Without a whole-book link, readers follow each class's own link below.
-          ? <small>{s("Readers now go to each class's own page below. A link here replaces them all.", "পাঠকেরা এখন নিচে প্রতিটি শ্রেণির নিজস্ব পাতায় যান। এখানে লিংক দিলে সবগুলোর বদলে এটি দেখাবে।")}</small>
+        {perClass
+          // A class's own link below wins over the whole book's, so this link is only for the classes without one.
+          ? <small>{stored
+            ? <>{s("Readers in every class without its own link below go to", "নিচে নিজস্ব লিংক নেই এমন প্রতিটি শ্রেণির পাঠকেরা যান")}: <a href={stored} target="_blank" rel="noreferrer">{stored}</a></>
+            : s("Readers now go to each class's own page below. A link here is used for every class that has no link of its own below.", "পাঠকেরা এখন নিচে প্রতিটি শ্রেণির নিজস্ব পাতায় যান। এখানে লিংক দিলে নিচে যে শ্রেণির নিজস্ব লিংক নেই, সেগুলোর জন্য এটি ব্যবহার হবে।")}</small>
           : <small>{s("Readers now go to", "পাঠকেরা এখন যান")}: {now} · <a href={current.url} target="_blank" rel="noreferrer">{current.url}</a></small>}
       </div>
       <form onSubmit={(event) => { event.preventDefault(); if (value && !problem) void onSave(book, classKey, value); }}>

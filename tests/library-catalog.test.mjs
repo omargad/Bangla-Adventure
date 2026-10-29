@@ -11,11 +11,14 @@ const catalog = await import("../lib/library-catalog.ts");
 const { libraryBooks, NCTB_PORTAL_URL } = await import("../app/library-content.ts");
 const { nctbCoreBooks } = await import("../app/nctb-books.ts");
 const { getDb } = await import("../db/index.ts");
+const { migrateContent } = await import("../db/content-migration.ts");
 const { adults, knowledgeSources, userAuditEvents } = await import("../db/schema.ts");
 const { eq } = await import("drizzle-orm");
+const { default: Database } = await import("better-sqlite3");
 const db = await getDb();
 db.insert(adults).values([
   { id: "admin", email: "admin@example.com", displayName: "Admin Ayesha", role: "admin", passwordHash: "fixture" },
+  { id: "teacher", email: "teacher@example.com", displayName: "Teacher Tania", role: "teacher", teacherStatus: "approved", passwordHash: "fixture" },
 ]).run();
 const admin = { id: "admin", email: "admin@example.com", role: "admin", status: "active", teacherStatus: "none" };
 after(() => rmSync(dir, { recursive: true, force: true }));
@@ -55,6 +58,14 @@ test("a book that covers several classes links each class to its own page", () =
   assert.equal(single.length, 1);
   assert.equal(single[0].label, null);
   assert.equal(single[0].kind, "official");
+
+  // This year's link for the whole book and no class link of its own: one link, not five identical ones.
+  const yearly = { downloadUrl: "https://nctb.gov.bd/pages/static-pages/bangla-2027" };
+  assert.deepEqual(links.bookLinks("amar-bangla-boi", yearly), [{ url: yearly.downloadUrl, kind: "override", label: null }]);
+  // A class with its own link keeps it; the other classes use the whole book's link.
+  const mixed = links.bookLinks("amar-bangla-boi", { ...yearly, classLinks: { "class-2": "https://nctb.gov.bd/pages/static-pages/bangla-2027-class-2" } });
+  assert.deepEqual(mixed.map((link) => link.label.en), ["Class 1", "Class 2", "Class 3", "Class 4", "Class 5"]);
+  assert.deepEqual(mixed.map((link) => link.url), [yearly.downloadUrl, "https://nctb.gov.bd/pages/static-pages/bangla-2027-class-2", yearly.downloadUrl, yearly.downloadUrl, yearly.downloadUrl]);
 });
 
 test("every class page is an audited NCTB page, labelled in both languages, for a real catalogue book", () => {
@@ -68,6 +79,13 @@ test("every class page is an audited NCTB page, labelled in both languages, for 
       assert.match(item.officialPage, /^https:\/\/nctb\.gov\.bd\/pages\/static-pages\/[0-9a-f]{24}$/, `${bookId} ${item.key}`);
     }
   }
+  // Arts and crafts (Classes 6–9) links each class to the same class page as the other secondary books.
+  const secondary = Object.fromEntries(links.bookEditions["bgs-secondary"].map((item) => [item.key, item.officialPage]));
+  assert.deepEqual(links.bookEditions["arts-crafts"].map((item) => [item.key, item.label.en, item.officialPage]), [
+    ["class-6", "Class 6", secondary["class-6"]], ["class-7", "Class 7", secondary["class-7"]],
+    ["class-8", "Class 8", secondary["class-8"]], ["class-9", "Class 9", secondary["class-9-10"]],
+  ]);
+  assert.ok(links.bookLinks("arts-crafts").every((link) => link.kind === "official"));
 });
 
 test("the catalogue keeps the administrator's descriptive changes, leaves out hidden books and shows complete added sources", () => {
@@ -84,7 +102,7 @@ test("the catalogue keeps the administrator's descriptive changes, leaves out hi
   assert.ok(bgs.chapterMaps.length > 0, "chapter maps stay with the book");
   assert.equal(bgs.customised, true);
   assert.equal(bgs.downloadUrl, "https://nctb.gov.bd/bgs-2027");
-  assert.ok(bgs.links.every((link) => link.url === "https://nctb.gov.bd/bgs-2027" && link.kind === "override"));
+  assert.deepEqual(bgs.links, [{ url: "https://nctb.gov.bd/bgs-2027", kind: "override", label: null }]);
   assert.equal(books.some((book) => book.id === "arts-crafts"), false);
   assert.equal(links.mergeCatalog(overrides, { includeHidden: true }).find((book) => book.id === "arts-crafts").hidden, true);
   const added = books.find((book) => book.id === "new-reader-abc123");
@@ -123,11 +141,16 @@ test("saving a yearly link keeps the book's other changes and is audited with th
   await catalog.updateLibrarySource(admin, "bgs-primary", { titleEn: "Bangladesh and Global Studies (primary, 2027)" });
   const saved = await catalog.updateLibrarySource(admin, "bgs-primary", { downloadUrl: "https://nctb.gov.bd/pages/static-pages/bgs-2027" });
   assert.deepEqual(saved.warnings, []);
-  assert.deepEqual(stored("bgs-primary"), { titleEn: "Bangladesh and Global Studies (primary, 2027)", downloadUrl: "https://nctb.gov.bd/pages/static-pages/bgs-2027" });
+  assert.deepEqual(stored("bgs-primary"), { titleEn: "Bangladesh and Global Studies (primary, 2027)", downloadUrl: "https://nctb.gov.bd/pages/static-pages/bgs-2027", reviewed: true });
   const [event] = events("library-link-updated");
   assert.equal(event.actorId, "admin");
   assert.equal(event.targetId, "bgs-primary");
-  assert.deepEqual(event.details, { bookId: "bgs-primary", classKey: null, oldUrl: NCTB_PORTAL_URL, newUrl: "https://nctb.gov.bd/pages/static-pages/bgs-2027" });
+  // The book covers Classes 3–5: the stored whole-book link, and where each class's readers went before and after.
+  const bgsPages = Object.fromEntries([3, 4, 5].map((grade) => [`class-${grade}`, classPage(grade, "bangladesh-and-global-studies")]));
+  assert.deepEqual(event.details, {
+    bookId: "bgs-primary", classKey: null, oldUrl: null, newUrl: "https://nctb.gov.bd/pages/static-pages/bgs-2027",
+    oldLinks: bgsPages, newLinks: Object.fromEntries(Object.keys(bgsPages).map((key) => [key, "https://nctb.gov.bd/pages/static-pages/bgs-2027"])),
+  });
   assert.deepEqual(events("library-source-updated")[0].details, { bookId: "bgs-primary", fields: ["titleEn"] });
 
   // Saving the same link again changes nothing and records nothing.
@@ -185,4 +208,86 @@ test("administrators hide and show books, add new sources and undo changes, all 
   assert.equal((await catalog.getLibraryCatalog()).some((book) => book.id === added.id), false);
   assert.equal(events("library-source-reset")[0].targetId, added.id);
   await assert.rejects(catalog.resetLibrarySource(admin, added.id), (error) => error.status === 404);
+});
+
+test("a stored record is checked once: links not saved by an administrator, or not on NCTB, are held back", () => {
+  const now = "2026-10-29T00:00:00.000Z";
+  const teacherLink = { downloadUrl: "https://random.example.com/bangla.pdf", titleEn: "Kept title" };
+  assert.deepEqual(links.checkStoredLinks(teacherLink, { email: "teacher@example.com", admin: false }, now), {
+    titleEn: "Kept title", reviewed: true,
+    heldLinks: { downloadUrl: teacherLink.downloadUrl, setBy: "teacher@example.com", heldAt: now, reasons: ["not-admin", "not-nctb"] },
+  });
+  const classLinks = { "class-3": "https://nctb.gov.bd/pages/static-pages/class-3" };
+  assert.deepEqual(links.checkStoredLinks({ classLinks }, { email: "teacher@example.com", admin: false }, now).heldLinks, { classLinks, setBy: "teacher@example.com", heldAt: now, reasons: ["not-admin"] });
+  assert.deepEqual(links.checkStoredLinks({ downloadUrl: "https://drive.example.com/x" }, { email: "admin@example.com", admin: true }, now).heldLinks.reasons, ["not-nctb"]);
+  // An administrator's NCTB link stays and is marked checked; a checked record or one without links is left alone.
+  assert.deepEqual(links.checkStoredLinks({ downloadUrl: "https://nctb.gov.bd/x" }, { email: "admin@example.com", admin: true }, now), { downloadUrl: "https://nctb.gov.bd/x", reviewed: true });
+  assert.equal(links.checkStoredLinks({ downloadUrl: "https://random.example.com/x", reviewed: true }, { email: "", admin: false }, now), null);
+  assert.equal(links.checkStoredLinks({ hidden: true }, { email: "teacher@example.com", admin: false }, now), null);
+  // Held links never reach readers, and the check's fields stay out of the reader's record.
+  const held = links.mergeCatalog(new Map([["amar-bangla-boi", { reviewed: true, heldLinks: { downloadUrl: "https://random.example.com/x", setBy: null, heldAt: now, reasons: ["not-nctb"] } }]]));
+  const book = held.find((item) => item.id === "amar-bangla-boi");
+  assert.ok(book.links.every((link) => link.kind === "official"));
+  assert.equal("heldLinks" in book || "reviewed" in book, false);
+});
+
+test("on start, older links are held until an administrator restores or discards them, all audited", async () => {
+  const legacy = [
+    ["amar-bangla-boi", "teacher@example.com", { downloadUrl: "https://random.example.com/bangla.pdf" }],
+    ["history-9-10", "admin@example.com", { titleEn: "History (2027)", downloadUrl: "https://nctb.gov.bd/pages/static-pages/history-2027" }],
+    ["geography-9-10", "admin@example.com", { downloadUrl: "https://drive.example.com/geography.pdf" }],
+    ["teacher-reader", "teacher@example.com", { titleEn: "Teacher's reader", titleBn: "শিক্ষকের পাঠ", classes: { en: "Class 7", bn: "৭ম শ্রেণি" }, downloadUrl: "https://nctb.gov.bd/reader" }],
+    ["ethnic-culture", "teacher@example.com", { hidden: true }],
+  ];
+  db.insert(knowledgeSources).values(legacy.map(([id, updatedBy, data]) => ({ id, updatedBy, dataJson: JSON.stringify(data) }))).run();
+  const migrate = () => { const sqlite = new Database(process.env.DATABASE_PATH); try { migrateContent(sqlite); } finally { sqlite.close(); } };
+  migrate();
+
+  assert.deepEqual(stored("amar-bangla-boi").heldLinks.reasons, ["not-admin", "not-nctb"]);
+  assert.equal(stored("amar-bangla-boi").downloadUrl, undefined);
+  assert.deepEqual(stored("history-9-10"), { titleEn: "History (2027)", downloadUrl: "https://nctb.gov.bd/pages/static-pages/history-2027", reviewed: true });
+  assert.deepEqual(stored("geography-9-10").heldLinks.reasons, ["not-nctb"]);
+  assert.deepEqual(stored("teacher-reader").heldLinks.reasons, ["not-admin"]);
+  assert.deepEqual(stored("ethnic-culture"), { hidden: true });
+  const heldEvents = events("library-link-held");
+  assert.deepEqual(heldEvents.map((row) => row.targetId).sort(), ["amar-bangla-boi", "geography-9-10", "teacher-reader"]);
+  assert.ok(heldEvents.every((row) => row.actorId === null));
+  assert.deepEqual(heldEvents.find((row) => row.targetId === "amar-bangla-boi").details, { bookId: "amar-bangla-boi", downloadUrl: "https://random.example.com/bangla.pdf", setBy: "teacher@example.com", reasons: ["not-admin", "not-nctb"] });
+
+  // Readers keep the official pages; the administrator's NCTB link still reaches them.
+  const readers = await catalog.getLibraryCatalog();
+  assert.deepEqual(readers.find((book) => book.id === "amar-bangla-boi").links.map((link) => link.url), [1, 2, 3, 4, 5].map((grade) => classPage(grade)));
+  assert.equal(readers.find((book) => book.id === "history-9-10").links[0].url, "https://nctb.gov.bd/pages/static-pages/history-2027");
+  const reader = readers.find((book) => book.id === "teacher-reader");
+  assert.equal(reader.link.kind, "portal");
+  assert.deepEqual(reader.subjectArea, { en: "Added source", bn: "যোগ করা উৎস" });
+  assert.equal(JSON.stringify(readers).includes("random.example.com"), false);
+  assert.equal(links.topicSourceLinks([{ bookId: "amar-bangla-boi", note: { en: "", bn: "" } }], await catalog.libraryOverrides())[0].links.some((link) => link.url.includes("random.example.com")), false);
+
+  // Running again changes nothing.
+  migrate();
+  assert.equal(events("library-link-held").length, 3);
+
+  const listed = (await catalog.adminLibraryCatalog()).find((book) => book.id === "amar-bangla-boi");
+  assert.deepEqual({ ...listed.held, heldAt: undefined }, { downloadUrl: "https://random.example.com/bangla.pdf", setBy: "Teacher Tania", heldAt: undefined, reasons: ["not-admin", "not-nctb"] });
+
+  // Restoring saves the held link as this year's link, with the usual warning and audit.
+  const restored = await catalog.updateLibrarySource(admin, "amar-bangla-boi", { heldLinks: "restore" });
+  assert.match(restored.warnings[0].en, /not on the NCTB website/);
+  assert.deepEqual(stored("amar-bangla-boi"), { downloadUrl: "https://random.example.com/bangla.pdf", reviewed: true });
+  assert.deepEqual(restored.book.links, [{ url: "https://random.example.com/bangla.pdf", kind: "override", label: null }]);
+  assert.equal(events("library-link-restored")[0].targetId, "amar-bangla-boi");
+  const update = events("library-link-updated").filter((row) => row.targetId === "amar-bangla-boi").at(-1).details;
+  assert.equal(update.oldUrl, null);
+  assert.equal(update.newUrl, "https://random.example.com/bangla.pdf");
+  assert.equal(update.notNctb, true);
+  assert.deepEqual(Object.values(update.oldLinks), [1, 2, 3, 4, 5].map((grade) => classPage(grade)));
+  await assert.rejects(catalog.updateLibrarySource(admin, "amar-bangla-boi", { heldLinks: "restore" }), (error) => error.status === 409 && Boolean(error.messageBn));
+  await assert.rejects(catalog.updateLibrarySource(admin, "geography-9-10", { heldLinks: "maybe" }), (error) => error.status === 400);
+
+  // Discarding drops it: a record left with nothing else returns the book to the shipped record.
+  await catalog.updateLibrarySource(admin, "geography-9-10", { heldLinks: "discard" });
+  assert.equal(stored("geography-9-10"), null);
+  assert.deepEqual(events("library-link-discarded")[0].details, { bookId: "geography-9-10", downloadUrl: "https://drive.example.com/geography.pdf", setBy: "admin@example.com" });
+  assert.equal((await catalog.adminLibraryCatalog()).filter((book) => book.held).map((book) => book.id).join(), "teacher-reader");
 });

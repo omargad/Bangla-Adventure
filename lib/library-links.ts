@@ -18,6 +18,18 @@ export type BookEdition = { key: string; label: Bilingual; officialPage: string 
 /** A book's link as shown to readers: per class (label set) or for the whole book. */
 export type SourceLink = ResolvedLink & { label: Bilingual | null };
 
+/** Why a link saved before only administrators could change links is held back from readers. */
+export type HoldReason = "not-admin" | "not-nctb";
+/** Links held back until an administrator restores or discards them; readers never follow them. */
+export type HeldLinks = {
+  downloadUrl?: string;
+  classLinks?: Record<string, string>;
+  /** The e-mail address that saved them (knowledge_sources.updated_by). */
+  setBy: string | null;
+  heldAt: string;
+  reasons: HoldReason[];
+};
+
 /** What an administrator has changed about a book; stored as JSON in knowledge_sources. */
 export type SourceOverride = Partial<Omit<LibraryBook, "id" | "chapterMaps">> & {
   hidden?: boolean;
@@ -25,10 +37,14 @@ export type SourceOverride = Partial<Omit<LibraryBook, "id" | "chapterMaps">> & 
   downloadUrl?: string;
   /** This year's link for one class of a book that covers several classes, by edition key. */
   classLinks?: Record<string, string>;
+  /** Links saved under the old rules that wait for an administrator's check. */
+  heldLinks?: HeldLinks;
+  /** Set on every record an administrator saved or checked; older records are checked once at start. */
+  reviewed?: boolean;
 };
 
 export type CatalogBook = LibraryBook & {
-  /** Added by an administrator rather than part of the shipped catalogue. */
+  /** Added to the library rather than part of the shipped catalogue. */
   added: boolean;
   customised: boolean;
   hidden: boolean;
@@ -50,6 +66,7 @@ const classLabel: Record<string, Bilingual> = {
   "class-6": { en: "Class 6", bn: "৬ষ্ঠ শ্রেণি" },
   "class-7": { en: "Class 7", bn: "৭ম শ্রেণি" },
   "class-8": { en: "Class 8", bn: "৮ম শ্রেণি" },
+  "class-9": { en: "Class 9", bn: "৯ম শ্রেণি" },
   "class-9-10": { en: "Classes 9–10", bn: "৯ম–১০ম শ্রেণি" },
 };
 
@@ -62,12 +79,20 @@ const teen = (id: string) => nctbConditionalTeenResources.find((book) => book.id
 const prePrimary = (id: string) => nctbPrePrimaryResources.find((book) => book.id === id)?.officialPage;
 const catalogue = (grade: (typeof nctbTeenCatalogPages)[number]["grade"]) => nctbTeenCatalogPages.find((page) => page.grade === grade)?.url;
 
+/** NCTB's page for each secondary class, where it lists all of that class's textbooks. */
+const secondaryPage = {
+  "class-6": teen("class-6-bgs"),
+  "class-7": catalogue("Class 7"),
+  "class-8": teen("class-8-bgs"),
+  "class-9-10": catalogue("Classes 9–10"),
+};
+
 /**
  * The official NCTB page for each class a catalogue book covers, taken from the
  * audited records in app/nctb-books.ts. NCTB lists the textbooks of each class on
  * one page, so a class's page is the closest link to the book itself. Books with
- * no audited record (arts and crafts, ethnic culture, HSC readers) fall back to the
- * NCTB website until a record or an administrator's link exists.
+ * no audited record (ethnic culture, HSC readers) fall back to the NCTB website
+ * until a record or an administrator's link exists.
  */
 export const bookEditions: Record<string, BookEdition[]> = {
   "amar-boi-pre-primary": [edition("pre-primary", prePrimary("preprimary-my-book"))],
@@ -80,6 +105,11 @@ export const bookEditions: Record<string, BookEdition[]> = {
   "history-9-10": [edition("class-9-10", catalogue("Classes 9–10"))],
   "literature-secondary": [edition("class-6", teen("class-6-charupath")), edition("class-7", catalogue("Class 7")), edition("class-8", teen("class-8-literature"))],
   "geography-9-10": [edition("class-9-10", catalogue("Classes 9–10"))],
+  // Arts and crafts has no record of its own; NCTB lists it on each class's page (Class 9 on the Classes 9–10 page).
+  "arts-crafts": [
+    edition("class-6", secondaryPage["class-6"]), edition("class-7", secondaryPage["class-7"]),
+    edition("class-8", secondaryPage["class-8"]), edition("class-9", secondaryPage["class-9-10"]),
+  ],
   "mother-tongue-books": [edition("pre-primary", nctbCommunityDiscovery[0]?.prePrimaryPage), edition("primary", nctbCommunityDiscovery[0]?.primaryPage)],
 };
 
@@ -102,11 +132,54 @@ export function resolveBookLink(bookId: string, override?: SourceOverride | null
   return { url: NCTB_PORTAL_URL, kind: "portal" };
 }
 
-/** The links a reader sees for a book: one per class when it covers several, else one. */
+/**
+ * The links a reader sees for a book: one per class when it covers several, else
+ * one. When every class goes to the same place (this year's link for the whole
+ * book and no class link of its own), that link is shown once.
+ */
 export function bookLinks(bookId: string, override?: SourceOverride | null): SourceLink[] {
   const editions = editionsOf(bookId);
-  if (editions.length > 1) return editions.map((item) => ({ ...resolveBookLink(bookId, override, item.key), label: item.label }));
+  if (editions.length > 1) {
+    const links = editions.map((item) => ({ ...resolveBookLink(bookId, override, item.key), label: item.label }));
+    const [first] = links;
+    if (links.every((link) => link.url === first.url && link.kind === first.kind)) return [{ url: first.url, kind: first.kind, label: null }];
+    return links;
+  }
   return [{ ...resolveBookLink(bookId, override), label: null }];
+}
+
+/** Every stored link of a record, whole book first. */
+function storedLinks(override: Pick<SourceOverride, "downloadUrl" | "classLinks">): string[] {
+  const classLinks = typeof override.classLinks === "object" && override.classLinks !== null ? Object.values(override.classLinks) : [];
+  return [override.downloadUrl, ...classLinks].filter((url): url is string => typeof url === "string" && url !== "");
+}
+
+/**
+ * The check for a record saved before only administrators could change textbook
+ * links. Then any approved teacher could store any HTTPS link, and it showed only
+ * in the textbook library; now it would replace the official NCTB pages on Sources
+ * & references and every topic's sources too. So its links are held back
+ * (heldLinks, which readers never follow) when the account that saved them is not
+ * an administrator or a link is not on the NCTB website, until an administrator
+ * restores or discards them. Returns the record to store, or null when it needs
+ * no change (already checked, or no links).
+ */
+export function checkStoredLinks(override: SourceOverride, savedBy: { email: string; admin: boolean }, now: string): SourceOverride | null {
+  if (override.reviewed) return null;
+  const urls = storedLinks(override);
+  if (!urls.length) return null;
+  const reasons: HoldReason[] = [];
+  if (!savedBy.admin) reasons.push("not-admin");
+  if (urls.some((url) => !isNctbLink(url))) reasons.push("not-nctb");
+  const next: SourceOverride = { ...override, reviewed: true };
+  if (!reasons.length) return next;
+  delete next.downloadUrl; delete next.classLinks;
+  next.heldLinks = {
+    ...(typeof override.downloadUrl === "string" && override.downloadUrl ? { downloadUrl: override.downloadUrl } : {}),
+    ...(typeof override.classLinks === "object" && override.classLinks !== null && Object.keys(override.classLinks).length ? { classLinks: override.classLinks } : {}),
+    setBy: savedBy.email || null, heldAt: now, reasons,
+  };
+  return next;
 }
 
 const isPair = (value: unknown): value is Bilingual =>
@@ -121,7 +194,8 @@ function addedBook(id: string, override: SourceOverride): LibraryBook | null {
     titleEn: override.titleEn,
     classes: override.classes,
     level: override.level ?? "secondary",
-    subjectArea: override.subjectArea ?? { en: "Added by an administrator", bn: "প্রশাসকের যোগ করা" },
+    // Sources added before only administrators could add them may come from a teacher.
+    subjectArea: override.subjectArea ?? { en: "Added source", bn: "যোগ করা উৎস" },
     covers: override.covers ?? { en: "", bn: "" },
     whyItMatters: override.whyItMatters ?? { en: "", bn: "" },
     hasEnglishVersion: override.hasEnglishVersion ?? false,
@@ -145,7 +219,7 @@ function catalogEntry(book: LibraryBook, override: SourceOverride | undefined, a
 
 function stripLinks(override: SourceOverride): Partial<LibraryBook> {
   const fields: SourceOverride = { ...override };
-  delete fields.hidden; delete fields.downloadUrl; delete fields.classLinks;
+  delete fields.hidden; delete fields.downloadUrl; delete fields.classLinks; delete fields.heldLinks; delete fields.reviewed;
   return fields as Partial<LibraryBook>;
 }
 

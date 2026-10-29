@@ -58,7 +58,11 @@ and preserve real records.
    until the edit is previewed in English and Bangla and approved. In Sources,
    replace one book's yearly NCTB link (per class where a book covers several),
    note the warning for an address outside nctb.gov.bd, and confirm students'
-   Sources & references and the topic sources open the new link.
+   Sources & references and the topic sources open the new link. On the first
+   visit after deploying this version, work through "Links to check" at the top
+   of Sources: links saved earlier by a non-administrator, or outside
+   nctb.gov.bd, are held back from readers until you open each one and restore
+   or discard it.
 2. **Teacher:** request access, demonstrate no teaching privileges before approval,
    create a class and activity/quiz, allocate an exact registered student, inspect
    submissions/results, and post an announcement visible only to that class. Write
