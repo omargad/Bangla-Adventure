@@ -8,6 +8,9 @@ import { groupLessonsByCategory, visibleLessons, type LearnerVideo } from "../..
 import { libraryBooks } from "../library-content";
 import LessonExperience from "../components/LessonExperience";
 import FourSkillDiagnostic from "../components/FourSkillDiagnostic";
+import VoiceNote from "../components/VoiceNote";
+import { bundledClip, lessonClip, playbackPlan, voiceStatusText, type Clip, type RecordingMap, type VoiceStatus } from "../../lib/voice-playback";
+import { deviceVoices, runPlayback, stopPlayback } from "../../lib/voice-player";
 
 type Language = "en" | "bn";
 type LessonStep = "start" | "learn" | "practice" | "watch" | "check";
@@ -433,11 +436,13 @@ type AmbienceNodes = {
 /**
  * The learner adventure page. The server passes the lessons a teacher has
  * approved (learners never see withdrawn ones), the replacement for any video a
- * teacher took down, and the lesson a ?module= link asks for when it may open.
+ * teacher took down, the approved human recordings, and the lesson a ?module=
+ * link asks for when it may open.
  */
-export default function AdventureApp({ approvedLessonIds, videos, initialModuleId, moduleUnavailable }: {
+export default function AdventureApp({ approvedLessonIds, videos, recordings, initialModuleId, moduleUnavailable }: {
   approvedLessonIds: string[];
   videos: Record<string, LearnerVideo | null>;
+  recordings: RecordingMap;
   initialModuleId: string | null;
   moduleUnavailable: boolean;
 }) {
@@ -458,6 +463,8 @@ export default function AdventureApp({ approvedLessonIds, videos, initialModuleI
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [audioMessage, setAudioMessage] = useState("");
+  const [voiceStatus, setVoiceStatus] = useState<VoiceStatus | null>(null);
+  const voiceStatusTimerRef = useRef<number | null>(null);
   const [selectedLevel, setSelectedLevel] = useState<CurriculumLevel | "all">(() => allLessons.find((lesson) => lesson.id === initialModuleId)?.level ?? "pre-a1");
   const [cloudLearner, setCloudLearner] = useState<CloudLearner | null>(null);
   const [syncStatus, setSyncStatus] = useState<"device" | "syncing" | "synced" | "pending">("device");
@@ -590,9 +597,8 @@ export default function AdventureApp({ approvedLessonIds, videos, initialModuleI
   useEffect(() => {
     return () => {
       speechTokenRef.current += 1;
-      if ("speechSynthesis" in window) window.speechSynthesis.cancel();
-      recordedAudioRef.current?.pause();
-      recordedAudioRef.current = null;
+      stopPlayback(recordedAudioRef);
+      if (voiceStatusTimerRef.current !== null) window.clearTimeout(voiceStatusTimerRef.current);
       const ambience = ambienceRef.current;
       if (ambience) {
         try {
@@ -617,10 +623,9 @@ export default function AdventureApp({ approvedLessonIds, videos, initialModuleI
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         speechTokenRef.current += 1;
-        if ("speechSynthesis" in window) window.speechSynthesis.cancel();
-        recordedAudioRef.current?.pause();
-        recordedAudioRef.current = null;
+        stopPlayback(recordedAudioRef);
         setIsSpeaking(false);
+        setVoiceStatus(null);
         const context = audioContextRef.current;
         const ambience = ambienceRef.current;
         if (context && ambience && context.state !== "closed") {
@@ -804,11 +809,18 @@ export default function AdventureApp({ approvedLessonIds, videos, initialModuleI
 
   function stopNarration() {
     speechTokenRef.current += 1;
-    if ("speechSynthesis" in window) window.speechSynthesis.cancel();
-    recordedAudioRef.current?.pause();
-    recordedAudioRef.current = null;
+    stopPlayback(recordedAudioRef);
     setIsSpeaking(false);
+    showVoiceStatus(null);
     duckAmbience(false);
+  }
+
+  /** Shows what is playing (or that nothing can); with `fadeAfter` the note goes after that many milliseconds. */
+  function showVoiceStatus(next: VoiceStatus | null, fadeAfter?: number) {
+    if (voiceStatusTimerRef.current !== null) window.clearTimeout(voiceStatusTimerRef.current);
+    voiceStatusTimerRef.current = null;
+    setVoiceStatus(next);
+    if (next && fadeAfter) voiceStatusTimerRef.current = window.setTimeout(() => setVoiceStatus(null), fadeAfter);
   }
 
   function duckAmbience(ducked: boolean) {
@@ -822,42 +834,13 @@ export default function AdventureApp({ approvedLessonIds, videos, initialModuleI
     );
   }
 
-  function playRecordedVoice(source: string, languageRoot: string, token: number) {
-    recordedAudioRef.current?.pause();
-    const audio = new Audio(source);
-    audio.preload = "auto";
-    audio.volume = 0.92;
-    recordedAudioRef.current = audio;
-    audio.onplay = () => {
-      if (speechTokenRef.current !== token) return;
-      setIsSpeaking(true);
-      duckAmbience(true);
-      setAudioMessage(languageRoot === "bn" ? "বাংলা কণ্ঠ বাজছে।" : "English narration is playing.");
-    };
-    audio.onended = () => {
-      if (speechTokenRef.current !== token) return;
-      recordedAudioRef.current = null;
-      setIsSpeaking(false);
-      duckAmbience(false);
-      setAudioMessage(languageRoot === "bn" ? "বাংলা কণ্ঠ শেষ হয়েছে।" : "English narration finished.");
-    };
-    audio.onerror = () => {
-      if (speechTokenRef.current !== token) return;
-      recordedAudioRef.current = null;
-      setIsSpeaking(false);
-      duckAmbience(false);
-      setAudioMessage(t.audioUnavailable);
-    };
-    void audio.play().catch(() => {
-      if (speechTokenRef.current !== token) return;
-      recordedAudioRef.current = null;
-      setIsSpeaking(false);
-      duckAmbience(false);
-      setAudioMessage(t.audioUnavailable);
-    });
-  }
-
-  function speak(text: string, lang = "bn-BD", fallbackSource?: string) {
+  /**
+   * Plays the best sound for the text: an approved human recording, a neural
+   * provider's clip, the device's own voice for that language, then the bundled
+   * eSpeak clip (lib/voice-playback.ts). Bangla is never read by a voice for
+   * another language; when nothing can play, the page says so.
+   */
+  function speak(text: string, lang = "bn-BD", clip?: Clip) {
     if (!soundEnabled) {
       setAudioMessage(language === "en" ? "Turn sound on to listen." : "শুনতে শব্দ চালু করো।");
       return;
@@ -865,51 +848,47 @@ export default function AdventureApp({ approvedLessonIds, videos, initialModuleI
     const token = speechTokenRef.current + 1;
     speechTokenRef.current = token;
     const languageRoot = lang.toLowerCase().split("-")[0];
-    const preferredVoice =
-      voices.find((voice) => voice.lang.toLowerCase() === lang.toLowerCase()) ||
-      voices.find((voice) => voice.lang.toLowerCase().startsWith(languageRoot));
-    recordedAudioRef.current?.pause();
-    recordedAudioRef.current = null;
-
-    if (!("speechSynthesis" in window) || !preferredVoice) {
-      if (fallbackSource) {
-        playRecordedVoice(fallbackSource, languageRoot, token);
-      } else {
-        setAudioMessage(t.audioUnavailable);
-      }
+    stopPlayback(recordedAudioRef);
+    const available = deviceVoices();
+    const steps = playbackPlan({ lang, voices: available.length ? available : voices, clip, recordings });
+    if (steps.length === 0) {
+      setIsSpeaking(false);
+      duckAmbience(false);
+      const none: VoiceStatus = { state: "none", lang };
+      showVoiceStatus(none, 6000);
+      setAudioMessage(voiceStatusText(none, language));
       return;
     }
-
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = lang;
-    if (preferredVoice) utterance.voice = preferredVoice;
-    utterance.rate = languageRoot === "bn" ? 0.78 : 0.88;
-    utterance.pitch = 1.04;
-    utterance.volume = 0.95;
-    utterance.onstart = () => {
-      if (speechTokenRef.current !== token) return;
-      setIsSpeaking(true);
-      duckAmbience(true);
-      setAudioMessage(languageRoot === "bn" ? "বাংলা কণ্ঠ বাজছে।" : "English narration is playing.");
-    };
-    utterance.onend = () => {
-      if (speechTokenRef.current !== token) return;
-      setIsSpeaking(false);
-      duckAmbience(false);
-      setAudioMessage(languageRoot === "bn" ? "বাংলা কণ্ঠ শেষ হয়েছে।" : "English narration finished.");
-    };
-    utterance.onerror = (event) => {
-      if (speechTokenRef.current !== token || event.error === "canceled" || event.error === "interrupted") return;
-      setIsSpeaking(false);
-      duckAmbience(false);
-      if (fallbackSource) {
-        playRecordedVoice(fallbackSource, languageRoot, token);
-      } else {
+    let lastStatus: VoiceStatus | null = null;
+    runPlayback(steps, {
+      text,
+      lang,
+      rate: languageRoot === "bn" ? 0.78 : 0.88,
+      pitch: 1.04,
+      volume: 0.95,
+    }, recordedAudioRef, {
+      isCurrent: () => speechTokenRef.current === token,
+      onStart: (source) => {
+        lastStatus = { state: "playing", source, lang };
+        setIsSpeaking(true);
+        duckAmbience(true);
+        showVoiceStatus(lastStatus);
+        setAudioMessage(`${languageRoot === "bn" ? "বাংলা কণ্ঠ বাজছে" : "English narration is playing"}: ${voiceStatusText(lastStatus, language)}`);
+      },
+      onEnd: () => {
+        setIsSpeaking(false);
+        duckAmbience(false);
+        // The label stays a moment after a short clip, so it can be read.
+        showVoiceStatus(lastStatus, 3000);
+        setAudioMessage(languageRoot === "bn" ? "বাংলা কণ্ঠ শেষ হয়েছে।" : "English narration finished.");
+      },
+      onFail: () => {
+        setIsSpeaking(false);
+        duckAmbience(false);
+        showVoiceStatus({ state: "failed", lang }, 6000);
         setAudioMessage(t.audioUnavailable);
-      }
-    };
-    window.speechSynthesis.speak(utterance);
+      },
+    });
   }
 
   function progressPayload(profileId: string, activity: string) {
@@ -1098,6 +1077,7 @@ export default function AdventureApp({ approvedLessonIds, videos, initialModuleI
         {t.skip}
       </a>
       <p className="sr-only" role="status" aria-live="polite">{audioMessage}</p>
+      <VoiceNote status={voiceStatus} language={language} announce={false} />
 
       <header className="site-header">
         <a className="brand" href="#top" aria-label="Bangla Adventures home">
@@ -1188,7 +1168,7 @@ export default function AdventureApp({ approvedLessonIds, videos, initialModuleI
               <button className="primary-button" type="button" onClick={startQuest}>
                 {t.start} <span aria-hidden="true">→</span>
               </button>
-              <button className={`sound-button ${isSpeaking ? "is-speaking" : ""}`} type="button" onClick={() => speak(t.helloBn, "bn-BD", "/audio/hello-bn.ogg")} disabled={!soundEnabled}>
+              <button className={`sound-button ${isSpeaking ? "is-speaking" : ""}`} type="button" onClick={() => speak(t.helloBn, "bn-BD", bundledClip("hello-bn"))} disabled={!soundEnabled}>
                 <span className="sound-icon" aria-hidden="true">♪</span>
                 <span><small>{t.hearHello}</small><strong>{t.helloBn}</strong></span>
               </button>
@@ -1391,7 +1371,7 @@ export default function AdventureApp({ approvedLessonIds, videos, initialModuleI
                 <p className="pronunciation">/{word.transliteration}/</p>
                 <p className="english-word">{word.en}</p>
                 <div className="word-card-actions">
-                  <button type="button" onClick={() => speak(word.bn, "bn-BD", `/audio/word-${word.id}-bn.ogg`)} aria-label={`${t.listen}: ${word.bn}`} disabled={!soundEnabled}>
+                  <button type="button" onClick={() => speak(word.bn, "bn-BD", bundledClip(`word-${word.id}-bn`))} aria-label={`${t.listen}: ${word.bn}`} disabled={!soundEnabled}>
                     <span aria-hidden="true">♪</span> {t.listen}
                   </button>
                   <button type="button" onClick={() => { stopNarration(); playCue("tap"); setModal({ type: "word", id: word.id }); }} aria-label={`${t.openWord}: ${word.bn}`}>
@@ -1525,6 +1505,7 @@ export default function AdventureApp({ approvedLessonIds, videos, initialModuleI
                 completed={completed}
                 soundEnabled={soundEnabled}
                 isSpeaking={isSpeaking}
+                voiceStatus={voiceStatus}
                 onSpeak={speak}
                 onStopAudio={stopNarration}
                 onAward={award}
@@ -1607,7 +1588,7 @@ export default function AdventureApp({ approvedLessonIds, videos, initialModuleI
                       <div className="lesson-vocab-grid">
                         {activeLesson.vocabulary.map((word, index) => (
                           <article className="lesson-vocab-card" key={`${word.bn}-${word.en}`}>
-                            <button type="button" className="vocab-listen" onClick={() => speak(word.bn, "bn-BD", `/audio/lesson-${activeLesson.id}-word-${index + 1}.ogg`)} aria-label={`${t.listen}: ${word.bn}`} disabled={!soundEnabled}><span aria-hidden="true">♪</span></button>
+                            <button type="button" className="vocab-listen" onClick={() => speak(word.bn, "bn-BD", lessonClip(activeLesson.id, `word-${index + 1}`))} aria-label={`${t.listen}: ${word.bn}`} disabled={!soundEnabled}><span aria-hidden="true">♪</span></button>
                             <strong lang="bn">{word.bn}</strong>
                             <span>/{word.transliteration}/</span>
                             <small>{word.en}</small>
@@ -1618,7 +1599,7 @@ export default function AdventureApp({ approvedLessonIds, videos, initialModuleI
                         {activeLesson.patterns.map((pattern, index) => (
                           <article className="pattern-card" key={pattern.bn}>
                             <span>{language === "en" ? "Pattern" : "বাক্য"} {index + 1}</span>
-                            <button type="button" onClick={() => speak(pattern.bn, "bn-BD", `/audio/lesson-${activeLesson.id}-pattern-${index + 1}.ogg`)} disabled={!soundEnabled} aria-label={`${t.listen}: ${pattern.bn}`}>♪</button>
+                            <button type="button" onClick={() => speak(pattern.bn, "bn-BD", lessonClip(activeLesson.id, `pattern-${index + 1}`))} disabled={!soundEnabled} aria-label={`${t.listen}: ${pattern.bn}`}>♪</button>
                             <strong lang="bn">{pattern.bn}</strong>
                             <em>/{pattern.transliteration}/</em>
                             <p>{pattern.en}</p>
@@ -1841,7 +1822,7 @@ export default function AdventureApp({ approvedLessonIds, videos, initialModuleI
                 <h2>{activeWord.en}</h2>
                 <div className="example-box"><p lang="bn">{activeWord.exampleBn}</p><p>{activeWord.exampleEn}</p></div>
                 <div className="modal-actions">
-                  <button className={`sound-button compact ${isSpeaking ? "is-speaking" : ""}`} type="button" onClick={() => speak(`${activeWord.bn}। ${activeWord.exampleBn}`, "bn-BD", `/audio/word-${activeWord.id}-example-bn.ogg`)} disabled={!soundEnabled}><span className="sound-icon" aria-hidden="true">♪</span>{t.sayIt}</button>
+                  <button className={`sound-button compact ${isSpeaking ? "is-speaking" : ""}`} type="button" onClick={() => speak(`${activeWord.bn}। ${activeWord.exampleBn}`, "bn-BD", bundledClip(`word-${activeWord.id}-example-bn`))} disabled={!soundEnabled}><span className="sound-icon" aria-hidden="true">♪</span>{t.sayIt}</button>
                   <button className="primary-button" type="button" onClick={() => award(`word-${activeWord.id}`)} disabled={completed.includes(`word-${activeWord.id}`)}>{completed.includes(`word-${activeWord.id}`) ? t.practised : t.practice}</button>
                 </div>
               </div>
@@ -1858,8 +1839,8 @@ export default function AdventureApp({ approvedLessonIds, videos, initialModuleI
                       <p className="story-en">{storyPages[storyPage].en}</p>
                       <p className="story-bn" lang="bn">{storyPages[storyPage].bn}</p>
                       <div className="narration-controls" aria-label={language === "en" ? "Story narration" : "গল্প শোনার নিয়ন্ত্রণ"}>
-                        <button className={`listen-line ${isSpeaking ? "is-speaking" : ""}`} type="button" onClick={() => speak(storyPages[storyPage].en, "en-AU", `/audio/story-${storyPage + 1}-en.ogg`)} disabled={!soundEnabled}><span aria-hidden="true">♪</span> {t.listenEnglish}</button>
-                        <button className={`listen-line ${isSpeaking ? "is-speaking" : ""}`} type="button" onClick={() => speak(storyPages[storyPage].bn, "bn-BD", `/audio/story-${storyPage + 1}-bn.ogg`)} disabled={!soundEnabled}><span aria-hidden="true">♪</span> {t.listenBangla}</button>
+                        <button className={`listen-line ${isSpeaking ? "is-speaking" : ""}`} type="button" onClick={() => speak(storyPages[storyPage].en, "en-AU", bundledClip(`story-${storyPage + 1}-en`))} disabled={!soundEnabled}><span aria-hidden="true">♪</span> {t.listenEnglish}</button>
+                        <button className={`listen-line ${isSpeaking ? "is-speaking" : ""}`} type="button" onClick={() => speak(storyPages[storyPage].bn, "bn-BD", bundledClip(`story-${storyPage + 1}-bn`))} disabled={!soundEnabled}><span aria-hidden="true">♪</span> {t.listenBangla}</button>
                       </div>
                       <span className="story-word-chip">{storyPages[storyPage].word}</span>
                     </>
@@ -1897,7 +1878,7 @@ export default function AdventureApp({ approvedLessonIds, videos, initialModuleI
                   onClick={() => speak(
                     language === "en" ? `${activePlace.title}. ${activePlace.fact}` : `${activePlace.titleBn}। ${activePlace.factBn}`,
                     language === "en" ? "en-AU" : "bn-BD",
-                    `/audio/place-${activePlace.id}-${language}.ogg`,
+                    bundledClip(`place-${activePlace.id}-${language}`),
                   )}
                 >
                   <span aria-hidden="true">♪</span> {language === "en" ? t.listenEnglish : t.listenBangla}

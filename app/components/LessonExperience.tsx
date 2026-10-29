@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { Lesson } from "../curriculum";
 import { lessonExtensions, lessonSessionSkills, type LearningSkill, type QuickCheck } from "../learning-content";
 import type { LearnerVideo } from "../../lib/lesson-model";
+import { lessonClip, voiceStatusText, type Clip, type VoiceStatus } from "../../lib/voice-playback";
 
 type Language = "en" | "bn";
 type Cue = "tap" | "success" | "retry" | "star";
@@ -29,7 +30,9 @@ type LessonExperienceProps = {
   completed: string[];
   soundEnabled: boolean;
   isSpeaking: boolean;
-  onSpeak: (text: string, lang?: string, fallbackSource?: string) => void;
+  /** What is playing now, so the lesson can say whether it is a recorded, device or computer voice. */
+  voiceStatus?: VoiceStatus | null;
+  onSpeak: (text: string, lang?: string, clip?: Clip) => void;
   onStopAudio: () => void;
   onAward: (activity: string, amount?: number) => void;
   onCue: (cue: Cue) => void;
@@ -130,6 +133,7 @@ export default function LessonExperience({
   completed,
   soundEnabled,
   isSpeaking,
+  voiceStatus = null,
   onSpeak,
   onStopAudio,
   onAward,
@@ -137,6 +141,8 @@ export default function LessonExperience({
   onClose,
 }: LessonExperienceProps) {
   const extension = lessonExtensions[lesson.id];
+  const s = (en: string, bn: string) => (language === "bn" ? bn : en);
+  const voiceText = voiceStatusText(voiceStatus, language);
   const video: LearnerVideo | null = learnerVideo === undefined ? lesson.video : learnerVideo;
   const [step, setStep] = useState<LessonStep>("overview");
   const [showTranscript, setShowTranscript] = useState(preview);
@@ -380,13 +386,13 @@ export default function LessonExperience({
                   type="button"
                   className={`primary-button coral ${isSpeaking ? "is-speaking" : ""}`}
                   disabled={!soundEnabled}
-                  onClick={() => onSpeak(extension.dialogue.map((line) => `${line.speaker}। ${line.bn}`).join(" "), "bn-BD", `/api/audio/${lesson.id}/dialogue`)}
+                  onClick={() => onSpeak(extension.dialogue.map((line) => line.bn).join(" "), "bn-BD", lessonClip(lesson.id, "dialogue"))}
                 >
                   <span aria-hidden="true">♪</span>{isSpeaking ? "Playing dialogue…" : "Play complete dialogue"}
                 </button>
                 <button type="button" className="text-button" onClick={() => setShowTranscript((value) => !value)}>{showTranscript ? "Hide transcript" : "Reveal transcript after listening"}</button>
               </div>
-              <p className="audio-source-note">Bundled Bangla voice model · replay as often as needed · no timer</p>
+              <p className="audio-source-note">{voiceText ? `${voiceText} · ` : ""}{s("Replay as often as needed · no timer", "যতবার খুশি আবার শোনো · সময়ের কোনো চাপ নেই")}</p>
               {showTranscript ? (
                 <ol className="dialogue-transcript">
                   {extension.dialogue.map((line, index) => (
@@ -413,15 +419,19 @@ export default function LessonExperience({
             </div>
             <article className="guided-reading-card">
               <div className="guided-reading-toolbar">
-                <button type="button" className="listen-line" disabled={!soundEnabled} onClick={() => onSpeak(extension.reading.bn, "bn-BD", `/api/audio/${lesson.id}/reading`)}>♪ Read aloud in Bangla</button>
+                <button type="button" className="listen-line" disabled={!soundEnabled} onClick={() => onSpeak(extension.reading.bn, "bn-BD", lessonClip(lesson.id, "reading"))}>♪ Read aloud in Bangla</button>
                 <button type="button" className="text-button" onClick={() => setShowEnglish((value) => !value)}>{showEnglish ? "Hide English scaffold" : "Show English scaffold"}</button>
               </div>
               <p className="guided-reading-bn" lang="bn">{extension.reading.bn}</p>
               {showEnglish && <p className="guided-reading-en">{extension.reading.en}</p>}
             </article>
-            <div className="reading-glossary">
-              <p className="modal-kicker">Word bank</p>
-              <div>{lesson.vocabulary.map((word) => <span key={word.bn}><strong lang="bn">{word.bn}</strong><small>{word.en}</small></span>)}</div>
+            <div className="lesson-word-bank">
+              <p className="modal-kicker">{s("Word bank · tap a word to hear it", "শব্দভান্ডার · শব্দ ছুঁয়ে শোনো")}</p>
+              <div>{lesson.vocabulary.map((word, index) => (
+                <button type="button" key={word.bn} disabled={!soundEnabled} aria-label={`${s("Listen", "শোনো")}: ${word.bn} (${word.en})`} onClick={() => onSpeak(word.bn, "bn-BD", lessonClip(lesson.id, `word-${index + 1}`))}>
+                  <span aria-hidden="true">♪</span><strong lang="bn">{word.bn}</strong><small>{word.en}</small>
+                </button>
+              ))}</div>
             </div>
             <QuickCheckCard check={extension.reading.check} answer={readAnswer} submitted={readSubmitted} showAnswer={preview} onAnswer={(answer) => { setReadAnswer(answer); setReadSubmitted(false); }} onSubmit={submitRead} />
           </div>
@@ -434,6 +444,16 @@ export default function LessonExperience({
               <h3>Rehearse, record locally if you choose, then reflect</h3>
               <p>{extension.speaking.mission}</p>
             </div>
+            <section className="lesson-word-bank" aria-label={s("Sentence patterns", "বাক্যের ধাঁচ")}>
+              <p className="modal-kicker">{s("Sentence patterns · listen, then say them", "বাক্যের ধাঁচ · শোনো, তারপর বলো")}</p>
+              <ul className="pattern-listen-list">{lesson.patterns.map((pattern, index) => (
+                <li key={pattern.bn}>
+                  <button type="button" disabled={!soundEnabled} aria-label={`${s("Listen", "শোনো")}: ${pattern.bn} (${pattern.en})`} onClick={() => onSpeak(pattern.bn, "bn-BD", lessonClip(lesson.id, `pattern-${index + 1}`))}>
+                    <span aria-hidden="true">♪</span><strong lang="bn">{pattern.bn}</strong><small>{pattern.en}</small>
+                  </button>
+                </li>
+              ))}</ul>
+            </section>
             <div className="roleplay-grid">
               <article><span>A</span><h4>First role</h4><p>{extension.speaking.roleA}</p></article>
               <article><span>B</span><h4>Second role</h4><p>{extension.speaking.roleB}</p></article>

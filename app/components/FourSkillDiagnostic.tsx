@@ -2,13 +2,14 @@
 
 import { useMemo, useState } from "react";
 import { levelBands, type CurriculumLevel } from "../curriculum";
+import { bundledClip, type Clip } from "../../lib/voice-playback";
 
 type Skill = "listening" | "speaking" | "reading" | "writing";
 type Cue = "tap" | "success" | "retry" | "star";
 
 type DiagnosticProps = {
   soundEnabled: boolean;
-  onSpeak: (text: string, lang?: string, fallbackSource?: string) => void;
+  onSpeak: (text: string, lang?: string, clip?: Clip) => void;
   onCue: (cue: Cue) => void;
   onChoose: (level: CurriculumLevel) => void;
   onClose: () => void;
@@ -21,7 +22,8 @@ type ChoiceTask = {
   prompt: string;
   stimulus?: string;
   audio?: string;
-  audioFile?: string;
+  /** The bundled clip in public/audio for the listening prompt. */
+  audioClip?: string;
   options: string[];
   answer: number;
 };
@@ -40,9 +42,9 @@ const skillOrder: Skill[] = ["listening", "speaking", "reading", "writing"];
 
 const tasks: Record<Skill, Task[]> = {
   listening: [
-    { id: "l1", kind: "choice", weight: 1, prompt: "Who is speaking?", audio: "হ্যালো! আমার নাম মায়া।", audioFile: "/audio/diagnostic-listen-1.ogg", options: ["Maya", "Rafi", "Bagh"], answer: 0 },
-    { id: "l2", kind: "choice", weight: 2, prompt: "Which route should the traveller take?", audio: "প্রথমে সোজা যান। নদীর আগে বাঁ দিকে যান। বাজারটি স্কুলের পাশে।", audioFile: "/audio/diagnostic-listen-2.ogg", options: ["Straight, then left before the river", "Right after the river", "Back past the school"], answer: 0 },
-    { id: "l3", kind: "choice", weight: 2, prompt: "Which summary preserves the speaker’s qualification?", audio: "ভাষা পরিচয়ের গুরুত্বপূর্ণ অংশ হতে পারে, তবে সবার অভিজ্ঞতা এক নয় এবং দক্ষতাই পরিচয়ের একমাত্র মাপকাঠি নয়।", audioFile: "/audio/diagnostic-listen-3.ogg", options: ["Language never affects identity", "Language can matter, but experience varies and proficiency is not the only measure", "Everyone must have the same language history"], answer: 1 },
+    { id: "l1", kind: "choice", weight: 1, prompt: "Who is speaking?", audio: "হ্যালো! আমার নাম মায়া।", audioClip: "diagnostic-listen-1", options: ["Maya", "Rafi", "Bagh"], answer: 0 },
+    { id: "l2", kind: "choice", weight: 2, prompt: "Which route should the traveller take?", audio: "প্রথমে সোজা যান। নদীর আগে বাঁ দিকে যান। বাজারটি স্কুলের পাশে।", audioClip: "diagnostic-listen-2", options: ["Straight, then left before the river", "Right after the river", "Back past the school"], answer: 0 },
+    { id: "l3", kind: "choice", weight: 2, prompt: "Which summary preserves the speaker’s qualification?", audio: "ভাষা পরিচয়ের গুরুত্বপূর্ণ অংশ হতে পারে, তবে সবার অভিজ্ঞতা এক নয় এবং দক্ষতাই পরিচয়ের একমাত্র মাপকাঠি নয়।", audioClip: "diagnostic-listen-3", options: ["Language never affects identity", "Language can matter, but experience varies and proficiency is not the only measure", "Everyone must have the same language history"], answer: 1 },
   ],
   speaking: [
     { id: "s1", kind: "performance", prompt: "Without reading a model, greet someone, say your name and say how you are.", support: "Score 2 if you completed all three ideas understandably; 1 if you used at least one Bangla phrase; 0 if you are not ready yet.", example: "হ্যালো। আমার নাম ___. আমি ভালো আছি।" },
@@ -153,7 +155,7 @@ export default function FourSkillDiagnostic({ soundEnabled, onSpeak, onCue, onCh
                   <h4>{task.prompt}</h4>
                   {task.kind === "choice" ? (
                     <>
-                      {task.audio && <button type="button" className="diagnostic-audio-button" disabled={!soundEnabled} onClick={() => onSpeak(task.audio!, "bn-BD", task.audioFile)}>♪ Play recording <small>Replay freely</small></button>}
+                      {task.audio && <button type="button" className="diagnostic-audio-button" disabled={!soundEnabled} onClick={() => onSpeak(task.audio!, "bn-BD", task.audioClip ? bundledClip(task.audioClip) : undefined)}>♪ Play recording <small>Replay freely</small></button>}
                       {task.stimulus && <p className="diagnostic-stimulus" lang="bn">{task.stimulus}</p>}
                       <div className="diagnostic-options">
                         {task.options.map((option, optionIndex) => <button type="button" key={option} className={answers[task.id] === optionIndex ? "selected" : ""} aria-pressed={answers[task.id] === optionIndex} onClick={() => setAnswer(task.id, optionIndex)}><span>{String.fromCharCode(65 + optionIndex)}</span>{option}</button>)}

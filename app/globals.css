@@ -4507,8 +4507,8 @@ footer > div:nth-child(2) p {
 
 .audio-source-note {
   margin: 10px 0 0;
-  color: #718184;
-  font-size: 9px;
+  color: #5f6d70;
+  font-size: 11px;
   font-weight: 700;
 }
 
@@ -10639,3 +10639,95 @@ body.modal-open .pwa-status {
   .management-table :is(th, td) { padding: 14px 8px; }
   .audit-list time { margin-left: 0; }
 }
+
+/* What a listen button is playing, or that this device has no Bangla voice. */
+.voice-note {
+  position: fixed;
+  z-index: 150;
+  left: 50%;
+  bottom: 18px;
+  max-width: min(92vw, 460px);
+  margin: 0;
+  padding: 9px 16px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: white;
+  box-shadow: var(--shadow);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.35;
+  text-align: center;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.voice-note:empty {
+  display: none;
+}
+
+.voice-note-warning {
+  border: 1.5px solid var(--saffron);
+  background: #fff4d6;
+  color: var(--ink);
+}
+
+.lesson-word-bank {
+  margin: 19px 0;
+}
+
+.lesson-word-bank > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.lesson-word-bank strong {
+  color: var(--emerald);
+  font-family: var(--display);
+  font-size: 16px;
+}
+
+.lesson-word-bank small {
+  color: #6b7a7d;
+  font-size: 11px;
+}
+
+.lesson-word-bank button,
+.pattern-listen-list button {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 7px 10px;
+  border: 1px solid rgba(23, 50, 77, 0.12);
+  border-radius: 999px;
+  background: white;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.lesson-word-bank button:disabled,
+.pattern-listen-list button:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.lesson-word-bank button > span[aria-hidden="true"],
+.pattern-listen-list button > span[aria-hidden="true"] {
+  color: var(--coral);
+}
+
+.pattern-listen-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pattern-listen-list button {
+  width: 100%;
+  border-radius: 12px;
+  text-align: left;
+}
+

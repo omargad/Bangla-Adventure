@@ -19,7 +19,6 @@ export type VideoCheckRecord = {
 };
 
 const formerStaff: Bilingual = { en: "a former staff member", bn: "একজন সাবেক কর্মী" };
-const playedByLearners = (slot: string) => slot === "dialogue" || slot === "reading";
 
 /**
  * Human recordings for one lesson from every staff member. Anyone on the staff
@@ -39,9 +38,7 @@ export function LessonRecordings({ lessonId, language, recordings, onChanged }: 
     try {
       await call("/api/studio/media", { method: "PATCH", body: JSON.stringify({ id: recording.id, reviewStatus, notes: "", ...(reviewStatus === "approved" ? { confirmedListened: listened.includes(recording.id) } : {}) }) });
       setMessage(reviewStatus === "approved"
-        ? playedByLearners(recording.slot)
-          ? { en: "Recording approved. Learners hear it for this part of the lesson on devices without their own Bangla voice.", bn: "রেকর্ডিং অনুমোদিত। যেসব ডিভাইসে নিজস্ব বাংলা কণ্ঠ নেই, সেখানে শিক্ষার্থীরা পাঠের এই অংশে এটি শুনবে।" }
-          : { en: "Recording approved. Word and sentence-pattern recordings are not played to learners yet; they are kept ready.", bn: "রেকর্ডিং অনুমোদিত। শব্দ ও বাক্যের ধাঁচের রেকর্ডিং এখনো শিক্ষার্থীদের শোনানো হয় না; প্রস্তুত রাখা আছে।" }
+        ? { en: "Recording approved. Learners now hear it for this part of the lesson instead of a computer voice.", bn: "রেকর্ডিং অনুমোদিত। শিক্ষার্থীরা এখন পাঠের এই অংশে কম্পিউটারের কণ্ঠের বদলে এটি শুনবে।" }
         : { en: "Recording updated.", bn: "রেকর্ডিং হালনাগাদ হয়েছে।" });
       onChanged();
     } catch (caught) { setError(failure(caught)); }
@@ -52,10 +49,10 @@ export function LessonRecordings({ lessonId, language, recordings, onChanged }: 
     <section className="teach-panel" aria-label={s("Human audio recordings", "মানুষের কণ্ঠের রেকর্ডিং")}>
       <h3>{s("Human audio recordings", "মানুষের কণ্ঠের রেকর্ডিং")}</h3>
       <p className="teach-note">{s(
-        "Play a recording before you approve it. Right now learners hear approved recordings only for the complete dialogue and the guided reading, and only on devices without their own Bangla voice; word and sentence-pattern recordings are kept for later.",
-        "অনুমোদনের আগে রেকর্ডিংটি বাজিয়ে শুনুন। এখন শিক্ষার্থীরা অনুমোদিত রেকর্ডিং শুধু পুরো কথোপকথন ও পড়ার অংশে শোনে, তাও কেবল যেসব ডিভাইসে নিজস্ব বাংলা কণ্ঠ নেই; শব্দ ও বাক্যের ধাঁচের রেকর্ডিং পরের জন্য রাখা আছে।",
+        "Play a recording before you approve it. Once approved, learners hear it on every device instead of a computer voice: the complete dialogue in Listen, the guided reading and the word bank in Read, the sentence patterns in Speak, and the words in word practice.",
+        "অনুমোদনের আগে রেকর্ডিংটি বাজিয়ে শুনুন। অনুমোদনের পর শিক্ষার্থীরা সব ডিভাইসে কম্পিউটারের কণ্ঠের বদলে এটি শুনবে: ‘শুনি’ অংশে পুরো কথোপকথন, ‘পড়ি’ অংশে পড়ার লেখা ও শব্দভান্ডার, ‘বলি’ অংশে বাক্যের ধাঁচ, আর শব্দ অনুশীলনের শব্দগুলো।",
       )}</p>
-      {recordings.length === 0 && <p>{s("No recordings yet. Learners hear the bundled computer voice.", "এখনো কোনো রেকর্ডিং নেই। শিক্ষার্থীরা অ্যাপের কম্পিউটার কণ্ঠ শোনে।")}</p>}
+      {recordings.length === 0 && <p>{s("No recordings yet. Learners hear a computer voice for this lesson.", "এখনো কোনো রেকর্ডিং নেই। শিক্ষার্থীরা এই পাঠে কম্পিউটারের কণ্ঠ শোনে।")}</p>}
       {recordings.length > 0 && <ul className="topic-admin-list">{recordings.map((recording) => {
         const label = slotLabel(recording.slot, language);
         return (

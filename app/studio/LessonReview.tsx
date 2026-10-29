@@ -1,12 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import LessonExperience, { lessonSteps, type LessonStep } from "@/app/components/LessonExperience";
+import VoiceNote from "@/app/components/VoiceNote";
 import { lessons, levelBands } from "@/app/curriculum";
 import type { Bilingual } from "@/app/topics-content";
 import { call, failure } from "@/app/teach/topics/shared";
 import { lessonCategory, LESSON_NOTE_LIMIT, type LearnerVideo } from "@/lib/lesson-model";
 import { formatNumber, formatWhen, type Language } from "@/lib/topic-model";
+import { useVoicePlayer } from "@/lib/use-voice-player";
+import { LESSON_AUDIO_SLOT, type RecordingMap } from "@/lib/voice-playback";
 import { lessonStatusClass, lessonStatusLabel, type LessonApproval } from "./labels";
 import { LessonRecordings, VideoCheck, type Recording, type VideoCheckRecord } from "./LessonMedia";
 import SpecialistChecks, { type SpecialistCheck } from "./SpecialistChecks";
@@ -114,10 +117,10 @@ export default function LessonReview({ lessonId, language, onChanged }: { lesson
           </div>
         </div>
         <p className="teach-note">{s(
-          "This is the lesson exactly as students get it, with the Bangla transcripts, the English support and the correct answers shown so you can check them. Nothing you do here is saved. Sound plays the lesson’s recording (an approved human recording when there is one).",
-          "শিক্ষার্থীরা যেভাবে পায় পাঠটি ঠিক সেভাবে দেখানো হচ্ছে; যাচাইয়ের জন্য বাংলা লেখা, ইংরেজি সহায়তা ও সঠিক উত্তর খোলা আছে। এখানে কিছুই সংরক্ষণ হয় না। শব্দ বাজালে পাঠের রেকর্ডিং বাজে (অনুমোদিত মানুষের রেকর্ডিং থাকলে সেটি)।",
+          "This is the lesson exactly as students get it, with the Bangla transcripts, the English support and the correct answers shown so you can check them. Nothing you do here is saved. Sound plays what students hear: an approved human recording when there is one, otherwise a computer voice; a note at the bottom says which voice is playing.",
+          "শিক্ষার্থীরা যেভাবে পায় পাঠটি ঠিক সেভাবে দেখানো হচ্ছে; যাচাইয়ের জন্য বাংলা লেখা, ইংরেজি সহায়তা ও সঠিক উত্তর খোলা আছে। এখানে কিছুই সংরক্ষণ হয় না। শিক্ষার্থীরা যা শোনে তা-ই বাজে: অনুমোদিত মানুষের রেকর্ডিং থাকলে সেটি, না থাকলে কম্পিউটারের কণ্ঠ; নিচের ছোট নোটে লেখা থাকে কোন কণ্ঠ বাজছে।",
         )}</p>
-        <PreviewPlayer lessonId={lessonId} language={previewLanguage} video={detail.learnerVideo} level={level} onStepView={markViewed} />
+        <PreviewPlayer lessonId={lessonId} language={previewLanguage} video={detail.learnerVideo} recordings={detail.recordings} level={level} onStepView={markViewed} />
       </section>
 
       <section className="teach-panel topic-decision" aria-label={s("Your decision", "আপনার সিদ্ধান্ত")}>
@@ -175,57 +178,34 @@ export default function LessonReview({ lessonId, language, onChanged }: { lesson
 }
 
 /**
- * The learner lesson component in preview mode. Sound plays the lesson's own
- * recording when the lesson offers one, otherwise the device voice; nothing is
- * awarded or saved.
+ * The learner lesson component in preview mode. Sound plays exactly what
+ * students hear (lib/voice-playback.ts), starting with the lesson's approved
+ * human recordings; nothing is awarded or saved.
  */
-function PreviewPlayer({ lessonId, language, video, level, onStepView }: {
-  lessonId: string; language: Language; video: LearnerVideo | null; level: (typeof levelBands)[number]; onStepView: (step: LessonStep) => void;
+function PreviewPlayer({ lessonId, language, video, recordings, level, onStepView }: {
+  lessonId: string; language: Language; video: LearnerVideo | null; recordings: Recording[]; level: (typeof levelBands)[number]; onStepView: (step: LessonStep) => void;
 }) {
   const lesson = lessons.find((item) => item.id === lessonId)!;
-  const [isSpeaking, setIsSpeaking] = useState(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-
-  const stop = useCallback(() => {
-    audioRef.current?.pause();
-    audioRef.current = null;
-    if ("speechSynthesis" in window) window.speechSynthesis.cancel();
-    setIsSpeaking(false);
-  }, []);
-  useEffect(() => stop, [stop]);
-
-  function speak(text: string, lang = "bn-BD", source?: string) {
-    stop();
-    if (source) {
-      const audio = new Audio(source);
-      audioRef.current = audio;
-      audio.onended = () => setIsSpeaking(false);
-      audio.onerror = () => setIsSpeaking(false);
-      setIsSpeaking(true);
-      void audio.play().catch(() => setIsSpeaking(false));
-      return;
+  // The recording learners get for each part: the newest approved one with consent (recordings come newest first).
+  const approved = useMemo(() => {
+    const map: RecordingMap = {};
+    for (const recording of recordings) {
+      const key = `${lessonId}/${recording.slot}`;
+      if (recording.reviewStatus === "approved" && recording.consentConfirmed && LESSON_AUDIO_SLOT.test(recording.slot) && !(key in map)) map[key] = recording.id;
     }
-    if (!("speechSynthesis" in window)) return;
-    const root = lang.split("-")[0];
-    const voice = window.speechSynthesis.getVoices().find((item) => item.lang.toLowerCase().startsWith(root));
-    // Never let a voice for another language read the line aloud.
-    if (!voice) return;
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = lang;
-    utterance.voice = voice;
-    utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = () => setIsSpeaking(false);
-    setIsSpeaking(true);
-    window.speechSynthesis.speak(utterance);
-  }
+    return map;
+  }, [lessonId, recordings]);
+  const voice = useVoicePlayer(approved);
 
   return (
     <div className="lesson-preview-frame" lang={language}>
       <LessonExperience
         lesson={lesson} video={video} preview onStepView={onStepView} level={level} language={language} completed={[]}
-        soundEnabled isSpeaking={isSpeaking} onSpeak={speak} onStopAudio={stop} onAward={() => undefined} onCue={() => undefined}
+        soundEnabled isSpeaking={voice.speakingKey !== null} voiceStatus={voice.status} onSpeak={(text, lang = "bn-BD", clip) => voice.speak(text, { lang, clip })} onStopAudio={voice.stop}
+        onAward={() => undefined} onCue={() => undefined}
         onClose={() => window.scrollTo({ top: 0, behavior: "smooth" })}
       />
+      <VoiceNote status={voice.status} language={language} />
     </div>
   );
 }

@@ -1,0 +1,821 @@
+{
+  "about": "Written by scripts/generate-voice-assets.cjs: the engine and voice that made each bundled clip. Clips from a neural provider play before a device's own voice.",
+  "files": {
+    "diagnostic-listen-1": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "diagnostic-listen-2": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "diagnostic-listen-3": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "hello-bn": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-directions-dialogue": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-directions-pattern-1": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-directions-pattern-2": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-directions-reading": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-directions-word-1": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-directions-word-2": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-directions-word-3": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-directions-word-4": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-directions-word-5": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-directions-word-6": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-food-please-dialogue": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-food-please-pattern-1": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-food-please-pattern-2": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-food-please-reading": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-food-please-word-1": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-food-please-word-2": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-food-please-word-3": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-food-please-word-4": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-food-please-word-5": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-food-please-word-6": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-friendship-help-dialogue": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-friendship-help-pattern-1": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-friendship-help-pattern-2": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-friendship-help-reading": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-friendship-help-word-1": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-friendship-help-word-2": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-friendship-help-word-3": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-friendship-help-word-4": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-friendship-help-word-5": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-friendship-help-word-6": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-hello-me-dialogue": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-hello-me-pattern-1": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-hello-me-pattern-2": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-hello-me-reading": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-hello-me-word-1": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-hello-me-word-2": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-hello-me-word-3": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-hello-me-word-4": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-hello-me-word-5": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-hello-me-word-6": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-heritage-comparison-dialogue": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-heritage-comparison-pattern-1": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-heritage-comparison-pattern-2": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-heritage-comparison-reading": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-heritage-comparison-word-1": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-heritage-comparison-word-2": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-heritage-comparison-word-3": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-heritage-comparison-word-4": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-heritage-comparison-word-5": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-heritage-comparison-word-6": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-language-movement-dialogue": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-language-movement-pattern-1": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-language-movement-pattern-2": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-language-movement-reading": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-language-movement-word-1": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-language-movement-word-2": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-language-movement-word-3": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-language-movement-word-4": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-language-movement-word-5": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-language-movement-word-6": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-letters-sounds-dialogue": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-letters-sounds-pattern-1": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-letters-sounds-pattern-2": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-letters-sounds-reading": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-letters-sounds-word-1": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-letters-sounds-word-2": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-letters-sounds-word-3": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-letters-sounds-word-4": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-letters-sounds-word-5": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-letters-sounds-word-6": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-living-arts-dialogue": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-living-arts-pattern-1": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-living-arts-pattern-2": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-living-arts-reading": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-living-arts-word-1": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-living-arts-word-2": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-living-arts-word-3": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-living-arts-word-4": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-living-arts-word-5": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-living-arts-word-6": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-my-day-dialogue": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-my-day-pattern-1": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-my-day-pattern-2": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-my-day-reading": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-my-day-word-1": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-my-day-word-2": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-my-day-word-3": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-my-day-word-4": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-my-day-word-5": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-my-day-word-6": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-my-family-dialogue": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-my-family-pattern-1": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-my-family-pattern-2": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-my-family-reading": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-my-family-word-1": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-my-family-word-2": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-my-family-word-3": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-my-family-word-4": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-my-family-word-5": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-my-family-word-6": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-numbers-colours-dialogue": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-numbers-colours-pattern-1": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-numbers-colours-pattern-2": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-numbers-colours-reading": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-numbers-colours-word-1": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-numbers-colours-word-2": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-numbers-colours-word-3": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-numbers-colours-word-4": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-numbers-colours-word-5": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-numbers-colours-word-6": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-poetry-place-dialogue": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-poetry-place-pattern-1": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-poetry-place-pattern-2": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-poetry-place-reading": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-poetry-place-word-1": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-poetry-place-word-2": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-poetry-place-word-3": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-poetry-place-word-4": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-poetry-place-word-5": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-poetry-place-word-6": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-research-exhibition-dialogue": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-research-exhibition-pattern-1": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-research-exhibition-pattern-2": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-research-exhibition-reading": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-research-exhibition-word-1": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-research-exhibition-word-2": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-research-exhibition-word-3": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-research-exhibition-word-4": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-research-exhibition-word-5": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-research-exhibition-word-6": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-river-journey-dialogue": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-river-journey-pattern-1": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-river-journey-pattern-2": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-river-journey-reading": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-river-journey-word-1": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-river-journey-word-2": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-river-journey-word-3": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-river-journey-word-4": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-river-journey-word-5": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-river-journey-word-6": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-school-home-dialogue": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-school-home-pattern-1": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-school-home-pattern-2": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-school-home-reading": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-school-home-word-1": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-school-home-word-2": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-school-home-word-3": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-school-home-word-4": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-school-home-word-5": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-school-home-word-6": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-six-seasons-dialogue": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-six-seasons-pattern-1": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-six-seasons-pattern-2": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-six-seasons-reading": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-six-seasons-word-1": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-six-seasons-word-2": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-six-seasons-word-3": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-six-seasons-word-4": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-six-seasons-word-5": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-six-seasons-word-6": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-sundarbans-voices-dialogue": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-sundarbans-voices-pattern-1": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-sundarbans-voices-pattern-2": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-sundarbans-voices-reading": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-sundarbans-voices-word-1": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-sundarbans-voices-word-2": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-sundarbans-voices-word-3": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-sundarbans-voices-word-4": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-sundarbans-voices-word-5": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-sundarbans-voices-word-6": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-two-homes-dialogue": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-two-homes-pattern-1": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-two-homes-pattern-2": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-two-homes-reading": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-two-homes-word-1": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-two-homes-word-2": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-two-homes-word-3": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-two-homes-word-4": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-two-homes-word-5": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "lesson-two-homes-word-6": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "place-bagerhat-bn": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "place-bagerhat-en": {
+      "provider": "espeak",
+      "voice": "en-gb+f3"
+    },
+    "place-paharpur-bn": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "place-paharpur-en": {
+      "provider": "espeak",
+      "voice": "en-gb+f3"
+    },
+    "place-sundarbans-bn": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "place-sundarbans-en": {
+      "provider": "espeak",
+      "voice": "en-gb+f3"
+    },
+    "story-1-bn": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "story-1-en": {
+      "provider": "espeak",
+      "voice": "en-gb+f3"
+    },
+    "story-2-bn": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "story-2-en": {
+      "provider": "espeak",
+      "voice": "en-gb+f3"
+    },
+    "story-3-bn": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "story-3-en": {
+      "provider": "espeak",
+      "voice": "en-gb+f3"
+    },
+    "word-boat-bn": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "word-boat-example-bn": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "word-friend-bn": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "word-friend-example-bn": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "word-river-bn": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "word-river-example-bn": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "word-tiger-bn": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    },
+    "word-tiger-example-bn": {
+      "provider": "espeak",
+      "voice": "bn+f3"
+    }
+  }
+}

@@ -1,11 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useLanguage } from "../../lib/use-language";
 import { lessons, type Lesson } from "../curriculum";
 import { visibleLessons } from "../../lib/lesson-model";
 import { isStrong, newCard, pickQueue, review, type CardState } from "../../lib/srs";
+import { lessonClip, type Clip, type RecordingMap } from "../../lib/voice-playback";
+import { useVoicePlayer } from "../../lib/use-voice-player";
+import VoiceNote from "../components/VoiceNote";
 
 type WordCard = {
   id: string;
@@ -13,7 +16,7 @@ type WordCard = {
   transliteration: string;
   en: string;
   lessonTitle: string;
-  audio: string;
+  clip: Clip;
 };
 
 const STORAGE_KEY = "bangla-adventures-word-practice";
@@ -27,7 +30,7 @@ const cardsFor = (approved: Lesson[]): WordCard[] => approved.flatMap((lesson) =
     transliteration: item.transliteration,
     en: item.en,
     lessonTitle: lesson.title,
-    audio: `/audio/lesson-${lesson.id}-word-${index + 1}.ogg`,
+    clip: lessonClip(lesson.id, `word-${index + 1}`),
   })),
 );
 
@@ -41,7 +44,7 @@ function loadStates(): Record<string, CardState> {
   }
 }
 
-export default function PracticeHub({ approvedLessonIds }: { approvedLessonIds: string[] }) {
+export default function PracticeHub({ approvedLessonIds, recordings }: { approvedLessonIds: string[]; recordings: RecordingMap }) {
   const allCards = useMemo(() => cardsFor(visibleLessons(lessons, approvedLessonIds)), [approvedLessonIds]);
   const [language, toggleLanguage] = useLanguage();
   const s = (en: string, bn: string) => (language === "bn" ? bn : en);
@@ -50,8 +53,7 @@ export default function PracticeHub({ approvedLessonIds }: { approvedLessonIds: 
   const [flipped, setFlipped] = useState(false);
   const [done, setDone] = useState(0);
   const [knewCount, setKnewCount] = useState(0);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const voiceRef = useRef<SpeechSynthesisVoice | null>(null);
+  const voice = useVoicePlayer(recordings);
 
   useEffect(() => {
     // Local-first: everything about practice lives in this browser only.
@@ -61,33 +63,8 @@ export default function PracticeHub({ approvedLessonIds }: { approvedLessonIds: 
     setQueue(pickQueue(allCards, loaded, Date.now(), SESSION_SIZE));
   }, [allCards]);
 
-  useEffect(() => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    const pickVoice = () => {
-      const voices = window.speechSynthesis.getVoices();
-      voiceRef.current =
-        voices.find((voice) => voice.lang?.toLowerCase().startsWith("bn")) ?? null;
-    };
-    pickVoice();
-    window.speechSynthesis.addEventListener("voiceschanged", pickVoice);
-    return () => window.speechSynthesis.removeEventListener("voiceschanged", pickVoice);
-  }, []);
-
-  const hear = useCallback((card: WordCard) => {
-    // Prefer the bundled per-word clip; fall back to the device voice.
-    const element = audioRef.current ?? new Audio();
-    audioRef.current = element;
-    element.src = card.audio;
-    element.play().catch(() => {
-      if (!("speechSynthesis" in window)) return;
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(card.bn);
-      utterance.lang = "bn-BD";
-      if (voiceRef.current) utterance.voice = voiceRef.current;
-      utterance.rate = 0.75;
-      window.speechSynthesis.speak(utterance);
-    });
-  }, []);
+  // An approved recording of the word first, then a neural clip, the device's Bangla voice, then the bundled clip.
+  const hear = (card: WordCard) => voice.speak(card.bn, { key: card.id, clip: card.clip, rate: 0.75 });
 
   const stats = useMemo(() => {
     if (!states) return { seen: 0, strong: 0 };
@@ -191,7 +168,7 @@ export default function PracticeHub({ approvedLessonIds }: { approvedLessonIds: 
               )}
             </button>
             <div className="practice-actions">
-              <button type="button" className="outline-button" onClick={() => hear(current)}>
+              <button type="button" className={`outline-button ${voice.speakingKey === current.id ? "is-speaking" : ""}`} onClick={() => hear(current)}>
                 ♪ {s("Hear it", "শোনো")}
               </button>
               {flipped && (
@@ -223,6 +200,7 @@ export default function PracticeHub({ approvedLessonIds }: { approvedLessonIds: 
           </div>
         )}
       </section>
+      <VoiceNote status={voice.status} language={language} />
     </main>
   );
 }

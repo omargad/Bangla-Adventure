@@ -198,6 +198,31 @@ test("any teacher can approve a colleague's recording after listening, and the a
   assert.ok(db.select().from(userAuditEvents).all().some((event) => event.action === "lesson-audio-approved" && event.actorId === "colleague" && event.targetId === "hello-me"));
 });
 
+test("learner pages get the newest approved, consented recording of each lesson part, for the lessons they may open", async () => {
+  const recording = (id, lessonId, slot, updatedAt, consentConfirmed = true, reviewStatus = "approved") => ({
+    id, ownerEmail: "teacher@example.com", lessonId, slot, objectKey: `human-audio/${lessonId}/${slot}/${id}.ogg`, originalName: `${id}.ogg`,
+    contentType: "audio/ogg", byteSize: 10, speakerName: "Nadia", dialect: "Dhaka", consentConfirmed, reviewStatus, updatedAt,
+  });
+  db.insert(mediaAssets).values([
+    recording("word-older", "hello-me", "word-1", "2026-10-01T00:00:00.000Z"),
+    recording("word-newer", "hello-me", "word-1", "2026-10-02T00:00:00.000Z"),
+    recording("word-waiting", "hello-me", "word-2", "2026-10-02T00:00:00.000Z", true, "pending"),
+    recording("pattern-no-consent", "my-day", "pattern-1", "2026-10-02T00:00:00.000Z", false),
+    recording("pattern-ok", "my-day", "pattern-2", "2026-10-02T00:00:00.000Z"),
+    recording("other-lesson", "six-seasons", "reading", "2026-10-02T00:00:00.000Z"),
+    recording("odd-slot", "hello-me", "word-9", "2026-10-02T00:00:00.000Z"),
+  ]).run();
+  // "new" is the dialogue recording a teacher approved in the test above.
+  assert.deepEqual(await approval.approvedRecordings(["hello-me", "my-day"]), {
+    "hello-me/dialogue": "new", "hello-me/word-1": "word-newer", "my-day/pattern-2": "pattern-ok",
+  });
+  assert.equal((await approval.approvedRecording("hello-me", "word-1")).id, "word-newer");
+  assert.equal(await approval.approvedRecording("hello-me", "word-2"), null, "a recording waiting for review is not played");
+  assert.equal(await approval.approvedRecording("my-day", "pattern-1"), null, "a recording without consent is not played");
+  assert.equal(await approval.approvedRecording("hello-me", "word-9"), null);
+  assert.equal(await approval.approvedRecording("not-a-lesson", "dialogue"), null);
+});
+
 test("the newest video check from any teacher decides the video learners get", async () => {
   const check = (id, ownerEmail, status, suitabilityStatus, replacementUrl, updatedAt) => ({ id, ownerEmail, lessonId: "my-family", videoId: "uHTorwKsVFg", status, suitabilityStatus, replacementUrl, captionsStatus: "available", updatedAt });
   db.insert(videoReviews).values(check("first", "teacher@example.com", "approved", "suitable", "", "2026-10-01T00:00:00.000Z")).run();

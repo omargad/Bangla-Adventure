@@ -3,6 +3,7 @@ import { getDb } from "../db";
 import { adults, contentApprovals, contentReviews, mediaAssets, userAuditEvents, videoReviews } from "../db/schema";
 import { lessons } from "../app/curriculum";
 import { canTeach } from "./roles";
+import { LESSON_AUDIO_SLOT, type RecordingMap } from "./voice-playback";
 import {
   checkLessonDecision, learnerVideo, LessonError, lessonStatus, videoTakenDown, type LearnerVideo, type LessonStatus,
 } from "./lesson-model";
@@ -93,6 +94,34 @@ export async function learnerLessonView(): Promise<{ approvedIds: string[]; vide
     if (videoTakenDown(check)) videos[id] = learnerVideo(lessonById.get(id)!.video, check);
   }
   return { approvedIds, videos };
+}
+
+/** Approved recordings with recorded consent, newest first: what learners hear. */
+function approvedRecordingRows(db: Reader, lessonId?: string, slot?: string) {
+  return db.select().from(mediaAssets)
+    .where(and(eq(mediaAssets.reviewStatus, "approved"), eq(mediaAssets.consentConfirmed, true), lessonId ? eq(mediaAssets.lessonId, lessonId) : undefined, slot ? eq(mediaAssets.slot, slot) : undefined))
+    .orderBy(desc(mediaAssets.updatedAt)).all();
+}
+
+/** The human recording learners hear for one part of a lesson, if a teacher approved one. */
+export async function approvedRecording(lessonId: string, slot: string) {
+  if (!isLessonId(lessonId) || !LESSON_AUDIO_SLOT.test(slot)) return null;
+  return approvedRecordingRows(await getDb(), lessonId, slot)[0] ?? null;
+}
+
+/**
+ * Which parts of these lessons have an approved human recording, keyed
+ * `${lessonId}/${slot}` with the recording id, so learner pages play it before
+ * any computer or device voice.
+ */
+export async function approvedRecordings(lessonIds: readonly string[]): Promise<RecordingMap> {
+  const wanted = new Set(lessonIds);
+  const recordings: RecordingMap = {};
+  for (const asset of approvedRecordingRows(await getDb())) {
+    const key = `${asset.lessonId}/${asset.slot}`;
+    if (wanted.has(asset.lessonId) && LESSON_AUDIO_SLOT.test(asset.slot) && !(key in recordings)) recordings[key] = asset.id;
+  }
+  return recordings;
 }
 
 /** Every lesson's shared state for the Studio list, with every staff member's recordings waiting for review. */
