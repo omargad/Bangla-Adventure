@@ -10,8 +10,8 @@ import Database from "better-sqlite3";
 /**
  * Attendance and the results gradebook: a teacher ticks who was present on a date and saves (saving
  * the date again updates it), parents, students and administrators see "attended X of Y", another
- * teacher cannot read or write it, and a student removed from the class leaves the roster, results,
- * counts and exports.
+ * teacher cannot read or write it, a student removed from the class leaves the roster, results,
+ * counts and exports, and a student added later is not recorded for sessions before they joined.
  */
 
 const PORT = 3234;
@@ -134,9 +134,12 @@ test("bad dates and incomplete or unknown marks are refused with Bangla copies",
   assert.equal((await save(day(3), [])).status, 400, "no future sessions");
   assert.equal((await send(`/api/classes/${classId}/attendance`, "PUT", { date: today, marks: [] }, teacherCookie)).status, 400);
   assert.equal((await send(`/api/classes/${classId}/attendance`, "PUT", { date: today, marks: [{ studentId: ids.maya, present: "yes" }] }, teacherCookie)).status, 400);
-  const partial = await save(today, [], teacherCookie, classId, ["maya"]);
-  assert.equal(partial.status, 409);
+  const partial = await save(day(-2), [], teacherCookie, classId, ["maya"]);
+  assert.equal(partial.status, 409, "the first save of a date covers everyone in the class");
   assert.ok((await partial.json()).errorBn);
+  const untouched = await sheet(day(-2));
+  assert.equal(untouched.status, 200);
+  assert.equal((await untouched.json()).saved, null, "a refused save writes nothing");
   assert.equal((await send(`/api/classes/${classId}/attendance`, "PUT", { date: today, marks: [...["arif", "maya", "nadia"].map((name) => ({ studentId: ids[name], present: true })), { studentId: "stranger", present: true }] }, teacherCookie)).status, 409);
   assert.deepEqual((await (await sheet(today)).json()).students.map((row) => row.present), [false, true, false], "nothing changed");
 });
@@ -212,4 +215,26 @@ test("a removed student leaves the roster, results, counts, averages, exports an
   assert.equal((await send(`/api/classes/${classId}/students`, "POST", { studentIds: [ids.nadia] }, teacherCookie)).status, 200);
   const restored = await (await send(`/api/classes/${classId}/grades`, "GET", undefined, teacherCookie)).json();
   assert.deepEqual(restored.gradebook.rows.find((row) => row.student.displayName === "Nadia").attendance, { attended: 1, recorded: 2 });
+});
+
+test("a student added after a saved date is not recorded for it when the teacher corrects that date", async () => {
+  await student("zara", "Zara");
+  assert.equal((await send(`/api/classes/${classId}/students`, "POST", { studentIds: [ids.zara] }, teacherCookie)).status, 200);
+  const before = await (await sheet(lastWeek)).json();
+  assert.deepEqual(before.students.map((row) => [row.displayName, row.present, row.saved]), [["Arif", true, true], ["Maya", true, true], ["Nadia", true, true], ["Zara", null, false]], "she is not ticked present for a session before she joined");
+
+  const corrected = await save(lastWeek, ["arif"]);
+  assert.equal(corrected.status, 200, "a correction need not include her");
+  assert.deepEqual(await corrected.json(), { date: lastWeek, saved: 3, present: 2 });
+  fixture((db) => assert.equal(db.prepare("SELECT count(*) AS n FROM class_attendance WHERE student_id = ? AND session_date = ?").get(ids.zara, lastWeek).n, 0, "no mark for Zara on that date"));
+  const after = await (await sheet(lastWeek)).json();
+  assert.deepEqual(after.students.map((row) => [row.displayName, row.present]), [["Arif", false], ["Maya", true], ["Nadia", true], ["Zara", null]]);
+  assert.deepEqual(after.students.find((row) => row.displayName === "Zara").attendance, { attended: 0, recorded: 0 });
+  const feed = await (await send("/api/student/feed", "GET", undefined, studentCookies.zara)).json();
+  assert.deepEqual([feed.metrics.attendedSessions, feed.metrics.recordedSessions], [0, 0], "her own page shows no sessions");
+
+  assert.equal((await save(today, [], teacherCookie, classId, ["zara"])).status, 200, "the teacher can still add her to a date she attended");
+  assert.deepEqual((await (await send("/api/student/feed", "GET", undefined, studentCookies.zara)).json()).classes[0].attendance, { attended: 1, recorded: 1 });
+  assert.equal((await save(day(-1), [])).status, 409, "a new date still needs every student, Zara included");
+  assert.equal((await save(day(-1), [], teacherCookie, classId, ["arif", "maya", "nadia", "zara"])).status, 200);
 });

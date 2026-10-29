@@ -1,16 +1,19 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { localMessage, localNumber, type Language } from "@/lib/use-language";
+import { useLeaveGuard } from "./leave-guard";
 import { MAX_IMPORT_BYTES, MAX_IMPORT_ROWS, signInSheetCsv, STUDENT_IMPORT_TEMPLATE, type SignInSheetRow, type StudentImportIssue } from "@/lib/student-import";
 
 const templateHref = `data:text/csv;charset=utf-8,${encodeURIComponent(STUDENT_IMPORT_TEMPLATE)}`;
 type ExistingAllocation = { displayName: string; username: string; alreadyInClass: boolean };
 
+const discardPasswordsQuestion = (language: Language) => language === "bn"
+  ? "স্ক্রিনের অস্থায়ী পাসওয়ার্ডগুলো বাদ দেবেন? আগে সাইন-ইন শিট নামান বা প্রিন্ট করুন — এগুলো আর দেখানো যাবে না।"
+  : "Discard the temporary passwords on screen? Download or print the sign-in sheet first — they cannot be shown again.";
+
 /** Asked before anything would discard temporary passwords that are still on screen. */
 export function confirmDiscardPasswords(language: Language = "en"): boolean {
-  return window.confirm(language === "bn"
-    ? "স্ক্রিনের অস্থায়ী পাসওয়ার্ডগুলো বাদ দেবেন? আগে সাইন-ইন শিট নামান বা প্রিন্ট করুন — এগুলো আর দেখানো যাবে না।"
-    : "Discard the temporary passwords on screen? Download or print the sign-in sheet first — they cannot be shown again.");
+  return window.confirm(discardPasswordsQuestion(language));
 }
 
 /**
@@ -18,33 +21,7 @@ export function confirmDiscardPasswords(language: Language = "en"): boolean {
  * the tab or following an in-app link loses them, and report it through onPasswordsChange.
  */
 export function usePasswordGuard(showing: boolean, language: Language, onPasswordsChange?: (shown: boolean) => void) {
-  useEffect(() => {
-    onPasswordsChange?.(showing);
-    if (!showing) return;
-    let leaving = false;
-    const beforeUnload = (event: BeforeUnloadEvent) => {
-      if (leaving) return;
-      event.preventDefault();
-      event.returnValue = "";
-    };
-    // In-app links change the page without unloading it, so ask when one is clicked.
-    const followLink = (event: MouseEvent) => {
-      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-      const link = event.target instanceof Element ? event.target.closest("a[href]") : null;
-      if (!(link instanceof HTMLAnchorElement) || link.hasAttribute("download") || (link.target && link.target !== "_self")) return;
-      const url = new URL(link.href, window.location.href);
-      if (url.origin === window.location.origin && url.pathname === window.location.pathname && url.search === window.location.search) return;
-      if (confirmDiscardPasswords(language)) leaving = true;
-      else { event.preventDefault(); event.stopPropagation(); }
-    };
-    window.addEventListener("beforeunload", beforeUnload);
-    document.addEventListener("click", followLink, true);
-    return () => {
-      onPasswordsChange?.(false);
-      window.removeEventListener("beforeunload", beforeUnload);
-      document.removeEventListener("click", followLink, true);
-    };
-  }, [showing, language, onPasswordsChange]);
+  useLeaveGuard(showing, discardPasswordsQuestion(language), onPasswordsChange);
 }
 
 /** The rows an upload was refused for, each in the page language. */

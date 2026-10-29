@@ -9,7 +9,7 @@ import type { Topic } from "../topics-content";
 import { NCTB_PORTAL_URL } from "../library-content";
 import PortalShell from "../components/PortalShell";
 import ClassAllocation from "../components/ClassAllocation";
-import ClassAttendance from "../components/ClassAttendance";
+import ClassAttendance, { confirmDiscardAttendance } from "../components/ClassAttendance";
 import Gradebook from "../components/Gradebook";
 import { confirmDiscardPasswords } from "../components/StudentImport";
 
@@ -92,9 +92,12 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
   const [loading, setLoading] = useState(true);
   const [classQuery, setClassQuery] = useState("");
   const [section, setSection] = useState("classes");
-  // Temporary passwords from a CSV upload exist only on screen: ask before closing or switching the class.
+  // Temporary passwords from a CSV upload exist only on screen, and attendance ticks are lost until
+  // saved: ask before closing or switching the class (or, for attendance, leaving that section).
   const [passwordsOnScreen, setPasswordsOnScreen] = useState(false);
-  const canLeaveClass = () => !passwordsOnScreen || confirmDiscardPasswords(language);
+  const [attendanceUnsaved, setAttendanceUnsaved] = useState(false);
+  const canLeaveAttendance = () => !attendanceUnsaved || confirmDiscardAttendance(language);
+  const canLeaveClass = () => (!passwordsOnScreen || confirmDiscardPasswords(language)) && canLeaveAttendance();
   const totals = classList.reduce((total, item) => ({ students: total.students + item.studentCount, activities: total.activities + item.activityCount, submissions: total.submissions + item.submissionCount }), { students: 0, activities: 0, submissions: 0 });
   const visibleClasses = classList.filter((item) => [item.name, item.teacherName ?? ""].some((text) => text.toLowerCase().includes(classQuery.toLowerCase())));
   // Administrators work in every class: name the teacher of each class they do not own.
@@ -327,7 +330,7 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
         ["attendance", s("Attendance", "উপস্থিতি")],
         ["announcements", s("Announcements", "ঘোষণা")],
         ["sources", s("Manage sources", "উৎস পরিচালনা")],
-      ].map(([id, label]) => ({ id, label, onClick: () => { if ((id === "classes" || id === "sources") && detail && !canLeaveClass()) return; setSection(id); setMessage(""); if (id === "classes" || id === "sources") { setDetail(null); void loadClasses(); } else if (detail) void openClass(detail.class.id); } })),
+      ].map(([id, label]) => ({ id, label, onClick: () => { if ((id === "classes" || id === "sources") && detail ? !canLeaveClass() : section === "attendance" && id !== "attendance" && !canLeaveAttendance()) return; setSection(id); setMessage(""); if (id === "classes" || id === "sources") { setDetail(null); void loadClasses(); } else if (detail) void openClass(detail.class.id); } })),
       { id: "studio", label: s("Content review", "কনটেন্ট পর্যালোচনা"), href: "/studio" },
       ...(isAdmin ? [{ id: "users", label: s("Manage users", "ব্যবহারকারী পরিচালনা"), href: "/admin" }, { id: "all-results", label: s("All class results", "সব ক্লাসের ফলাফল"), href: "/admin/results" }] : []),
     ]}>
@@ -534,7 +537,7 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
               )}
             </section>
 
-            {section === "attendance" && <ClassAttendance key={detail.class.id} classId={detail.class.id} language={language} onSaved={() => void openClass(detail.class.id)} />}
+            {section === "attendance" && <ClassAttendance key={detail.class.id} classId={detail.class.id} language={language} onDirtyChange={setAttendanceUnsaved} onSaved={() => void openClass(detail.class.id)} />}
 
             <section hidden={section !== "announcements"} className="teach-panel" aria-label={s("Announcements", "ঘোষণা")}>
               <h3>{s("Announcements", "ঘোষণা")}</h3>

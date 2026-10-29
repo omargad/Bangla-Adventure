@@ -95,7 +95,7 @@ test("a teacher cannot read or write another teacher's class attendance", async 
   assert.equal(stored("2026-10-29").length, 0);
 });
 
-test("a save must cover exactly the students now in the class", async () => {
+test("the first save of a date must cover exactly the students now in the class", async () => {
   for (const wrong of [marks().slice(1), [...marks(), { studentId: "stranger", present: true }], [...marks().slice(1), { studentId: "stranger", present: true }]]) {
     await assert.rejects(saveAttendance(teacherA, "class-a", "2026-10-29", wrong), (error) => error.status === 409 && /class list has changed/.test(error.message));
   }
@@ -133,4 +133,25 @@ test("parents and students see attended-of-recorded per class for linked, alloca
   assert.equal(own.has(attendanceKey("arif", "class-a")), false, "only the students asked for");
   assert.equal(studentAttendance(db, ["nadia"]).size, 0, "a removed allocation is not reported");
   assert.equal(studentAttendance(db, []).size, 0);
+});
+
+test("a student added after a saved date is not recorded for it when the date is corrected", async () => {
+  db.insert(students).values({ id: "zara", username: "zara", displayName: "Zara", passwordHash: "test-only" }).run();
+  db.insert(classStudents).values({ id: "roster-zara", classId: "class-a", displayName: "Zara", tokenHash: "t6" }).run();
+  db.insert(studentClassEnrollments).values({ id: "e5", studentId: "zara", classId: "class-a", classStudentId: "roster-zara" }).run();
+  let sheet = await attendanceSheet(teacherA, "class-a", "2026-10-21");
+  assert.deepEqual(sheet.students.map((student) => [student.studentId, student.present, student.saved]), [["arif", true, true], ["maya", false, true], ["zara", null, false]], "she is listed as not recorded, not ticked present");
+
+  assert.deepEqual(await saveAttendance(teacherA, "class-a", "2026-10-21", [{ studentId: "arif", present: false }, { studentId: "maya", present: false }]), { date: "2026-10-21", saved: 2, present: 0 });
+  assert.equal(stored("2026-10-21").filter((row) => row.studentId === "zara").length, 0, "correcting the date does not record her");
+  sheet = await attendanceSheet(teacherA, "class-a", "2026-10-21");
+  assert.deepEqual(sheet.students.map((student) => [student.studentId, student.present]), [["arif", false], ["maya", false], ["zara", null]]);
+  assert.equal(studentAttendance(db, ["zara"]).size, 0, "and she has no sessions to her name");
+
+  await saveAttendance(teacherA, "class-a", "2026-10-28", [{ studentId: "zara", present: true }]);
+  assert.deepEqual(studentAttendance(db, ["zara"]).get(attendanceKey("zara", "class-a")), { attended: 1, recorded: 1 }, "unless the teacher adds her to that date");
+  assert.deepEqual(stored("2026-10-28").filter((row) => row.studentId !== "zara").map((row) => [row.studentId, row.present]).sort(), [["arif", false], ["maya", true], ["nadia", true]], "a partial correction leaves the other marks as they were");
+  await assert.rejects(saveAttendance(teacherA, "class-a", "2026-10-29", [{ studentId: "arif", present: true }, { studentId: "maya", present: true }]), (error) => error.status === 409, "a new date still needs everyone");
+  await assert.rejects(saveAttendance(teacherA, "class-a", "2026-10-21", [{ studentId: "nadia", present: true }]), (error) => error.status === 409, "and a correction cannot mark a removed student");
+  assert.equal(stored("2026-10-29").length, 0);
 });

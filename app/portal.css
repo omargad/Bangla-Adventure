@@ -142,7 +142,14 @@
 .attendance-list label { display:flex; align-items:center; gap:12px; cursor:pointer; overflow-wrap:anywhere; min-width:0; }
 .attendance-list input { width:22px; height:22px; flex-shrink:0; margin:0; accent-color:#075b4c; }
 .attendance-list small { color:var(--muted); }
-.attendance-list label small { display:block; }
+.attendance-list label small, .attendance-student small { display:block; }
+/* A student added after a saved date: no tick, recorded for it only if the teacher adds them. */
+.attendance-list li.attendance-unrecorded { background:#f7f7f2; }
+.attendance-student { padding-left:34px; overflow-wrap:anywhere; min-width:0; }
+.attendance-optional { display:flex; flex-wrap:wrap; align-items:center; gap:4px 10px; }
+.attendance-note { font-size:.9rem; color:var(--muted); }
+.attendance-error { display:flex; flex-wrap:wrap; align-items:center; gap:10px; }
+.attendance-unsaved { display:block; margin-top:2px; font-weight:400; color:#8a5a00; }
 .attendance-actions { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px; margin:12px 0 20px; }
 .attendance-actions p { margin:0; font-weight:700; }
 .portal-content tr[aria-current=date] td { background:#eef7f2; }

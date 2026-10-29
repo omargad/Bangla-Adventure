@@ -37,8 +37,9 @@ export function classAttendanceTotals(reader: Reader): Map<string, AttendanceSum
 
 /**
  * One session's attendance sheet for a class this actor manages: every student now allocated, A–Z,
- * ticked present unless saved absent for that date, with each student's running totals, who saved
- * the date last and the class's session history.
+ * with each student's running totals, who saved the date last and the class's session history. On a
+ * new date everyone starts ticked present; on a saved date each student shows their saved mark, and
+ * a student with none (added to the class after that session) shows `present: null`, not recorded.
  */
 export async function attendanceSheet(actor: Staff, classId: string, date: string) {
   const db = await getDb();
@@ -56,7 +57,7 @@ export async function attendanceSheet(actor: Staff, classId: string, date: strin
       saved: latest ? { recordedAt: latest.recordedAt, recordedBy: latest.recordedBy } : null,
       students: members.map((member) => ({
         studentId: member.studentId, displayName: member.displayName, username: member.username,
-        present: onDate.get(member.studentId)?.present ?? true, saved: onDate.has(member.studentId),
+        present: onDate.get(member.studentId)?.present ?? (latest ? null : true), saved: onDate.has(member.studentId),
         attendance: totals.get(member.studentId) ?? { attended: 0, recorded: 0 },
       })),
       sessions: attendanceSessions(records),
@@ -67,8 +68,10 @@ export async function attendanceSheet(actor: Staff, classId: string, date: strin
 export type AttendanceSheet = Awaited<ReturnType<typeof attendanceSheet>>;
 
 /**
- * Save one session: a mark for exactly the students now allocated (the sheet the teacher saw), saved
- * again in place when the date already has marks. Records who saved it and when; a routine save is
+ * Save one session. The first save of a date carries a mark for exactly the students now allocated
+ * (the sheet the teacher saw). A date that already has marks is corrected in place and takes marks
+ * for any of the current students only, so a student added to the class after that session is not
+ * recorded for it unless the teacher includes them. Records who saved it and when; a routine save is
  * not audited.
  */
 export async function saveAttendance(actor: Staff, classId: string, date: string, marks: AttendanceMark[]) {
@@ -76,7 +79,9 @@ export async function saveAttendance(actor: Staff, classId: string, date: string
   return db.transaction((tx) => {
     if (!tx.select({ id: classes.id }).from(classes).where(managedClass(actor, classId)).get()) throw notFound();
     const allocated = new Set(currentMembers(tx, [classId]).flatMap((member) => member.studentId ? [member.studentId] : []));
-    if (marks.length !== allocated.size || marks.some((mark) => !allocated.has(mark.studentId))) {
+    const savedBefore = tx.select({ id: classAttendance.id }).from(classAttendance).innerJoin(studentClassEnrollments, allocatedMark)
+      .where(and(eq(classAttendance.classId, classId), eq(classAttendance.sessionDate, date))).limit(1).get();
+    if (marks.some((mark) => !allocated.has(mark.studentId)) || (!savedBefore && marks.length !== allocated.size)) {
       throw new UserManagementError("The class list has changed since this page loaded. Reload the attendance and save again.", 409, "পাতাটি খোলার পর ক্লাসের তালিকা বদলেছে। উপস্থিতি আবার লোড করে সংরক্ষণ করুন।");
     }
     const recordedAt = new Date().toISOString();
