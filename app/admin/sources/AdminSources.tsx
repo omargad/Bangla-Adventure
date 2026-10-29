@@ -112,8 +112,8 @@ export default function AdminSources({ name }: { name: string }) {
   return <PortalShell role="admin" name={name} active="admin-sources" language={language} toggleLanguage={toggleLanguage}>
     <h1>{s("Textbook links", "পাঠ্যবইয়ের লিংক")}</h1>
     <p>{s(
-      "NCTB publishes new textbook editions every academic year. Paste this year's link for each book, and for each class where a book covers several classes. Students, parents and teachers then see the new link in Sources & references, the textbook library and each topic's sources. Every change is recorded in the access log.",
-      "এনসিটিবি প্রতি শিক্ষাবর্ষে নতুন পাঠ্যবই প্রকাশ করে। প্রতিটি বইয়ের এ বছরের লিংক দিন, আর একাধিক শ্রেণির বইয়ে প্রতিটি শ্রেণির জন্য আলাদা লিংক দিন। তখন শিক্ষার্থী, অভিভাবক ও শিক্ষকেরা ‘উৎস ও তথ্যসূত্র’, পাঠ্যবই লাইব্রেরি ও প্রতিটি বিষয়ের উৎসে নতুন লিংকটি দেখবেন। প্রতিটি পরিবর্তন প্রবেশাধিকারের লগে থাকে।",
+      "NCTB publishes new textbook editions every academic year. Paste this year's link for each book, and for each class where a book covers several classes. Students, parents and teachers then see the new link in Sources & references, the textbook library and each topic's sources. Every change is listed under Recent changes on the Users page.",
+      "এনসিটিবি প্রতি শিক্ষাবর্ষে নতুন পাঠ্যবই প্রকাশ করে। প্রতিটি বইয়ের এ বছরের লিংক দিন, আর একাধিক শ্রেণির বইয়ে প্রতিটি শ্রেণির জন্য আলাদা লিংক দিন। তখন শিক্ষার্থী, অভিভাবক ও শিক্ষকেরা ‘উৎস ও তথ্যসূত্র’, পাঠ্যবই লাইব্রেরি ও প্রতিটি বিষয়ের উৎসে নতুন লিংকটি দেখবেন। প্রতিটি পরিবর্তন ব্যবহারকারী পাতার ‘সাম্প্রতিক পরিবর্তন’ অংশে দেখা যায়।",
     )}</p>
     <p className="teach-note">{s("Teachers add links for their own classes in the teacher workspace (Class sources).", "শিক্ষকেরা নিজের ক্লাসের লিংক শিক্ষকের কর্মক্ষেত্রে (ক্লাসের উৎস) যোগ করেন।")}</p>
     {notice && <p className={notice.tone === "error" ? "auth-error" : notice.tone === "warn" ? "source-warning" : "teach-message"} role={notice.tone === "ok" ? "status" : "alert"}>{notice[language]}</p>}

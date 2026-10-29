@@ -112,8 +112,8 @@ export default function AdminResults({ name }: { name: string }) {
   return <PortalShell role="admin" name={name} active="admin-results" language={language} toggleLanguage={toggleLanguage}>
     <h1>{s("Grades & results", "গ্রেড ও ফলাফল")}</h1>
     <p>{s(
-      "Review results and attendance in every class, download a class's grades as CSV and reset a submission so the student can try again. Administrator resets are recorded in the access log.",
-      "সব ক্লাসের ফলাফল ও উপস্থিতি দেখুন, কোনো ক্লাসের গ্রেড CSV হিসেবে নামান এবং শিক্ষার্থী যেন আবার চেষ্টা করতে পারে সে জন্য জমা রিসেট করুন। প্রশাসকের রিসেট প্রবেশাধিকারের লগে সংরক্ষিত হয়।",
+      "Review results and attendance in every class, download a class's grades as CSV and reset a submission so the student can try again. Administrator resets are listed under Recent changes on the Users page.",
+      "সব ক্লাসের ফলাফল ও উপস্থিতি দেখুন, কোনো ক্লাসের গ্রেড CSV হিসেবে নামান এবং শিক্ষার্থী যেন আবার চেষ্টা করতে পারে সে জন্য জমা রিসেট করুন। প্রশাসকের রিসেট ব্যবহারকারী পাতার ‘সাম্প্রতিক পরিবর্তন’ অংশে দেখা যায়।",
     )}</p>
     {error && <p role="alert" className="auth-error">{error}</p>}
     {notice && <p role="status" className="teach-message">{notice}</p>}
