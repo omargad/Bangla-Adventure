@@ -1,5 +1,5 @@
 import { getSessionAdult, getStaffAccess } from "@/lib/auth";
-import { getSessionStudent } from "@/lib/student-auth";
+import { getSessionStudent, passwordChangeRequired } from "@/lib/student-auth";
 import { addLibrarySource, adminLibraryCatalog, getLibraryCatalog, libraryErrorResponse, resetLibrarySource, updateLibrarySource } from "@/lib/library-catalog";
 
 export const dynamic = "force-dynamic";
@@ -32,7 +32,11 @@ export async function GET(request: Request) {
     if (actor instanceof Response) return actor;
     try { return Response.json({ books: await adminLibraryCatalog() }); } catch (error) { return libraryErrorResponse(error); }
   }
-  if (!(await getSessionAdult()) && !(await getSessionStudent())) return Response.json({ error: "Sign in to view the textbook library." }, { status: 401 });
+  const adult = await getSessionAdult();
+  const student = adult ? null : await getSessionStudent();
+  if (!adult && !student) return Response.json({ error: "Sign in to view the textbook library.", errorBn: "পাঠ্যবইয়ের লাইব্রেরি দেখতে সাইন ইন করুন।" }, { status: 401 });
+  // Like every other learning API, a student still on a temporary password chooses their own first.
+  if (student?.mustChangePassword) return passwordChangeRequired();
   return Response.json({ books: await getLibraryCatalog() });
 }
 

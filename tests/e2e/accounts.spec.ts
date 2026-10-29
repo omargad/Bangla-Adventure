@@ -111,6 +111,20 @@ test("self sign-ups wait until an administrator approves them from the queue", a
     expect((await parent.request.post("/api/auth/sign-up", { data: { email: applicant, displayName: "Queued Applicant", password, accountType: "teacher" } })).status()).toBe(201);
 
     await administrator(page, suffix);
+    // The accounts table names a waiting teacher applicant as the queue does, and never badges an account
+    // that cannot sign in yet as active, in English or in Bangla.
+    const tableRow = (text: string) => page.locator(".management-table tbody tr").filter({ hasText: text });
+    await expect(tableRow(applicant).locator(".role-badge")).toHaveText("Teacher request");
+    await expect(tableRow(applicant)).toContainText("Waiting for approval");
+    await expect(tableRow(applicant)).not.toContainText("Active");
+    await expect(tableRow(parentEmail).locator(".role-badge")).toHaveText("Parent");
+    await page.locator(".portal-topbar").getByRole("button", { name: "বাংলা" }).click();
+    await expect(tableRow(applicant).locator(".role-badge")).toHaveText("শিক্ষক হওয়ার আবেদন");
+    await expect(tableRow(applicant)).toContainText("অনুমোদনের অপেক্ষায়");
+    await expect(tableRow(applicant)).not.toContainText("সক্রিয়");
+    await expect(tableRow(parentEmail).locator(".role-badge")).toHaveText("অভিভাবক");
+    await expect(page.getByRole("combobox", { name: "ব্যবহারকারী বাছাই" }).locator("option[value=teacher]")).toHaveText("শিক্ষক");
+    await page.locator(".portal-topbar").getByRole("button", { name: "English" }).click();
     const queue = page.getByRole("region", { name: /Waiting for approval/ });
     const parentItem = queue.getByRole("listitem").filter({ hasText: parentEmail });
     await expect(parentItem).toContainText("Parent");

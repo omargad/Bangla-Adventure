@@ -50,6 +50,8 @@ export default function TopicStudio({ name, role, initialView }: { name: string;
 
   const pending = (topics ?? []).filter((topic) => topic.pendingVersions.length > 0);
   const chip = (topic: StaffTopicSummary) => {
+    if (topic.withdrawn) return topic.latest.status === "pending" ? s("Withdrawn · new version waiting", "সরিয়ে নেওয়া · নতুন সংস্করণ অপেক্ষায়") : s("Withdrawn · hidden from students", "সরিয়ে নেওয়া · শিক্ষার্থীরা দেখে না");
+    if (topic.baselineReview && topic.latest.status === "approved") return s("Approved · baseline, reviewed", "অনুমোদিত · আগে থেকে থাকা, পর্যালোচিত");
     if (topic.latest.status === "pending") return topic.approved ? s("Approved · new version waiting", "অনুমোদিত · নতুন সংস্করণ অপেক্ষায়") : s("New · waiting for approval", "নতুন · অনুমোদনের অপেক্ষায়");
     if (topic.latest.status === "rejected") return topic.approved ? s("Approved · changes sent back", "অনুমোদিত · পরিবর্তন ফেরত পাঠানো") : s("Sent back · not published", "ফেরত পাঠানো · প্রকাশিত নয়");
     return statusLabel(topic.approved ?? topic.latest, language);
@@ -59,7 +61,7 @@ export default function TopicStudio({ name, role, initialView }: { name: string;
       <span className="topic-emoji" aria-hidden="true">{topic.emoji}</span>
       <span className="topic-admin-title">
         <strong>{topic.title[language]}</strong>
-        <small><span className={`topic-status topic-status-${topic.latest.status}`}>{chip(topic)}</span>{waiting && <> · {versionLabel(topic.latest.version, language)} · {authorLabel(topic.latest, language)}, {formatWhen(topic.latest.createdAt, language)}</>}</small>
+        <small><span className={`topic-status topic-status-${topic.withdrawn ? "rejected" : topic.latest.status}`}>{chip(topic)}</span>{waiting && <> · {versionLabel(topic.latest.version, language)} · {authorLabel(topic.latest, language)}, {formatWhen(topic.latest.createdAt, language)}</>}</small>
       </span>
       <span className="topic-admin-actions">
         {waiting
@@ -111,7 +113,7 @@ export default function TopicStudio({ name, role, initialView }: { name: string;
                 <ul className="topic-admin-list">{items.map((topic) => row(topic))}</ul>
               </section>
             ))}
-            <p className="teach-note">{s("“Approved · baseline” marks the topics that came with the app: students could read them before approval existed, and they have not been individually reviewed. Open one to review it and approve an edit.", "“অনুমোদিত · আগে থেকে থাকা” মানে অ্যাপের সঙ্গে আসা বিষয়: অনুমোদন চালুর আগেই শিক্ষার্থীরা এগুলো পড়তে পারত, আলাদা করে পর্যালোচনা হয়নি। পর্যালোচনা করতে ও সম্পাদনা অনুমোদন করতে একটি খুলুন।")} <Link href="/topics">{s("See the student topics page →", "শিক্ষার্থীর বিষয়ের পাতা দেখুন →")}</Link></p>
+            <p className="teach-note">{s("“Approved · baseline” marks the topics that came with the app: students could read them before approval existed, and they have not been individually reviewed. Open one to review it, confirm your review, edit it or withdraw it from students.", "“অনুমোদিত · আগে থেকে থাকা” মানে অ্যাপের সঙ্গে আসা বিষয়: অনুমোদন চালুর আগেই শিক্ষার্থীরা এগুলো পড়তে পারত, আলাদা করে পর্যালোচনা হয়নি। পর্যালোচনা করতে, পর্যালোচনা নিশ্চিত করতে, সম্পাদনা করতে বা শিক্ষার্থীদের কাছ থেকে সরিয়ে নিতে একটি খুলুন।")} <Link href="/topics">{s("See the student topics page →", "শিক্ষার্থীর বিষয়ের পাতা দেখুন →")}</Link></p>
           </>}
         </>}
       </main>

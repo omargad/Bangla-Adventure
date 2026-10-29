@@ -44,7 +44,7 @@ test("complete approved-teacher, allocated-student, curriculum and recovery work
     await page.getByRole("button", { name: "Search", exact: true }).click();
     page.on("dialog", (dialog) => dialog.accept());
     await page.getByRole("row").filter({ hasText: teacherEmail }).getByRole("button", { name: "Approve", exact: true }).click();
-    await expect(page.getByRole("row").filter({ hasText: teacherEmail }).getByText("teacher", { exact: true })).toBeVisible();
+    await expect(page.getByRole("row").filter({ hasText: teacherEmail }).locator(".role-badge")).toHaveText("Teacher");
     await teacher.goto("/grown-ups?returnTo=%2Fteach");
     await teacher.getByLabel("Email", { exact: true }).fill(teacherEmail);
     await teacher.getByLabel("Password", { exact: true }).fill(password);
@@ -136,7 +136,7 @@ test("complete approved-teacher, allocated-student, curriculum and recovery work
     await expect(student.getByRole("heading", { name: approvedTitle, exact: true })).toBeVisible();
     await expect(student.getByRole("heading", { name: title, exact: true })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Approve and publish to students", exact: true })).toBeDisabled();
-    await page.getByRole("checkbox", { name: "I have read the whole lesson in English and Bangla" }).check();
+    await page.getByRole("checkbox", { name: "I have read the whole topic, including its quiz, in English and Bangla" }).check();
     await page.getByRole("button", { name: "Approve and publish to students", exact: true }).click();
     await expect(page.getByRole("status").filter({ hasText: "Approved. Students now see" })).toBeVisible();
     await student.goto("/student");

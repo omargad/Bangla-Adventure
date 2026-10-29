@@ -27,6 +27,16 @@ test("rejects the backslash open-redirect bypass", () => {
   assert.equal(safeReturnPath("\\/evil.com"), "/");
 });
 
+test("rejects dot segments that resolve to a protocol-relative path", () => {
+  for (const value of ["/.//evil.com", "/..//evil.com", "/%2e%2e//evil.com", "/%2E%2E//evil.com/x?y#z", "/admin/..//evil.com", "/%2e//evil.com"]) {
+    assert.equal(safeReturnPath(value), "/", value);
+  }
+  assert.equal(safeReturnPath("/.//evil.com", "/family"), "/family");
+  assert.equal(isAdminReturnPath("/admin/..//evil.com"), false);
+  // Ordinary dot segments that stay on a local path are still resolved and kept.
+  assert.equal(safeReturnPath("/admin/../family"), "/family");
+});
+
 test("rejects control characters and empty input", () => {
   assert.equal(safeReturnPath("/\tevil"), "/");
   assert.equal(safeReturnPath("/\nevil"), "/");

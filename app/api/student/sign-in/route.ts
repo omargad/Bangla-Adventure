@@ -22,15 +22,15 @@ export async function POST(request: Request) {
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const username = typeof body.username === "string" ? body.username : "";
   const password = typeof body.password === "string" ? body.password : "";
-  if (!username || !password) return NextResponse.json({ error: "Enter your username and password." }, { status: 400 });
+  if (!username || !password) return NextResponse.json({ error: "Enter your username and password.", errorBn: "ইউজারনেম ও পাসওয়ার্ড লেখো।" }, { status: 400 });
 
   const account = checkRateLimit(`student-sign-in:${clientKey(request)}:${normalizeStudentUsername(username)}`, 10, WINDOW_MS);
   if (!account.allowed) return tooManyRequests(account.retryAfterSeconds);
 
   const student = await verifyStudentCredentials(username, password);
-  if (!student) return NextResponse.json({ error: "That username and password do not match." }, { status: 401 });
+  if (!student) return NextResponse.json({ error: "That username and password do not match.", errorBn: "এই ইউজারনেম ও পাসওয়ার্ড মেলেনি।" }, { status: 401 });
   if (student.approvalStatus !== "approved") {
-    return NextResponse.json({ error: approvalNotice(student.approvalStatus, "student")[0], approvalStatus: student.approvalStatus }, { status: 403 });
+    return NextResponse.json({ error: approvalNotice(student.approvalStatus, "student")[0], errorBn: approvalNotice(student.approvalStatus, "student")[1], approvalStatus: student.approvalStatus }, { status: 403 });
   }
 
   const { token, expiresAt } = await createStudentSession(student.id);

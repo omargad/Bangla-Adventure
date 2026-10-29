@@ -186,8 +186,8 @@ const isPair = (value: unknown): value is Bilingual =>
   Boolean(value) && typeof (value as Bilingual).en === "string" && typeof (value as Bilingual).bn === "string";
 
 /** A source added by an administrator, when its stored record is complete enough to show. */
-function addedBook(id: string, override: SourceOverride): LibraryBook | null {
-  if (!override.titleBn || !override.titleEn || !isPair(override.classes)) return null;
+function addedBook(id: string, override: SourceOverride | null | undefined): LibraryBook | null {
+  if (!override || !override.titleBn || !override.titleEn || !isPair(override.classes)) return null;
   return {
     id,
     titleBn: override.titleBn,

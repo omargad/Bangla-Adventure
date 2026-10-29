@@ -16,29 +16,29 @@ export async function POST(request: Request) {
   if (!limit.allowed) return tooManyRequests(limit.retryAfterSeconds);
 
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
-  if ((typeof body.email === "string" && body.email.trim().length > 120) || (typeof body.displayName === "string" && body.displayName.trim().length > 60)) return NextResponse.json({ error: "Use an email of at most 120 characters and a name of at most 60 characters." }, { status: 400 });
+  if ((typeof body.email === "string" && body.email.trim().length > 120) || (typeof body.displayName === "string" && body.displayName.trim().length > 60)) return NextResponse.json({ error: "Use an email of at most 120 characters and a name of at most 60 characters.", errorBn: "ইমেইল সর্বোচ্চ ১২০ অক্ষরের আর নাম সর্বোচ্চ ৬০ অক্ষরের হতে পারে।" }, { status: 400 });
   const email = typeof body.email === "string" ? body.email.trim().slice(0, 120) : "";
   const displayName = typeof body.displayName === "string" ? body.displayName.trim().slice(0, 60) : "";
   const password = typeof body.password === "string" ? body.password : "";
 
   if (!emailPattern.test(email)) {
-    return NextResponse.json({ error: "Enter a valid email address." }, { status: 400 });
+    return NextResponse.json({ error: "Enter a valid email address.", errorBn: "একটি সঠিক ইমেইল ঠিকানা লিখুন।" }, { status: 400 });
   }
   if (!displayName) {
-    return NextResponse.json({ error: "Enter your name." }, { status: 400 });
+    return NextResponse.json({ error: "Enter your name.", errorBn: "আপনার নাম লিখুন।" }, { status: 400 });
   }
   if (password.length < 10 || password.length > 200) {
     return NextResponse.json(
-      { error: "Choose a password of at least 10 characters." },
+      { error: "Choose a password of at least 10 characters.", errorBn: "কমপক্ষে ১০ অক্ষরের একটি পাসওয়ার্ড বেছে নিন।" },
       { status: 400 },
     );
   }
 
   if (body.accountType !== undefined && body.accountType !== "parent" && body.accountType !== "teacher") {
-    return NextResponse.json({ error: "Choose a parent or teacher account." }, { status: 400 });
+    return NextResponse.json({ error: "Choose a parent or teacher account.", errorBn: "অভিভাবক বা শিক্ষকের অ্যাকাউন্ট বেছে নিন।" }, { status: 400 });
   }
   const result = await registerAdult(email, displayName, password, body.accountType === "teacher");
-  if ("error" in result) return NextResponse.json({ error: result.error }, { status: 409 });
+  if ("error" in result) return NextResponse.json({ error: result.error, errorBn: result.errorBn }, { status: 409 });
 
   const recoveryCodes = await issueRecoveryCodes(result.id);
   return NextResponse.json(

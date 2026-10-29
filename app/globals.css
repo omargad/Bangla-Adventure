@@ -10510,7 +10510,9 @@ body.modal-open .pwa-status {
 .management-toolbar > select { width: auto; max-width: 100%; }
 .management-table-wrap { width: 100%; overflow-x: auto; }
 .management-table { width: 100%; text-align: left; border-collapse: collapse; font-size: .93rem; }
-.management-table th { color: #516371; text-transform: uppercase; font-size: .7rem; letter-spacing: .08em; background: #f5f5ef; }
+.management-table thead th { color: #516371; text-transform: uppercase; font-size: .7rem; letter-spacing: .08em; background: #f5f5ef; }
+/* Row headers (a student's name in a body row) read like the rest of the row, not like a column heading. */
+.management-table tbody th { font-weight: 600; }
 .management-table :is(th, td) { padding: 18px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
 .management-table td:first-child { min-width: 175px; max-width: 250px; overflow-wrap: anywhere; }
 .management-table small { display: block; color: #516371; font-size: .8rem; margin-top: 6px; }

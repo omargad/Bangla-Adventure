@@ -139,7 +139,7 @@ test("a teacher's new topic stays hidden from learners until another teacher app
   assert.equal(preview.version.content.title.bn, "সিলেটের চা-বাগান");
   assert.match(preview.changes[0].en, /New topic/);
 
-  await assert.rejects(catalog.reviewTopicVersion("reviewer", topicId, 1, { decision: "approve" }), /I have read the whole lesson/);
+  await assert.rejects(catalog.reviewTopicVersion("reviewer", topicId, 1, { decision: "approve" }), /I have read the whole topic, including its quiz/);
   await assert.rejects(catalog.reviewTopicVersion("parent", topicId, 1, { decision: "approve", confirmedRead: true }), (error) => error.status === 403);
   await assert.rejects(catalog.reviewTopicVersion("reviewer", topicId, 1, { decision: "maybe" }), /approve or send back/);
   const approved = await catalog.reviewTopicVersion("reviewer", topicId, 1, { decision: "approve", confirmedRead: true });
@@ -345,4 +345,77 @@ test("the content migration adds its table and columns and carries earlier admin
   const progressColumns = sqlite.prepare("PRAGMA table_info(student_topic_progress)").all().map((column) => column.name);
   for (const column of ["quiz_best_score", "quiz_total", "quiz_key", "quiz_completed_at"]) assert.ok(progressColumns.includes(column), column);
   sqlite.close();
+});
+
+test("the rules for withdrawing a topic, approving it again and confirming a baseline review", () => {
+  const live = { approved: true, withdrawn: false, unreviewedBaseline: true };
+  const read = { confirmedRead: true };
+  const refused = (standing, raw, pattern, status = 400) => assert.throws(() => model.checkTopicDecision(standing, raw), (error) => error instanceof model.TopicError && error.status === status && pattern.test(error.message) && error.messageBn.length > 0);
+  refused(live, { decision: "hide" }, /Choose to withdraw/);
+  refused(live, { decision: "withdraw" }, /Say why/);
+  refused(live, { decision: "withdraw", note: "x".repeat(1001) }, /1000 characters/);
+  assert.deepEqual(model.checkTopicDecision(live, { decision: "withdraw", note: "  A date is wrong.  " }), { decision: "withdraw", note: "A date is wrong." });
+  refused({ ...live, withdrawn: true }, { decision: "withdraw", note: "Again" }, /already cannot see/, 409);
+  refused({ ...live, approved: false }, { decision: "withdraw", note: "Nothing approved" }, /no approved version/, 409);
+  refused(live, { decision: "confirm" }, /I have read the whole topic, including its quiz/);
+  assert.deepEqual(model.checkTopicDecision(live, { decision: "confirm", ...read }), { decision: "confirm", note: "" });
+  refused({ ...live, unreviewedBaseline: false }, { decision: "confirm", ...read }, /already been reviewed/, 409);
+  refused({ ...live, withdrawn: true }, { decision: "confirm", ...read }, /Approve it again/, 409);
+  refused(live, { decision: "approve", ...read }, /can already see/, 409);
+  refused({ ...live, withdrawn: true }, { decision: "approve" }, /I have read the whole topic/);
+  assert.equal(model.checkTopicDecision({ ...live, withdrawn: true }, { decision: "approve", ...read }).decision, "approve");
+});
+
+test("a withdrawn topic leaves every learner path until it is approved again; a baseline review is recorded without changing it", async () => {
+  const id = "crafts-of-bengal";
+  const before = await catalog.findApprovedTopic(id);
+  assert.ok(before && before.baseline);
+  await assert.rejects(catalog.decideTopic("parent", id, { decision: "withdraw", note: "Not staff" }), (error) => error.status === 403);
+  await assert.rejects(catalog.decideTopic("reviewer", "no-such-topic", { decision: "withdraw", note: "Gone" }), (error) => error.status === 404);
+
+  // Confirming a review keeps the content and records the reviewer; a second confirmation is refused.
+  const confirmed = await catalog.decideTopic("reviewer", id, { decision: "confirm", confirmedRead: true });
+  assert.equal(confirmed.version, 0);
+  assert.deepEqual(await catalog.findApprovedTopic(id), before, "students keep the same topic");
+  let staff = (await catalog.listStaffTopics()).find((topic) => topic.id === id);
+  assert.equal(staff.withdrawn, false);
+  assert.equal(staff.baselineReview.changedByName, "Teacher Rafi");
+  assert.equal(staff.baselineReview.kind, "confirmed");
+  await assert.rejects(catalog.decideTopic("author", id, { decision: "confirm", confirmedRead: true }), (error) => error.status === 409);
+
+  // Withdrawing hides it from the catalogue, progress and new class activities at once.
+  await catalog.decideTopic("author", id, { decision: "withdraw", note: "A craft is named wrongly." });
+  assert.equal((await learnerIds()).includes(id), false);
+  assert.equal(await catalog.findApprovedTopic(id), null);
+  await assert.rejects(catalog.recordTopicProgress("maya", id), (error) => error.status === 400 || error.status === 404);
+  const detail = await catalog.getStaffTopic(id);
+  assert.equal(detail.withdrawn, true);
+  assert.equal(detail.baselineReview, null);
+  assert.deepEqual(detail.decisions.map((item) => [item.kind, item.changedByName]), [["confirmed", "Teacher Rafi"], ["withdrawn", "Teacher Tania"]]);
+  assert.equal(detail.decisions.at(-1).note, "A craft is named wrongly.");
+  assert.equal((await catalog.listStaffTopics()).find((topic) => topic.id === id).withdrawn, true);
+  await assert.rejects(catalog.decideTopic("reviewer", id, { decision: "withdraw", note: "Twice" }), (error) => error.status === 409);
+
+  // Approving it again needs the read tick and shows it to learners once more.
+  await assert.rejects(catalog.decideTopic("reviewer", id, { decision: "approve" }), /I have read the whole topic/);
+  await catalog.decideTopic("reviewer", id, { decision: "approve", confirmedRead: true });
+  assert.ok((await learnerIds()).includes(id));
+  staff = (await catalog.listStaffTopics()).find((topic) => topic.id === id);
+  assert.equal(staff.withdrawn, false);
+  assert.equal(staff.baselineReview.kind, "restored");
+
+  // Approving an edit of a withdrawn topic also shows it again, as the new version.
+  await catalog.decideTopic("reviewer", id, { decision: "withdraw", note: "Fixing the craft name." });
+  const { version } = await catalog.submitTopicEdit("author", id, { ...draft({ theme: before.theme, emoji: before.emoji }), title: pair("Crafts of Bengal (corrected)", before.title.bn), baseVersion: 0 });
+  assert.equal((await learnerIds()).includes(id), false, "a waiting edit does not show a withdrawn topic");
+  await catalog.reviewTopicVersion("reviewer", id, version, { decision: "approve", confirmedRead: true });
+  const shown = await catalog.findApprovedTopic(id);
+  assert.equal(shown.title.en, "Crafts of Bengal (corrected)");
+  assert.equal(shown.baseline, false);
+  assert.equal((await catalog.getStaffTopic(id)).baselineReview, null, "a reviewed version needs no baseline review");
+
+  const actions = db.select().from(userAuditEvents).all().filter((row) => row.targetId === id).map((row) => row.action);
+  assert.deepEqual(actions.filter((action) => action !== "topic-edit-submitted"), ["topic-review-confirmed", "topic-withdrawn", "topic-restored", "topic-withdrawn", "topic-version-approved"]);
+  const approval = db.select().from(userAuditEvents).all().find((row) => row.targetId === id && row.action === "topic-version-approved");
+  assert.equal(JSON.parse(approval.detailsJson).restored, true);
 });

@@ -114,7 +114,7 @@ test("a teacher's new topic stays hidden from learners until another teacher pre
 
   const unconfirmed = await send(`/api/topics/${newTopicId}/versions/1`, "POST", { decision: "approve" }, reviewerCookie);
   assert.equal(unconfirmed.status, 400);
-  assert.match((await unconfirmed.json()).error, /read the whole lesson in English and Bangla/);
+  assert.match((await unconfirmed.json()).error, /read the whole topic, including its quiz, in English and Bangla/);
   assert.equal((await send(`/api/topics/${newTopicId}/versions/1`, "POST", { decision: "approve", confirmedRead: true }, parentCookie)).status, 403);
   const approved = await send(`/api/topics/${newTopicId}/versions/1`, "POST", { decision: "approve", confirmedRead: true }, reviewerCookie);
   assert.equal(approved.status, 200);
@@ -183,6 +183,45 @@ test("an edit of an approved topic stays hidden until approved, and a rejected e
   assert.deepEqual(history.map((version) => [version.version, version.status]), [[0, "superseded"], [1, "rejected"], [2, "approved"]]);
   const audit = fixture((db) => db.prepare("SELECT action FROM user_audit_events WHERE target_id = ? ORDER BY rowid").all(id).map((row) => row.action));
   assert.deepEqual(audit, ["topic-edit-submitted", "topic-version-rejected", "topic-edit-submitted", "topic-version-approved"]);
+});
+
+test("a teacher withdraws a topic from every learner, approves it again, and records a review of a baseline topic", async () => {
+  const id = "national-symbols";
+  assert.ok((await titles(studentCookie))[id], "students read the baseline topic");
+  const decide = (body, cookie = reviewerCookie) => send(`/api/topics/${id}`, "POST", body, cookie);
+
+  // A review of the baseline topic is recorded under the reviewer's name; students keep it as it is.
+  assert.equal((await decide({ decision: "confirm" })).status, 400, "the read tick is needed");
+  assert.equal((await decide({ decision: "confirm", confirmedRead: true }, parentCookie)).status, 403);
+  assert.equal((await decide({ decision: "confirm", confirmedRead: true })).status, 200);
+  const reviewed = (await (await send(`/api/topics/${id}`, "GET", undefined, authorCookie)).json()).topic;
+  assert.equal(reviewed.baselineReview.changedByName, "topics-reviewer");
+  assert.equal(reviewed.withdrawn, false);
+  assert.equal((await decide({ decision: "confirm", confirmedRead: true }, authorCookie)).status, 409, "already reviewed");
+
+  // Withdrawn: gone from every learner path at once.
+  const noReason = await decide({ decision: "withdraw" });
+  assert.equal(noReason.status, 400);
+  assert.ok((await noReason.json()).errorBn);
+  assert.equal((await decide({ decision: "withdraw", note: "The flower is named wrongly in Bangla." })).status, 200);
+  for (const cookie of [studentCookie, parentCookie]) assert.equal((await titles(cookie))[id], undefined);
+  assert.equal((await (await send("/api/curriculum?summary=1", "GET", undefined, studentCookie)).json()).topicCount, shippedCount);
+  assert.equal((await send("/api/student/topic-progress", "POST", { topicId: id }, studentCookie)).status, 400);
+  assert.equal((await send(`/api/classes/${classId}/activities`, "POST", { title: "Symbols check", topicId: id, questions: [{ prompt: "Flag?", options: ["Green", "Blue"], answer: 0 }] }, authorCookie)).status, 400);
+  assert.equal((await send("/api/curriculum")).status, 401);
+  assert.equal((await curriculum(reviewerCookie)).topics.some((topic) => topic.id === id), false, "staff see it in the topics area, not as students do");
+  const staffList = await (await send("/api/topics", "GET", undefined, authorCookie)).json();
+  assert.equal(staffList.topics.find((topic) => topic.id === id).withdrawn, true);
+  assert.equal((await decide({ decision: "withdraw", note: "Again" })).status, 409);
+
+  // Approved again after a full read: learners see it once more, and the history lists each decision.
+  assert.equal((await decide({ decision: "approve" }, authorCookie)).status, 400);
+  assert.equal((await decide({ decision: "approve", confirmedRead: true }, authorCookie)).status, 200);
+  for (const cookie of [studentCookie, parentCookie]) assert.ok((await titles(cookie))[id]);
+  const history = (await (await send(`/api/topics/${id}`, "GET", undefined, adminCookie)).json()).topic;
+  assert.deepEqual(history.decisions.map((item) => [item.kind, item.changedByName]), [["confirmed", "topics-reviewer"], ["withdrawn", "topics-reviewer"], ["restored", "topics-author"]]);
+  const audit = fixture((db) => db.prepare("SELECT action, actor_id IS NOT NULL AS actor FROM user_audit_events WHERE target_id = ? ORDER BY rowid").all(id));
+  assert.deepEqual(audit.map((row) => [row.action, row.actor]), [["topic-review-confirmed", 1], ["topic-withdrawn", 1], ["topic-restored", 1]]);
 });
 
 test("the topics area is for staff, and the old curriculum page leads there", async () => {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { Language } from "../../lib/use-language";
+import { localMessage, type Language } from "../../lib/use-language";
 import { accountHome, approvalNotice, canManageUsers, type AccountAccess, type ApprovalStatus } from "../../lib/roles";
 import { passwordChangeDestination } from "../../lib/learning-policy";
 
@@ -57,13 +57,14 @@ export default function AuthCard({ returnTo, language = "en", initialMode = "sig
       });
       const data = (await response.json().catch(() => ({}))) as {
         error?: string;
+        errorBn?: string;
         recoveryCodes?: string[];
         adult?: AccountAccess & { mustChangePassword?: boolean };
         approvalStatus?: Exclude<ApprovalStatus, "approved">;
         pendingApproval?: boolean;
       };
       if (!response.ok) {
-        setError(data.approvalStatus ? approvalError(data.approvalStatus) : data.error ?? s("Something went wrong. Please try again.", "কিছু একটা সমস্যা হয়েছে। আবার চেষ্টা করুন।"));
+        setError(data.approvalStatus ? approvalError(data.approvalStatus) : localMessage(data, language, ["Something went wrong. Please try again.", "কিছু একটা সমস্যা হয়েছে। আবার চেষ্টা করুন।"]));
         return;
       }
       if (data.pendingApproval) {

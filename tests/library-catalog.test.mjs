@@ -291,3 +291,27 @@ test("on start, older links are held until an administrator restores or discards
   assert.deepEqual(events("library-link-discarded")[0].details, { bookId: "geography-9-10", downloadUrl: "https://drive.example.com/geography.pdf", setBy: "admin@example.com" });
   assert.equal((await catalog.adminLibraryCatalog()).filter((book) => book.held).map((book) => book.id).join(), "teacher-reader");
 });
+
+test("a stored record that is not an object (a hand-edited null, say) is left out instead of breaking the library", async () => {
+  const shipped = links.mergeCatalog(new Map()).map((book) => book.id);
+  assert.deepEqual(links.mergeCatalog(new Map([["null-json", null], ["history-9-10", null]])).map((book) => book.id), shipped);
+  db.insert(knowledgeSources).values([
+    { id: "null-json", updatedBy: "admin@example.com", dataJson: "null" },
+    { id: "list-json", updatedBy: "admin@example.com", dataJson: "[1,2]" },
+    { id: "geography-9-10", updatedBy: "admin@example.com", dataJson: "null" },
+  ]).run();
+  try {
+    const overrides = await catalog.libraryOverrides();
+    assert.equal(overrides.has("null-json") || overrides.has("list-json") || overrides.has("geography-9-10"), false);
+    assert.ok((await catalog.getLibraryCatalog()).some((book) => book.id === "history-9-10"));
+    const listed = await catalog.adminLibraryCatalog();
+    assert.equal(listed.some((book) => book.id === "null-json"), false);
+    // Changing a book whose stored record is unreadable starts from the shipped record.
+    await catalog.updateLibrarySource(admin, "geography-9-10", { titleEn: "Geography (2027)" });
+    assert.deepEqual(stored("geography-9-10"), { titleEn: "Geography (2027)", reviewed: true });
+  } finally {
+    db.delete(knowledgeSources).where(eq(knowledgeSources.id, "null-json")).run();
+    db.delete(knowledgeSources).where(eq(knowledgeSources.id, "list-json")).run();
+    db.delete(knowledgeSources).where(eq(knowledgeSources.id, "geography-9-10")).run();
+  }
+});

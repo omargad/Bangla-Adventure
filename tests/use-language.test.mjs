@@ -40,3 +40,13 @@ test("class dates keep their calendar day in every time zone", () => {
   assert.match(localDate("2026-01-01", "en"), /1 Jan 2026/);
   assert.equal(localDate("28/10/2026", "en"), "28/10/2026");
 });
+
+test("a server message is kept in both languages, with the fallback for a language the server did not send", async () => {
+  const { serverMessage, MessageError } = await import("../lib/use-language.ts");
+  assert.deepEqual(serverMessage({ error: "Class not found.", errorBn: "ক্লাসটি পাওয়া যায়নি।" }, fallback), ["Class not found.", "ক্লাসটি পাওয়া যায়নি।"]);
+  assert.deepEqual(serverMessage({ error: "Too many attempts." }, fallback), ["Too many attempts.", "লোড করা যায়নি।"]);
+  assert.deepEqual(serverMessage(null, fallback), fallback);
+  const error = new MessageError(["Not saved.", "সংরক্ষণ হয়নি।"]);
+  assert.equal(error.message, "Not saved.");
+  assert.deepEqual(error.text, ["Not saved.", "সংরক্ষণ হয়নি।"]);
+});

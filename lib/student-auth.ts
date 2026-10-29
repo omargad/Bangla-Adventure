@@ -43,17 +43,17 @@ export async function registerStudent(
   username: string,
   displayName: string,
   password: string,
-): Promise<Student | { error: string }> {
+): Promise<Student | { error: string; errorBn: string }> {
   const db = await getDb();
-  if (username.trim().length > 40 || displayName.trim().length > 60) return { error: "Use a username of at most 40 characters and a student name of at most 60 characters." };
+  if (username.trim().length > 40 || displayName.trim().length > 60) return { error: "Use a username of at most 40 characters and a student name of at most 60 characters.", errorBn: "ইউজারনেম সর্বোচ্চ ৪০ অক্ষরের আর নাম সর্বোচ্চ ৬০ অক্ষরের হতে পারে।" };
   const normalized = normalizeStudentUsername(username);
-  if (!validateStudentUsername(normalized)) return { error: "Choose a username with 3–40 letters, numbers, dots, dashes or underscores." };
+  if (!validateStudentUsername(normalized)) return { error: "Choose a username with 3–40 letters, numbers, dots, dashes or underscores.", errorBn: "৩–৪০টি অক্ষর, সংখ্যা, ডট, ড্যাশ বা আন্ডারস্কোর দিয়ে একটি ইউজারনেম বেছে নাও।" };
   const cleanName = displayName.trim().slice(0, 60);
-  if (!cleanName) return { error: "Enter the student name." };
-  if (password.length < 8 || password.length > 200) return { error: "Choose a password with at least 8 characters. A grown-up can help you choose one." };
+  if (!cleanName) return { error: "Enter the student name.", errorBn: "শিক্ষার্থীর নাম লেখো।" };
+  if (password.length < 8 || password.length > 200) return { error: "Choose a password with at least 8 characters. A grown-up can help you choose one.", errorBn: "কমপক্ষে ৮ অক্ষরের একটি পাসওয়ার্ড বেছে নাও। দরকার হলে বড়দের সাহায্য নাও।" };
 
   const [existing] = await db.select({ id: students.id }).from(students).where(eq(students.username, normalized)).limit(1);
-  if (existing) return { error: "That username is already taken." };
+  if (existing) return { error: "That username is already taken.", errorBn: "এই ইউজারনেমটি আগেই নেওয়া হয়েছে।" };
 
   const [student] = await db
     .insert(students)
@@ -103,7 +103,7 @@ export async function getSessionStudent(): Promise<Student | null> {
 
 /** What every student learning or data API answers while the temporary password is still in use. */
 export function passwordChangeRequired(): Response {
-  return Response.json({ error: "Choose your own password before you continue.", mustChangePassword: true }, { status: 403 });
+  return Response.json({ error: "Choose your own password before you continue.", errorBn: "চালিয়ে যাওয়ার আগে নিজের পাসওয়ার্ড বেছে নাও।", mustChangePassword: true }, { status: 403 });
 }
 
 /**
@@ -113,7 +113,7 @@ export function passwordChangeRequired(): Response {
  */
 export async function getStudentAccess(): Promise<Student | Response> {
   const student = await getSessionStudent();
-  if (!student) return Response.json({ error: "Student sign in required." }, { status: 401 });
+  if (!student) return Response.json({ error: "Student sign in required.", errorBn: "শিক্ষার্থী হিসেবে সাইন ইন করো।" }, { status: 401 });
   if (student.mustChangePassword) return passwordChangeRequired();
   return student;
 }

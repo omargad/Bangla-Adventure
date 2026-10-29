@@ -1,5 +1,6 @@
 import { getMediaObject } from "@/lib/storage";
 import { getSessionAdult } from "@/lib/auth";
+import { getSessionStudent, passwordChangeRequired } from "@/lib/student-auth";
 import { canTeach } from "@/lib/roles";
 import { approvedRecording, isLessonApproved, isLessonId, lessonUnavailable } from "@/lib/lesson-approval";
 import { LESSON_AUDIO_SLOT } from "@/lib/voice-playback";
@@ -20,8 +21,11 @@ type RouteContext = { params: Promise<{ lessonId: string; slot: string }> };
 export async function GET(request: Request, context: RouteContext) {
   const { lessonId, slot } = await context.params;
   if (!isLessonId(lessonId) || !LESSON_AUDIO_SLOT.test(slot)) return Response.json({ error: "Audio not found." }, { status: 404 });
+  const adult = await getSessionAdult();
+  // A student still on a temporary password chooses their own first, as on every other learning API.
+  if (!adult && (await getSessionStudent())?.mustChangePassword) return passwordChangeRequired();
   // Learners only hear approved lessons; teachers and administrators preview any lesson.
-  if (!(await isLessonApproved(lessonId)) && !canTeach(await getSessionAdult())) return lessonUnavailable();
+  if (!(await isLessonApproved(lessonId)) && !canTeach(adult)) return lessonUnavailable();
 
   const requested = new URL(request.url).searchParams.get("v");
   const gone = () => Response.json({ error: "That recording is no longer in use." }, { status: 404, headers: { "Cache-Control": "no-store" } });

@@ -45,3 +45,16 @@ export function localMessage(data: { error?: unknown; errorBn?: unknown; message
   if (language === "bn") return typeof data?.errorBn === "string" && data.errorBn ? data.errorBn : typeof data?.messageBn === "string" && data.messageBn ? data.messageBn : fallback[1];
   return typeof data?.error === "string" && data.error ? data.error : typeof data?.message === "string" && data.message ? data.message : fallback[0];
 }
+
+/** One message in both languages, so a page shows it in whichever language is chosen, even after a switch. */
+export type Message = [en: string, bn: string];
+
+/** A server message in both languages; the fallback fills in a language the server did not send. */
+export function serverMessage(data: { error?: unknown; errorBn?: unknown } | null | undefined, fallback: Message): Message {
+  return [localMessage(data, "en", fallback), localMessage(data, "bn", fallback)];
+}
+
+/** A failed request carrying its message in both languages. */
+export class MessageError extends Error {
+  constructor(readonly text: Message) { super(text[0]); }
+}

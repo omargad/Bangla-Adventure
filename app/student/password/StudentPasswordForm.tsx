@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useState } from "react";
-import { useLanguage } from "@/lib/use-language";
+import { localMessage, useLanguage } from "@/lib/use-language";
 import PortalShell from "@/app/components/PortalShell";
 
 export default function StudentPasswordForm({ name, username, required }: { name: string; username: string; required: boolean }) {
@@ -22,10 +22,10 @@ export default function StudentPasswordForm({ name, username, required }: { name
     try {
       const response = await fetch("/api/student/password", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ currentPassword, newPassword }) });
       const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error ?? "Your password was not changed. Please try again.");
+      if (!response.ok) throw new Error(localMessage(data, language, ["Your password was not changed. Please try again.", "পাসওয়ার্ড বদলানো যায়নি। আবার চেষ্টা করো।"]));
       setCurrentPassword(""); setNewPassword(""); setConfirmPassword(""); setSaved(true);
       window.location.replace("/student");
-    } catch (error) { setError(error instanceof Error ? error.message : "Your password was not changed. Please try again."); }
+    } catch (error) { setError(error instanceof Error ? error.message : s("Your password was not changed. Please try again.", "পাসওয়ার্ড বদলানো যায়নি। আবার চেষ্টা করো।")); }
     finally { setBusy(false); }
   }
   const form = <section className="auth-card student-password-card" aria-label={s("Password form", "পাসওয়ার্ড ফর্ম")}>

@@ -15,7 +15,7 @@ export async function POST(request: Request) {
   const displayName = typeof body.displayName === "string" ? body.displayName : "";
   const password = typeof body.password === "string" ? body.password : "";
   const result = await registerStudent(username, displayName, password);
-  if ("error" in result) return NextResponse.json({ error: result.error }, { status: 400 });
+  if ("error" in result) return NextResponse.json({ error: result.error, errorBn: result.errorBn }, { status: 400 });
 
   return NextResponse.json({ student: result, pendingApproval: true, message: approvalNotice("pending", "student")[0] }, { status: 201 });
 }

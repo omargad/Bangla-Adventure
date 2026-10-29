@@ -9,9 +9,11 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   const { id } = await context.params;
   try {
     const body = await request.json().catch(() => null);
-    if (!body || typeof body !== "object" || Array.isArray(body)) return Response.json({ error: "Provide the user changes." }, { status: 400 });
+    if (!body || typeof body !== "object" || Array.isArray(body)) return Response.json({ error: "Provide the user changes.", errorBn: "কী বদলাতে চান তা দিন।" }, { status: 400 });
     return Response.json({ user: await updateUser(actor.id, id, body) });
   } catch (error) {
-    return Response.json({ error: error instanceof UserManagementError ? error.message : "The account could not be updated." }, { status: error instanceof UserManagementError ? error.status : 503 });
+    return error instanceof UserManagementError
+      ? Response.json({ error: error.message, errorBn: error.messageBn }, { status: error.status })
+      : Response.json({ error: "The account could not be updated.", errorBn: "অ্যাকাউন্টটি হালনাগাদ করা যায়নি।" }, { status: 503 });
   }
 }

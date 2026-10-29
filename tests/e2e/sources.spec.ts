@@ -51,7 +51,7 @@ test("an administrator updates a textbook's yearly link and students' Sources & 
     const admin = await adminContext.newPage(), student = await studentContext.newPage();
     admin.setDefaultTimeout(15000); student.setDefaultTimeout(15000);
     await admin.goto("/admin");
-    await admin.getByRole("navigation", { name: "Portal navigation" }).getByRole("link", { name: "Sources", exact: true }).click();
+    await admin.getByRole("navigation", { name: "Portal navigation" }).getByRole("link", { name: "Textbook links", exact: true }).click();
     await expect(admin).toHaveURL(/\/admin\/sources$/);
     const book = admin.getByRole("article", { name: "Geography and Environment", exact: true });
     await expect(book).toContainText("Official NCTB page");

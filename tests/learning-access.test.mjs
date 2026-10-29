@@ -15,6 +15,9 @@ test("redirects preserve local destinations without trusting origins", () => {
   assert.equal(loginDestination("/family"), "/grown-ups?returnTo=%2Ffamily");
   assert.equal(learningReturnPath("//other.example"), "/");
   assert.equal(learningReturnPath("/\\other.example"), "/");
+  assert.equal(learningReturnPath("/.//evil.com"), "/");
+  assert.equal(learningReturnPath("/%2e%2e//evil.com/x"), "/");
+  assert.equal(loginDestination("/.//evil.com"), "/welcome?returnTo=%2F");
   assert.equal(learningReturnPath("/api/auth/sign-out"), "/");
   assert.equal(learningReturnPath("/student?returnTo=/student"), "/");
   assert.equal(learningReturnPath("/welcome"), "/");
@@ -32,6 +35,8 @@ test("the change form returns only to safe pages, never to itself or an API", ()
   assert.equal(passwordChangeReturnPath("/account/password?returnTo=/teach"), "/");
   assert.equal(passwordChangeReturnPath("/api/classes"), "/");
   assert.equal(passwordChangeReturnPath("//evil.example"), "/");
+  assert.equal(passwordChangeReturnPath("/.//evil.com"), "/");
+  assert.equal(passwordChangeDestination("/.//evil.com"), "/account/password?returnTo=%2F");
   assert.equal(passwordChangeReturnPath("/grown-ups"), "/");
   assert.equal(passwordChangeReturnPath(undefined), "/");
   assert.equal(passwordChangeReturnPath("/family"), "/family");

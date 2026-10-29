@@ -6,7 +6,9 @@
  * so `/\evil.com` passes that check yet resolves to `https://evil.com/`.
  * We reject backslashes and control characters, then resolve against a fixed
  * dummy origin and keep the value only when it stays on that origin,
- * returning just path + query + hash.
+ * returning just path + query + hash. Dot segments are resolved too, so the
+ * resolved path is checked again: `/.//evil.com` and `/%2e%2e//evil.com`
+ * both become the protocol-relative `//evil.com`.
  */
 const DUMMY_ORIGIN = "https://bangla-adventures.internal";
 
@@ -22,6 +24,7 @@ export function safeReturnPath(value: string | null | undefined, fallback = "/")
   try {
     const url = new URL(value, DUMMY_ORIGIN);
     if (url.origin !== DUMMY_ORIGIN) return fallback;
+    if (url.pathname.startsWith("//")) return fallback;
     return `${url.pathname}${url.search}${url.hash}`;
   } catch {
     return fallback;

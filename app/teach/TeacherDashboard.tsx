@@ -163,6 +163,13 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
     } catch (error) { setMessage(localMessage(error instanceof RequestError ? error.data : null, language, ["Could not open the class.", "ক্লাসটি খোলা যায়নি।"])); }
   }
 
+  /** Switch the workspace section from the sidebar, asking first where unsaved work would be lost. */
+  function showSection(id: string) {
+    if (id === "classes" && detail ? !canLeaveClass() : section === "attendance" && id !== "attendance" && !canLeaveAttendance()) return;
+    setSection(id); setMessage("");
+    if (id === "classes") { setDetail(null); void loadClasses(); } else if (detail) void openClass(detail.class.id);
+  }
+
   async function request(url: string, init?: RequestInit) {
     try {
       const response = await globalThis.fetch(url, init);
@@ -316,20 +323,15 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
   };
 
   return (
-    <PortalShell role={isAdmin ? "admin" : "teacher"} name={teacherName} language={language} toggleLanguage={toggleLanguage} active={section} items={[
-      ...[
-        ["classes", isAdmin ? s("All classes", "সব ক্লাস") : s("My classes", "আমার ক্লাস")],
-        ["students", s("Students", "শিক্ষার্থী")],
-        ["activities", s("Activities & quizzes", "কার্যক্রম ও কুইজ")],
-        ["results", s("Results", "ফলাফল")],
-        ["attendance", s("Attendance", "উপস্থিতি")],
-        ["announcements", s("Announcements", "ঘোষণা")],
-        ["sources", s("Class sources", "ক্লাসের উৎস")],
-      ].map(([id, label]) => ({ id, label, onClick: () => { if (id === "classes" && detail ? !canLeaveClass() : section === "attendance" && id !== "attendance" && !canLeaveAttendance()) return; setSection(id); setMessage(""); if (id === "classes") { setDetail(null); void loadClasses(); } else if (detail) void openClass(detail.class.id); } })),
-      { id: "lessons", label: s("Lessons", "পাঠ"), href: "/studio" },
-      { id: "content", label: s("Topics", "বিষয়"), href: "/teach/topics" },
-      ...(isAdmin ? [{ id: "users", label: s("Manage users", "ব্যবহারকারী পরিচালনা"), href: "/admin" }, { id: "all-results", label: s("All class results", "সব ক্লাসের ফলাফল"), href: "/admin/results" }] : []),
-    ]}>
+    <PortalShell role={isAdmin ? "admin" : "teacher"} name={teacherName} language={language} toggleLanguage={toggleLanguage} active={section} sections={[
+      ["classes", isAdmin ? s("All classes", "সব ক্লাস") : s("My classes", "আমার ক্লাস")],
+      ["students", s("Students", "শিক্ষার্থী")],
+      ["activities", s("Activities & quizzes", "কার্যক্রম ও কুইজ")],
+      ["results", s("Results", "ফলাফল")],
+      ["attendance", s("Attendance", "উপস্থিতি")],
+      ["announcements", s("Announcements", "ঘোষণা")],
+      ["sources", s("Class sources", "ক্লাসের উৎস")],
+    ].map(([id, label]) => ({ id, label, onClick: () => showSection(id) }))}>
     <main className="adult-app teach-app" lang={language}>
       <header className="adult-header">
         <Link className="adult-brand" href="/">
@@ -362,8 +364,8 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
             <h1>{s("Run your Bangla-school class here.", "আপনার বাংলা স্কুলের ক্লাস এখানেই চালান।")}</h1>
             <p>
               {s(
-                "Create a class, allocate registered students and set learning activities. Use the sidebar to switch between students, quizzes, results and announcements.",
-                "ক্লাস তৈরি করে নিবন্ধিত শিক্ষার্থীদের বরাদ্দ করুন। পাশের মেনু থেকে শিক্ষার্থী, কুইজ, ফলাফল ও ঘোষণা বেছে নিন।",
+                "Create a class, allocate registered students and set learning activities. Use the sidebar to switch between students, quizzes, results, attendance, announcements and class sources.",
+                "ক্লাস তৈরি করে নিবন্ধিত শিক্ষার্থীদের বরাদ্দ করুন। পাশের মেনু থেকে শিক্ষার্থী, কুইজ, ফলাফল, উপস্থিতি, ঘোষণা ও ক্লাসের উৎস বেছে নিন।",
               )}
             </p>
             {message && <p className="teach-message" role="status">{message}</p>}
@@ -371,13 +373,24 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
         </section>
 
         <section className="workspace-stats" aria-label={s("Teaching overview", "পড়ানোর সারসংক্ষেপ")}>
-          <div><small>{classesLabel}</small><strong>{loading ? "—" : classList.length}</strong></div>
-          <div><small>{s("Enrolments", "ভর্তি")}</small><strong>{loading ? "—" : totals.students}</strong></div>
-          <div><small>{s("Activities", "কার্যক্রম")}</small><strong>{loading ? "—" : totals.activities}</strong></div>
-          <div><small>{s("Submissions", "জমা কাজ")}</small><strong>{loading ? "—" : totals.submissions}</strong></div>
+          <div><small>{classesLabel}</small><strong>{loading ? "—" : number(classList.length)}</strong></div>
+          <div><small>{s("Enrolments", "ভর্তি")}</small><strong>{loading ? "—" : number(totals.students)}</strong></div>
+          <div><small>{s("Activities", "কার্যক্রম")}</small><strong>{loading ? "—" : number(totals.activities)}</strong></div>
+          <div><small>{s("Submissions", "জমা কাজ")}</small><strong>{loading ? "—" : number(totals.submissions)}</strong></div>
         </section>
 
         {section !== "classes" && <label className="portal-field">{s("Choose a class", "ক্লাস বেছে নিন")}<select value={detail?.class.id ?? ""} onChange={(event) => { if (event.target.value !== detail?.class.id && !canLeaveClass()) return; void openClass(event.target.value); }}><option value="">{s("Select a class", "ক্লাস নির্বাচন")}</option>{classList.map((item) => <option key={item.id} value={item.id}>{otherTeacher(item) ? `${item.name} — ${otherTeacher(item)}` : item.name}</option>)}</select></label>}
+        {/* A class section needs a class: say so, and how to make one, instead of leaving an empty list. */}
+        {section !== "classes" && !detail && !loading && (
+          <div className="teach-empty">
+            <p>{classList.length === 0
+              ? isAdmin
+                ? s("No teacher has created a class yet. Create one in All classes first.", "এখনো কোনো ক্লাস নেই। আগে “সব ক্লাস”-এ একটি ক্লাস তৈরি করুন।")
+                : s("You have no classes yet. Create your first class in My classes, then come back here.", "আপনার এখনো কোনো ক্লাস নেই। আগে “আমার ক্লাস”-এ একটি ক্লাস তৈরি করুন, তারপর এখানে ফিরে আসুন।")
+              : s("Choose a class above to continue.", "চালিয়ে যেতে ওপর থেকে একটি ক্লাস বেছে নিন।")}</p>
+            {classList.length === 0 && <button type="button" className="outline-button" onClick={() => showSection("classes")}>{isAdmin ? s("Go to All classes", "সব ক্লাসে যান") : s("Go to My classes", "আমার ক্লাসে যান")}</button>}
+          </div>
+        )}
         {!detail && (
           <>
             <section hidden={section !== "classes"} className="teach-panel" aria-label={classesLabel}>
@@ -405,7 +418,7 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
                       <strong>{item.name}</strong>
                       {otherTeacher(item) && <small>{s("Teacher", "শিক্ষক")}: {otherTeacher(item)}</small>}
                       <small>
-                        {item.studentCount} {s("students", "শিক্ষার্থী")} · {item.activityCount} {s("activities", "কার্যক্রম")} · {item.submissionCount} {s("submissions", "জমা")}
+                        {number(item.studentCount)} {s("students", "শিক্ষার্থী")} · {number(item.activityCount)} {s("activities", "কার্যক্রম")} · {number(item.submissionCount)} {s("submissions", "জমা")}
                       </small>
                     </button>
                   ))}

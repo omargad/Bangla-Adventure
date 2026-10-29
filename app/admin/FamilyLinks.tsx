@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { ParentLink } from "@/lib/parent-access";
+import { localMessage } from "@/lib/use-language";
 
 export default function FamilyLinks({ student, language, onClose }: { student: { id: string; displayName: string }; language: "en" | "bn"; onClose: () => void }) {
   const s = (en: string, bn: string) => language === "bn" ? bn : en;
@@ -14,9 +15,9 @@ export default function FamilyLinks({ student, language, onClose }: { student: {
   const load = useCallback(async (signal?: AbortSignal) => {
     const response = await fetch(`/api/admin/family-links?studentId=${encodeURIComponent(student.id)}`, { signal, cache: "no-store" });
     const data = await response.json();
-    if (!response.ok) throw new Error(data.error ?? "Could not load family access.");
+    if (!response.ok) throw new Error(localMessage(data, language, ["Could not load family access.", "পরিবারের প্রবেশাধিকার লোড করা যায়নি।"]));
     setParents(data.parents);
-  }, [student.id]);
+  }, [student.id, language]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -35,10 +36,10 @@ export default function FamilyLinks({ student, language, onClose }: { student: {
     try {
       const response = await fetch("/api/admin/family-links", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ studentId: student.id, parentEmail: values.get("parentEmail"), confirmed: values.get("confirmed") === "on" }) });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error ?? "Could not link the parent.");
+      if (!response.ok) throw new Error(localMessage(data, language, ["Could not link the parent.", "অভিভাবককে যুক্ত করা যায়নি।"]));
       form.reset(); await load();
       setNotice(s("Parent linked. Their dashboard can now show this student's learning records.", "অভিভাবক যুক্ত হয়েছে। এখন তার ড্যাশবোর্ডে এই শিক্ষার্থীর শেখার তথ্য দেখা যাবে।"));
-    } catch (error) { setError(error instanceof Error ? error.message : "Please try again."); }
+    } catch (error) { setError(error instanceof Error ? error.message : s("Please try again.", "আবার চেষ্টা করুন।")); }
     finally { setBusy(false); }
   }
 
@@ -48,9 +49,9 @@ export default function FamilyLinks({ student, language, onClose }: { student: {
     try {
       const response = await fetch("/api/admin/family-links", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ studentId: student.id, parentId: parent.parentId }) });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error ?? "Could not remove access.");
+      if (!response.ok) throw new Error(localMessage(data, language, ["Could not remove access.", "অনুমতি সরানো যায়নি।"]));
       await load(); setNotice(s("Parent access removed. Learning records are unchanged.", "অভিভাবকের অনুমতি সরানো হয়েছে। শেখার তথ্য অপরিবর্তিত আছে।"));
-    } catch (error) { setError(error instanceof Error ? error.message : "Please try again."); }
+    } catch (error) { setError(error instanceof Error ? error.message : s("Please try again.", "আবার চেষ্টা করুন।")); }
     finally { setBusy(false); }
   }
 

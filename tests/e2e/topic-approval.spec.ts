@@ -78,7 +78,7 @@ test("a teacher writes a bilingual topic, another previews it in Bangla and appr
     await expect(reviewer.getByRole("heading", { level: 2, name: titleBn, exact: true })).toBeVisible();
     const approve = reviewer.getByRole("button", { name: "Approve and publish to students", exact: true });
     await expect(approve).toBeDisabled();
-    await reviewer.getByRole("checkbox", { name: "I have read the whole lesson in English and Bangla" }).check();
+    await reviewer.getByRole("checkbox", { name: "I have read the whole topic, including its quiz, in English and Bangla" }).check();
     await approve.click();
     await expect(reviewer.getByRole("status").filter({ hasText: "Approved. Students now see" })).toBeVisible();
     await expect(reviewer.getByRole("region", { name: "Version history" })).toContainText(`reviewer ${suffix}`);
@@ -158,5 +158,57 @@ test("after an edit is sent back, the next editor starts from the approved versi
   } finally {
     await authorContext.close().catch(() => undefined);
     await reviewerContext.close().catch(() => undefined);
+  }
+});
+
+test("a teacher withdraws an approved topic from students and approves it again after reading it", async ({ browser, baseURL }) => {
+  test.setTimeout(90000);
+  const suffix = randomUUID().slice(0, 8);
+  const title = `Rivers of Bengal ${suffix}`;
+  const teacherContext = await teacher(browser, baseURL, "withdrawer", suffix);
+  const studentContext = await browser.newContext({ baseURL, extraHTTPHeaders: { "x-forwarded-for": `withdraw-student-${suffix}` } });
+  try {
+    const page = await teacherContext.newPage(), student = await studentContext.newPage();
+    for (const each of [page, student]) each.setDefaultTimeout(15000);
+    await page.goto("/teach");
+    const pair = (en: string, bn: string) => ({ en, bn });
+    const created = await api(page, "POST", "/api/topics", {
+      theme: "our-country", emoji: "🌊", title: pair(title, `বাংলার নদী ${suffix}`), tagline: pair("Rivers everywhere.", "সবখানে নদী।"), minutes: 3,
+      sections: [{ heading: pair("Many rivers", "অনেক নদী"), body: pair("Bengal has many rivers.", "বাংলায় অনেক নদী আছে।") }], funFacts: [], quiz: [],
+    });
+    expect(created.status).toBe(201);
+    const id = created.body.topicId;
+    expect((await api(page, "POST", `/api/topics/${id}/versions/1`, { decision: "approve", confirmedRead: true })).status).toBe(200);
+
+    expect((await studentContext.request.post("/api/student/sign-up", { data: { username: `river-${suffix}`, displayName: "River learner", password } })).status()).toBe(201);
+    fixture("UPDATE students SET approval_status = 'approved' WHERE username = ?", `river-${suffix}`);
+    expect((await studentContext.request.post("/api/student/sign-in", { data: { username: `river-${suffix}`, password } })).status()).toBe(200);
+    await student.goto("/topics");
+    await expect(student.getByRole("button", { name: new RegExp(title) })).toBeVisible();
+
+    await page.goto(`/teach/topics?topic=${id}`);
+    const decision = page.getByRole("region", { name: "Your decision" });
+    const withdraw = decision.getByRole("button", { name: "Withdraw from students", exact: true });
+    await expect(withdraw).toBeDisabled();
+    await decision.getByLabel(/Why are you withdrawing it/).fill("A river is named wrongly.");
+    await withdraw.click();
+    await expect(page.getByRole("status").filter({ hasText: "Withdrawn. Students and parents no longer see this topic." })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Version details" })).toContainText("Withdrawn · hidden from students");
+
+    await student.goto("/topics");
+    await expect(student.getByRole("button", { name: /Symbols of Bangladesh/ })).toBeVisible();
+    await expect(student.getByRole("button", { name: new RegExp(title) })).toHaveCount(0);
+
+    const again = decision.getByRole("button", { name: "Approve again and show to students", exact: true });
+    await expect(again).toBeDisabled();
+    await decision.getByRole("checkbox", { name: "I have read the whole topic, including its quiz, in English and Bangla" }).check();
+    await again.click();
+    await expect(page.getByRole("status").filter({ hasText: "Approved again." })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Version history" })).toContainText("Withdrawn from students");
+    await student.goto("/topics");
+    await expect(student.getByRole("button", { name: new RegExp(title) })).toBeVisible();
+  } finally {
+    await teacherContext.close().catch(() => undefined);
+    await studentContext.close().catch(() => undefined);
   }
 });

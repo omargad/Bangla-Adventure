@@ -108,7 +108,15 @@ test("an administrator-created teacher must choose a password, gets fresh recove
   assert.equal(grownUps.status, 307);
   assert.equal(new URL(grownUps.headers.get("location"), BASE).pathname, "/account/password");
 
-  assert.equal((await changeAdultPassword(cookie, "wrong-password", "my-own-teacher-password")).status, 403);
+  const wrong = await changeAdultPassword(cookie, "wrong-password", "my-own-teacher-password");
+  assert.equal(wrong.status, 403);
+  assert.match((await wrong.json()).errorBn, /বর্তমান পাসওয়ার্ডটি সঠিক নয়/, "a Bangla page explains the refusal in Bangla");
+  // A dot segment cannot turn the destination after the change into another website.
+  const dotted = await send("/account/password?returnTo=%2F.%2F%2Fevil.example%2Fphish", "GET", undefined, cookie);
+  assert.equal(dotted.status, 200);
+  const dottedPage = await dotted.text();
+  assert.ok(!/destination\\*"\s*:\s*\\*"\/\/evil\.example/.test(dottedPage), "the form never returns to another site");
+  assert.match(dottedPage, /destination\\*"\s*:\s*\\*"\/\\*"/, "it returns home instead");
   assert.equal((await changeAdultPassword(cookie, teacher.temporaryPassword, "short")).status, 400);
   assert.equal((await changeAdultPassword(cookie, teacher.temporaryPassword, teacher.temporaryPassword)).status, 400);
   assert.equal((await send("/api/account/password", "POST", { currentPassword: teacher.temporaryPassword, newPassword: "my-own-teacher-password" })).status, 401);
@@ -168,9 +176,23 @@ test("an administrator-created student must choose a password before learning", 
   assert.equal((await first.json()).mustChangePassword, true);
   const cookie = cookieFrom(first, "ba_student_session");
   assert.equal((await send("/api/student/feed", "GET", undefined, cookie)).status, 403);
+  // The textbook library and lesson audio wait for the student's own password too, like every other learning API.
+  for (const route of ["/api/library", "/api/audio/hello-me", "/api/audio/hello-me/word-1", "/api/curriculum"]) {
+    const held = await send(route, "GET", undefined, cookie);
+    assert.equal(held.status, 403, route);
+    const body = await held.json();
+    assert.equal(body.mustChangePassword, true, route);
+    assert.ok(body.errorBn, route);
+  }
   assert.equal(new URL((await send("/student", "GET", undefined, cookie)).headers.get("location"), BASE).pathname, "/student/password");
+  const wrong = await send("/api/student/password", "POST", { currentPassword: "not-the-temporary-one", newPassword: "my-own-student-password" }, cookie);
+  assert.equal(wrong.status, 403);
+  assert.match((await wrong.json()).errorBn, /বর্তমান পাসওয়ার্ডটি সঠিক নয়/);
   assert.equal((await send("/api/student/password", "POST", { currentPassword: student.temporaryPassword, newPassword: "my-own-student-password" }, cookie)).status, 200);
   assert.equal((await send("/api/student/feed", "GET", undefined, cookie)).status, 200);
+  assert.equal((await send("/api/library", "GET", undefined, cookie)).status, 200);
+  assert.equal((await send("/api/audio/hello-me", "GET", undefined, cookie)).status, 200);
+  assert.equal((await send("/api/audio/hello-me/word-1", "GET", undefined, cookie)).status, 307);
 });
 
 test("an administrator resets a forgotten student password: sessions end and the new one must be replaced", async () => {
@@ -221,4 +243,23 @@ test("adult resets hold the account at the form; nobody resets their own passwor
   assert.equal((await send(`/api/admin/users/${student.user.id}/password`, "POST", { kind: "student" }, reAdmin)).status, 403);
   assert.equal((await changeAdultPassword(reAdmin, temporaryPassword, "second-admin-password")).status, 200);
   assert.equal((await send("/api/admin/users", "GET", undefined, reAdmin)).status, 200);
+});
+
+test("account errors come in Bangla too, and a signed-in return address cannot leave the site", async () => {
+  const duplicate = await send("/api/admin/users", "POST", { kind: "adult", role: "parent", email: "made-parent@example.com", displayName: "Again" }, adminCookie);
+  assert.equal(duplicate.status, 409);
+  assert.deepEqual(await duplicate.json(), { error: "That email is already registered.", errorBn: "এই ইমেইলটি আগেই নিবন্ধিত।" });
+  const signIn = await adultSignIn("made-parent@example.com", "not-the-password", "bangla-errors");
+  assert.equal(signIn.status, 401);
+  assert.ok((await signIn.json()).errorBn);
+  const studentSignInFailure = await studentSignIn("made-student", "not-the-password", "bangla-errors-student");
+  assert.ok((await studentSignInFailure.json()).errorBn);
+
+  for (const returnTo of ["%2F.%2F%2Fevil.example%2Fphish", "%2F..%2F%2Fevil.example", "%2F%252e%252e%2F%2Fevil.example"]) {
+    const redirected = await send(`/grown-ups?returnTo=${returnTo}`, "GET", undefined, adminCookie);
+    assert.equal(redirected.status, 307, returnTo);
+    const location = new URL(redirected.headers.get("location"), BASE);
+    assert.equal(location.origin, BASE, returnTo);
+    assert.ok(!location.pathname.startsWith("//"), returnTo);
+  }
 });

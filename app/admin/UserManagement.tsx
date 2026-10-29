@@ -2,20 +2,76 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { localDateTime as localTime, useLanguage } from "@/lib/use-language";
+import { localDateTime as localTime, MessageError, serverMessage, useLanguage, type Message } from "@/lib/use-language";
 import FamilyLinks from "./FamilyLinks";
 import FamilyImport from "./FamilyImport";
 import { confirmDiscardPasswords } from "../components/StudentImport";
 import PortalShell from "../components/PortalShell";
 
 type User = { id: string; kind: "adult" | "student"; displayName: string; email?: string; username?: string; role: string; status: string; teacherStatus: string; approvalStatus: string; mustChangePassword?: boolean; createdAt: string };
-type UsersPage = { users: User[]; total: number; pageSize: number; stats: { adults: number; students: number; teachers: number; pending: number }; approvals: { users: User[]; total: number }; audit: { id: string; action: string; targetType: string; targetId: string; createdAt: string }[] };
+type UsersPage = { users: User[]; total: number; pageSize: number; stats: { adults: number; students: number; teachers: number; pending: number }; approvals: { users: User[]; total: number }; audit: { id: string; action: string; targetType: string; targetId: string; targetLabel: { en: string; bn: string } | null; createdAt: string }[] };
+/** Every action written to the audit log, in both languages; an unknown one is shown as it is stored. */
+const AUDIT_ACTIONS: Record<string, Message> = {
+  created: ["Account created", "অ্যাকাউন্ট তৈরি"],
+  update: ["Account changed", "অ্যাকাউন্ট বদলানো হয়েছে"],
+  approve: ["Teacher request approved", "শিক্ষক হওয়ার আবেদন অনুমোদিত"],
+  reject: ["Teacher request declined", "শিক্ষক হওয়ার আবেদন প্রত্যাখ্যাত"],
+  "account-approved": ["Account approved", "অ্যাকাউন্ট অনুমোদিত"],
+  "account-declined": ["Account declined", "অ্যাকাউন্ট প্রত্যাখ্যাত"],
+  "revoke-sessions": ["Signed out everywhere", "সব জায়গা থেকে সাইন আউট"],
+  "password-reset": ["Password reset", "পাসওয়ার্ড রিসেট"],
+  "password-changed": ["Password changed", "পাসওয়ার্ড বদলানো হয়েছে"],
+  "student-password-changed": ["Student changed their password", "শিক্ষার্থী পাসওয়ার্ড বদলেছে"],
+  "teacher-requested": ["Asked to become a teacher", "শিক্ষক হওয়ার আবেদন"],
+  "parent-linked": ["Parent linked", "অভিভাবক যুক্ত"],
+  "parent-unlinked": ["Parent link removed", "অভিভাবকের সংযোগ সরানো হয়েছে"],
+  "student-provisioned": ["Student account made for a class", "ক্লাসের জন্য শিক্ষার্থীর অ্যাকাউন্ট তৈরি"],
+  "class-allocated": ["Added to a class", "ক্লাসে যোগ করা হয়েছে"],
+  "class-allocation-removed": ["Removed from a class", "ক্লাস থেকে সরানো হয়েছে"],
+  "class-created-for-teacher": ["Class created for a teacher", "শিক্ষকের জন্য ক্লাস তৈরি"],
+  "class-teacher-changed": ["Class given to another teacher", "ক্লাসের শিক্ষক বদল"],
+  "class-deleted": ["Class deleted", "ক্লাস মুছে ফেলা হয়েছে"],
+  "submission-reset": ["Quiz answers reset", "কুইজের উত্তর রিসেট"],
+  "announcement-removed": ["Announcement removed", "ঘোষণা সরানো হয়েছে"],
+  "class-source-added": ["Class source added", "ক্লাসের উৎস যোগ"],
+  "class-source-updated": ["Class source changed", "ক্লাসের উৎস বদলানো হয়েছে"],
+  "class-source-removed": ["Class source removed", "ক্লাসের উৎস সরানো হয়েছে"],
+  "topic-created": ["Topic written", "বিষয় লেখা হয়েছে"],
+  "topic-edit-submitted": ["Topic edit sent for approval", "বিষয়ের সম্পাদনা অনুমোদনের জন্য পাঠানো হয়েছে"],
+  "topic-version-approved": ["Topic approved", "বিষয় অনুমোদিত"],
+  "topic-version-rejected": ["Topic edit sent back", "বিষয়ের সম্পাদনা ফেরত পাঠানো হয়েছে"],
+  "topic-withdrawn": ["Topic withdrawn from students", "শিক্ষার্থীদের কাছ থেকে বিষয় সরানো হয়েছে"],
+  "topic-review-confirmed": ["Topic review confirmed", "বিষয়ের পর্যালোচনা নিশ্চিত"],
+  "topic-restored": ["Topic approved again", "বিষয় আবার অনুমোদিত"],
+  "lesson-approved": ["Lesson approved", "পাঠ অনুমোদিত"],
+  "lesson-withdrawn": ["Lesson withdrawn from students", "শিক্ষার্থীদের কাছ থেকে পাঠ সরানো হয়েছে"],
+  "lesson-audio-uploaded": ["Lesson recording uploaded", "পাঠের রেকর্ডিং আপলোড"],
+  "lesson-video-checked": ["Lesson video checked", "পাঠের ভিডিও যাচাই"],
+  "library-link-updated": ["Textbook link changed", "পাঠ্যবইয়ের লিংক বদলানো হয়েছে"],
+  "library-link-held": ["Older textbook link held for a check", "পুরোনো পাঠ্যবইয়ের লিংক যাচাইয়ের জন্য আটকে রাখা হয়েছে"],
+  "library-link-restored": ["Held textbook link restored", "আটকে রাখা লিংক ফিরিয়ে আনা হয়েছে"],
+  "library-link-discarded": ["Held textbook link discarded", "আটকে রাখা লিংক বাদ দেওয়া হয়েছে"],
+  "library-source-added": ["Textbook source added", "পাঠ্যবইয়ের উৎস যোগ"],
+  "library-source-updated": ["Textbook details changed", "পাঠ্যবইয়ের তথ্য বদলানো হয়েছে"],
+  "library-source-reset": ["Textbook changes undone", "পাঠ্যবইয়ের পরিবর্তন বাতিল"],
+  "library-source-hidden": ["Textbook hidden", "পাঠ্যবই লুকানো হয়েছে"],
+  "library-source-shown": ["Textbook shown again", "পাঠ্যবই আবার দেখানো হচ্ছে"],
+};
+const AUDIT_TARGETS: Record<string, Message> = {
+  adult: ["Adult", "বড়দের অ্যাকাউন্ট"], student: ["Student", "শিক্ষার্থী"], "class-student": ["Class list entry", "ক্লাসের তালিকা"],
+  class: ["Class", "ক্লাস"], topic: ["Topic", "বিষয়"], lesson: ["Lesson", "পাঠ"], "library-source": ["Textbook", "পাঠ্যবই"],
+};
+
+const failed = (error: unknown, fallback: Message): Message => error instanceof MessageError ? error.text : fallback;
+const tryAgain: Message = ["Please try again.", "আবার চেষ্টা করুন।"];
+
 /** Sign-in details shown once after an administrator creates an account or resets a password. */
 type Credentials = { reason: "created" | "reset"; kind: "adult" | "student"; displayName: string; account: string; temporaryPassword: string; recoveryCodes: string[]; signInUrl: string };
 
 export default function UserManagement({ actorId, actorName }: { actorId: string; actorName: string }) {
   const [language, toggleLanguage] = useLanguage();
   const s = (en: string, bn: string) => language === "bn" ? bn : en;
+  const pick = ([en, bn]: Message) => s(en, bn);
   const number = (value: number | undefined) => value === undefined ? "—" : value.toLocaleString(language === "bn" ? "bn-BD" : "en-AU");
   const [kind, setKind] = useState<"adult" | "student">("adult");
   const [filter, setFilter] = useState("all");
@@ -23,7 +79,7 @@ export default function UserManagement({ actorId, actorName }: { actorId: string
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [data, setData] = useState<UsersPage | null>(null);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<string | Message>("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -43,13 +99,13 @@ export default function UserManagement({ actorId, actorName }: { actorId: string
       const params = new URLSearchParams({ kind, filter, q: search, page: String(page) });
       const response = await fetch(`/api/admin/users?${params}`, { signal });
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error ?? "Could not load users.");
+      if (!response.ok) throw new MessageError(serverMessage(payload, ["Could not load users.", "ব্যবহারকারীদের লোড করা যায়নি।"]));
       setData(payload);
       setError("");
     } catch (error) {
       if (signal?.aborted) return;
       setData(null);
-      setError(error instanceof Error ? error.message : "Please try again.");
+      setError(failed(error, ["Could not load users.", "ব্যবহারকারীদের লোড করা যায়নি।"]));
     } finally { if (!signal?.aborted) setLoading(false); }
   }, [kind, filter, search, page]);
 
@@ -74,11 +130,11 @@ export default function UserManagement({ actorId, actorName }: { actorId: string
     try {
       const response = await fetch(`/api/admin/users/${encodeURIComponent(user.id)}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind: user.kind, ...values }) });
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error ?? "Could not update the user.");
+      if (!response.ok) throw new MessageError(serverMessage(payload, ["Could not update the user.", "অ্যাকাউন্টটি হালনাগাদ করা যায়নি।"]));
       setEditing(null);
       setNotice(values.action === "approve" || values.action === "reject" ? decisionNotice(user, payload.user) : s("Account updated. The action has been recorded.", "অ্যাকাউন্ট হালনাগাদ হয়েছে। পরিবর্তনটি নথিভুক্ত হয়েছে।"));
       await load();
-    } catch (error) { setError(error instanceof Error ? error.message : "Please try again."); }
+    } catch (error) { setError(failed(error, tryAgain)); }
     finally { setBusy(false); }
   }
 
@@ -128,13 +184,13 @@ export default function UserManagement({ actorId, actorName }: { actorId: string
     try {
       const response = await fetch("/api/admin/users", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...values, kind: createType === "student" ? "student" : "adult", role: createType }) });
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error ?? "Could not create the account.");
+      if (!response.ok) throw new MessageError(serverMessage(payload, ["Could not create the account.", "অ্যাকাউন্টটি তৈরি করা যায়নি।"]));
       form.reset();
       setShowCreate(false);
       setCredentials({ reason: "created", kind: payload.user.kind, displayName: payload.user.displayName, account: payload.user.email ?? payload.user.username, temporaryPassword: payload.temporaryPassword, recoveryCodes: payload.recoveryCodes ?? [], signInUrl: `${window.location.origin}${payload.user.kind === "student" ? "/student" : "/grown-ups"}` });
       setNotice(s("Account created. Give the person their sign-in details privately.", "অ্যাকাউন্ট তৈরি হয়েছে। সাইন-ইন তথ্য ব্যক্তিগতভাবে সংশ্লিষ্ট ব্যক্তিকে দিন।"));
       await load();
-    } catch (error) { setError(error instanceof Error ? error.message : "Please try again."); }
+    } catch (error) { setError(failed(error, tryAgain)); }
     finally { setBusy(false); }
   }
 
@@ -145,12 +201,12 @@ export default function UserManagement({ actorId, actorName }: { actorId: string
     try {
       const response = await fetch(`/api/admin/users/${encodeURIComponent(user.id)}/password`, { method: "POST", cache: "no-store", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind: user.kind }) });
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error ?? "Could not reset the password.");
+      if (!response.ok) throw new MessageError(serverMessage(payload, ["Could not reset the password.", "পাসওয়ার্ড রিসেট করা যায়নি।"]));
       setEditing(null); setShowCreate(false);
       setCredentials({ reason: "reset", kind: payload.user.kind, displayName: payload.user.displayName, account: payload.user.email ?? payload.user.username, temporaryPassword: payload.temporaryPassword, recoveryCodes: [], signInUrl: `${window.location.origin}${payload.user.kind === "student" ? "/student" : "/grown-ups"}` });
       setNotice(s("Password reset. The action has been recorded.", "পাসওয়ার্ড রিসেট হয়েছে। পরিবর্তনটি নথিভুক্ত হয়েছে।"));
       await load();
-    } catch (error) { setError(error instanceof Error ? error.message : "Please try again."); }
+    } catch (error) { setError(failed(error, tryAgain)); }
     finally { setBusy(false); }
   }
 
@@ -161,6 +217,12 @@ export default function UserManagement({ actorId, actorName }: { actorId: string
   // A teacher applicant declined at sign-up keeps the request: approving the account later grants it.
   const declinedApplicant = (user: User) => user.approvalStatus === "declined" && user.teacherStatus === "rejected";
   const accountType = (user: User) => user.kind === "student" ? s("Student", "শিক্ষার্থী") : user.teacherStatus === "pending" || declinedApplicant(user) ? s("Teacher request", "শিক্ষক হওয়ার আবেদন") : s("Parent", "অভিভাবক");
+  const roleLabel = (user: User) => user.kind === "student" ? s("Student", "শিক্ষার্থী")
+    // A teacher applicant who cannot sign in yet is a request, as in the approval queue, not a parent.
+    : user.approvalStatus !== "approved" && (user.teacherStatus === "pending" || declinedApplicant(user)) ? s("Teacher request", "শিক্ষক হওয়ার আবেদন")
+    : user.role === "admin" ? s("Administrator", "প্রশাসক") : user.role === "teacher" ? s("Teacher", "শিক্ষক") : s("Parent", "অভিভাবক");
+  const statusLabel = (user: User) => user.status === "active" ? s("Active", "সক্রিয়") : s("Suspended", "স্থগিত");
+  const roleOptions = <><option value="parent">{s("Parent", "অভিভাবক")}</option><option value="teacher">{s("Teacher", "শিক্ষক")}</option><option value="admin">{s("Administrator", "প্রশাসক")}</option></>;
   const undecided = (user: User) => user.approvalStatus !== "approved" || user.teacherStatus === "pending";
   // A suspended account is reactivated before anyone approves or declines it.
   const decisionButtons = (user: User) => user.status === "active" && <>
@@ -168,7 +230,7 @@ export default function UserManagement({ actorId, actorName }: { actorId: string
     {user.approvalStatus === "declined" && <button className="outline-button" disabled={busy} onClick={() => void update(user, { action: "approve" })}>{declinedApplicant(user) ? s("Approve as teacher", "শিক্ষক হিসেবে অনুমোদন") : s("Approve", "অনুমোদন")}</button>}
   </>;
 
-  return <PortalShell role="admin" name={actorName} active="users" language={language} toggleLanguage={toggleLanguage}><main className="adult-app management-app" lang={language}>
+  return <PortalShell role="admin" name={actorName} active="admin-users" language={language} toggleLanguage={toggleLanguage}><main className="adult-app management-app" lang={language}>
     <header className="adult-header">
       <Link className="adult-brand" href="/"><span>বা</span><span><strong>Bangla Adventures</strong><small>{s("Administration", "প্রশাসন")}</small></span></Link>
       <nav aria-label="Administration"><Link className="active" href="/admin">{s("Users", "ব্যবহারকারী")}</Link><Link href="/teach">{s("Teacher workspace", "শিক্ষকের কর্মক্ষেত্র")}</Link><Link href="/account">{s("My account", "আমার অ্যাকাউন্ট")}</Link></nav>
@@ -176,7 +238,7 @@ export default function UserManagement({ actorId, actorName }: { actorId: string
     </header>
     <div className="adult-content">
       <section className="management-heading"><div><p className="adult-eyebrow">{s(`Welcome, ${actorName}`, `স্বাগতম, ${actorName}`)}</p><h1>{s("People make the adventure", "মানুষের হাতেই অভিযানের শুরু")}</h1><p>{s("Approve new accounts, support families and keep account access under control.", "নতুন অ্যাকাউন্ট অনুমোদন করুন, পরিবারকে সহায়তা করুন ও অ্যাকাউন্টের প্রবেশাধিকার পরিচালনা করুন।")}</p></div><div className="management-heading-actions"><button className="outline-button" aria-expanded={showFamilyImport || familySheetShown} onClick={() => showFamilyImport || familySheetShown ? closeFamilyImport() : setShowFamilyImport(true)}>{s("Import families (CSV)", "পরিবার যোগ করুন (CSV)")}</button><button className="primary-button" onClick={() => { setShowCreate(!showCreate); setEditing(null); }}>{showCreate ? s("Close form", "ফর্ম বন্ধ করুন") : s("Create user", "ব্যবহারকারী তৈরি")}</button></div></section>
-      {error && <p role="alert" className="auth-error">{error}</p>}
+      {error && <p role="alert" className="auth-error">{typeof error === "string" ? error : pick(error)}</p>}
       {notice && <p role="status" className="teach-message">{notice}</p>}
       <section className="workspace-stats" aria-label="User overview">
         <div><small>{s("Adult accounts", "বড়দের অ্যাকাউন্ট")}</small><strong>{number(data?.stats.adults)}</strong></div>
@@ -217,7 +279,7 @@ export default function UserManagement({ actorId, actorName }: { actorId: string
       </form></section>}
       {editing && <section className="teach-panel"><h2>{s("Edit account", "অ্যাকাউন্ট সম্পাদনা")}: {editing.displayName}</h2><form key={editing.id} className="management-form" onSubmit={(event) => { event.preventDefault(); const values = Object.fromEntries(new FormData(event.currentTarget)); void update(editing, values); }}>
         <label>{s("Display name", "প্রদর্শিত নাম")}<input name="displayName" defaultValue={editing.displayName} maxLength={60} required /></label>
-        {editing.kind === "adult" && <label>{s("Role", "ভূমিকা")}<select name="role" defaultValue={editing.role} disabled={editing.id === actorId}><option value="parent">Parent</option><option value="teacher">Teacher</option><option value="admin">Administrator</option></select></label>}
+        {editing.kind === "adult" && <label>{s("Role", "ভূমিকা")}<select name="role" defaultValue={editing.role} disabled={editing.id === actorId}>{roleOptions}</select></label>}
         <p>{s("Role changes revoke existing sessions. Teachers cannot access other teachers’ classes.", "ভূমিকা বদলালে পুরোনো সেশন বাতিল হবে। শিক্ষকেরা অন্য শিক্ষকের ক্লাসে প্রবেশ করতে পারবেন না।")}</p>
         <div className="access-actions"><button className="primary-button" disabled={busy}>{s("Save changes", "পরিবর্তন সংরক্ষণ")}</button><button className="outline-button" type="button" onClick={() => setEditing(null)}>{s("Cancel", "বাতিল")}</button></div>
       </form></section>}
@@ -238,12 +300,14 @@ export default function UserManagement({ actorId, actorName }: { actorId: string
         <div className="management-toolbar">
           <div className="management-tabs" role="group" aria-label="Account type"><button aria-pressed={kind === "adult"} onClick={() => { setKind("adult"); setFilter("all"); setPage(1); }}>{s("Adults", "বড়রা")}</button><button aria-pressed={kind === "student"} onClick={() => { setKind("student"); setFilter("all"); setPage(1); }}>{s("Students", "শিক্ষার্থী")}</button></div>
           <form className="management-search" onSubmit={(event) => { event.preventDefault(); setSearch(query); setPage(1); }}><label className="sr-only" htmlFor="user-search">{s("Search users", "ব্যবহারকারী খুঁজুন")}</label><input id="user-search" value={query} maxLength={120} onChange={(event) => setQuery(event.target.value)} placeholder={s("Search by name or account…", "নাম বা অ্যাকাউন্ট দিয়ে খুঁজুন…")} /><button className="outline-button">{s("Search", "খুঁজুন")}</button></form>
-          <select aria-label={s("Filter users", "ব্যবহারকারী বাছাই")} value={filter} onChange={(event) => { setFilter(event.target.value); setPage(1); }}><option value="all">{s("All accounts", "সব অ্যাকাউন্ট")}</option><option value="pending">{s("Waiting for approval", "অনুমোদনের অপেক্ষায়")}</option><option value="declined">{s("Declined", "প্রত্যাখ্যাত")}</option>{kind === "adult" && <><option value="teacher">Teacher</option><option value="parent">Parent</option><option value="admin">Administrator</option></>}<option value="suspended">{s("Suspended", "স্থগিত")}</option></select>
+          <select aria-label={s("Filter users", "ব্যবহারকারী বাছাই")} value={filter} onChange={(event) => { setFilter(event.target.value); setPage(1); }}><option value="all">{s("All accounts", "সব অ্যাকাউন্ট")}</option><option value="pending">{s("Waiting for approval", "অনুমোদনের অপেক্ষায়")}</option><option value="declined">{s("Declined", "প্রত্যাখ্যাত")}</option>{kind === "adult" && roleOptions}<option value="suspended">{s("Suspended", "স্থগিত")}</option></select>
         </div>
         {loading ? <p role="status">{s("Loading users…", "ব্যবহারকারী লোড হচ্ছে…")}</p> : data && <>
           <div className="management-table-wrap"><table className="management-table"><caption className="sr-only">{s("User accounts", "ব্যবহারকারীর অ্যাকাউন্ট")}</caption><thead><tr><th>{s("Person", "ব্যক্তি")}</th><th>{s("Role", "ভূমিকা")}</th><th>{s("Status", "অবস্থা")}</th><th>{s("Actions", "করণীয়")}</th></tr></thead><tbody>{data.users.map((user) => <tr key={user.id}>
             <td><strong>{user.displayName}{user.id === actorId ? s(" (you)", " (আপনি)") : ""}</strong><small>{user.email ?? user.username}</small></td>
-            <td><span className="role-badge">{user.role}</span></td><td><span className={`status-badge ${user.status}`}>{user.status}</span>
+            <td><span className="role-badge">{roleLabel(user)}</span></td><td>
+              {/* An account that cannot sign in yet shows only its approval state, never "Active"; a suspended one stays marked. */}
+              {(user.approvalStatus === "approved" || user.status !== "active") && <span className={`status-badge ${user.status}`}>{statusLabel(user)}</span>}
               {user.approvalStatus === "pending" && <span className="status-badge pending">{s("Waiting for approval", "অনুমোদনের অপেক্ষায়")}</span>}
               {user.approvalStatus === "declined" && <span className="status-badge declined">{s("Declined", "প্রত্যাখ্যাত")}</span>}
               {user.teacherStatus === "pending" && <small>{s("Teacher approval requested", "শিক্ষকের অনুমোদন চাওয়া হয়েছে")}</small>}
@@ -257,7 +321,7 @@ export default function UserManagement({ actorId, actorName }: { actorId: string
         </>}
         {error && <button className="outline-button" onClick={() => void load()}>{s("Retry", "আবার চেষ্টা")}</button>}
       </section>
-      <details className="teach-panel"><summary>{s("Recent access changes", "সাম্প্রতিক প্রবেশাধিকারের পরিবর্তন")}</summary><ul className="audit-list">{data?.audit.map((event) => <li key={event.id}><strong>{event.action.replaceAll("-", " ")}</strong><span>{event.targetType} · {event.targetId.slice(0, 8)}</span><time dateTime={event.createdAt}>{localTime(event.createdAt, language)}</time></li>)}</ul><p>{s("Suspension preserves learning records. No permanent user deletion is performed here.", "স্থগিত করলে শেখার তথ্য সংরক্ষিত থাকে। এখানে কোনো ব্যবহারকারী স্থায়ীভাবে মুছে ফেলা হয় না।")}</p></details>
+      <details className="teach-panel"><summary>{s("Recent changes", "সাম্প্রতিক পরিবর্তন")}</summary><ul className="audit-list">{data?.audit.map((event) => <li key={event.id}><strong>{AUDIT_ACTIONS[event.action] ? pick(AUDIT_ACTIONS[event.action]) : event.action.replaceAll("-", " ")}</strong><span>{AUDIT_TARGETS[event.targetType] ? pick(AUDIT_TARGETS[event.targetType]) : event.targetType} · {event.targetLabel ? s(event.targetLabel.en, event.targetLabel.bn) : event.targetId.slice(0, 8)}</span><time dateTime={event.createdAt}>{localTime(event.createdAt, language)}</time></li>)}</ul><p>{s("Suspension preserves learning records. No permanent user deletion is performed here.", "স্থগিত করলে শেখার তথ্য সংরক্ষিত থাকে। এখানে কোনো ব্যবহারকারী স্থায়ীভাবে মুছে ফেলা হয় না।")}</p></details>
     </div>
   </main></PortalShell>;
 }

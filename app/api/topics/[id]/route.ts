@@ -1,5 +1,5 @@
 import { getStaffAccess } from "@/lib/auth";
-import { getStaffTopic, readTopicBody, submitTopicEdit, topicErrorResponse } from "@/lib/curriculum-catalog";
+import { decideTopic, getStaffTopic, readTopicBody, submitTopicEdit, topicErrorResponse } from "@/lib/curriculum-catalog";
 import { TOPIC_ID_PATTERN } from "@/lib/topic-model";
 
 export const dynamic = "force-dynamic";
@@ -25,5 +25,20 @@ export async function PUT(request: Request, context: RouteContext) {
   const body = await readTopicBody(request);
   if (body instanceof Response) return body;
   try { return Response.json(await submitTopicEdit(actor.id, id, body)); }
+  catch (error) { return topicErrorResponse(error); }
+}
+
+/**
+ * A decision on the topic students read: withdraw it (with a reason), approve a withdrawn topic
+ * again, or confirm a review of a baseline topic. Approving and confirming need the read tick.
+ */
+export async function POST(request: Request, context: RouteContext) {
+  const actor = await getStaffAccess("teach");
+  if (actor instanceof Response) return actor;
+  const { id } = await context.params;
+  if (!TOPIC_ID_PATTERN.test(id)) return notFound();
+  const body = await readTopicBody(request);
+  if (body instanceof Response) return body;
+  try { return Response.json(await decideTopic(actor.id, id, body)); }
   catch (error) { return topicErrorResponse(error); }
 }

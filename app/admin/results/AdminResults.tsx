@@ -109,7 +109,7 @@ export default function AdminResults({ name }: { name: string }) {
     finally { setBusy(false); }
   }
 
-  return <PortalShell role="admin" name={name} active="results" language={language} toggleLanguage={toggleLanguage}>
+  return <PortalShell role="admin" name={name} active="admin-results" language={language} toggleLanguage={toggleLanguage}>
     <h1>{s("Grades & results", "গ্রেড ও ফলাফল")}</h1>
     <p>{s(
       "Review results and attendance in every class, download a class's grades as CSV and reset a submission so the student can try again. Administrator resets are recorded in the access log.",

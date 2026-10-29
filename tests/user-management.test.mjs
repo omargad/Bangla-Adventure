@@ -221,3 +221,24 @@ test("administrators reset student and adult passwords, including other administ
   const everything = JSON.stringify(db.select().from(userAuditEvents).all());
   for (const secret of [child.temporaryPassword, teacher.temporaryPassword]) assert.ok(!everything.includes(secret));
 });
+
+test("recent changes name what each change was about, in both languages, without the stored details", async () => {
+  const { user } = await createUser("admin", { kind: "student", username: "labelled-child", displayName: "Labelled Child" });
+  const later = "2099-01-01 00:00:00";
+  db.insert(userAuditEvents).values([
+    { id: "label-lesson", actorId: "admin", targetId: "hello-me", targetType: "lesson", action: "lesson-approved", detailsJson: "{}", createdAt: later },
+    { id: "label-topic", actorId: "admin", targetId: "pohela-boishakh", targetType: "topic", action: "topic-version-approved", detailsJson: "{}", createdAt: later },
+    { id: "label-book", actorId: "admin", targetId: "history-9-10", targetType: "library-source", action: "library-link-updated", detailsJson: "{}", createdAt: later },
+    { id: "label-gone", actorId: "admin", targetId: "deleted-class", targetType: "class", action: "class-deleted", detailsJson: JSON.stringify({ name: "Old class" }), createdAt: later },
+  ]).run();
+  const { audit } = await listUsers(new URLSearchParams());
+  const label = (predicate) => audit.find(predicate)?.targetLabel;
+  assert.deepEqual(label((event) => event.targetId === user.id && event.action === "created"), { en: "Labelled Child (labelled-child)", bn: "Labelled Child (labelled-child)" });
+  assert.deepEqual(label((event) => event.id === "label-lesson"), { en: "Hello, this is me", bn: "হ্যালো, এই আমি" });
+  assert.deepEqual(label((event) => event.id === "label-topic"), { en: "Pohela Boishakh — the Bengali New Year", bn: "পহেলা বৈশাখ — বাংলা নববর্ষ" });
+  assert.deepEqual(label((event) => event.id === "label-book"), { en: "History of Bangladesh and World Civilization", bn: "বাংলাদেশের ইতিহাস ও বিশ্বসভ্যতা" });
+  assert.equal(label((event) => event.id === "label-gone"), null, "a deleted target has no name");
+  assert.ok(audit.every((event) => event.detailsJson === undefined && event.actorId === undefined));
+  const adultEvent = audit.find((event) => event.targetType === "adult");
+  if (adultEvent) assert.equal(typeof adultEvent.targetLabel.en, "string");
+});

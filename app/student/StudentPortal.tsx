@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { localDateTime, localNumber, useLanguage } from "@/lib/use-language";
+import { localDateTime, localNumber, MessageError, serverMessage, useLanguage, type Message } from "@/lib/use-language";
 import type { Student } from "@/lib/student-auth";
 import type { Topic } from "../topics-content";
 import { groupByCategory } from "@/lib/topic-model";
@@ -20,7 +20,7 @@ async function request<T>(url: string, data?: object): Promise<T> {
   const payload = await response.json();
   // Learning APIs refuse a temporary password until the student has chosen their own.
   if (response.status === 403 && payload.mustChangePassword) window.location.replace(PASSWORD_PATH);
-  if (!response.ok) throw new Error(payload.error ?? "Please try again.");
+  if (!response.ok) throw new MessageError(serverMessage(payload, ["Please try again.", "আবার চেষ্টা করো।"]));
   return payload as T;
 }
 export default function StudentPortal({ initialStudent, destination = "/student", initialMode = "sign-in", initialSection = "learning" }: {
@@ -35,7 +35,8 @@ export default function StudentPortal({ initialStudent, destination = "/student"
   const [displayName, setDisplayName] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<string | Message>("");
+  const shownError = typeof error === "string" ? error : s(...error);
   // Set after a self sign-up: the account cannot sign in until an administrator approves it.
   const [awaitingApproval, setAwaitingApproval] = useState(false);
   const [feed, setFeed] = useState<Feed | null>(null);
@@ -48,7 +49,7 @@ export default function StudentPortal({ initialStudent, destination = "/student"
     try {
       const [nextFeed, nextCatalog] = await Promise.all([request<Feed>("/api/student/feed"), request<Catalog>("/api/curriculum")]);
       setFeed(nextFeed); setCatalog(nextCatalog); setError("");
-    } catch (error) { setError(error instanceof Error ? error.message : "Could not load your learning."); }
+    } catch (error) { setError(error instanceof MessageError ? error.text : ["Could not load your learning.", "তোমার শেখা লোড করা যায়নি।"]); }
   }, []);
   const studentId = student?.id;
   const activeActivityId = activity?.id;
@@ -66,9 +67,9 @@ export default function StudentPortal({ initialStudent, destination = "/student"
     setBusy(true); setError("");
     try {
       const response = await fetch(`/api/student/${mode}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username, displayName, password }) });
-      const data = await response.json().catch(() => ({})) as { student?: Student; mustChangePassword?: boolean; pendingApproval?: boolean; approvalStatus?: Exclude<ApprovalStatus, "approved">; error?: string };
+      const data = await response.json().catch(() => ({})) as { student?: Student; mustChangePassword?: boolean; pendingApproval?: boolean; approvalStatus?: Exclude<ApprovalStatus, "approved">; error?: string; errorBn?: string };
       if (!response.ok) {
-        setError(data.approvalStatus ? s(...approvalNotice(data.approvalStatus, "student")) : data.error ?? s("Could not sign in. Please try again.", "সাইন ইন করা যায়নি। আবার চেষ্টা করো।"));
+        setError(data.approvalStatus ? approvalNotice(data.approvalStatus, "student") : serverMessage(data, ["Could not sign in. Please try again.", "সাইন ইন করা যায়নি। আবার চেষ্টা করো।"]));
         return;
       }
       setPassword("");
@@ -89,7 +90,7 @@ export default function StudentPortal({ initialStudent, destination = "/student"
     try {
       setResult(await request("/api/student/submit", { activityId: activity.id, answers: activity.questions.map((_, index) => answers[index]) }));
       await load();
-    } catch (error) { setError(error instanceof Error ? error.message : "Your work was not saved. Please try again."); }
+    } catch (error) { setError(error instanceof MessageError ? error.text : ["Your work was not saved. Please try again.", "তোমার কাজ সংরক্ষণ হয়নি। আবার চেষ্টা করো।"]); }
     finally { setBusy(false); }
   }
   if (!student) return <main className="adult-app auth-app" lang={language}>
@@ -100,7 +101,7 @@ export default function StudentPortal({ initialStudent, destination = "/student"
           <label>{s("Username", "ব্যবহারকারীর নাম")}<input required minLength={3} maxLength={40} pattern="[a-zA-Z0-9._-]+" title="Use letters, numbers, dots, dashes or underscores." value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="username" /></label>
           <label>{s("Password", "পাসওয়ার্ড")}<input required type="password" minLength={mode === "sign-up" ? 8 : undefined} maxLength={200} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete={mode === "sign-up" ? "new-password" : "current-password"} /></label>
           {awaitingApproval && mode === "sign-in" && !error && <p role="status" className="auth-success">{s(...approvalNotice("pending", "student"))}</p>}
-          {error && <p role="alert" className="auth-error">{error}</p>}<button className="auth-submit" disabled={busy}>{busy ? s("One moment…", "অপেক্ষা করো…") : mode === "sign-up" ? s("Create account", "অ্যাকাউন্ট তৈরি") : s("Sign in", "সাইন ইন")}</button>
+          {error && <p role="alert" className="auth-error">{shownError}</p>}<button className="auth-submit" disabled={busy}>{busy ? s("One moment…", "অপেক্ষা করো…") : mode === "sign-up" ? s("Create account", "অ্যাকাউন্ট তৈরি") : s("Sign in", "সাইন ইন")}</button>
         </form><p className="auth-note">{s("Ask a grown-up for help. Use a nickname; no child email or birthday is needed.", "বড়দের সাহায্য নাও। ডাকনাম ব্যবহার করো; শিশুর ইমেইল বা জন্মদিন লাগে না।")}</p>
         <p className="auth-note">{mode === "sign-up"
           ? s("An administrator checks every new account before you can sign in.", "নতুন অ্যাকাউন্ট দিয়ে সাইন ইন করার আগে প্রশাসক সেটি দেখে অনুমোদন করেন।")
@@ -120,9 +121,9 @@ export default function StudentPortal({ initialStudent, destination = "/student"
   return <PortalShell role="student" name={student.displayName} language={language} toggleLanguage={toggleLanguage} active={section} items={tabs}>
     <main className="student-workspace">
       <div className="portal-heading"><div><p className="adult-eyebrow">{s("A little progress, every day", "প্রতিদিন একটু অগ্রগতি")}</p><h1>{s("My Learning", "আমার শেখা")}</h1></div><button className="outline-button" onClick={() => void load()}>{s("Refresh", "হালনাগাদ")}</button></div>
-      {error && <p className="auth-error" role="alert">{error}</p>}
+      {error && <p className="auth-error" role="alert">{shownError}</p>}
       {!feed && !error && <p role="status">{s("Loading your learning…", "তোমার বিষয় লোড হচ্ছে…")}</p>}
-      {!activity && <section className="workspace-stats student-stats" aria-label={s("Student progress", "শিক্ষার্থীর অগ্রগতি")}><div><small>{s("Topics read", "পড়া বিষয়")}</small><strong>{catalog ? `${number(catalog.readTopicIds.length)} / ${number(catalog.topics.length)}` : "— / —"}</strong></div><div><small>{s("Activities complete", "সম্পন্ন কার্যক্রম")}</small><strong>{feed ? `${number(feed.metrics.completedActivities)} / ${number(feed.metrics.assignedActivities)}` : "— / —"}</strong></div><div><small>{s("My classes", "আমার ক্লাস")}</small><strong>{feed ? number(feed.metrics.enrolledClasses) : "—"}</strong></div><div><small>{s("Average result", "গড় ফলাফল")}</small><strong>{feed && results.length ? `${number(feed.metrics.averagePercent)}%` : "—"}</strong></div><div><small>{s("Classes attended", "উপস্থিত ক্লাস")}</small><strong>{feed?.metrics.recordedSessions ? `${number(feed.metrics.attendedSessions)} / ${number(feed.metrics.recordedSessions)}` : "—"}</strong></div></section>}
+      {!activity && <section className="workspace-stats student-stats" aria-label={s("Student progress", "শিক্ষার্থীর অগ্রগতি")}><div><small>{s("Topics read", "পড়া বিষয়")}</small><strong>{catalog ? `${number(catalog.readTopicIds.length)} / ${number(catalog.topics.length)}` : "— / —"}</strong></div><div><small>{s("Activities complete", "সম্পন্ন কার্যক্রম")}</small><strong>{feed ? `${number(feed.metrics.completedActivities)} / ${number(feed.metrics.assignedActivities)}` : "— / —"}</strong></div><div><small>{s("Classes I’m in", "আমি যে ক্লাসগুলোতে আছি")}</small><strong>{feed ? number(feed.metrics.enrolledClasses) : "—"}</strong></div><div><small>{s("Average result", "গড় ফলাফল")}</small><strong>{feed && results.length ? `${number(feed.metrics.averagePercent)}%` : "—"}</strong></div><div><small>{s("Classes attended", "উপস্থিত ক্লাস")}</small><strong>{feed?.metrics.recordedSessions ? `${number(feed.metrics.attendedSessions)} / ${number(feed.metrics.recordedSessions)}` : "—"}</strong></div></section>}
       {!activity && section !== "results" && feed && <section className="teach-panel" aria-label={s("Class announcements", "ক্লাসের ঘোষণা")}>
         <h2>{s("Class announcements", "ক্লাসের ঘোষণা")}</h2>
         {announcements.length === 0 && <p>{s("No class announcements yet. Notices from your allocated classes will appear here.", "এখনও ক্লাসের ঘোষণা নেই। তোমার বরাদ্দ ক্লাসের ঘোষণা এখানে দেখা যাবে।")}</p>}

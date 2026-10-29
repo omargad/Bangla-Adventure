@@ -11,14 +11,14 @@ type Transaction = Parameters<Parameters<Db["transaction"]>[0]>[0];
 
 function requireAdministrator(tx: Transaction, actorId: string) {
   const actor = tx.select({ role: adults.role, status: adults.status, teacherStatus: adults.teacherStatus }).from(adults).where(eq(adults.id, actorId)).get();
-  if (!actor || !canManageUsers(actor)) throw new UserManagementError("Administrator access required.", 403);
+  if (!actor || !canManageUsers(actor)) throw new UserManagementError("Administrator access required.", 403, "প্রশাসকের অনুমতি প্রয়োজন।");
 }
 
 export async function listParents(actorId: string, studentId: string) {
   const db = await getDb();
   return db.transaction((tx) => {
     requireAdministrator(tx, actorId);
-    if (!tx.select({ id: students.id }).from(students).where(eq(students.id, studentId)).get()) throw new UserManagementError("Student not found.", 404);
+    if (!tx.select({ id: students.id }).from(students).where(eq(students.id, studentId)).get()) throw new UserManagementError("Student not found.", 404, "শিক্ষার্থী পাওয়া যায়নি।");
     return tx.select({ id: parentStudentLinks.id, parentId: adults.id, parentName: adults.displayName, parentEmail: adults.email, role: adults.role, status: adults.status })
       .from(parentStudentLinks).innerJoin(adults, eq(parentStudentLinks.parentId, adults.id))
       .where(eq(parentStudentLinks.studentId, studentId)).orderBy(adults.displayName).all();
@@ -31,11 +31,11 @@ export async function linkParent(actorId: string, studentId: string, parentEmail
     requireAdministrator(tx, actorId);
     const parent = tx.select({ id: adults.id }).from(adults)
       .where(and(eq(adults.email, parentEmail.trim().toLowerCase()), eq(adults.role, "parent"), eq(adults.status, "active"), eq(adults.approvalStatus, "approved"))).get();
-    if (!parent) throw new UserManagementError("No active parent account matches that email.", 404);
+    if (!parent) throw new UserManagementError("No active parent account matches that email.", 404, "এই ইমেইলে কোনো সক্রিয় অভিভাবক অ্যাকাউন্ট নেই।");
     const student = tx.select({ approvalStatus: students.approvalStatus }).from(students).where(eq(students.id, studentId)).get();
-    if (!student) throw new UserManagementError("Student not found.", 404);
+    if (!student) throw new UserManagementError("Student not found.", 404, "শিক্ষার্থী পাওয়া যায়নি।");
     // A self-registered child no administrator has approved is not shown to any family.
-    if (student.approvalStatus !== "approved") throw new UserManagementError("Approve this student account before linking a parent.", 409);
+    if (student.approvalStatus !== "approved") throw new UserManagementError("Approve this student account before linking a parent.", 409, "অভিভাবক যুক্ত করার আগে শিক্ষার্থীর অ্যাকাউন্টটি অনুমোদন করুন।");
     const link = tx.insert(parentStudentLinks).values({ id: crypto.randomUUID(), parentId: parent.id, studentId })
       .onConflictDoNothing({ target: [parentStudentLinks.parentId, parentStudentLinks.studentId] }).returning({ id: parentStudentLinks.id }).get();
     if (link) tx.insert(userAuditEvents).values({ id: crypto.randomUUID(), actorId, targetId: studentId, targetType: "student", action: "parent-linked", detailsJson: JSON.stringify({ parentId: parent.id }) }).run();
@@ -48,7 +48,7 @@ export async function unlinkParent(actorId: string, studentId: string, parentId:
   return db.transaction((tx) => {
     requireAdministrator(tx, actorId);
     const removed = tx.delete(parentStudentLinks).where(and(eq(parentStudentLinks.studentId, studentId), eq(parentStudentLinks.parentId, parentId))).returning({ id: parentStudentLinks.id }).get();
-    if (!removed) throw new UserManagementError("Parent link not found.", 404);
+    if (!removed) throw new UserManagementError("Parent link not found.", 404, "অভিভাবকের সংযোগটি পাওয়া যায়নি।");
     tx.insert(userAuditEvents).values({ id: crypto.randomUUID(), actorId, targetId: studentId, targetType: "student", action: "parent-unlinked", detailsJson: JSON.stringify({ parentId }) }).run();
     return { unlinked: true };
   });
@@ -58,7 +58,7 @@ export async function getParentOverview(parentId: string) {
   const db = await getDb();
   return db.transaction((tx) => {
     const parent = tx.select({ id: adults.id }).from(adults).where(and(eq(adults.id, parentId), eq(adults.role, "parent"), eq(adults.status, "active"))).get();
-    if (!parent) throw new UserManagementError("Parent access required.", 403);
+    if (!parent) throw new UserManagementError("Parent access required.", 403, "অভিভাবকের অ্যাকাউন্ট প্রয়োজন।");
     const children = tx.select({ id: students.id, username: students.username, displayName: students.displayName, status: students.status })
       .from(parentStudentLinks).innerJoin(students, eq(parentStudentLinks.studentId, students.id))
       .where(eq(parentStudentLinks.parentId, parent.id)).orderBy(students.displayName, students.id).all();

@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useState } from "react";
-import { useLanguage } from "@/lib/use-language";
+import { localMessage, useLanguage } from "@/lib/use-language";
 
 /**
  * The required change of a temporary password an administrator issued, at first sign-in or after a reset;
@@ -26,7 +26,7 @@ export default function AdultPasswordForm({ name, email, destination }: { name: 
     try {
       const response = await fetch("/api/account/password", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ currentPassword, newPassword }) });
       const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error ?? s("Your password was not changed. Please try again.", "পাসওয়ার্ড বদলানো যায়নি। আবার চেষ্টা করুন।"));
+      if (!response.ok) throw new Error(localMessage(data, language, ["Your password was not changed. Please try again.", "পাসওয়ার্ড বদলানো যায়নি। আবার চেষ্টা করুন।"]));
       setCurrentPassword(""); setNewPassword(""); setConfirmPassword("");
       // The new recovery codes are shown once, before leaving the page.
       if (Array.isArray(data.recoveryCodes) && data.recoveryCodes.length) setCodes(data.recoveryCodes);

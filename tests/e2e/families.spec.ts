@@ -68,6 +68,15 @@ test("an administrator imports a family CSV and gets a printable sign-in sheet p
   await expect(page.getByRole("button", { name: "Print sign-in sheet" })).toBeHidden();
   await page.emulateMedia({ media: "screen" });
 
+  // On a phone each child's details stack, so the temporary password is in full view, not off the edge of the card.
+  const viewport = page.viewportSize();
+  await page.setViewportSize({ width: 375, height: 800 });
+  const passwordBox = await family.locator("tbody tr").filter({ hasText: `Maya ${suffix}` }).locator("code").nth(1).boundingBox();
+  const familyBox = await family.boundingBox();
+  expect(passwordBox && familyBox ? passwordBox.x + passwordBox.width <= familyBox.x + familyBox.width : false).toBe(true);
+  await expect(family.locator("tbody tr").filter({ hasText: `Maya ${suffix}` }).locator("td").nth(2)).toHaveAttribute("data-label", /Temporary password/);
+  if (viewport) await page.setViewportSize(viewport);
+
   const [download] = await Promise.all([page.waitForEvent("download"), panel.getByRole("button", { name: "Download sign-in sheet" }).click()]);
   expect(download.suggestedFilename()).toBe("family-sign-in-sheet.csv");
   const sheet = await readFile(await download.path(), "utf8");

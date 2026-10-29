@@ -20,7 +20,7 @@ const failed = (failure: unknown): Notice => failure instanceof RequestError ? f
 /**
  * The sources a teacher adds for one class: only students allocated to the class
  * and their linked parents see them. The NCTB textbook links for everyone are kept
- * by administrators on the Sources page.
+ * by administrators on the Textbook links page.
  */
 export default function ClassSources({ classId, language, isAdmin = false }: { classId: string; language: Language; isAdmin?: boolean }) {
   const s = (en: string, bn: string) => (language === "bn" ? bn : en);
@@ -90,7 +90,7 @@ export default function ClassSources({ classId, language, isAdmin = false }: { c
           "শুধু এই ক্লাসের জন্য লিংক যোগ করুন, যেমন ওয়ার্কশিট, ভিডিও বা এ বছরের পাঠ্যবইয়ের কোনো পাতা। এই ক্লাসে বরাদ্দ শিক্ষার্থীরা ‘উৎস ও তথ্যসূত্র’ পাতায় এগুলো দেখবে, আর তাদের অভিভাবকেরা দেখবেন পরিবারের পাতায়।",
         )}{" "}
         {isAdmin
-          ? <Link href="/admin/sources">{s("The NCTB textbook links for everyone are on the Sources page.", "সবার জন্য এনসিটিবি পাঠ্যবইয়ের লিংক ‘উৎস’ পাতায় আছে।")}</Link>
+          ? <Link href="/admin/sources">{s("The NCTB textbook links for everyone are on the Textbook links page.", "সবার জন্য এনসিটিবি পাঠ্যবইয়ের লিংক ‘পাঠ্যবইয়ের লিংক’ পাতায় আছে।")}</Link>
           : s("The NCTB textbook links for everyone are kept by the administrator.", "সবার জন্য এনসিটিবি পাঠ্যবইয়ের লিংক প্রশাসক দেখাশোনা করেন।")}
       </p>
       {notice && <p className={notice.error ? "auth-error" : "teach-message"} role={notice.error ? "alert" : "status"}>{notice[language]}</p>}

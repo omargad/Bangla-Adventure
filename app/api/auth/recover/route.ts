@@ -21,11 +21,11 @@ export async function POST(request: Request) {
   const recoveryCode = typeof body.recoveryCode === "string" ? body.recoveryCode.trim().slice(0, 40) : "";
   const newPassword = typeof body.newPassword === "string" ? body.newPassword : "";
   if (!email || !recoveryCode) {
-    return NextResponse.json({ error: "Enter your email and one recovery code." }, { status: 400 });
+    return NextResponse.json({ error: "Enter your email and one recovery code.", errorBn: "ইমেইল ও একটি পুনরুদ্ধার কোড লিখুন।" }, { status: 400 });
   }
   if (newPassword.length < 10 || newPassword.length > 200) {
     return NextResponse.json(
-      { error: "Choose a new password of at least 10 characters." },
+      { error: "Choose a new password of at least 10 characters.", errorBn: "কমপক্ষে ১০ অক্ষরের একটি নতুন পাসওয়ার্ড বেছে নিন।" },
       { status: 400 },
     );
   }
@@ -33,12 +33,12 @@ export async function POST(request: Request) {
   const adult = await consumeRecoveryCode(email, recoveryCode);
   if (!adult) {
     return NextResponse.json(
-      { error: "That email and recovery code do not match, or the code was already used." },
+      { error: "That email and recovery code do not match, or the code was already used.", errorBn: "এই ইমেইল ও পুনরুদ্ধার কোড মেলেনি, অথবা কোডটি আগেই ব্যবহার করা হয়েছে।" },
       { status: 401 },
     );
   }
   if (adult.approvalStatus !== "approved") {
-    return NextResponse.json({ error: approvalNotice(adult.approvalStatus, "adult")[0], approvalStatus: adult.approvalStatus }, { status: 403 });
+    return NextResponse.json({ error: approvalNotice(adult.approvalStatus, "adult")[0], errorBn: approvalNotice(adult.approvalStatus, "adult")[1], approvalStatus: adult.approvalStatus }, { status: 403 });
   }
 
   // The new password is the owner's own, which also ends an administrator-issued one. The administrator

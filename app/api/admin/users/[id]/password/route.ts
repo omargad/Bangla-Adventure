@@ -13,9 +13,11 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   const { id } = await context.params;
   try {
     const body = await request.json().catch(() => null);
-    if (!body || typeof body !== "object" || Array.isArray(body)) return Response.json({ error: "Choose an account type." }, { status: 400 });
+    if (!body || typeof body !== "object" || Array.isArray(body)) return Response.json({ error: "Choose an account type.", errorBn: "অ্যাকাউন্টের ধরন বেছে নিন।" }, { status: 400 });
     return Response.json(await resetPassword(actor.id, id, body), { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
-    return Response.json({ error: error instanceof UserManagementError ? error.message : "The password could not be reset." }, { status: error instanceof UserManagementError ? error.status : 503 });
+    return error instanceof UserManagementError
+      ? Response.json({ error: error.message, errorBn: error.messageBn }, { status: error.status })
+      : Response.json({ error: "The password could not be reset.", errorBn: "পাসওয়ার্ড রিসেট করা যায়নি।" }, { status: 503 });
   }
 }

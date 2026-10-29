@@ -116,7 +116,7 @@ export async function registerAdult(
   displayName: string,
   password: string,
   requestTeaching = false,
-): Promise<Adult | { error: string }> {
+): Promise<Adult | { error: string; errorBn: string }> {
   const db = await getDb();
   const normalized = email.trim().toLowerCase();
   const [adult] = await db
@@ -133,7 +133,7 @@ export async function registerAdult(
     })
     .onConflictDoNothing({ target: adults.email })
     .returning(publicAdultFields);
-  return adult ?? { error: "An account with this email already exists. Sign in instead." };
+  return adult ?? { error: "An account with this email already exists. Sign in instead.", errorBn: "এই ইমেইলে আগেই একটি অ্যাকাউন্ট আছে। সাইন ইন করুন।" };
 }
 
 /** The active account with this email and password, approved or not: callers decide what approval allows. */

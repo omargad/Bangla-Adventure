@@ -116,7 +116,15 @@
  .family-sheet-group { margin-top:0; break-after:page; }
  .family-sheet-group:last-child { break-after:auto; }
 }
-@media(max-width:650px) { .credential-sheet dl > div, .family-sheet-group dl > div { grid-template-columns:minmax(0,1fr); gap:2px; } }
+@media(max-width:650px) {
+ .credential-sheet dl > div, .family-sheet-group dl > div { grid-template-columns:minmax(0,1fr); gap:2px; }
+ /* A family's children stack like the parent's details above, so each temporary password is in full view. */
+ .family-sheet-group thead { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
+ .family-sheet-group :is(table,tbody,tr,td) { display:block; }
+ .family-sheet-group tr { padding:8px 0; border-bottom:1px solid var(--line); }
+ .family-sheet-group td { padding:4px 0; border:0; overflow-wrap:anywhere; }
+ .family-sheet-group td::before { content:attr(data-label); display:block; font-weight:700; }
+}
 .portal-content .student-password-card { max-width:520px; margin:20px 0; }
 /* Results gradebook: students down, activities across. The header row and the student column stay in view while the table scrolls inside its own box, also on a phone. */
 .gradebook-search { display:grid; gap:8px; max-width:360px; margin:4px 0 6px; font-weight:700; }

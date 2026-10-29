@@ -132,7 +132,7 @@ test("administrator approves a teacher and manages accounts through the UI", asy
   const row = page.getByRole("row").filter({ hasText: applicant });
   page.on("dialog", (dialog) => dialog.accept());
   await row.getByRole("button", { name: "Approve", exact: true }).click();
-  await expect(row.getByText("teacher", { exact: true })).toBeVisible();
+  await expect(row.locator(".role-badge")).toHaveText("Teacher");
   await page.getByLabel("Search users").fill(parent);
   await page.getByRole("button", { name: "Search", exact: true }).click();
   const parentRow = page.getByRole("row").filter({ hasText: parent });
@@ -141,7 +141,7 @@ test("administrator approves a teacher and manages accounts through the UI", asy
   await page.getByRole("button", { name: "Save changes", exact: true }).click();
   await expect(parentRow.getByText("Updated Parent", { exact: true })).toBeVisible();
   await parentRow.getByRole("button", { name: "Suspend", exact: true }).click();
-  await expect(parentRow.getByText("suspended", { exact: true })).toBeVisible();
+  await expect(parentRow.getByText("Suspended", { exact: true })).toBeVisible();
   expect((await page.request.post("/api/auth/sign-in", { data: { email: parent, password } })).status()).toBe(401);
 });
 

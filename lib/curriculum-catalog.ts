@@ -1,36 +1,45 @@
 import { createHash } from "node:crypto";
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { getDb } from "../db";
-import { adults, studentTopicProgress, topicVersions, userAuditEvents } from "../db/schema";
+import { adults, contentApprovals, studentTopicProgress, topicVersions, userAuditEvents } from "../db/schema";
 import { topics as shippedTopics, type Bilingual, type Topic, type TopicQuizQuestion } from "../app/topics-content";
 import { topicSourceLinks, type SourceOverride } from "./library-links";
 import { currentMembers } from "./class-roster";
 import { canTeach } from "./roles";
 import {
-  canRestartFromApproved, checkReview, describeTopicChanges, gradeTopicQuiz, newTopicId, statusesAfterApproval, topicChanged, TopicError, TOPIC_LIMITS,
-  validateTopicDraft, type TopicContent, type TopicVersionStatus,
+  canRestartFromApproved, checkReview, checkTopicDecision, describeTopicChanges, gradeTopicQuiz, newTopicId, readConfirmationMissing, statusesAfterApproval,
+  topicChanged, TopicError, TOPIC_LIMITS, validateTopicDraft, type TopicContent, type TopicVersionStatus,
 } from "./topic-model";
 
 /**
  * Topics students may read: the latest approved version of each topic. The
  * shipped topics in app/topics-content.ts are the approved baseline (version 0);
  * teachers and administrators add and edit topics as pending versions in
- * topic_versions, and nothing reaches learners until someone approves it.
+ * topic_versions, and nothing reaches learners until someone approves it. A
+ * teacher can also withdraw a topic students read (content_approvals, as for
+ * lessons), which hides it from every learner until someone approves it again.
  */
 export type CatalogTopic = Topic & { version: number; baseline: boolean; approvedAt: string | null };
 export type VersionSummary = {
   version: number; status: TopicVersionStatus; baseline: boolean; basedOn: number | null;
   authorName: string | null; createdAt: string | null; reviewerName: string | null; reviewedAt: string | null; reviewNote: string;
 };
+/** A decision on a topic students read: withdrawn, approved again, or a baseline topic's review confirmed. */
+export type TopicDecisionSummary = { kind: "withdrawn" | "restored" | "confirmed"; changedByName: string | null; changedAt: string; note: string };
 export type StaffTopicSummary = {
   id: string; theme: string; emoji: string; title: Bilingual;
   approved: VersionSummary | null; latest: VersionSummary; pendingVersions: number[];
+  /** Hidden from students by a teacher until someone approves it again. */
+  withdrawn: boolean;
+  /** Who reviewed the approved baseline version, when someone has. */
+  baselineReview: TopicDecisionSummary | null;
 };
 
 type Db = Awaited<ReturnType<typeof getDb>>;
 type Transaction = Parameters<Parameters<Db["transaction"]>[0]>[0];
 type Reader = Db | Transaction;
 type VersionRow = typeof topicVersions.$inferSelect;
+type DecisionRow = typeof contentApprovals.$inferSelect;
 type TopicState = { id: string; shipped: Topic | null; rows: VersionRow[]; approved: VersionRow | null };
 
 const shippedById = new Map(shippedTopics.map((topic) => [topic.id, topic]));
@@ -43,6 +52,33 @@ function contentOf(topic: Topic | CatalogTopic): TopicContent {
 
 function readContent(row: VersionRow): TopicContent | null {
   try { return JSON.parse(row.dataJson) as TopicContent; } catch { return null; }
+}
+
+/** Teachers' decisions on topics students read, oldest first; the newest one is the topic's standing. */
+function decisionRows(db: Reader, topicId?: string): DecisionRow[] {
+  return db.select().from(contentApprovals)
+    .where(and(eq(contentApprovals.contentType, "topic"), topicId ? eq(contentApprovals.contentId, topicId) : undefined))
+    .orderBy(sql`rowid`).all();
+}
+
+function latestDecisions(rows: DecisionRow[]): Map<string, DecisionRow> {
+  const latest = new Map<string, DecisionRow>();
+  for (const row of rows) latest.set(row.contentId, row);
+  return latest;
+}
+
+/** What a decision did: a withdrawal, an approval after one, or a confirmed review. */
+function decisionSummaries(rows: DecisionRow[], name: (id: string | null) => string | null): TopicDecisionSummary[] {
+  return rows.map((row, index): TopicDecisionSummary => ({
+    kind: row.status === "withdrawn" ? "withdrawn" : rows[index - 1]?.status === "withdrawn" ? "restored" : "confirmed",
+    changedByName: name(row.changedBy), changedAt: row.changedAt, note: row.note,
+  }));
+}
+
+/** The approved baseline version's review, when the newest decision is one (a withdrawal is not). */
+function baselineReviewOf(approved: CatalogTopic | null, summaries: TopicDecisionSummary[]): TopicDecisionSummary | null {
+  const latest = summaries.at(-1);
+  return approved?.baseline && latest && latest.kind !== "withdrawn" ? latest : null;
 }
 
 /** Every topic with its stored versions: shipped topics first, then new topics oldest first. */
@@ -75,8 +111,8 @@ function headOf(state: TopicState): { version: number; status: TopicVersionStatu
   return state.shipped ? { version: 0, status: "approved", content: contentOf(state.shipped) } : null;
 }
 
-function nameLookup(db: Reader, rows: VersionRow[]) {
-  const ids = [...new Set(rows.flatMap((row) => [row.createdBy, row.reviewedBy]).filter((id): id is string => Boolean(id)))];
+function nameLookup(db: Reader, rows: VersionRow[], decisions: DecisionRow[] = []) {
+  const ids = [...new Set([...rows.flatMap((row) => [row.createdBy, row.reviewedBy]), ...decisions.map((row) => row.changedBy)].filter((id): id is string => Boolean(id)))];
   const names = new Map(ids.length ? db.select({ id: adults.id, name: adults.displayName }).from(adults).where(inArray(adults.id, ids)).all().map((row) => [row.id, row.name]) : []);
   return (id: string | null) => (id ? names.get(id) ?? null : null);
 }
@@ -91,26 +127,31 @@ function summaries(state: TopicState, name: (id: string | null) => string | null
   return [{ version: 0, status: state.approved ? "superseded" : "approved", baseline: true, basedOn: null, authorName: null, createdAt: null, reviewerName: null, reviewedAt: null, reviewNote: "" }, ...stored];
 }
 
-/** Approved topics only: what students, parents and every learner page receive. */
+/** Approved topics only, less any a teacher withdrew: what students, parents and every learner page receive. */
 export async function getCatalog(): Promise<CatalogTopic[]> {
   const db = await getDb();
-  return topicStates(db).map(approvedTopic).filter((topic): topic is CatalogTopic => topic !== null);
+  const decisions = latestDecisions(decisionRows(db));
+  return topicStates(db).filter((state) => decisions.get(state.id)?.status !== "withdrawn")
+    .map(approvedTopic).filter((topic): topic is CatalogTopic => topic !== null);
 }
 
 /** Every topic with its approval state, for the staff topics area. */
 export async function listStaffTopics(): Promise<StaffTopicSummary[]> {
   const db = await getDb();
   const states = topicStates(db);
-  const name = nameLookup(db, states.flatMap((state) => state.rows));
+  const decisions = decisionRows(db);
+  const name = nameLookup(db, states.flatMap((state) => state.rows), decisions);
   return states.flatMap((state) => {
     const head = headOf(state);
     if (!head) return [];
     const versions = summaries(state, name);
-    const approvedVersion = approvedTopic(state)?.version;
+    const approved = approvedTopic(state);
+    const own = decisionSummaries(decisions.filter((row) => row.contentId === state.id), name);
     return [{
       id: state.id, theme: head.content.theme, emoji: head.content.emoji, title: head.content.title,
-      approved: versions.find((version) => version.version === approvedVersion && version.status === "approved") ?? null,
+      approved: versions.find((version) => version.version === approved?.version && version.status === "approved") ?? null,
       latest: versions.at(-1)!, pendingVersions: versions.filter((version) => version.status === "pending").map((version) => version.version),
+      withdrawn: own.at(-1)?.kind === "withdrawn", baselineReview: baselineReviewOf(approved, own),
     }];
   });
 }
@@ -126,11 +167,15 @@ export async function getStaffTopic(topicId: string) {
   const head = state ? headOf(state) : null;
   if (!state || !head) throw new TopicError("Topic not found.", "বিষয়টি পাওয়া যায়নি।", 404);
   const approved = approvedTopic(state);
+  const rows = decisionRows(db, topicId);
+  const name = nameLookup(db, state.rows, rows);
+  const decisions = decisionSummaries(rows, name);
   return {
     id: state.id, head, approvedVersion: approved?.version ?? null,
     approved: approved ? { version: approved.version, content: contentOf(approved) } : null,
     canStartFromApproved: canRestartFromApproved(state.rows, approved?.version ?? null),
-    versions: summaries(state, nameLookup(db, state.rows)),
+    versions: summaries(state, name),
+    withdrawn: decisions.at(-1)?.kind === "withdrawn", baselineReview: baselineReviewOf(approved, decisions), decisions,
   };
 }
 
@@ -221,7 +266,7 @@ export async function reviewTopicVersion(actorId: string, topicId: string, versi
   const note = typeof body.note === "string" ? body.note.trim() : "";
   if (note.length > TOPIC_LIMITS.note) throw new TopicError("Keep the note to 1000 characters.", "নোট ১০০০ অক্ষরের মধ্যে রাখুন।");
   if (decision === "reject" && !note) throw new TopicError("Write a note so the author knows what to change.", "লেখক কী বদলাবেন তা জানাতে একটি নোট লিখুন।");
-  if (decision === "approve" && body.confirmedRead !== true) throw new TopicError("Tick “I have read the whole lesson in English and Bangla” before approving.", "অনুমোদনের আগে “আমি পুরো পাঠ ইংরেজি ও বাংলায় পড়েছি” টিক দিন।");
+  if (decision === "approve" && body.confirmedRead !== true) throw readConfirmationMissing();
   const db = await getDb();
   return db.transaction((tx) => {
     requireStaff(tx, actorId);
@@ -239,8 +284,37 @@ export async function reviewTopicVersion(actorId: string, topicId: string, versi
           .where(and(eq(topicVersions.topicId, topicId), eq(topicVersions.version, change.version))).run();
       }
     }
-    audit(tx, actorId, topicId, decision === "approve" ? "topic-version-approved" : "topic-version-rejected", { version, ...(note ? { note } : {}) });
+    // Approving a new version of a withdrawn topic shows the topic to students again.
+    const restored = decision === "approve" && decisionRows(tx, topicId).at(-1)?.status === "withdrawn";
+    if (restored) tx.insert(contentApprovals).values({ id: crypto.randomUUID(), contentType: "topic", contentId: topicId, status: "approved", changedBy: actorId, changedAt: reviewedAt }).run();
+    audit(tx, actorId, topicId, decision === "approve" ? "topic-version-approved" : "topic-version-rejected", { version, ...(note ? { note } : {}), ...(restored ? { restored: true } : {}) });
     return { topicId, version, status: decision === "approve" ? "approved" : "rejected", reviewedAt };
+  });
+}
+
+/**
+ * A teacher or administrator decides on the topic students read: withdraws it (every learner path
+ * stops showing it at once), approves a withdrawn topic again, or confirms they reviewed a baseline
+ * topic, which records their name and leaves the content as it is. Recorded under the signed-in account.
+ */
+export async function decideTopic(actorId: string, topicId: string, raw: Record<string, unknown>) {
+  const db = await getDb();
+  return db.transaction((tx) => {
+    requireStaff(tx, actorId);
+    const [state] = topicStates(tx, topicId);
+    if (!state || (!state.shipped && !state.rows.length)) throw new TopicError("Topic not found.", "বিষয়টি পাওয়া যায়নি।", 404);
+    const approved = approvedTopic(state);
+    const latest = decisionRows(tx, topicId).at(-1);
+    const { decision, note } = checkTopicDecision({
+      approved: approved !== null, withdrawn: latest?.status === "withdrawn", unreviewedBaseline: Boolean(approved?.baseline) && !latest,
+    }, raw);
+    const changedAt = new Date().toISOString();
+    tx.insert(contentApprovals).values({
+      id: crypto.randomUUID(), contentType: "topic", contentId: topicId, status: decision === "withdraw" ? "withdrawn" : "approved", changedBy: actorId, changedAt, note,
+    }).run();
+    const action = decision === "withdraw" ? "topic-withdrawn" : decision === "approve" ? "topic-restored" : "topic-review-confirmed";
+    audit(tx, actorId, topicId, action, { version: approved!.version, ...(note ? { note } : {}) });
+    return { topicId, decision, version: approved!.version, changedAt };
   });
 }
 

@@ -10,7 +10,9 @@ export async function GET(request: Request) {
   try {
     return Response.json(await listUsers(new URL(request.url).searchParams));
   } catch (error) {
-    return Response.json({ error: error instanceof UserManagementError ? error.message : "Users could not be loaded." }, { status: error instanceof UserManagementError ? error.status : 503 });
+    return error instanceof UserManagementError
+      ? Response.json({ error: error.message, errorBn: error.messageBn }, { status: error.status })
+      : Response.json({ error: "Users could not be loaded.", errorBn: "ব্যবহারকারীদের লোড করা যায়নি।" }, { status: 503 });
   }
 }
 
@@ -21,9 +23,11 @@ export async function POST(request: Request) {
   if (!limit.allowed) return tooManyRequests(limit.retryAfterSeconds);
   try {
     const body = await request.json().catch(() => null);
-    if (!body || typeof body !== "object" || Array.isArray(body)) return Response.json({ error: "Provide account details." }, { status: 400 });
+    if (!body || typeof body !== "object" || Array.isArray(body)) return Response.json({ error: "Provide account details.", errorBn: "অ্যাকাউন্টের তথ্য দিন।" }, { status: 400 });
     return Response.json(await createUser(actor.id, body), { status: 201, headers: { "Cache-Control": "no-store" } });
   } catch (error) {
-    return Response.json({ error: error instanceof UserManagementError ? error.message : "The account could not be created." }, { status: error instanceof UserManagementError ? error.status : 503 });
+    return error instanceof UserManagementError
+      ? Response.json({ error: error.message, errorBn: error.messageBn }, { status: error.status })
+      : Response.json({ error: "The account could not be created.", errorBn: "অ্যাকাউন্টটি তৈরি করা যায়নি।" }, { status: 503 });
   }
 }

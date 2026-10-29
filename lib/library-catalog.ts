@@ -24,11 +24,21 @@ export class LibraryError extends Error {
 }
 const refuse = (text: Bilingual, status = 400) => new LibraryError(text.en, text.bn, status);
 
+/** A stored change, or null when the row is malformed or not a plain object (a hand-edited `null`, say). */
+function parseOverride(dataJson: string): SourceOverride | null {
+  try {
+    const parsed: unknown = JSON.parse(dataJson);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as SourceOverride : null;
+  } catch { return null; }
+}
+
 function readOverrides(db: Reader) {
   const rows = db.select().from(knowledgeSources).where(eq(knowledgeSources.active, true)).all();
   const overrides = new Map<string, SourceOverride>();
   for (const row of rows) {
-    try { overrides.set(row.id, JSON.parse(row.dataJson) as SourceOverride); } catch { /* a malformed row must not break the library */ }
+    // A malformed row must not break the library: it is left out, as the start-up migration leaves it alone.
+    const override = parseOverride(row.dataJson);
+    if (override) overrides.set(row.id, override);
   }
   return { rows, overrides };
 }
@@ -132,7 +142,7 @@ export async function updateLibrarySource(actor: Staff & { email: string }, id: 
     const row = tx.select().from(knowledgeSources).where(eq(knowledgeSources.id, id)).get();
     if (!isBaseline && !row) throw refuse({ en: "Source not found.", bn: "উৎসটি পাওয়া যায়নি।" }, 404);
     let before: SourceOverride = {};
-    if (row) { try { before = JSON.parse(row.dataJson) as SourceOverride; } catch { before = {}; } }
+    if (row) before = parseOverride(row.dataJson) ?? {};
     const decision = raw.heldLinks;
     if (decision !== undefined && decision !== "restore" && decision !== "discard") {
       throw refuse({ en: "Choose to restore or discard the held link.", bn: "আটকে রাখা লিংকটি ফিরিয়ে আনবেন না বাদ দেবেন, বেছে নিন।" });

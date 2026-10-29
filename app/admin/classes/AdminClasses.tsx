@@ -97,7 +97,7 @@ export default function AdminClasses({ name }: { name: string }) {
   }
 
   const teacherOptions = (teachers ?? []).map((teacher) => <option key={teacher.id} value={teacher.id}>{teacher.displayName} · {teacher.email}</option>);
-  return <PortalShell role="admin" name={name} active="classes" language={language} toggleLanguage={toggleLanguage}>
+  return <PortalShell role="admin" name={name} active="admin-classes" language={language} toggleLanguage={toggleLanguage}>
     <h1>{s("Classes and allocation", "ক্লাস ও বরাদ্দ")}</h1><p>{s("Create classes for teachers, change who teaches a class and allocate registered students. Existing learning records are retained when access is removed.", "শিক্ষকদের জন্য ক্লাস তৈরি করুন, কোন শিক্ষক ক্লাস পড়াবেন তা বদলান এবং নিবন্ধিত শিক্ষার্থীদের বরাদ্দ করুন। প্রবেশাধিকার সরালেও আগের শেখার রেকর্ড থেকে যায়।")}</p>
     {error && <p role="alert" className="auth-error">{localMessage(error, language, ["Classes could not be loaded. Please reload the page.", "ক্লাসগুলো লোড করা যায়নি। পাতাটি আবার লোড করুন।"])}</p>}
     {actionError && <p role="alert" className="auth-error">{localMessage(actionError.data, language, actionError.fallback)}</p>}

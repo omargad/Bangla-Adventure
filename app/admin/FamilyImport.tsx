@@ -106,7 +106,8 @@ export default function FamilyImport({ language, onImported, onPasswordsChange, 
             <div><dt>{both("Sign in at", "সাইন ইনের ঠিকানা")}</dt><dd>{origin}/grown-ups</dd></div>
           </dl>
           <table><thead><tr><th>{both("Student", "শিক্ষার্থী")}</th><th>{both("Username", "ব্যবহারকারীর নাম")}</th><th>{both("Temporary password", "অস্থায়ী পাসওয়ার্ড")}</th></tr></thead>
-            <tbody>{group.children.map((child) => <tr key={child.username}><td>{child.studentName}</td><td><code>{child.username}</code></td><td>{child.temporaryPassword ? <code>{child.temporaryPassword}</code> : both("Existing account, password unchanged", "আগের অ্যাকাউন্ট, পাসওয়ার্ড বদলায়নি")}</td></tr>)}</tbody></table>
+            {/* Each cell carries its column name, so a phone can stack a child's details instead of hiding the password off the edge. */}
+            <tbody>{group.children.map((child) => <tr key={child.username}><td data-label={both("Student", "শিক্ষার্থী")}>{child.studentName}</td><td data-label={both("Username", "ব্যবহারকারীর নাম")}><code>{child.username}</code></td><td data-label={both("Temporary password", "অস্থায়ী পাসওয়ার্ড")}>{child.temporaryPassword ? <code>{child.temporaryPassword}</code> : both("Existing account, password unchanged", "আগের অ্যাকাউন্ট, পাসওয়ার্ড বদলায়নি")}</td></tr>)}</tbody></table>
           <p>{both(`Students sign in at ${origin}/student with their username. Everyone chooses their own password at the first sign-in.`, `শিক্ষার্থীরা ${origin}/student ঠিকানায় ব্যবহারকারীর নাম দিয়ে সাইন ইন করবে। প্রথমবার সাইন ইন করে সবাই নিজের পাসওয়ার্ড বেছে নেবেন।`)}</p>
         </section>)}
       </div>

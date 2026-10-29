@@ -111,6 +111,49 @@ export function checkReview(target: { version: number; status: TopicVersionStatu
   }
 }
 
+/** The tick a reviewer gives before a topic reaches students, in both languages. */
+export const TOPIC_READ_CONFIRMATION: Bilingual = {
+  en: "I have read the whole topic, including its quiz, in English and Bangla",
+  bn: "আমি কুইজসহ পুরো বিষয়টি ইংরেজি ও বাংলায় পড়েছি",
+};
+export const readConfirmationMissing = () => new TopicError(`Tick “${TOPIC_READ_CONFIRMATION.en}” before approving.`, `অনুমোদনের আগে “${TOPIC_READ_CONFIRMATION.bn}” টিক দিন।`);
+
+export type TopicDecision = "withdraw" | "confirm" | "approve";
+/**
+ * A topic students may read, as a decision sees it: whether it has an approved version, whether a
+ * teacher withdrew it, and whether that version is a baseline nobody has reviewed yet.
+ */
+export type TopicStanding = { approved: boolean; withdrawn: boolean; unreviewedBaseline: boolean };
+
+/**
+ * Checks a decision on a topic's approved version and returns it with its trimmed note. Withdrawing
+ * hides the topic from students and needs a reason; confirming records a review of a baseline topic
+ * without changing it; approving shows a withdrawn topic again. Confirming and approving need the
+ * reviewer's tick that they read all of it in English and Bangla.
+ */
+export function checkTopicDecision(standing: TopicStanding, raw: Record<string, unknown>): { decision: TopicDecision; note: string } {
+  const decision = raw.decision;
+  if (decision !== "withdraw" && decision !== "confirm" && decision !== "approve") {
+    throw new TopicError("Choose to withdraw the topic, confirm your review or approve it again.", "বিষয়টি সরিয়ে নেওয়া, পর্যালোচনা নিশ্চিত করা বা আবার অনুমোদন করার একটি বেছে নিন।");
+  }
+  if (raw.note !== undefined && raw.note !== null && typeof raw.note !== "string") throw new TopicError("The note must be text.", "নোট লেখা আকারে দিন।");
+  const note = typeof raw.note === "string" ? raw.note.trim() : "";
+  if (note.length > TOPIC_LIMITS.note) throw new TopicError("Keep the note to 1000 characters.", "নোট ১০০০ অক্ষরের মধ্যে রাখুন।");
+  if (!standing.approved) throw new TopicError("This topic has no approved version yet. Review its waiting version instead.", "এই বিষয়ের এখনো কোনো অনুমোদিত সংস্করণ নেই। অপেক্ষায় থাকা সংস্করণটি পর্যালোচনা করুন।", 409);
+  if (decision === "withdraw") {
+    if (!note) throw new TopicError("Say why you are withdrawing the topic, so colleagues know what to fix.", "বিষয়টি কেন সরিয়ে নিচ্ছেন লিখুন, যাতে সহকর্মীরা জানেন কী ঠিক করতে হবে।");
+    if (standing.withdrawn) throw new TopicError("Students already cannot see this topic. Reload to see its status.", "শিক্ষার্থীরা এই বিষয় আগে থেকেই দেখতে পায় না। অবস্থা দেখতে আবার খুলুন।", 409);
+    return { decision, note };
+  }
+  if (raw.confirmedRead !== true) throw readConfirmationMissing();
+  if (decision === "approve" && !standing.withdrawn) throw new TopicError("Students can already see this topic. Reload to see its status.", "শিক্ষার্থীরা এই বিষয় আগে থেকেই দেখতে পায়। অবস্থা দেখতে আবার খুলুন।", 409);
+  if (decision === "confirm") {
+    if (standing.withdrawn) throw new TopicError("This topic is withdrawn. Approve it again to show it to students.", "বিষয়টি সরিয়ে নেওয়া হয়েছে। শিক্ষার্থীদের দেখাতে আবার অনুমোদন করুন।", 409);
+    if (!standing.unreviewedBaseline) throw new TopicError("This version has already been reviewed. Reload to see who reviewed it.", "এই সংস্করণটি আগেই পর্যালোচনা হয়েছে। কে করেছেন দেখতে আবার খুলুন।", 409);
+  }
+  return { decision, note };
+}
+
 /**
  * Status changes when a version is approved: it becomes the one students see, the
  * previously approved version is superseded, and older pending versions (which the
