@@ -41,7 +41,7 @@ Confidence: **high** — the Jira item clearly describes this file; **medium** �
 | `app/admin/UserManagement.tsx` | [@Tlm0v](https://github.com/Tlm0v) | [SCRUM-48](https://ictprojectb26.atlassian.net/browse/SCRUM-48) | high | [`6c06ffc`](https://github.com/omargad/Bangla-Adventure/commit/6c06ffcd69b0922708477e78ca67dbedaa24f30d) | — |
 | `app/admin/classes/AdminClasses.tsx` | [@MohammedAlAjmi24](https://github.com/MohammedAlAjmi24) | [SCRUM-86](https://ictprojectb26.atlassian.net/browse/SCRUM-86) | medium | [`21f86fa`](https://github.com/omargad/Bangla-Adventure/commit/21f86fa270eb82dcd9b1c6ae5a86c1c12e824d8c) | — |
 | `app/admin/classes/page.tsx` | [@MohammedAlAjmi24](https://github.com/MohammedAlAjmi24) | [SCRUM-86](https://ictprojectb26.atlassian.net/browse/SCRUM-86) | medium | [`21f86fa`](https://github.com/omargad/Bangla-Adventure/commit/21f86fa270eb82dcd9b1c6ae5a86c1c12e824d8c) | — |
-| `app/admin/curriculum/CurriculumEditor.tsx` | [@Tlm0v](https://github.com/Tlm0v) | [SCRUM-50](https://ictprojectb26.atlassian.net/browse/SCRUM-50) | high | [`c6fc3fb`](https://github.com/omargad/Bangla-Adventure/commit/c6fc3fbf3915bb7772b7250c610a705cab0159a7) | — |
+| `app/admin/curriculum/CurriculumEditor.tsx` (since removed) | [@Tlm0v](https://github.com/Tlm0v) | [SCRUM-50](https://ictprojectb26.atlassian.net/browse/SCRUM-50) | high | [`c6fc3fb`](https://github.com/omargad/Bangla-Adventure/commit/c6fc3fbf3915bb7772b7250c610a705cab0159a7) | — |
 | `app/admin/curriculum/page.tsx` | [@Tlm0v](https://github.com/Tlm0v) | [SCRUM-50](https://ictprojectb26.atlassian.net/browse/SCRUM-50) | high | [`c6fc3fb`](https://github.com/omargad/Bangla-Adventure/commit/c6fc3fbf3915bb7772b7250c610a705cab0159a7) | — |
 | `app/admin/page.tsx` | [@Tlm0v](https://github.com/Tlm0v) | [SCRUM-47](https://ictprojectb26.atlassian.net/browse/SCRUM-47) | medium | [`8cc88be`](https://github.com/omargad/Bangla-Adventure/commit/8cc88be61c933dcccf17df53b946d4936902c897) | — |
 | `app/adventure/page.tsx` | [@104985376](https://github.com/104985376) | [SCRUM-37](https://ictprojectb26.atlassian.net/browse/SCRUM-37) | medium | [`dd7fee9`](https://github.com/omargad/Bangla-Adventure/commit/dd7fee9d94c4afb4fcc47042adc267b28ae475c7) | — |
@@ -54,7 +54,7 @@ Confidence: **high** — the Jira item clearly describes this file; **medium** �
 | `app/api/account/password/route.ts` | [@omargad](https://github.com/omargad) | [SCRUM-53](https://ictprojectb26.atlassian.net/browse/SCRUM-53) | high | [`ab8d3b2`](https://github.com/omargad/Bangla-Adventure/commit/ab8d3b224bc5a3bf7171d8028fa6c91a26ad39a9) | unchanged, [`6d34040`](https://github.com/omargad/Bangla-Adventure/commit/6d340407b017648343a4134e5ef9751a4d278a8e) (3 Aug) |
 | `app/api/account/recovery-codes/route.ts` | [@omargad](https://github.com/omargad) | [SCRUM-90](https://ictprojectb26.atlassian.net/browse/SCRUM-90) | high | [`5048755`](https://github.com/omargad/Bangla-Adventure/commit/5048755ceb6dfe0d52aa6292f3fca36e8949f625) | unchanged, [`6d34040`](https://github.com/omargad/Bangla-Adventure/commit/6d340407b017648343a4134e5ef9751a4d278a8e) (3 Aug) |
 | `app/api/account/sessions/route.ts` | [@omargad](https://github.com/omargad) | [SCRUM-53](https://ictprojectb26.atlassian.net/browse/SCRUM-53) | high | [`ab8d3b2`](https://github.com/omargad/Bangla-Adventure/commit/ab8d3b224bc5a3bf7171d8028fa6c91a26ad39a9) | unchanged, [`6d34040`](https://github.com/omargad/Bangla-Adventure/commit/6d340407b017648343a4134e5ef9751a4d278a8e) (3 Aug) |
-| `app/api/admin/curriculum/route.ts` | [@Tlm0v](https://github.com/Tlm0v) | [SCRUM-50](https://ictprojectb26.atlassian.net/browse/SCRUM-50) | high | [`c6fc3fb`](https://github.com/omargad/Bangla-Adventure/commit/c6fc3fbf3915bb7772b7250c610a705cab0159a7) | — |
+| `app/api/admin/curriculum/route.ts` (since removed) | [@Tlm0v](https://github.com/Tlm0v) | [SCRUM-50](https://ictprojectb26.atlassian.net/browse/SCRUM-50) | high | [`c6fc3fb`](https://github.com/omargad/Bangla-Adventure/commit/c6fc3fbf3915bb7772b7250c610a705cab0159a7) | — |
 | `app/api/admin/family-links/route.ts` | [@omargad](https://github.com/omargad) | Not tracked in Jira | medium | [`c36c187`](https://github.com/omargad/Bangla-Adventure/commit/c36c187b3d182469254b1ca9fbdfc147f5562bf1) | — |
 | `app/api/admin/users/[id]/route.ts` | [@Tlm0v](https://github.com/Tlm0v) | [SCRUM-48](https://ictprojectb26.atlassian.net/browse/SCRUM-48) | high | [`6c06ffc`](https://github.com/omargad/Bangla-Adventure/commit/6c06ffcd69b0922708477e78ca67dbedaa24f30d) | — |
 | `app/api/admin/users/route.ts` | [@Tlm0v](https://github.com/Tlm0v) | [SCRUM-48](https://ictprojectb26.atlassian.net/browse/SCRUM-48) | high | [`6c06ffc`](https://github.com/omargad/Bangla-Adventure/commit/6c06ffcd69b0922708477e78ca67dbedaa24f30d) | — |
@@ -170,7 +170,7 @@ Confidence: **high** — the Jira item clearly describes this file; **medium** �
 | `app/stories/page.tsx` | [@MAQ022](https://github.com/MAQ022) | [SCRUM-40](https://ictprojectb26.atlassian.net/browse/SCRUM-40) | medium | [`f96c03a`](https://github.com/omargad/Bangla-Adventure/commit/f96c03a13d65d76f0c0e92bf2c7fa401b006a5e0) | unchanged, [`12f45a2`](https://github.com/omargad/Bangla-Adventure/commit/12f45a22a6065ece6dc38280686dd45b69d2312e) (4 Aug) |
 | `app/student/StudentPortal.tsx` | [@MAQ022](https://github.com/MAQ022) | [SCRUM-84](https://ictprojectb26.atlassian.net/browse/SCRUM-84) | medium | [`b1ce40c`](https://github.com/omargad/Bangla-Adventure/commit/b1ce40caebe7c5d0d6a066de46cf9f5717ab4e84) | — |
 | `app/student/page.tsx` | [@bahaa11-prog](https://github.com/bahaa11-prog) | [SCRUM-38](https://ictprojectb26.atlassian.net/browse/SCRUM-38) | medium | [`ef89cb8`](https://github.com/omargad/Bangla-Adventure/commit/ef89cb82b123448ea68b59ebb374fa7afc7f9cf4) | — |
-| `app/studio/ContentStudio.tsx` | [@Tlm0v](https://github.com/Tlm0v) | [SCRUM-49](https://ictprojectb26.atlassian.net/browse/SCRUM-49) | medium | [`7ffbad2`](https://github.com/omargad/Bangla-Adventure/commit/7ffbad20cd76754edfb9fd9c91ca3cdb35c583cb) | unchanged, [`6d34040`](https://github.com/omargad/Bangla-Adventure/commit/6d340407b017648343a4134e5ef9751a4d278a8e) (3 Aug) |
+| `app/studio/ContentStudio.tsx` (since removed) | [@Tlm0v](https://github.com/Tlm0v) | [SCRUM-49](https://ictprojectb26.atlassian.net/browse/SCRUM-49) | medium | [`7ffbad2`](https://github.com/omargad/Bangla-Adventure/commit/7ffbad20cd76754edfb9fd9c91ca3cdb35c583cb) | unchanged, [`6d34040`](https://github.com/omargad/Bangla-Adventure/commit/6d340407b017648343a4134e5ef9751a4d278a8e) (3 Aug) |
 | `app/studio/page.tsx` | [@Tlm0v](https://github.com/Tlm0v) | [SCRUM-49](https://ictprojectb26.atlassian.net/browse/SCRUM-49) | medium | [`7ffbad2`](https://github.com/omargad/Bangla-Adventure/commit/7ffbad20cd76754edfb9fd9c91ca3cdb35c583cb) | earlier form, [`6d34040`](https://github.com/omargad/Bangla-Adventure/commit/6d340407b017648343a4134e5ef9751a4d278a8e) (3 Aug) |
 | `app/teach/TeacherAccess.tsx` | [@MohammedAlAjmi24](https://github.com/MohammedAlAjmi24) | [SCRUM-43](https://ictprojectb26.atlassian.net/browse/SCRUM-43) | high | [`62b28af`](https://github.com/omargad/Bangla-Adventure/commit/62b28af755dea02da7ddda43ca4d61171ad1043d) | — |
 | `app/teach/TeacherDashboard.tsx` | [@MohammedAlAjmi24](https://github.com/MohammedAlAjmi24) | [SCRUM-43](https://ictprojectb26.atlassian.net/browse/SCRUM-43) | high | [`62b28af`](https://github.com/omargad/Bangla-Adventure/commit/62b28af755dea02da7ddda43ca4d61171ad1043d) | earlier form, [`cab38f8`](https://github.com/omargad/Bangla-Adventure/commit/cab38f8a52cd5593bd01f603e7aedf12f56b3bca) (10 Aug) |
@@ -631,18 +631,59 @@ These files were added after the package import by the commits that created them
 - `.github/CODEOWNERS`
 - `.nvmrc`
 - `CONTRIBUTIONS.md`
+- `app/account/password/AdultPasswordForm.tsx`
+- `app/account/password/page.tsx`
+- `app/admin/FamilyImport.tsx`
 - `app/admin/results/AdminResults.tsx`
 - `app/admin/results/page.tsx`
+- `app/admin/sources/AdminSources.tsx`
+- `app/admin/sources/page.tsx`
+- `app/adventure/AdventureApp.tsx`
 - `app/adventure/layout.tsx`
+- `app/api/admin/families/import/route.ts`
 - `app/api/admin/results/route.ts`
+- `app/api/admin/teachers/route.ts`
+- `app/api/admin/users/[id]/password/route.ts`
+- `app/api/audio/[lessonId]/route.ts`
+- `app/api/classes/[id]/attendance/route.ts`
+- `app/api/classes/[id]/sources/route.ts`
 - `app/api/classes/[id]/students/import/route.ts`
+- `app/api/classes/[id]/topic-progress/route.ts`
+- `app/api/family/sources/route.ts`
 - `app/api/student/password/route.ts`
+- `app/api/studio/lessons/[id]/route.ts`
+- `app/api/studio/lessons/route.ts`
+- `app/api/studio/media/[id]/route.ts`
+- `app/api/topics/[id]/route.ts`
+- `app/api/topics/[id]/versions/[version]/route.ts`
+- `app/api/topics/route.ts`
 - `app/certificate/layout.tsx`
+- `app/components/ClassAttendance.tsx`
+- `app/components/Gradebook.tsx`
 - `app/components/PasswordChangeGate.tsx`
 - `app/components/StudentImport.tsx`
+- `app/components/VoiceNote.tsx`
+- `app/components/leave-guard.ts`
+- `app/references/ClassSourceList.tsx`
+- `app/references/ReferenceNote.tsx`
+- `app/references/ReferencesView.tsx`
+- `app/references/SourceLinks.tsx`
 - `app/student/password/StudentPasswordForm.tsx`
 - `app/student/password/page.tsx`
+- `app/studio/LessonMedia.tsx`
+- `app/studio/LessonReview.tsx`
+- `app/studio/LessonStudio.tsx`
+- `app/studio/SpecialistChecks.tsx`
+- `app/studio/labels.ts`
+- `app/teach/ClassSources.tsx`
+- `app/teach/topics/TopicEditor.tsx`
+- `app/teach/topics/TopicReview.tsx`
+- `app/teach/topics/TopicStudio.tsx`
+- `app/teach/topics/page.tsx`
+- `app/teach/topics/shared.ts`
+- `app/topics/TopicReader.tsx`
 - `compose.yaml`
+- `db/content-migration.ts`
 - `docs/ACCEPTANCE.md`
 - `docs/BACKUP_RESTORE.md`
 - `docs/JIRA_TASK_MAP.md`
@@ -663,24 +704,79 @@ These files were added after the package import by the commits that created them
 - `infra/custom-app/README.md`
 - `infra/custom-app/app.env.example`
 - `infra/custom-app/bangla-adventures.service`
+- `lib/announcements.ts`
+- `lib/attendance.ts`
 - `lib/class-access.ts`
+- `lib/class-announcements.ts`
+- `lib/class-attendance.ts`
+- `lib/class-management.ts`
+- `lib/class-roster.ts`
+- `lib/class-sources.ts`
 - `lib/csv.ts`
+- `lib/families.ts`
+- `lib/family-import.ts`
+- `lib/gradebook.ts`
 - `lib/grades.ts`
+- `lib/lesson-approval.ts`
+- `lib/lesson-model.ts`
+- `lib/library-catalog.ts`
+- `lib/library-links.ts`
+- `lib/local-format.ts`
 - `lib/student-import.ts`
+- `lib/topic-model.ts`
+- `lib/use-voice-player.ts`
+- `lib/voice-playback.ts`
+- `lib/voice-player.ts`
+- `public/audio/voice-manifest.json`
 - `scripts/backup-offsite.sh`
 - `scripts/backup_restore.py`
 - `scripts/restore.sh`
 - `scripts/test-container.sh`
+- `tests/account-approval.test.mjs`
+- `tests/announcements.test.mjs`
+- `tests/attendance.test.mjs`
 - `tests/backup_restore_test.py`
 - `tests/class-access.test.mjs`
+- `tests/class-allocation.test.mjs`
+- `tests/class-attendance-db.test.mjs`
+- `tests/class-management.test.mjs`
+- `tests/class-sources.test.mjs`
 - `tests/csv.test.mjs`
+- `tests/e2e/accounts.spec.ts`
 - `tests/e2e/admin-classes.spec.ts`
 - `tests/e2e/admin-results.spec.ts`
+- `tests/e2e/announcements.spec.ts`
+- `tests/e2e/attendance.spec.ts`
+- `tests/e2e/families.spec.ts`
+- `tests/e2e/lesson-approval.spec.ts`
+- `tests/e2e/sources.spec.ts`
 - `tests/e2e/student-import.spec.ts`
+- `tests/e2e/topic-approval.spec.ts`
+- `tests/e2e/voice-playback.spec.ts`
+- `tests/family-import-db.test.mjs`
+- `tests/family-import.test.mjs`
+- `tests/gradebook.test.mjs`
 - `tests/grades.test.mjs`
+- `tests/integration/account-approval-flow.test.mjs`
 - `tests/integration/admin-classes-flow.test.mjs`
 - `tests/integration/admin-results-flow.test.mjs`
+- `tests/integration/announcements-flow.test.mjs`
+- `tests/integration/attendance-flow.test.mjs`
+- `tests/integration/class-management-flow.test.mjs`
+- `tests/integration/class-picker-flow.test.mjs`
+- `tests/integration/family-import-flow.test.mjs`
+- `tests/integration/lesson-approval-flow.test.mjs`
+- `tests/integration/password-change-flow.test.mjs`
+- `tests/integration/sources-flow.test.mjs`
 - `tests/integration/student-import-flow.test.mjs`
+- `tests/integration/topic-approval-flow.test.mjs`
+- `tests/integration/voice-audio-flow.test.mjs`
+- `tests/lesson-approval.test.mjs`
+- `tests/library-catalog.test.mjs`
 - `tests/student-import-db.test.mjs`
 - `tests/student-import.test.mjs`
+- `tests/topic-approval.test.mjs`
+- `tests/use-language.test.mjs`
+- `tests/voice-assets.test.mjs`
+- `tests/voice-playback.test.mjs`
 - `docs/FILE_OWNERSHIP.md`

@@ -14,7 +14,7 @@ Bangladesh's culture, history and literature for Bangladeshi-heritage children o
 ![SQLite with Drizzle ORM](https://img.shields.io/badge/SQLite-Drizzle_ORM-003B57?logo=sqlite&logoColor=white)
 ![Node.js 22](https://img.shields.io/badge/Node.js-22-5FA04E?logo=nodedotjs&logoColor=white)
 
-[Features](#features) · [Screenshots](#screenshots) · [Status](#honest-delivery-status) · [Get started](#run-the-application-locally-or-in-codespaces) · [Deployment](#current-deployment-and-handover) · [Contributors](#project-contributors) · [Documents](#key-documents)
+[Features](#features) · [Client feedback](#client-feedback-28-october-2026) · [Screenshots](#screenshots) · [Status](#honest-delivery-status) · [Get started](#run-the-application-locally-or-in-codespaces) · [Deployment](#current-deployment-and-handover) · [Contributors](#project-contributors) · [Documents](#key-documents)
 
 </div>
 
@@ -30,10 +30,10 @@ The running deployment uses the **custom English–Bangla application**, followi
 
 | Role | What they can do |
 | --- | --- |
-| 🧒&nbsp;**Students** | Use My Learning, approved learning topics by category, allocated classes, activities, results and attendance, and the sources their teachers add for their classes (in My activities and on Sources & references). A student given a temporary password must choose their own at first sign-in; My Learning, the learning pages and the student APIs stay closed until they do. |
-| 🧑‍🏫&nbsp;**Teachers** | Join once an administrator approves them, find approved students by name or username and add them to a class with a tick, without class codes. Upload a CSV class list (`name`, optional `username`; up to 200 rows): a row with an existing student's username adds that student, and other rows create accounts with one-time temporary passwords. Student sign-in is rate-limited per account, so a whole class can sign in together from one school network. Read results as a gradebook (students A–Z down, activities across, `—` for work not submitted, activities done, average and attendance) with the topics each student has read, and take attendance by date with everyone ticked present by default. Write and edit topics, preview them in English and Bangla, approve them for students, withdraw a topic students read or record a review of one that came with the app (`/teach/topics`); preview, approve or withdraw the 18 lessons (`/studio`); and add sources for each of their classes. |
-| 🛡️&nbsp;**Administrators** | Approve or decline self-registered students, parents and teachers; create accounts and reset forgotten passwords with one-time temporary passwords on a printable sheet (adults and students must choose their own at first sign-in). Import families from one CSV (`student name`, `parent name`, `parent email`) to create and link students and parents, optionally in a class, with a sign-in sheet per family. Manage family links and class allocation, and write, preview and approve topics and lessons like teachers. Keep each NCTB textbook's yearly link up to date under Textbook links (`/admin/sources`, audited). Review, export and reset grades and results in every class (`/admin/results`, with each class's gradebook and attendance), and open any class from the teacher workspace. Create a class for an approved teacher or give a class to another teacher at `/admin/classes` (both audited). |
-| 👪&nbsp;**Parents** | See, read-only, the learning records, class attendance ("attended 3 of 5 classes") and class sources of the children an administrator has linked to them. |
+| 🧒&nbsp;**Students** | • My Learning: classes, activities, results and attendance<br>• Approved topics by category, with quizzes that count towards *Topics read*<br>• Announcements and sources for their classes<br>• Choose their own password at first sign-in when given a temporary one |
+| 🧑‍🏫&nbsp;**Teachers** | • Add students to a class by searching and ticking them, or upload a CSV class list<br>• Read results as a gradebook (students down, activities across, `—` for missing work) with attendance<br>• Take attendance by date, with everyone ticked present by default<br>• Post announcements to everyone, students only or parents only<br>• Write topics in English and Bangla, preview them in full and approve them for students (`/teach/topics`)<br>• Preview, approve or withdraw the 18 lessons (`/studio`), and add sources for each class |
+| 🛡️&nbsp;**Administrators** | • Approve or decline self-registered students, parents and teachers<br>• Create accounts and reset passwords with one-time temporary passwords on a printable sheet<br>• Import families from one CSV (`student name`, `parent name`, `parent email`), linked automatically<br>• Create classes for teachers or hand a class to another teacher (`/admin/classes`)<br>• Keep each NCTB textbook's yearly link up to date (`/admin/sources`)<br>• Review, export and reset results and attendance in every class (`/admin/results`); every change is audited |
+| 👪&nbsp;**Parents** | • Read-only view of linked children's results, attendance and class sources<br>• Announcements meant for parents |
 
 Learning content requires sign-in. Students see only approved topics: a new or edited topic
 stays hidden until a teacher or administrator has previewed all of it in English and Bangla
@@ -44,6 +44,26 @@ marked that way for staff, because they have not been individually reviewed.
 the running portals are retired. The Moodle pilot remains an alternative implementation, not the
 current live account and classroom system, and its hidden-course and publication gates remain
 intact. See the [Moodle-first MVP plan](docs/MOODLE_FIRST_MVP.md) for that earlier plan.
+
+## Client feedback: 28 October 2026
+
+Dr Tanjila Kanij reviewed the running site with the team on 28 October 2026. Her requests and
+where they stand:
+
+| Request | Status |
+| --- | --- |
+| One CSV with student name, parent name and parent e-mail creates and links the accounts | ✅ Administrator family import with a printable sign-in sheet |
+| Teachers add students from a list instead of remembering names | ✅ Search and tick; a class CSV can also add existing students |
+| Announcements to everyone, parents only or students only | ✅ Audience choice; parents see theirs on the family dashboard |
+| "Your child's" or "Your children's learning", by number of children | ✅ In English and Bangla |
+| Teachers create new lessons | ✅ Written as topics: sections and an optional quiz, in English and Bangla |
+| See the whole lesson, including the Bangla, before approving it | ✅ Full preview in English, Bangla or side by side; approval needs both confirmed |
+| Unapproved content never reaches students | ✅ Topics and lessons; content that shipped with the app starts approved |
+| Group lessons into categories and fix wrong ones | ✅ Lessons grouped (for example *General conversation*); *Symbols of Bangladesh* moved out of History |
+| Results stay readable with many students | ✅ Gradebook table |
+| Attendance (optional) | ✅ Present by default; parents, students and administrators see "attended X of Y" |
+| Bangla pronunciation | 🟡 Recordings play first; a neural voice is ready once Faysal names a provider and gives a key |
+| Deploy on the client's server | ⬜ Waiting for server access |
 
 ## Screenshots
 
@@ -108,7 +128,7 @@ intact. See the [Moodle-first MVP plan](docs/MOODLE_FIRST_MVP.md) for that earli
 | --- | --- |
 | ✅ Custom platform for learners, teachers, parents and admins | Deployed; role checks, staff allocation, learning progress and parent monitoring implemented |
 | 🟡 Official NCTB catalogue and PDF audit | Source records implemented; a verified PDF is not an approved adaptation |
-| 🟡 Bilingual topic prototypes | Implemented as drafts; educational and community review remains |
+| 🟡 Bilingual topics and lessons | Teachers preview and approve content before students see it; the shipped content is approved as a baseline and still needs individual educator and community review |
 | 🟡 Bangla audio | Approved human recordings play first, then the device voice, then the bundled eSpeak voice; a neural provider (Azure) path is ready for a key; reviewed recordings remain incomplete |
 | 🟡 Application deployment and operations | Existing-host reference configuration, portable service and Compose setup, and backup and restore tools included; actual hosting ownership, off-server scheduling and recovery evidence require operator handover |
 | 🟡 Moodle pilot course | Installable hidden-course plugin implemented: 15 bilingual chapters, nine activities and nine questions |
