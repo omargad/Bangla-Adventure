@@ -6,7 +6,7 @@ const url = (path) => new URL(path, "https://school.example");
 
 test("only welcome, authentication, health and limited presentation assets are public", () => {
   for (const path of ["/welcome", "/grown-ups", "/student", "/safety", "/api/auth/sign-in", "/api/auth/sign-up", "/api/auth/recover", "/api/student/sign-in", "/api/student/sign-up", "/api/health", "/sw.js", "/favicon.svg", "/hero-quest-map.webp", "/robots.txt", "/manifest.webmanifest", "/favicon.ico", "/apple-touch-icon.png", "/icon-192.png", "/icon-512.png", "/icon-maskable-512.png"]) assert.equal(isPublicPath(url(path)), true, path);
-  for (const path of ["/", "/learn", "/stories", "/topics", "/worksheets/hello-me", "/books", "/library", "/classroom", "/audio/hello-bn.ogg", "/api/library", "/api/audio/hello-me/dialogue", "/api/classroom/feed", "/api/auth/not-public", "/river-story.png", "/hero-quest-map.png", "/_next/static/chunks/app/page-secret.js"]) assert.equal(isPublicPath(url(path)), false, path);
+  for (const path of ["/", "/learn", "/stories", "/topics", "/worksheets/hello-me", "/books", "/library", "/classroom", "/audio/hello-bn.ogg", "/api/library", "/api/audio/hello-me/dialogue", "/api/classroom/feed", "/api/auth/not-public", "/river-story.png", "/river-story.webp", "/postcard-collage.webp", "/hero-quest-map.png", "/_next/static/chunks/app/page-secret.js"]) assert.equal(isPublicPath(url(path)), false, path);
 });
 
 test("hashed build files and public images are cached, pages, data and gated files are not", () => {
@@ -20,6 +20,8 @@ test("hashed build files and public images are cached, pages, data and gated fil
     assert.equal(cacheControl("/sw.js", "public"), "no-cache", "a new service worker is picked up on the next load");
     for (const path of ["/welcome", "/api/health", "/api/auth/session"]) assert.equal(cacheControl(path, "public"), "private, no-store", path);
     for (const path of ["/", "/learn", "/api/curriculum", "/audio/hello-bn.ogg", "/river-story.png", "/_next/image"]) assert.equal(cacheControl(path, "signed-in"), "private, no-store", path);
+    // The adventure page's pictures keep for a day, only in the signed-in browser.
+    for (const path of ["/river-story.webp", "/postcard-collage.webp"]) assert.equal(cacheControl(path, "signed-in"), "private, max-age=86400", path);
     process.env.NODE_ENV = "development";
     assert.equal(cacheControl("/_next/static/chunks/app/page.js", "signed-in"), "private, no-store", "development file names are reused");
     assert.equal(cacheControl("/_next/static/css/app/layout.css", "public"), "private, no-store");

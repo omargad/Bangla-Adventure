@@ -1397,7 +1397,7 @@ export default function AdventureApp({ approvedLessonIds, videos, recordings: in
 
         <section className="story-section" id="story">
           <div className="story-image-wrap">
-            <Image src="/river-story.png" width={1448} height={1086} alt={language === "en" ? "Two children travelling by boat through a colourful Bangladeshi river village" : "রঙিন এক বাংলাদেশি নদীর গ্রামের ভেতর দিয়ে নৌকায় চলেছে দুই শিশু"} />
+            <Image src="/river-story.webp" width={1448} height={1086} alt={language === "en" ? "Two children travelling by boat through a colourful Bangladeshi river village" : "রঙিন এক বাংলাদেশি নদীর গ্রামের ভেতর দিয়ে নৌকায় চলেছে দুই শিশু"} />
             <div className="paper-label">এক দেশে… <small>Once upon a river…</small></div>
           </div>
           <div className="story-copy">
@@ -1426,7 +1426,7 @@ export default function AdventureApp({ approvedLessonIds, videos, recordings: in
             <div className="passport-stamp" aria-hidden="true"><span>বাংলাদেশ</span><strong>EXPLORE</strong><small>21 · 02</small></div>
           </div>
           <div className="culture-layout">
-            <div className="collage-wrap"><Image src="/postcard-collage.png" width={1448} height={1086} alt={language === "en" ? "A cut-paper collage of a rickshaw, mangroves, a Bengal tiger and folk instruments" : "রিকশা, ম্যানগ্রোভ বন, বাঘ আর লোকবাদ্য দিয়ে কাগজ কেটে বানানো কোলাজ"} /></div>
+            <div className="collage-wrap"><Image src="/postcard-collage.webp" width={1448} height={1086} alt={language === "en" ? "A cut-paper collage of a rickshaw, mangroves, a Bengal tiger and folk instruments" : "রিকশা, ম্যানগ্রোভ বন, বাঘ আর লোকবাদ্য দিয়ে কাগজ কেটে বানানো কোলাজ"} /></div>
             <div className="place-list">
               {places.map((place) => (
                 <button className="place-card" type="button" key={place.id} onClick={() => { stopNarration(); playCue("tap"); setModal({ type: "place", id: place.id }); }}>
@@ -1842,7 +1842,7 @@ export default function AdventureApp({ approvedLessonIds, videos, recordings: in
 
             {modal.type === "story" && (
               <div className="story-reader">
-                <div className="story-reader-art"><Image src="/river-story.png" width={1448} height={1086} alt={language === "en" ? "Maya and Rafi travelling on the river" : "নদীতে নৌকায় চলেছে মায়া আর রাফি"} /><span>{storyPage + 1} / {storyPages.length + 1}</span></div>
+                <div className="story-reader-art"><Image src="/river-story.webp" width={1448} height={1086} alt={language === "en" ? "Maya and Rafi travelling on the river" : "নদীতে নৌকায় চলেছে মায়া আর রাফি"} /><span>{storyPage + 1} / {storyPages.length + 1}</span></div>
                 <div className="story-reader-copy">
                   <p className="modal-kicker">{t.storyKicker}</p>
                   <h2>{t.storyTitle}</h2>

@@ -15,9 +15,16 @@ export function isPublicPath(url: URL): boolean {
 }
 
 /**
+ * Pictures only signed-in pages show. Like the gated build files they are kept only in the signed-in
+ * browser, whose cache sign-out clears; they hold no personal data, so a day is safe.
+ */
+const SIGNED_IN_IMAGES = new Set(["/river-story.webp", "/postcard-collage.webp"]);
+
+/**
  * Cache-Control for a response the proxy lets through. Hashed build files keep for a year, in shared caches
- * only when anyone may load them; public files in public/ keep for a day; the service worker is checked on
- * every load; pages, API data and gated files are never stored.
+ * only when anyone may load them; public files in public/ keep for a day, and the pictures only signed-in
+ * pages show for a day in that browser; the service worker is checked on every load; pages, API data and
+ * other gated files are never stored.
  */
 export function cacheControl(pathname: string, access: "public" | "signed-in"): string {
   if (pathname.startsWith("/_next/")) {
@@ -27,6 +34,7 @@ export function cacheControl(pathname: string, access: "public" | "signed-in"): 
   }
   if (access === "public" && pathname === "/sw.js") return "no-cache";
   if (access === "public" && /\.[a-z0-9]+$/i.test(pathname)) return "public, max-age=86400";
+  if (access === "signed-in" && SIGNED_IN_IMAGES.has(pathname)) return "private, max-age=86400";
   return "private, no-store";
 }
 

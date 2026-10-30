@@ -192,7 +192,7 @@ test("learning pages, media and content bundles require a real session", async (
     expect(new URL(response.headers().location, baseURL).pathname).toBe("/welcome");
     expect(new URL(response.headers().location, baseURL).origin).toBe(new URL(baseURL!).origin);
   }
-  for (const url of ["/api/curriculum", "/api/library", "/audio/hello-bn.ogg", "/river-story.png"]) expect((await page.request.get(url)).status()).toBe(401);
+  for (const url of ["/api/curriculum", "/api/library", "/audio/hello-bn.ogg", "/river-story.webp"]) expect((await page.request.get(url)).status()).toBe(401);
   const html = await (await page.request.get("/")).text();
   expect(html).not.toContain("Maya and the moonlit boat");
   await page.context().setExtraHTTPHeaders({ "x-forwarded-for": `gate-${randomUUID()}` });

@@ -91,11 +91,31 @@ test("public images keep for a day, the service worker is rechecked and pages, d
   assert.equal(worker.status, 200);
   assert.equal(worker.headers.get("cache-control"), "no-cache");
 
-  for (const [route, cookie] of [["/welcome"], ["/adventure", studentCookie], ["/api/health"], ["/api/curriculum", studentCookie], ["/audio/hello-bn.ogg", studentCookie], ["/river-story.png", studentCookie]]) {
+  for (const [route, cookie] of [["/welcome"], ["/adventure", studentCookie], ["/api/health"], ["/api/curriculum", studentCookie], ["/audio/hello-bn.ogg", studentCookie]]) {
     const response = await send(route, cookie);
     assert.equal(response.status, 200, route);
     assert.equal(response.headers.get("cache-control"), "private, no-store", route);
     assert.equal(response.headers.get("x-content-type-options"), "nosniff", route);
+  }
+});
+
+test("the adventure page's pictures are small WebP files kept a day only in the signed-in browser", async () => {
+  const html = await (await send("/adventure", studentCookie)).text();
+  for (const route of ["/river-story.webp", "/postcard-collage.webp"]) {
+    assert.ok(html.includes(`src="${route}"`), `the adventure page uses ${route}`);
+    const signedIn = await send(route, studentCookie);
+    assert.equal(signedIn.status, 200, route);
+    assert.equal(signedIn.headers.get("content-type"), "image/webp", route);
+    assert.equal(signedIn.headers.get("cache-control"), "private, max-age=86400", route);
+    assert.ok(Number(signedIn.headers.get("content-length")) <= 300_000, `${route} stays small`);
+    const signedOut = await send(route);
+    assert.equal(signedOut.status, 401, route);
+    assert.equal(signedOut.headers.get("cache-control"), "private, no-store", route);
+  }
+  for (const route of ["/river-story.png", "/postcard-collage.png"]) {
+    const old = await send(route, studentCookie);
+    assert.equal(old.status, 404, `the old 3 MB ${route} is gone`);
+    assert.match(old.headers.get("cache-control"), /no-store/, route);
   }
 });
 
