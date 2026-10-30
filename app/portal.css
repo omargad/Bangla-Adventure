@@ -86,6 +86,9 @@
  .portal-shell { display:block; }
  .portal-sidebar { position:fixed; width:245px; left:-260px; visibility:hidden; transition:left .18s; box-shadow:5px 0 25px #17324d22; padding-top:86px; }
  .portal-sidebar.is-open { left:0; visibility:visible; }
+ /* The new-version, offline and install notice sits over the foot of the screen (up to 133px tall on the narrowest
+    phones). The open menu scrolls past it, so its last items and any item that takes focus stay clear to tap and see. */
+ body:has(.pwa-status) .portal-sidebar.is-open { padding-bottom:150px; scroll-padding-bottom:150px; }
  .portal-sidebar nav :is(a,button) { padding:10px 14px; }
  .portal-content .teach-class-head { grid-template-columns:minmax(0,1fr) auto; }
  .portal-content .teach-class-title { grid-column:1 / -1; grid-row:2; }

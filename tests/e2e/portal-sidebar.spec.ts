@@ -1,4 +1,4 @@
-import { test, expect, request as apiRequest, type APIRequestContext, type Page } from "@playwright/test";
+import { test, expect, request as apiRequest, type APIRequestContext, type Locator, type Page } from "@playwright/test";
 import Database from "better-sqlite3";
 import { randomUUID } from "node:crypto";
 
@@ -324,6 +324,71 @@ test("at phone width the Menu shows the same groups, and the open class's sectio
     await nav.getByRole("button", { name: "All classes", exact: true }).click();
     await menu.click();
     await expect(open).toHaveCount(0);
+    expect(seen).toEqual([]);
+  } finally {
+    await context.close();
+  }
+});
+
+test("at phone width a notice at the foot of the screen leaves the Menu's last items clear to tap", async ({ browser, baseURL }) => {
+  test.setTimeout(120000);
+  const suffix = randomUUID().slice(0, 8), email = `sidebar-notice-${suffix}@example.com`;
+  const api = await apiRequest.newContext({ baseURL });
+  try { await staff(api, email, "Sidebar Notice Admin", "admin"); } finally { await api.dispose(); }
+  const context = await browser.newContext({ baseURL, viewport: { width: 390, height: 844 } });
+  try {
+    const page = await context.newPage();
+    await signIn(page, email);
+    const seen = problems(page);
+    // A new release has gone live since the page loaded, so the "new version" notice shows at the foot of the screen.
+    await page.route("**/api/auth/session", async (route) => {
+      const response = await route.fetch();
+      await route.fulfill({ response, json: { ...(await response.json()), release: "next-release" } });
+    });
+    const menu = page.locator(".portal-menu"), aside = page.locator(".portal-sidebar"), notice = page.locator(".pwa-status");
+    const last = [page.locator("#portal-navigation a[href='/account']"), page.locator(".portal-signout")];
+    /** Whether a tap at the centre of the item reaches it, rather than something drawn over it. */
+    const tappable = (item: Locator) => item.evaluate((element) => {
+      const box = element.getBoundingClientRect();
+      const hit = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
+      return !!hit && (element === hit || element.contains(hit));
+    });
+    const openToTheEnd = async (shown: string) => {
+      await expect(notice).toContainText(shown);
+      await menu.click();
+      await expect(aside).toHaveClass(/is-open/);
+      await expect(notice).toBeVisible();
+      // The menu scrolls when it is taller than the screen; at its end Account & recovery and Sign out sit above the notice.
+      await aside.evaluate((element) => element.scrollTo(0, element.scrollHeight));
+      for (const item of last) await expect.poll(() => tappable(item), { message: `${shown}: ${await item.innerText()}` }).toBe(true);
+      await page.keyboard.press("Escape");
+      await expect(aside).not.toHaveClass(/is-open/);
+    };
+
+    await page.goto("/admin");
+    await openToTheEnd("A new version is ready");
+    // The notice is tallest on the narrowest phones.
+    await page.setViewportSize({ width: 320, height: 568 });
+    await openToTheEnd("A new version is ready");
+    // From the keyboard, each item that takes focus is scrolled clear of the notice, so its focus ring shows.
+    await menu.focus();
+    await page.keyboard.press("Enter");
+    await expect(aside).toHaveClass(/is-open/);
+    const walked: string[] = [];
+    for (let step = 0; step < 20 && walked.at(-1) !== "Sign out"; step += 1) {
+      await page.keyboard.press("Tab");
+      const focused = page.locator(":focus");
+      walked.push((await focused.innerText()).trim());
+      await expect.poll(() => tappable(focused), { message: `focus on ${walked.at(-1)}` }).toBe(true);
+    }
+    expect(walked.slice(-2)).toEqual(["Account & recovery", "Sign out"]);
+    await page.keyboard.press("Escape");
+    await expect(aside).not.toHaveClass(/is-open/);
+    await context.setOffline(true);
+    await openToTheEnd("You are offline");
+    await context.setOffline(false);
+    await page.getByRole("button", { name: "বাংলা", exact: true }).click();
+    await openToTheEnd("নতুন সংস্করণ এসেছে");
     expect(seen).toEqual([]);
   } finally {
     await context.close();
