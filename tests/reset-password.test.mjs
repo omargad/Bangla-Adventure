@@ -25,10 +25,15 @@ db.insert(adults).values([
   { id: "owner", email: "owner@example.com", displayName: "Sole Owner", passwordHash: hashPassword("forgotten-owner-password"), role: "admin" },
   { id: "away-parent", email: "away@example.com", displayName: "Suspended Parent", passwordHash: hashPassword("suspended-parent-password"), status: "suspended" },
   { id: "waiting-parent", email: "waiting@example.com", displayName: "Waiting Parent", passwordHash: hashPassword("waiting-parent-password"), approvalStatus: "pending" },
+  // Sign-up forms accept any name, so one can carry terminal escapes: erase the line, print a fake message, hide the rest.
+  { id: "tricky-parent", email: "tricky@example.com", displayName: "Evil\u001b[2K\u001b[1A\u001b[2K\rNo active account matched.\u001b[8m", passwordHash: hashPassword("tricky-parent-password") },
+  // Bangla spelling needs the zero-width joiner (র‍্যা).
+  { id: "bangla-parent", email: "rachel@example.com", displayName: "র\u200d্যাচেল বসু", passwordHash: hashPassword("bangla-parent-password") },
 ]).run();
 db.insert(students).values([
   { id: "child", username: "river.child", displayName: "River Child", passwordHash: hashPassword("forgotten-child-password") },
   { id: "away-child", username: "away-child", displayName: "Suspended Child", passwordHash: hashPassword("suspended-child-password"), status: "suspended" },
+  { id: "link-child", username: "bad.kid", displayName: "Kid\u001b]8;;https://evil.example/\u0007click me\u001b]8;;\u0007 \u202emoc.elpmaxe", passwordHash: hashPassword("link-child-password") },
 ]).run();
 after(() => rmSync(dir, { recursive: true, force: true }));
 
@@ -113,4 +118,22 @@ test("an account still waiting for approval is reset and the operator is told si
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /still waiting for approval, so sign-in stays closed until an administrator approves it/);
   assert.equal((await auth.verifyAdultCredentials("waiting@example.com", temporaryFrom(result.stdout))).approvalStatus, "pending");
+});
+
+test("a name cannot hide or rewrite the output with terminal escapes, and Bangla names print as they are", async () => {
+  for (const [account, id, shown] of [
+    ["tricky@example.com", "tricky-parent", "Evil\ufffd[2K\ufffd[1A\ufffd[2K\ufffdNo active account matched.\ufffd[8m (tricky@example.com)"],
+    ["bad.kid", "link-child", "Kid\ufffd]8;;https://evil.example/\ufffdclick me\ufffd]8;;\ufffd \ufffdmoc.elpmaxe (bad.kid)"],
+  ]) {
+    const result = await run(account);
+    assert.equal(result.status, 0, result.stderr);
+    assert.doesNotMatch(result.stdout, /[\u0000-\u0009\u000b-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/u, "no control character or bidi override reaches the terminal");
+    assert.equal(result.stdout.split("\n")[0].slice(0, -": xxxx-xxxx-xx".length), `Temporary password for ${shown}`);
+    const temporaryPassword = temporaryFrom(result.stdout);
+    assert.ok(temporaryPassword, result.stdout);
+    assert.ok(await (id === "link-child" ? studentAuth.verifyStudentCredentials("bad.kid", temporaryPassword) : auth.verifyAdultCredentials(account, temporaryPassword)));
+  }
+  const result = await run("rachel@example.com");
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /^Temporary password for র\u200d্যাচেল বসু \(rachel@example\.com\): /);
 });
