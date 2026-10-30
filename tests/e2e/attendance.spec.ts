@@ -79,7 +79,7 @@ test("a teacher takes attendance with one student absent, and the gradebook show
 
   // The gradebook: one row per student, missing work shown as — (unlike Zara's real zero).
   await nav.getByRole("button", { name: "Results", exact: true }).click();
-  const gradebook = page.getByRole("region", { name: "Gradebook" });
+  const gradebook = page.getByRole("region", { name: "Gradebook", exact: true });
   await expect(gradebook.getByRole("columnheader")).toHaveCount(7);
   const rows = gradebook.getByRole("row");
   await expect(rows).toHaveCount(4);

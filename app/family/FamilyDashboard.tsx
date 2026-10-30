@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { lessons } from "../curriculum";
 import { useLanguage, type Language } from "../../lib/use-language";
 import { siteTitle } from "../../lib/site-title";
@@ -28,7 +27,7 @@ const skillLabels: Record<string, string> = {
 export default function FamilyDashboard({ adultName, approvedLessonIds }: { adultName: string; approvedLessonIds: string[] }) {
   // Only lessons a teacher has approved can be assigned to learners.
   const assignable = useMemo(() => visibleLessons(lessons, approvedLessonIds), [approvedLessonIds]);
-  const [language, toggleLanguage] = useLanguage({ title: siteTitle });
+  const [language] = useLanguage({ title: siteTitle });
   const s = useCallback((en: string, bn: string) => (language === "bn" ? bn : en), [language]);
   const skillLabel = (skill: string) => (language === "bn" ? skillLabels[skill] ?? skill : skill);
   const [profiles, setProfiles] = useState<Profile[]>([]);
@@ -146,22 +145,6 @@ export default function FamilyDashboard({ adultName, approvedLessonIds }: { adul
 
   return (
     <main className="adult-app" lang={language}>
-      <header className="adult-header">
-        <Link className="adult-brand" href="/"><span>বা</span><span><strong>Bangla Adventures</strong><small>{s("Grown-up dashboard", "বড়দের ড্যাশবোর্ড")}</small></span></Link>
-        <nav aria-label={s("Adult tools", "বড়দের মেনু")}>
-          <Link className="active" href="/family">{s("Learners", "শিক্ষার্থী")}</Link>
-          <Link href="/studio">{s("Lessons", "পাঠ")}</Link>
-          <Link href="/worksheets">{s("Worksheets", "ওয়ার্কশিট")}</Link>
-          <Link href="/safety">{s("Safety & access", "নিরাপত্তা ও প্রবেশ")}</Link>
-          <Link href="/account">{s("Account", "অ্যাকাউন্ট")}</Link>
-        </nav>
-        <div className="adult-account">
-          <button lang={language === "bn" ? "en" : "bn"} type="button" className="explore-lang" onClick={toggleLanguage}>{s("বাংলায় দেখুন", "View in English")}</button>
-          <span>{adultName}</span>
-          <a href="/api/auth/sign-out?returnTo=%2F">{s("Sign out", "সাইন আউট")}</a>
-        </div>
-      </header>
-
       <div className="adult-content">
       <section className="adult-hero">
         <div><p className="adult-eyebrow">{s("Family & educator workspace", "পরিবার ও শিক্ষকের কর্মক্ষেত্র")}</p><h1>{s("Guide a learner without giving them an account.", "অ্যাকাউন্ট ছাড়াই একজন শিক্ষার্থীকে পথ দেখান।")}</h1><p>{s(`Welcome, ${adultName}. Profiles are adult-managed; learners need only a display name. Assign any of 108 sessions, review each skill and export progress when useful.`, `স্বাগতম, ${adultName}। প্রোফাইল বড়রা পরিচালনা করেন; শিক্ষার্থীর কেবল একটি নাম লাগে। ১০৮টি সেশনের যেকোনোটি বরাদ্দ করুন, প্রতিটি দক্ষতা দেখুন এবং প্রয়োজনে অগ্রগতি রপ্তানি করুন।`)}</p></div>

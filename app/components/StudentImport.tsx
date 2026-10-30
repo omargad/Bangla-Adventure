@@ -46,8 +46,9 @@ export function downloadCsv(csv: string, filename: string) {
  * onPasswordsChange reports whether temporary passwords are on screen, so a parent that would
  * unmount this panel (closing or switching the class) can ask with confirmDiscardPasswords first.
  */
-export default function StudentImport({ classId, language = "en", onImported, onPasswordsChange }: { classId: string; language?: Language; onImported?: () => void; onPasswordsChange?: (shown: boolean) => void }) {
+export default function StudentImport({ classId, language = "en", headingLevel = 2, onImported, onPasswordsChange }: { classId: string; language?: Language; headingLevel?: 2 | 3; onImported?: () => void; onPasswordsChange?: (shown: boolean) => void }) {
   const s = (en: string, bn: string) => language === "bn" ? bn : en;
+  const [Heading, Subheading] = headingLevel === 3 ? ["h3", "h4"] as const : ["h2", "h3"] as const;
   const number = (value: number) => localNumber(value, language);
   const [file, setFile] = useState<File | null>(null);
   const [inputKey, setInputKey] = useState(0);
@@ -94,7 +95,7 @@ export default function StudentImport({ classId, language = "en", onImported, on
   const existing = result?.existing ?? [];
   const added = existing.filter((row) => !row.alreadyInClass).length;
   return <section className="teach-panel" aria-label={s("Add students from a CSV file", "CSV ফাইল থেকে শিক্ষার্থী যোগ করুন")}>
-    <h2>{s("Add students from a CSV file", "CSV ফাইল থেকে শিক্ষার্থী যোগ করুন")}</h2>
+    <Heading>{s("Add students from a CSV file", "CSV ফাইল থেকে শিক্ষার্থী যোগ করুন")}</Heading>
     <p>{s(`Use a header row with a "name" column and, optionally, a "username" column — up to ${MAX_IMPORT_ROWS} students per file. A row with the username of a student who already has an account adds that student to this class. Every other row gets a new account in this class and a temporary password; blank usernames are generated from the name.`, `প্রথম সারিতে "name" কলাম এবং চাইলে "username" কলাম রাখুন — প্রতি ফাইলে সর্বোচ্চ ${number(MAX_IMPORT_ROWS)} জন। যে শিক্ষার্থীর আগেই অ্যাকাউন্ট আছে, তার ব্যবহারকারীর নাম দিলে তাকে এই ক্লাসে যোগ করা হবে। বাকি প্রত্যেকে এই ক্লাসে একটি নতুন অ্যাকাউন্ট ও অস্থায়ী পাসওয়ার্ড পাবে; ব্যবহারকারীর নাম ফাঁকা থাকলে নাম থেকে তৈরি হবে।`)}</p>
     <p>{s("Temporary passwords are shown only once. Students must choose their own password the first time they sign in.", "অস্থায়ী পাসওয়ার্ড কেবল একবারই দেখানো হয়। প্রথমবার সাইন ইন করার সময় শিক্ষার্থীরা নিজের পাসওয়ার্ড বেছে নেবে।")}</p>
     <a className="outline-button" href={templateHref} download="student-list-template.csv">{s("Download the CSV template", "CSV টেমপ্লেট নামান")}</a>
@@ -110,7 +111,7 @@ export default function StudentImport({ classId, language = "en", onImported, on
         existing.length > 0 ? s(`${added} student${added === 1 ? "" : "s"} who already had an account added to this class${existing.length > added ? `; ${existing.length - added} ${existing.length - added === 1 ? "was" : "were"} already in it` : ""}.`, `আগে থেকে অ্যাকাউন্ট থাকা ${number(added)} জন শিক্ষার্থী এই ক্লাসে যোগ হয়েছে${existing.length > added ? `; ${number(existing.length - added)} জন আগেই ছিল` : ""}।`) : "",
       ].filter(Boolean).join(" ")}</p>
       {existing.length > 0 && <div className="portal-table">
-        <h3>{s("Already had an account", "আগেই অ্যাকাউন্ট ছিল")}</h3>
+        <Subheading>{s("Already had an account", "আগেই অ্যাকাউন্ট ছিল")}</Subheading>
         <p>{s("These students keep their own password.", "এই শিক্ষার্থীদের পাসওয়ার্ড আগের মতোই থাকবে।")}</p>
         <table><thead><tr><th>{s("Name", "নাম")}</th><th>{s("Username", "ব্যবহারকারীর নাম")}</th><th>{s("Class", "ক্লাস")}</th></tr></thead>
           <tbody>{existing.map((row) => <tr key={row.username}><td>{row.displayName}</td><td><code>{row.username}</code></td><td>{row.alreadyInClass ? s("Already in this class", "আগেই এই ক্লাসে ছিল") : s("Added", "যোগ হয়েছে")}</td></tr>)}</tbody></table>
@@ -123,7 +124,7 @@ export default function StudentImport({ classId, language = "en", onImported, on
           <button type="button" className="text-button" onClick={hidePasswords}>{s("Hide passwords", "পাসওয়ার্ড লুকান")}</button>
         </div>
         <div className="student-import-sheet portal-table">
-          <h3>{s("Student sign-in sheet", "শিক্ষার্থীর সাইন-ইন শিট")}</h3>
+          <Subheading>{s("Student sign-in sheet", "শিক্ষার্থীর সাইন-ইন শিট")}</Subheading>
           <p>{s("Sign in at", "সাইন ইন করো")} <strong>{signInUrl}</strong> {s("with your username and temporary password, then choose your own password.", "তোমার ব্যবহারকারীর নাম ও অস্থায়ী পাসওয়ার্ড দিয়ে, তারপর নিজের পাসওয়ার্ড বেছে নাও।")}</p>
           <table><thead><tr><th>{s("Name", "নাম")}</th><th>{s("Username", "ব্যবহারকারীর নাম")}</th><th>{s("Temporary password", "অস্থায়ী পাসওয়ার্ড")}</th></tr></thead>
             <tbody>{created.map((account) => <tr key={account.username}><td>{account.displayName}</td><td><code>{account.username}</code></td><td><code>{account.temporaryPassword}</code></td></tr>)}</tbody></table>

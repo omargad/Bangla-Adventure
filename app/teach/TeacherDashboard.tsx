@@ -113,13 +113,18 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
     ["results", s("Results", "ফলাফল"), s("Each student's scores, the submissions for each activity and the topics each student has read.", "প্রত্যেক শিক্ষার্থীর স্কোর, প্রতিটি কার্যক্রমের জমা আর কে কোন বিষয় পড়েছে।")],
     ["attendance", s("Attendance", "উপস্থিতি"), s("Mark who was present at each class session.", "প্রতিটি ক্লাসে কে উপস্থিত ছিল তা চিহ্নিত করুন।")],
     ["announcements", s("Announcements", "ঘোষণা"), s("Post a note for this class's students, their parents or both.", "এই ক্লাসের শিক্ষার্থী, অভিভাবক বা সবার জন্য ঘোষণা দিন।")],
-    ["sources", s("Class sources", "ক্লাসের উৎস"), s("Links that only this class's students see in Sources & references.", "যে লিংকগুলো শুধু এই ক্লাসের শিক্ষার্থীরা ‘উৎস ও তথ্যসূত্র’-এ দেখে।")],
+    ["sources", s("Class sources", "ক্লাসের উৎস"), s("Add links just for this class's students and their parents.", "শুধু এই ক্লাসের শিক্ষার্থী ও তাদের অভিভাবকদের জন্য লিংক যোগ করুন।")],
   ];
   const currentSection = sections.find(([id]) => id === section);
-  // After a pick from the sidebar (or opening or closing a class), take keyboard and screen-reader focus to the new heading.
+  // After a pick from the sidebar (or opening or closing a class), go back to the top, so the class bar is not left
+  // under the phone's sticky top bar, and take keyboard and screen-reader focus to the new heading.
   const heading = useRef<HTMLHeadingElement>(null);
   const [focusRequest, setFocusRequest] = useState(0);
-  useEffect(() => { if (focusRequest) heading.current?.focus(); }, [focusRequest]);
+  useEffect(() => {
+    if (!focusRequest) return;
+    window.scrollTo({ top: 0, behavior: "instant" });
+    heading.current?.focus({ preventScroll: true });
+  }, [focusRequest]);
 
   const [newClassName, setNewClassName] = useState("");
   const [announcement, setAnnouncement] = useState("");
@@ -421,9 +426,9 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
               {message && <p className="teach-message" role="status">{message}</p>}
             </div>}
             {/* Hidden rather than unmounted, so moving between sections keeps an upload's temporary passwords. */}
-            <div hidden={section !== "students"}><ClassAllocation key={detail.class.id} classId={detail.class.id} language={language} onPasswordsChange={setPasswordsOnScreen} onChange={() => { void loadClasses(); void openClass(detail.class.id); }} /></div>
-            <section hidden={section !== "results"} className="teach-panel" aria-label={s("Grades and results", "গ্রেড ও ফলাফল")}>
-              <h3>{s("Grades & results", "গ্রেড ও ফলাফল")}</h3>
+            <div className="teach-students" hidden={section !== "students"}><ClassAllocation key={detail.class.id} classId={detail.class.id} language={language} headingLevel={3} onPasswordsChange={setPasswordsOnScreen} onChange={() => { void loadClasses(); void openClass(detail.class.id); }} /></div>
+            <section hidden={section !== "results"} className="teach-panel" aria-label={s("Gradebook and attendance", "গ্রেডবুক ও উপস্থিতি")}>
+              <h3>{s("Gradebook and attendance", "গ্রেডবুক ও উপস্থিতি")}</h3>
               <div className="grade-tools">
                 <a className="outline-button" href={`/api/classes/${detail.class.id}/grades?format=csv`}>
                   {s("Export CSV", "CSV নামান")}
