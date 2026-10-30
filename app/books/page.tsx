@@ -33,9 +33,9 @@ const lessonTitleById = new Map(lessons.map((lesson) => [lesson.id, lesson.title
 const coreSourceById = new Map(nctbCoreBooks.map((book) => [book.id, book]));
 const earlySourceById = new Map(nctbPrePrimaryResources.map((book) => [book.id, book]));
 
-function ExternalLink({ href, children, className }: { href: string; children: React.ReactNode; className?: string }) {
+function ExternalLink({ href, children, className, lang }: { href: string; children: React.ReactNode; className?: string; lang?: string }) {
   return (
-    <a className={className} href={href} target="_blank" rel="noreferrer">
+    <a className={className} href={href} target="_blank" rel="noreferrer" lang={lang}>
       {children}<span aria-hidden="true"> ↗</span>
     </a>
   );
@@ -58,7 +58,8 @@ export default function BooksPage() {
         </Labelled>
       </header>
 
-      <div className={styles.content}>
+      {/* The catalogue itself is English in both languages; the labelled parts inside keep the page's language. */}
+      <div className={styles.content} lang="en">
         <section className={styles.hero} aria-labelledby="book-bridge-title">
           <div>
             <p className={styles.eyebrow}>Official-source audit · {nctbAuditSummary.auditedOn}</p>
@@ -74,16 +75,16 @@ export default function BooksPage() {
             </div>
           </div>
           <Labelled as="aside" className={styles.heroBoundary} label={["Publication boundary", "প্রকাশের সীমা"]}>
-            <strong>Source verified ≠ lesson approved</strong>
-            <p>Every adaptation still needs Bangla, cultural, age, accessibility and copyright review.</p>
+            <strong lang="en">Source verified ≠ lesson approved</strong>
+            <p lang="en">Every adaptation still needs Bangla, cultural, age, accessibility and copyright review.</p>
           </Labelled>
         </section>
 
         <Labelled as="section" className={styles.auditStrip} label={["NCTB audit summary", "এনসিটিবি যাচাইয়ের সারাংশ"]}>
-          <article><strong>{nctbAuditSummary.officialPagesChecked}</strong><span>official pages checked</span></article>
-          <article><strong>{nctbAuditSummary.pdfEndpoints}</strong><span>PDF endpoints resolved</span></article>
-          <article><strong>{nctbAuditSummary.representativePdfsInspected}</strong><span>PDFs deeply inspected</span></article>
-          <article><strong>{nctbAuditSummary.activeContentFindings}</strong><span>active-content findings</span></article>
+          <article lang="en"><strong>{nctbAuditSummary.officialPagesChecked}</strong><span>official pages checked</span></article>
+          <article lang="en"><strong>{nctbAuditSummary.pdfEndpoints}</strong><span>PDF endpoints resolved</span></article>
+          <article lang="en"><strong>{nctbAuditSummary.representativePdfsInspected}</strong><span>PDFs deeply inspected</span></article>
+          <article lang="en"><strong>{nctbAuditSummary.activeContentFindings}</strong><span>active-content findings</span></article>
         </Labelled>
 
         <section className={styles.findings} aria-labelledby="audit-findings-title">
@@ -121,11 +122,11 @@ export default function BooksPage() {
                 </dl>
                 <p>{book.curriculumUse}</p>
                 <Labelled as="div" className={styles.versions} role="group" label={[`${book.titleEn}, Class ${book.grade} versions`, `${book.titleBn} (শ্রেণি ${localNumber(book.grade, "bn")}) — সংস্করণ`]}>
-                  <strong>{book.variants.length > 1 ? "Choose a version" : "Official PDF"}</strong>
-                  <div>
+                  <strong lang="en">{book.variants.length > 1 ? "Choose a version" : "Official PDF"}</strong>
+                  <div lang="en">
                     {book.variants.map((variant) => (
                       <ExternalLink href={variant.url} key={variant.id} className={styles.versionLink}>
-                        {variant.language === "bn" ? "বাংলা" : "English"} · {variant.pages}p
+                        {variant.language === "bn" ? <span lang="bn">বাংলা</span> : "English"} · {variant.pages}p
                       </ExternalLink>
                     ))}
                   </div>
@@ -178,10 +179,10 @@ export default function BooksPage() {
                     const early = earlySourceById.get(sourceId);
                     const source = core ?? early;
                     return source ? (
-                      <ExternalLink href={source.officialPage} key={sourceId}>
+                      <ExternalLink href={source.officialPage} key={sourceId} lang="en">
                         {"grade" in source ? `Class ${source.grade} ${source.titleEn}` : source.titleEn}
                       </ExternalLink>
-                    ) : <span key={sourceId}>{sourceId}</span>;
+                    ) : <span key={sourceId} lang="en">{sourceId}</span>;
                   })}
                 </Labelled>
               </article>
@@ -232,7 +233,7 @@ export default function BooksPage() {
           <div className={styles.educatorGrid}>
             {nctbEducatorDocuments.map((document) => (
               <article key={document.id}>
-                <span className={styles.documentLanguage}>{document.language === "bn" ? "বাংলা" : "English"}</span>
+                <span className={styles.documentLanguage}>{document.language === "bn" ? <span lang="bn">বাংলা</span> : "English"}</span>
                 <h3>{document.title}</h3>
                 <p>{document.pages === null ? "Page count pending edition check" : `${document.pages.toLocaleString()} pages`} · {document.purpose}</p>
                 <div className={styles.cardLinks}>

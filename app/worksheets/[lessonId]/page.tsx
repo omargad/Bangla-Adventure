@@ -47,7 +47,8 @@ export default async function WorksheetPage({ params }: PageProps) {
         <div className="adult-account"><PrintButton /></div>
       </header>
 
-      <article className="worksheet-sheet">
+      {/* The sheet is English with Bangla parts marked, in both page languages. */}
+      <article className="worksheet-sheet" lang="en">
         <header className="worksheet-header">
           <div>
             <p className="worksheet-brand">বা · Bangla Adventures</p>

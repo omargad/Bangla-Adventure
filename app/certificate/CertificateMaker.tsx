@@ -47,7 +47,7 @@ export default function CertificateMaker() {
           <Link href="/worksheets">{s("Worksheets", "ওয়ার্কশিট")}</Link>
           <Link className="active" href="/certificate">{s("Certificate", "সনদ")}</Link>
         </nav>
-        <button type="button" className="explore-lang" onClick={toggleLanguage}>
+        <button lang={language === "bn" ? "en" : "bn"} type="button" className="explore-lang" onClick={toggleLanguage}>
           {s("বাংলায় দেখুন", "View in English")}
         </button>
       </header>

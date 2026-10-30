@@ -31,7 +31,7 @@ export default function PoemsHub() {
           <Link className="active" href="/poems">{s("Poems", "কবিতা")}</Link>
           <Link href="/library">{s("Library", "লাইব্রেরি")}</Link>
         </nav>
-        <button type="button" className="explore-lang" onClick={toggleLanguage}>
+        <button lang={language === "bn" ? "en" : "bn"} type="button" className="explore-lang" onClick={toggleLanguage}>
           {s("বাংলায় দেখুন", "View in English")}
         </button>
       </header>

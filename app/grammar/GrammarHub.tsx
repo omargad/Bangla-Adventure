@@ -31,7 +31,7 @@ export default function GrammarHub() {
           <Link href="/phrasebook">{s("Phrasebook", "বাক্যের ঝুলি")}</Link>
           <Link className="active" href="/grammar">{s("Grammar", "ব্যাকরণ")}</Link>
         </nav>
-        <button type="button" className="explore-lang" onClick={toggleLanguage}>
+        <button lang={language === "bn" ? "en" : "bn"} type="button" className="explore-lang" onClick={toggleLanguage}>
           {s("বাংলায় দেখুন", "View in English")}
         </button>
       </header>

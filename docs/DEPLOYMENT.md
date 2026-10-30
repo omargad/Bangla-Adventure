@@ -189,9 +189,13 @@ The app sets these itself wherever it runs; the reverse proxy does not need to a
   that keeps the lesson microphone working, `X-Frame-Options`, `X-Content-Type-Options`
   and `Referrer-Policy`. `X-Powered-By` is off.
 - **New releases.** The release id is the build's `BUILD_ID` file in `NEXT_DIST_DIR`
-  (`lib/release.ts`). Open pages compare it with `/api/auth/session` on focus and every
-  minute and reload themselves once a new release is live, which is one more reason to
-  build and run with the same `NEXT_DIST_DIR`.
+  (`lib/release.ts`), which is one more reason to build and run with the same
+  `NEXT_DIST_DIR`. Pages behind sign-in compare it with `/api/auth/session` on focus and
+  every minute and, once a new release is live, show a "new version" notice with a
+  Reload button. They never reload by themselves, so a draft or a one-time password on
+  screen is not lost; following a link also loads the new release. The public welcome,
+  grown-ups, student sign-in and safety pages do not check and show the new release on
+  their next load.
 
 ## First administrator and recovery
 

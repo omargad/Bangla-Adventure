@@ -83,6 +83,8 @@
   margin: 0 auto;
   padding: 20px 0 88px;
   display: grid;
+  /* One column no wider than the page, so the wide tables scroll inside their own wrapper. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 26px;
 }
 

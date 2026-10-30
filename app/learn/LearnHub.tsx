@@ -67,7 +67,7 @@ export default function LearnHub() {
           <Link href="/">{s("Learner site", "শেখার সাইট")}</Link>
           <Link className="active" href="/learn">{s("All activities", "সব কার্যক্রম")}</Link>
         </nav>
-        <button type="button" className="explore-lang" onClick={toggleLanguage}>
+        <button lang={language === "bn" ? "en" : "bn"} type="button" className="explore-lang" onClick={toggleLanguage}>
           {s("বাংলায় দেখুন", "View in English")}
         </button>
       </header>

@@ -128,7 +128,7 @@ export default function PracticeHub({ approvedLessonIds, recordings: initialReco
           <Link href="/phrasebook">{s("Phrasebook", "বাক্যের ঝুলি")}</Link>
           <Link className="active" href="/practice">{s("Practice", "অনুশীলন")}</Link>
         </nav>
-        <button type="button" className="explore-lang" onClick={toggleLanguage}>
+        <button lang={language === "bn" ? "en" : "bn"} type="button" className="explore-lang" onClick={toggleLanguage}>
           {s("বাংলায় দেখুন", "View in English")}
         </button>
       </header>
@@ -158,7 +158,7 @@ export default function PracticeHub({ approvedLessonIds, recordings: initialReco
               type="button"
               className={`practice-card ${flipped ? "is-flipped" : ""}`}
               onClick={() => setFlipped((value) => !value)}
-              aria-label={flipped ? `${current.transliteration}: ${current.en}` : current.bn}
+              aria-label={flipped ? s(`${current.transliteration}: ${current.en}`, `${current.bn} — ${current.en}`) : current.bn}
             >
               {!flipped ? (
                 <>

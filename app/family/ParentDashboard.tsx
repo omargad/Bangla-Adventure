@@ -71,7 +71,7 @@ export default function ParentDashboard({ parentName }: { parentName: string }) 
     <header className="adult-header">
       <Link className="adult-brand" href="/"><span>বা</span><span><strong>Bangla Adventures</strong><small>{s("Parent dashboard", "অভিভাবকের ড্যাশবোর্ড")}</small></span></Link>
       <nav aria-label={s("Parent navigation", "অভিভাবকের মেনু")}><Link className="active" href="/family">{s("My children", "আমার সন্তান")}</Link><Link href="/account">{s("My account", "আমার অ্যাকাউন্ট")}</Link><Link href="/safety">{s("Safety & privacy", "নিরাপত্তা ও গোপনীয়তা")}</Link></nav>
-      <div className="adult-account"><button className="outline-button" onClick={toggleLanguage}>{s("বাংলা", "English")}</button><a href="/api/auth/sign-out?returnTo=%2Fgrown-ups">{s("Sign out", "সাইন আউট")}</a></div>
+      <div className="adult-account"><button lang={language === "bn" ? "en" : "bn"} className="outline-button" onClick={toggleLanguage}>{s("বাংলা", "English")}</button><a href="/api/auth/sign-out?returnTo=%2Fgrown-ups">{s("Sign out", "সাইন আউট")}</a></div>
     </header>
     <div className="adult-content">
       <section className="management-heading"><div><p className="adult-eyebrow">{s(`Welcome, ${parentName}`, `স্বাগতম, ${parentName}`)}</p><h1>{forChildren(["Learning records", "শেখার রেকর্ড"], ["Your child's learning", "আপনার সন্তানের শেখার অগ্রগতি"], ["Your children's learning", "আপনার সন্তানদের শেখার অগ্রগতি"])}</h1><p>{forChildren(

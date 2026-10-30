@@ -13,14 +13,21 @@ function before(file, all, marker, from = 0) {
   return all.slice(from, end).map((text, index) => ({ text, number: from + index + 1 }));
 }
 
+/** Where the build starts: comments and parser directives above the first FROM are each file's own. */
+function firstFrom(file, all) {
+  const index = all.findIndex((line) => line.startsWith("FROM "));
+  assert.ok(index >= 0, `${file} has no FROM line`);
+  return index;
+}
+
 test("Dockerfile.render matches ./Dockerfile above its RENDER section, apart from the Render scripts", () => {
   const render = lines("Dockerfile.render");
-  const header = render.findIndex((line) => !line.startsWith("#"));
-  const ours = before("Dockerfile.render", render, "# RENDER:", header);
+  const ours = before("Dockerfile.render", render, "# RENDER:", firstFrom("Dockerfile.render", render));
   const copies = ours.filter((line) => line.text === RENDER_SCRIPTS_COPY);
   assert.equal(copies.length, 1, `Dockerfile.render must copy the Render scripts exactly once with:\n  ${RENDER_SCRIPTS_COPY}`);
   const compared = ours.filter((line) => line !== copies[0]);
-  const base = before("Dockerfile", lines("Dockerfile"), "# Persistent state");
+  const dockerfile = lines("Dockerfile");
+  const base = before("Dockerfile", dockerfile, "# Persistent state", firstFrom("Dockerfile", dockerfile));
   for (let i = 0; i < Math.max(compared.length, base.length); i++) {
     const mine = compared[i], theirs = base[i];
     assert.ok(mine && theirs && mine.text === theirs.text, [

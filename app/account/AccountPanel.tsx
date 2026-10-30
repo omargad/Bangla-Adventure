@@ -129,7 +129,7 @@ export default function AccountPanel({ email, displayName }: { email: string; di
           <Link className="active" href="/account">{s("Account", "অ্যাকাউন্ট")}</Link>
         </nav>
         <div className="adult-account">
-          <button type="button" className="explore-lang" onClick={toggleLanguage}>{s("বাংলায় দেখুন", "View in English")}</button>
+          <button lang={language === "bn" ? "en" : "bn"} type="button" className="explore-lang" onClick={toggleLanguage}>{s("বাংলায় দেখুন", "View in English")}</button>
           <a href="/api/auth/sign-out?returnTo=%2F">{s("Sign out", "সাইন আউট")}</a>
         </div>
       </header>

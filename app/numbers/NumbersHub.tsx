@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useLanguage } from "../../lib/use-language";
+import { localNumber, useLanguage } from "../../lib/use-language";
 import { useVoicePlayer } from "../../lib/use-voice-player";
 import VoiceNote from "../components/VoiceNote";
 import { countables, oneToTwenty, tens, type NumberEntry } from "../numbers-content";
@@ -70,7 +70,7 @@ export default function NumbersHub() {
         type="button"
         className={`digit-card ${speaking === key ? "is-speaking" : ""}`}
         onClick={() => speak(entry.word, key)}
-        aria-label={`${entry.value}: ${entry.transliteration}`}
+        aria-label={s(`${entry.value}: ${entry.transliteration}`, `${entry.glyph} — ${entry.word}`)}
       >
         <span className="digit-glyph" lang="bn">{entry.glyph}</span>
         <strong lang="bn">{entry.word}</strong>
@@ -97,7 +97,7 @@ export default function NumbersHub() {
           <Link className="active" href="/numbers">{s("Numbers", "সংখ্যা")}</Link>
           <Link href="/calendar">{s("Calendar", "দিন-ঋতু")}</Link>
         </nav>
-        <button type="button" className="explore-lang" onClick={toggleLanguage}>
+        <button lang={language === "bn" ? "en" : "bn"} type="button" className="explore-lang" onClick={toggleLanguage}>
           {s("বাংলায় দেখুন", "View in English")}
         </button>
       </header>
@@ -138,7 +138,7 @@ export default function NumbersHub() {
         </p>
         {question && (
           <div className="counting-game">
-            <div className="counting-stage" aria-label={`${question.answer.value} ${question.countable.en}`}>
+            <div className="counting-stage" aria-label={s(`${question.answer.value} ${question.countable.en}`, `${localNumber(question.answer.value, "bn")}টি ${question.countable.bn}`)}>
               <div className="counting-objects" aria-hidden="true">
                 {Array.from({ length: question.answer.value }, (_, index) => (
                   <span key={index}>{question.countable.emoji}</span>

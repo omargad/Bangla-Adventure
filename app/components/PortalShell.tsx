@@ -62,7 +62,7 @@ export default function PortalShell({ role, name, language, toggleLanguage, acti
       <a className="portal-signout" href={role === "student" ? "/api/student/sign-out?returnTo=%2Fstudent" : "/api/auth/sign-out?returnTo=%2Fgrown-ups"}>{s("Sign out", "সাইন আউট")}</a>
     </aside>
     <div className="portal-workspace">
-      <header className="portal-topbar"><button className="portal-menu" type="button" aria-expanded={open} aria-controls="portal-navigation" onClick={() => setOpen(!open)}>{s("Menu", "মেনু")}</button><span>{s("Welcome", "স্বাগতম")}, <strong>{name}</strong></span><button className="outline-button" onClick={toggleLanguage}>{s("বাংলা", "English")}</button></header>
+      <header className="portal-topbar"><button className="portal-menu" type="button" aria-expanded={open} aria-controls="portal-navigation" onClick={() => setOpen(!open)}>{s("Menu", "মেনু")}</button><span>{s("Welcome", "স্বাগতম")}, <strong>{name}</strong></span><button lang={language === "bn" ? "en" : "bn"} className="outline-button" onClick={toggleLanguage}>{s("বাংলা", "English")}</button></header>
       <div id="portal-main" className="portal-content"><PortalLanguage value={language}>{children}</PortalLanguage></div>
     </div>
   </div>;

@@ -32,7 +32,7 @@ export default function TeacherAccess({ name, status }: { name: string; status: 
     <header className="adult-header">
       <Link className="adult-brand" href="/"><span>বা</span><strong>Bangla Adventures</strong></Link>
       <nav aria-label={s("Account navigation", "অ্যাকাউন্টের মেনু")}><Link href="/family">{s("Family dashboard", "পরিবারের ড্যাশবোর্ড")}</Link><Link href="/account">{s("My account", "আমার অ্যাকাউন্ট")}</Link></nav>
-      <button type="button" className="outline-button" onClick={toggleLanguage}>{s("বাংলা", "English")}</button>
+      <button lang={language === "bn" ? "en" : "bn"} type="button" className="outline-button" onClick={toggleLanguage}>{s("বাংলা", "English")}</button>
     </header>
     <section className="access-panel">
       <span className="access-symbol" aria-hidden="true">বা</span>

@@ -31,7 +31,7 @@ export default function CalendarHub() {
           <Link href="/numbers">{s("Numbers", "সংখ্যা")}</Link>
           <Link className="active" href="/calendar">{s("Calendar", "দিন-ঋতু")}</Link>
         </nav>
-        <button type="button" className="explore-lang" onClick={toggleLanguage}>
+        <button lang={language === "bn" ? "en" : "bn"} type="button" className="explore-lang" onClick={toggleLanguage}>
           {s("বাংলায় দেখুন", "View in English")}
         </button>
       </header>

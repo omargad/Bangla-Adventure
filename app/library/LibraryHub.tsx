@@ -58,7 +58,7 @@ export default function LibraryHub({ books }: { books: CatalogBook[] }) {
           <Link href="/resources">{s("More resources", "আরও সম্পদ")}</Link>
         </nav>
         <div className="adult-account">
-          <button type="button" className="explore-lang" onClick={toggleLanguage}>
+          <button lang={language === "bn" ? "en" : "bn"} type="button" className="explore-lang" onClick={toggleLanguage}>
             {s("বাংলায় দেখুন", "View in English")}
           </button>
         </div>

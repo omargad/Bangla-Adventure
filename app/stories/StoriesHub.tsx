@@ -52,7 +52,7 @@ export default function StoriesHub() {
           <Link className="active" href="/stories">{s("Stories", "গল্প")}</Link>
           <Link href="/explore">{s("Explore", "ঘুরে দেখো")}</Link>
         </nav>
-        <button type="button" className="explore-lang" onClick={toggleLanguage}>
+        <button lang={language === "bn" ? "en" : "bn"} type="button" className="explore-lang" onClick={toggleLanguage}>
           {s("বাংলায় দেখুন", "View in English")}
         </button>
       </header>

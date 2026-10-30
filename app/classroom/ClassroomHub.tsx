@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { localDateTime, useLanguage } from "../../lib/use-language";
+import { localDateTime, useLanguage, type Language } from "../../lib/use-language";
 
 const STORAGE_KEY = "bangla-adventures-classroom";
 
@@ -146,7 +146,7 @@ export default function ClassroomHub() {
   if (!stored) {
     return (
       <main className="explore-app classroom-app" lang={language}>
-        <Header s={s} toggleLanguage={toggleLanguage} subtitle={s("My classroom", "আমার শ্রেণিকক্ষ")} />
+        <Header language={language} s={s} toggleLanguage={toggleLanguage} subtitle={s("My classroom", "আমার শ্রেণিকক্ষ")} />
         <section className="explore-hero">
           <p className="adult-eyebrow">{s("For Bangla-school students", "বাংলা স্কুলের শিক্ষার্থীদের জন্য")}</p>
           <h1>{s("Join your class with the secret code.", "গোপন কোড দিয়ে তোমার ক্লাসে যোগ দাও।")}</h1>
@@ -203,7 +203,7 @@ export default function ClassroomHub() {
     const allAnswered = activeActivity.questions.every((_, index) => answers[index] !== undefined);
     return (
       <main className="explore-app classroom-app" lang={language}>
-        <Header s={s} toggleLanguage={toggleLanguage} subtitle={feed?.class.name ?? ""} />
+        <Header language={language} s={s} toggleLanguage={toggleLanguage} subtitle={feed?.class.name ?? ""} />
         <article className="topic-reader">
           <header className="topic-reader-head">
             <h1>{activeActivity.title}</h1>
@@ -270,7 +270,7 @@ export default function ClassroomHub() {
   // ----------------------------------------------------------------- feed view
   return (
     <main className="explore-app classroom-app" lang={language}>
-      <Header s={s} toggleLanguage={toggleLanguage} subtitle={feed?.class.name ?? stored.className} />
+      <Header language={language} s={s} toggleLanguage={toggleLanguage} subtitle={feed?.class.name ?? stored.className} />
       <section className="explore-hero">
         <p className="adult-eyebrow">{feed ? `${feed.class.name} · ${feed.class.teacherName}` : stored.className}</p>
         <h1>{s(`Hi ${stored.name}!`, `হাই ${stored.name}!`)}</h1>
@@ -331,10 +331,12 @@ export default function ClassroomHub() {
 }
 
 function Header({
+  language,
   s,
   toggleLanguage,
   subtitle,
 }: {
+  language: Language;
   s: (en: string, bn: string) => string;
   toggleLanguage: () => void;
   subtitle: string;
@@ -352,7 +354,7 @@ function Header({
         <Link href="/topics">{s("Topics", "বিষয়")}</Link>
         <Link className="active" href="/classroom">{s("My classroom", "আমার শ্রেণিকক্ষ")}</Link>
       </nav>
-      <button type="button" className="explore-lang" onClick={toggleLanguage}>
+      <button lang={language === "bn" ? "en" : "bn"} type="button" className="explore-lang" onClick={toggleLanguage}>
         {s("বাংলায় দেখুন", "View in English")}
       </button>
     </header>

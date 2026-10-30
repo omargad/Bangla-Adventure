@@ -12,9 +12,13 @@ export function Say({ en, bn }: { en: string; bn: string }) {
   return usePortalLanguage() === "bn" ? bn : en;
 }
 
-/** An element whose accessible name follows the portal's language. */
+/**
+ * An element whose accessible name follows the portal's language. It carries that language itself, so
+ * the name is read correctly inside an English-only block; mark its English content with lang="en".
+ */
 export function Labelled({ as, label: [en, bn], children, ...props }: { as: "nav" | "section" | "aside" | "div" | "td"; label: Text; children?: ReactNode; className?: string; role?: string }) {
-  return createElement(as, { ...props, "aria-label": usePortalLanguage() === "bn" ? bn : en }, children);
+  const language = usePortalLanguage();
+  return createElement(as, { ...props, lang: language, "aria-label": language === "bn" ? bn : en }, children);
 }
 
 /** The tab title in the portal's language: the page's metadata title and its Bangla version. */

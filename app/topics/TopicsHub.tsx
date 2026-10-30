@@ -76,7 +76,7 @@ export default function TopicsHub({ initialTopic }: { initialTopic?: string }) {
           <Link href="/library">{s("Textbook library", "পাঠ্যবই লাইব্রেরি")}</Link>
         </>}
       </nav>
-      <button type="button" className="explore-lang" onClick={toggleLanguage}>{s("বাংলায় দেখুন", "View in English")}</button>
+      <button lang={language === "bn" ? "en" : "bn"} type="button" className="explore-lang" onClick={toggleLanguage}>{s("বাংলায় দেখুন", "View in English")}</button>
     </header>
   );
 

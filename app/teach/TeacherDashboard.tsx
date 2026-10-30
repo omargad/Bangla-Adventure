@@ -351,7 +351,7 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
           {isAdmin && <Link href="/admin">{s("Manage users", "ব্যবহারকারী পরিচালনা")}</Link>}
         </nav>
         <div className="adult-account">
-          <button type="button" className="explore-lang" onClick={toggleLanguage}>
+          <button lang={language === "bn" ? "en" : "bn"} type="button" className="explore-lang" onClick={toggleLanguage}>
             {s("বাংলায় দেখুন", "View in English")}
           </button>
           <a href="/api/auth/sign-out?returnTo=%2Fgrown-ups">{s("Sign out", "সাইন আউট")}</a>

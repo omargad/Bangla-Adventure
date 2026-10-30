@@ -65,12 +65,18 @@ const tasks: Record<Skill, Task[]> = {
   ],
 };
 
-const skillMeta: Record<Skill, { label: string; bn: string; icon: string; note: string }> = {
-  listening: { label: "Listening", bn: "শোনা", icon: "♪", note: "Three recordings from first meaning to nuanced interpretation" },
-  speaking: { label: "Speaking", bn: "বলা", icon: "◉", note: "Three aloud performances with a transparent self-rubric" },
-  reading: { label: "Reading", bn: "পড়া", icon: "অ", note: "Three short texts from literal meaning to argument" },
-  writing: { label: "Writing", bn: "লেখা", icon: "✎", note: "Three productions; drafts stay in this open window" },
+const skillMeta: Record<Skill, { label: string; bn: string; icon: string; note: string; noteBn: string }> = {
+  listening: { label: "Listening", bn: "শোনা", icon: "♪", note: "Three recordings from first meaning to nuanced interpretation", noteBn: "প্রথম অর্থ বোঝা থেকে সূক্ষ্ম ব্যাখ্যা পর্যন্ত তিনটি রেকর্ডিং" },
+  speaking: { label: "Speaking", bn: "বলা", icon: "◉", note: "Three aloud performances with a transparent self-rubric", noteBn: "নিজে যাচাই করার স্পষ্ট নিয়মসহ জোরে বলার তিনটি কাজ" },
+  reading: { label: "Reading", bn: "পড়া", icon: "অ", note: "Three short texts from literal meaning to argument", noteBn: "সরল অর্থ থেকে যুক্তি পর্যন্ত তিনটি ছোট লেখা" },
+  writing: { label: "Writing", bn: "লেখা", icon: "✎", note: "Three productions; drafts stay in this open window", noteBn: "লেখার তিনটি কাজ; খসড়া শুধু এই খোলা জানালাতেই থাকে" },
 };
+
+const performanceOptions = [
+  { score: 2, en: "I did this independently", bn: "আমি নিজে নিজে পেরেছি" },
+  { score: 1, en: "I did part of it / used support", bn: "কিছুটা পেরেছি / সাহায্য নিয়েছি" },
+  { score: 0, en: "Not yet—and that is useful to know", bn: "এখনো পারিনি—এটা জানাও কাজের" },
+];
 
 const levelIds: CurriculumLevel[] = ["pre-a1", "a1", "a2", "b1", "b2", "c1-c2"];
 
@@ -133,15 +139,17 @@ export default function FourSkillDiagnostic({ language, soundEnabled, onSpeak, o
 
   const showResults = submitted && skillIndex === skillOrder.length - 1 && allCurrentAnswered;
   const part = s(`Part ${skillIndex + 1} of 4`, `৪টির মধ্যে ${localNumber(skillIndex + 1, "bn")} নম্বর অংশ`);
+  // English mode shows each skill's Bangla name beside it; Bangla mode needs only the Bangla.
+  const skillName = (skill: Skill) => language === "bn" ? skillMeta[skill].bn : <>{skillMeta[skill].label} <em lang="bn">· {skillMeta[skill].bn}</em></>;
 
   return (
     <div className="diagnostic-shell">
       <header className="diagnostic-header">
-        <p className="modal-kicker">Four-skill starting-point guide · চার দক্ষতার পথনির্দেশ</p>
-        <h2>Find the next useful challenge—not a label</h2>
-        <p>Complete 12 short tasks in listening, speaking, reading and writing. This child- and heritage-learner guide is not an official CEFR test, diagnosis or certificate.</p>
+        <p className="modal-kicker">{s("Four-skill starting-point guide · চার দক্ষতার পথনির্দেশ", "চার দক্ষতার পথনির্দেশ")}</p>
+        <h2>{s("Find the next useful challenge—not a label", "পরের দরকারি চ্যালেঞ্জটা খুঁজি—কোনো তকমা নয়")}</h2>
+        <p>{s("Complete 12 short tasks in listening, speaking, reading and writing. This child- and heritage-learner guide is not an official CEFR test, diagnosis or certificate.", "শোনা, বলা, পড়া আর লেখার ১২টি ছোট কাজ শেষ করো। শিশু ও প্রবাসে বড় হওয়া শিক্ষার্থীদের জন্য এই নির্দেশিকা কোনো আনুষ্ঠানিক CEFR পরীক্ষা, মূল্যায়ন বা সনদ নয়।")}</p>
         <div className="diagnostic-skill-track" aria-label={part}>
-          {skillOrder.map((skill, index) => <span key={skill} className={`${index === skillIndex ? "active" : ""} ${index < skillIndex ? "complete" : ""}`}><i>{skillMeta[skill].icon}</i>{skillMeta[skill].label}</span>)}
+          {skillOrder.map((skill, index) => <span key={skill} className={`${index === skillIndex ? "active" : ""} ${index < skillIndex ? "complete" : ""}`}><i>{skillMeta[skill].icon}</i>{s(skillMeta[skill].label, skillMeta[skill].bn)}</span>)}
         </div>
       </header>
 
@@ -149,7 +157,7 @@ export default function FourSkillDiagnostic({ language, soundEnabled, onSpeak, o
         <div className="diagnostic-body">
           <div className="diagnostic-part-heading">
             <span>{skillMeta[currentSkill].icon}</span>
-            <div><small>{part}</small><h3>{skillMeta[currentSkill].label} <em lang="bn">· {skillMeta[currentSkill].bn}</em></h3><p>{skillMeta[currentSkill].note}</p></div>
+            <div><small>{part}</small><h3>{skillName(currentSkill)}</h3><p>{s(skillMeta[currentSkill].note, skillMeta[currentSkill].noteBn)}</p></div>
           </div>
           <div className="diagnostic-tasks">
             {currentTasks.map((task, index) => (
@@ -159,7 +167,7 @@ export default function FourSkillDiagnostic({ language, soundEnabled, onSpeak, o
                   <h4>{task.prompt}</h4>
                   {task.kind === "choice" ? (
                     <>
-                      {task.audio && <button type="button" className="diagnostic-audio-button" disabled={!soundEnabled} onClick={() => onSpeak(task.audio!, "bn-BD", task.audioClip ? bundledClip(task.audioClip) : undefined)}>♪ Listen <span lang="bn">· শোনো</span> <small>Replay freely</small></button>}
+                      {task.audio && <button type="button" className="diagnostic-audio-button" disabled={!soundEnabled} onClick={() => onSpeak(task.audio!, "bn-BD", task.audioClip ? bundledClip(task.audioClip) : undefined)}>♪ {language === "bn" ? "শোনো" : <>Listen <span lang="bn">· শোনো</span></>} <small>{s("Replay freely", "যতবার খুশি শোনো")}</small></button>}
                       {task.stimulus && <p className="diagnostic-stimulus" lang="bn">{task.stimulus}</p>}
                       <div className="diagnostic-options">
                         {task.options.map((option, optionIndex) => <button type="button" key={option} className={answers[task.id] === optionIndex ? "selected" : ""} aria-pressed={answers[task.id] === optionIndex} onClick={() => setAnswer(task.id, optionIndex)}><span>{String.fromCharCode(65 + optionIndex)}</span>{option}</button>)}
@@ -168,11 +176,11 @@ export default function FourSkillDiagnostic({ language, soundEnabled, onSpeak, o
                   ) : (
                     <>
                       {currentSkill === "writing" && <textarea value={drafts[task.id] || ""} onChange={(event) => setDrafts((current) => ({ ...current, [task.id]: event.target.value }))} placeholder={s("Draft here before choosing the closest rubric…", "সবচেয়ে মেলে এমন বর্ণনা বাছার আগে এখানে খসড়া লেখো…")} rows={4} />}
-                      <button type="button" className="text-button diagnostic-example-toggle" onClick={() => setShowExamples((current) => ({ ...current, [task.id]: !current[task.id] }))}>{showExamples[task.id] ? "Hide support" : "Show a starter after trying"}</button>
+                      <button type="button" className="text-button diagnostic-example-toggle" onClick={() => setShowExamples((current) => ({ ...current, [task.id]: !current[task.id] }))}>{showExamples[task.id] ? s("Hide support", "সাহায্য লুকাও") : s("Show a starter after trying", "চেষ্টার পরে শুরুর একটি নমুনা দেখো")}</button>
                       {showExamples[task.id] && <p className="diagnostic-example" lang="bn">{task.example}</p>}
                       <p className="diagnostic-rubric">{task.support}</p>
                       <div className="performance-options" aria-label={s("Choose the closest performance description", "যে বর্ণনাটি সবচেয়ে মেলে, সেটি বেছে নাও")}>
-                        {[{ score: 2, label: "I did this independently" }, { score: 1, label: "I did part of it / used support" }, { score: 0, label: "Not yet—and that is useful to know" }].map((option) => <button type="button" key={option.score} className={answers[task.id] === option.score ? "selected" : ""} aria-pressed={answers[task.id] === option.score} onClick={() => setAnswer(task.id, option.score)}><span>{option.score}</span>{option.label}</button>)}
+                        {performanceOptions.map((option) => <button type="button" key={option.score} className={answers[task.id] === option.score ? "selected" : ""} aria-pressed={answers[task.id] === option.score} onClick={() => setAnswer(task.id, option.score)}><span>{option.score}</span>{s(option.en, option.bn)}</button>)}
                       </div>
                     </>
                   )}
@@ -180,28 +188,30 @@ export default function FourSkillDiagnostic({ language, soundEnabled, onSpeak, o
               </section>
             ))}
           </div>
-          {submitted && !allCurrentAnswered && <p className="placement-error" role="alert">Choose one response for all three tasks before continuing.</p>}
+          {submitted && !allCurrentAnswered && <p className="placement-error" role="alert">{s("Choose one response for all three tasks before continuing.", "এগোনোর আগে তিনটি কাজেরই একটি করে উত্তর বেছে নাও।")}</p>}
         </div>
       ) : (
         <div className="diagnostic-results">
           <div className={`diagnostic-recommendation ${results.recommended.tone}`}>
-            <span><small>Suggested lesson band</small><strong>{results.recommended.code}</strong></span>
-            <div><h3>{results.recommended.title} <em lang="bn">· {results.recommended.titleBn}</em></h3><p>Begin where the least-developed skill can participate successfully. Use stronger-skill sessions as an accelerated route, and move one band whenever the work feels consistently too easy or too hard.</p></div>
+            <span><small>{s("Suggested lesson band", "প্রস্তাবিত পাঠের ধাপ")}</small><strong>{results.recommended.code}</strong></span>
+            <div><h3>{language === "bn" ? results.recommended.titleBn : <>{results.recommended.title} <em lang="bn">· {results.recommended.titleBn}</em></>}</h3><p>{s("Begin where the least-developed skill can participate successfully. Use stronger-skill sessions as an accelerated route, and move one band whenever the work feels consistently too easy or too hard.", "যে দক্ষতা সবচেয়ে কম এগিয়েছে, সেটিও যেখানে ভালোভাবে অংশ নিতে পারে, সেখান থেকে শুরু করো। বেশি এগোনো দক্ষতার সেশন দিয়ে তাড়াতাড়ি এগোতে পারো। কাজ বারবার খুব সহজ বা খুব কঠিন লাগলে এক ধাপ ওপরে বা নিচে যাও।")}</p></div>
           </div>
           <div className="skill-profile-grid">
             {skillOrder.map((skill) => {
               const band = levelBands.find((item) => item.id === results.levels[skill])!;
-              return <article key={skill}><div><span>{skillMeta[skill].icon}</span><h4>{skillMeta[skill].label}<small lang="bn">{skillMeta[skill].bn}</small></h4><strong>{band.code}</strong></div><div className="skill-meter"><span style={{ width: `${(results.scores[skill] / 5) * 100}%` }} /></div><p>{band.descriptor}</p></article>;
+              return <article key={skill}><div><span>{skillMeta[skill].icon}</span><h4>{language === "bn" ? skillMeta[skill].bn : <>{skillMeta[skill].label}<small lang="bn">{skillMeta[skill].bn}</small></>}</h4><strong>{band.code}</strong></div><div className="skill-meter"><span style={{ width: `${(results.scores[skill] / 5) * 100}%` }} /></div><p>{band.descriptor}</p></article>;
             })}
           </div>
-          <aside className="diagnostic-caution"><span aria-hidden="true">i</span><p><strong>Use this profile as a conversation starter.</strong> Listening and reading use three sampled tasks; speaking and writing use learner/adult reflection. Recheck after several lessons and seek a qualified educator for formal assessment.</p></aside>
+          <aside className="diagnostic-caution"><span aria-hidden="true">i</span><p>{language === "bn"
+            ? <><strong>এই প্রোফাইল দিয়ে কথা শুরু করা যায়।</strong> শোনা আর পড়ায় তিনটি নমুনা কাজ দেখা হয়েছে; বলা আর লেখায় শিক্ষার্থী বা বড়দের নিজের ভাবনা। কয়েকটি পাঠের পরে আবার যাচাই করা ভালো, আর আনুষ্ঠানিক মূল্যায়নের জন্য একজন যোগ্য শিক্ষকের সাহায্য নেওয়া উচিত।</>
+            : <><strong>Use this profile as a conversation starter.</strong> Listening and reading use three sampled tasks; speaking and writing use learner/adult reflection. Recheck after several lessons and seek a qualified educator for formal assessment.</>}</p></aside>
         </div>
       )}
 
       <footer className="diagnostic-footer">
-        <button type="button" className="outline-button" onClick={skillIndex === 0 || showResults ? onClose : () => { setSkillIndex((value) => value - 1); setSubmitted(false); }}>← {skillIndex === 0 || showResults ? "Close" : "Previous skill"}</button>
-        {!showResults && <button type="button" className="primary-button" onClick={moveNext}>{skillIndex === skillOrder.length - 1 ? "Build my skill profile" : "Next skill"} →</button>}
-        {showResults && <button type="button" className="primary-button" onClick={() => onChoose(results.recommended.id)}>Open suggested lessons →</button>}
+        <button type="button" className="outline-button" onClick={skillIndex === 0 || showResults ? onClose : () => { setSkillIndex((value) => value - 1); setSubmitted(false); }}>← {skillIndex === 0 || showResults ? s("Close", "বন্ধ করি") : s("Previous skill", "আগের দক্ষতা")}</button>
+        {!showResults && <button type="button" className="primary-button" onClick={moveNext}>{skillIndex === skillOrder.length - 1 ? s("Build my skill profile", "আমার দক্ষতার প্রোফাইল বানাও") : s("Next skill", "পরের দক্ষতা")} →</button>}
+        {showResults && <button type="button" className="primary-button" onClick={() => onChoose(results.recommended.id)}>{s("Open suggested lessons", "প্রস্তাবিত পাঠ খোলো")} →</button>}
       </footer>
     </div>
   );

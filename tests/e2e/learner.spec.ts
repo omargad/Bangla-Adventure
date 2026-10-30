@@ -106,25 +106,99 @@ test("Bangla mode reaches the tab title and labels on signed-in pages, including
   await expect(page.locator(".explore-header nav")).toHaveAttribute("aria-label", "বিভাগ");
   await expect(page.getByRole("button", { name: /^স আর ক মিলে স্ক।/ })).toBeVisible();
 
-  // Server-rendered pages take the language from the portal around them.
+  // The language button is marked with the language its own label is in.
+  await expect(page.locator(".portal-topbar").getByRole("button", { name: "English", exact: true })).toHaveAttribute("lang", "en");
+
+  // Server-rendered pages take the language from the portal around them; their English-only content stays marked English.
+  const nearestLang = (selector: string) => page.locator(selector).first().evaluate((element) => element.closest("[lang]")?.getAttribute("lang"));
   await page.goto("/worksheets");
   await expect(page).toHaveTitle("প্রিন্ট করার ওয়ার্কশিট | Bangla Adventures");
   await expect(page.locator(".adult-header nav")).toHaveAttribute("aria-label", "প্ল্যাটফর্মের তথ্য");
   await expect(page.getByRole("heading", { level: 1, name: "প্রতিটি পাঠের জন্য একটি প্রিন্ট করার ওয়ার্কশিট।" })).toBeVisible();
+  expect(await nearestLang(".worksheet-band > p")).toBe("en");
+  await page.goto("/worksheets/hello-me");
+  expect(await nearestLang(".worksheet-cando")).toBe("en");
+  await expect(page.locator(".worksheet-trace").first()).toHaveAttribute("aria-label", "লেখা অনুশীলনের জায়গা");
+  await expect(page.locator(".worksheet-trace").first()).toHaveAttribute("lang", "bn");
   await page.goto("/books");
   await expect(page).toHaveTitle("এনসিটিবি Book Bridge | Bangla Adventures");
-  await expect(page.getByRole("region", { name: "এনসিটিবি যাচাইয়ের সারাংশ" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "এনসিটিবি যাচাইয়ের সারাংশ" })).toHaveAttribute("lang", "bn");
+  expect(await nearestLang("#book-bridge-title")).toBe("en");
+  expect(await nearestLang("[class*=auditStrip] span")).toBe("en");
   await page.locator(".portal-topbar").getByRole("button", { name: "English", exact: true }).click();
   await expect(page).toHaveTitle("NCTB Book Bridge | Bangla Adventures");
   await expect(page.getByRole("navigation", { name: "Book Bridge navigation" })).toBeVisible();
   await expect(page.getByRole("region", { name: "NCTB audit summary" })).toBeVisible();
 
-  // The adventure page has its own switch.
+  // The adventure page has its own switch, but it shares the saved choice, the page language and the tab title.
   await page.goto("/adventure");
+  await expect(page.locator("html")).toHaveAttribute("lang", "en");
   await page.locator(".language-switch").getByRole("button", { name: "বাংলা", exact: true }).click();
   await expect(page.getByRole("navigation", { name: "মূল মেনু" })).toBeVisible();
   await expect(page.locator(".language-switch")).toHaveAttribute("aria-label", "ভাষা");
   await expect(page.getByRole("img", { name: "হাসিখুশি বাঘ আর বাংলাদেশের চেনা জায়গাসহ নদীর রঙিন ছবির মানচিত্র" })).toBeVisible();
+  await expect(page.locator("html")).toHaveAttribute("lang", "bn");
+  await expect(page).toHaveTitle("Bangla Adventures | শিশুদের জন্য বাংলাদেশের সংস্কৃতি, ইতিহাস ও সাহিত্য");
+  await page.reload();
+  await expect(page.getByRole("navigation", { name: "মূল মেনু" })).toBeVisible();
+
+  // The placement guide and the lessons have Bangla buttons, and their small labels are readable.
+  await page.getByRole("button", { name: "আমার শুরুর ধাপ খুঁজি" }).click();
+  const guide = page.getByRole("dialog", { name: "শুরুর ধাপের নির্দেশিকা" });
+  await expect(guide.getByRole("button", { name: "পরের দক্ষতা →" })).toBeVisible();
+  await expect(guide.getByRole("button", { name: "← বন্ধ করি" })).toBeVisible();
+  await expect(guide.getByText("৪টির মধ্যে ১ নম্বর অংশ")).toHaveCSS("font-size", "12px");
+  await page.keyboard.press("Escape");
+  await page.goto("/adventure?module=hello-me");
+  const lesson = page.getByRole("dialog", { name: "পুরো পাঠ" });
+  await expect(lesson.getByRole("button", { name: "পরের", exact: true })).toBeVisible();
+  await expect(lesson.getByRole("button", { name: "← আগের" })).toBeDisabled();
+  await expect(lesson.locator(".module-session-seal small")).toHaveCSS("font-size", "12px");
+  await page.keyboard.press("Escape");
+  await page.locator(".language-switch").getByRole("button", { name: "EN", exact: true }).click();
+  await expect(page.locator("html")).toHaveAttribute("lang", "en");
+  await expect(page).toHaveTitle("Bangla Adventures | Bangladesh's culture, history & literature for kids");
+});
+
+for (const width of [390, 768]) {
+  test(`the book bridge fits a ${width}px screen and its wide tables scroll inside their own box`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/books");
+    await expect(page.locator("#book-bridge-title")).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    expect(await page.locator("section[aria-labelledby=book-bridge-title]").evaluate((element) => element.getBoundingClientRect().right)).toBeLessThanOrEqual(width);
+  });
+}
+
+test("a new release offers a reload instead of throwing away the draft a learner is writing", async ({ page }) => {
+  await page.goto("/adventure?module=hello-me");
+  const lesson = page.getByRole("dialog", { name: "Full curriculum lesson" });
+  await lesson.getByRole("navigation", { name: "Lesson sections" }).getByRole("button", { name: /Write$/ }).click();
+  const draft = lesson.locator(".writing-pad textarea");
+  await draft.fill("আমার নাম মায়া।");
+  await page.evaluate(() => { (window as unknown as { sameLoad: boolean }).sameLoad = true; });
+
+  // A new build goes live: the session check now reports another release.
+  await page.route("**/api/auth/session", async (route) => {
+    const response = await route.fetch();
+    await route.fulfill({ response, json: { ...(await response.json()), release: "next-release" } });
+  });
+  const checked = page.waitForResponse((response) => new URL(response.url()).pathname === "/api/auth/session");
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await checked;
+  const notice = page.locator(".pwa-status");
+  await expect(notice).toContainText("A new version is ready");
+  await expect(draft).toHaveValue("আমার নাম মায়া।");
+  expect(await page.evaluate(() => (window as unknown as { sameLoad?: boolean }).sameLoad)).toBe(true);
+
+  // The notice waits behind the open lesson, then the learner reloads when ready.
+  await page.keyboard.press("Escape");
+  await expect(lesson).toHaveCount(0);
+  await expect(notice).toBeVisible();
+  await page.unroute("**/api/auth/session");
+  await Promise.all([page.waitForEvent("load"), notice.getByRole("button", { name: "Reload" }).click()]);
+  expect(await page.evaluate(() => (window as unknown as { sameLoad?: boolean }).sameLoad)).toBeUndefined();
+  await expect(page.locator(".pwa-status")).toHaveCount(0);
 });
 
 // Students now see only approved topics, so the draft notices are gone; the textbook sources stay.

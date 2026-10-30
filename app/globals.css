@@ -80,6 +80,12 @@ a:focus-visible {
   outline-offset: 4px;
 }
 
+/* The yellow ring barely shows on the cream adult header, so its links and buttons get an ink ring. */
+.adult-header :is(a, button):focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 3px;
+}
+
 .skip-link {
   position: fixed;
   z-index: 200;
@@ -1313,9 +1319,7 @@ a:focus-visible {
   display: block;
   margin-bottom: 2px;
   color: var(--level-accent);
-  font-size: 9px;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  font-size: 12px;
 }
 
 .lesson-focus-list {
@@ -2377,8 +2381,8 @@ a:focus-visible {
 }
 
 .lesson-route-card small {
-  color: #68797b;
-  font-size: 9px;
+  color: #5f7072;
+  font-size: 12px;
 }
 
 .lesson-pane-heading h3 {
@@ -2990,7 +2994,7 @@ a:focus-visible {
   border: 0;
   background: transparent;
   color: #5d7074;
-  font-size: 10px;
+  font-size: 13px;
   font-weight: 800;
   cursor: pointer;
 }
@@ -3001,15 +3005,15 @@ a:focus-visible {
 }
 
 .lesson-modal-footer > span {
-  color: #748285;
-  font-size: 9px;
+  color: #5f6f72;
+  font-size: 12px;
   font-weight: 750;
 }
 
 .lesson-modal-footer .primary-button {
   justify-self: end;
   min-height: 45px;
-  font-size: 10px;
+  font-size: 13px;
 }
 
 .placement-modal {
@@ -3091,7 +3095,7 @@ a:focus-visible {
   border-radius: 10px;
   background: #fff0ed;
   color: #9b3a30;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 800;
 }
 
@@ -4329,13 +4333,12 @@ a:focus-visible {
   font-size: 27px;
 }
 
+/* Bangla shares these small labels, so they are sized for Bangla script rather than English capitals. */
 .module-session-seal small {
   width: 76px;
-  font-size: 7px;
+  font-size: 12px;
   font-weight: 850;
-  letter-spacing: 0.04em;
-  line-height: 1.3;
-  text-transform: uppercase;
+  line-height: 1.2;
 }
 
 .expanded-tabs {
@@ -4381,18 +4384,18 @@ a:focus-visible {
   border-right: 1px solid rgba(23, 50, 77, 0.12);
 }
 
-.module-overview-banner span,
-.module-overview-banner strong {
-  font-size: 9px;
+.module-overview-banner span {
+  font-size: 12px;
   font-weight: 850;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
 }
 
 .module-overview-banner strong {
   margin-top: 4px;
   color: var(--emerald);
   font-size: 17px;
+  font-weight: 850;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
 }
 
 .module-overview-banner p {
@@ -4446,7 +4449,7 @@ a:focus-visible {
 .media-review-note p {
   margin-top: 4px;
   color: #4f6869;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.55;
 }
 
@@ -4939,8 +4942,8 @@ a:focus-visible {
 }
 
 .writing-pad small {
-  color: #748285;
-  font-size: 8px;
+  color: #5f6f72;
+  font-size: 12px;
 }
 
 .model-answer-card {
@@ -5133,7 +5136,7 @@ a:focus-visible {
   max-width: 680px;
   margin: 14px 0 0;
   color: #526b6d;
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.6;
 }
 
@@ -5152,10 +5155,9 @@ a:focus-visible {
   padding: 8px 11px;
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.58);
-  color: #758285;
-  font-size: 8px;
+  color: #5f6d70;
+  font-size: 12px;
   font-weight: 800;
-  text-transform: uppercase;
 }
 
 .diagnostic-skill-track span.active {
@@ -5211,10 +5213,9 @@ a:focus-visible {
 }
 
 .diagnostic-part-heading small {
-  color: var(--coral);
-  font-size: 8px;
+  color: #b8402f;
+  font-size: 12px;
   font-weight: 850;
-  text-transform: uppercase;
 }
 
 .diagnostic-part-heading h3 {
@@ -5229,8 +5230,8 @@ a:focus-visible {
 
 .diagnostic-part-heading p {
   margin-top: 3px;
-  color: #69797c;
-  font-size: 9px;
+  color: #5f6f72;
+  font-size: 12px;
 }
 
 .diagnostic-tasks {
@@ -5277,14 +5278,14 @@ a:focus-visible {
   border-radius: 999px;
   background: #edfafd;
   color: #185c6c;
-  font-size: 10px;
+  font-size: 13px;
   font-weight: 800;
   cursor: pointer;
 }
 
 .diagnostic-audio-button small {
-  color: #708a8e;
-  font-size: 7px;
+  color: #5a7276;
+  font-size: 12px;
 }
 
 .diagnostic-stimulus,
@@ -5307,6 +5308,7 @@ a:focus-visible {
 .diagnostic-example-toggle {
   display: block;
   margin-bottom: 9px;
+  font-size: 12px;
 }
 
 .diagnostic-rubric {
@@ -5332,7 +5334,7 @@ a:focus-visible {
   border-radius: 11px;
   background: white;
   color: #576a6e;
-  font-size: 8px;
+  font-size: 12px;
   font-weight: 750;
   text-align: left;
   cursor: pointer;
@@ -5386,9 +5388,8 @@ a:focus-visible {
 }
 
 .diagnostic-recommendation small {
-  font-size: 7px;
+  font-size: 12px;
   font-weight: 850;
-  text-transform: uppercase;
 }
 
 .diagnostic-recommendation > span strong {
@@ -5415,7 +5416,7 @@ a:focus-visible {
 .diagnostic-recommendation p {
   margin-top: 7px;
   color: #546c70;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.55;
 }
 
@@ -5460,7 +5461,7 @@ a:focus-visible {
 .skill-profile-grid h4 small {
   display: block;
   color: var(--emerald);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .skill-profile-grid article > div:first-child > strong {
@@ -5513,7 +5514,7 @@ a:focus-visible {
 .diagnostic-caution p {
   margin: 0;
   color: #6a5c3b;
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.5;
 }
 
@@ -5629,7 +5630,6 @@ a:focus-visible {
 
   .diagnostic-skill-track span {
     padding: 6px;
-    font-size: 7px;
   }
 }
 
@@ -5659,6 +5659,7 @@ a:focus-visible {
   align-items: center;
   gap: 0 7px;
   width: max-content;
+  max-width: 100%;
   margin: 0 0 13px;
   padding: 8px 11px;
   border: 1px solid #acd8c8;
@@ -5673,12 +5674,12 @@ a:focus-visible {
 }
 
 .active-learner-chip strong {
-  font-size: 9px;
+  font-size: 13px;
 }
 
 .active-learner-chip small {
-  color: #698079;
-  font-size: 7px;
+  color: #5a6f68;
+  font-size: 12px;
 }
 
 .active-learner-chip.pending {

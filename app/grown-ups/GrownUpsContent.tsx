@@ -27,7 +27,7 @@ export default function GrownUpsContent({ destination, initialMode = "sign-in", 
           <Link href="/safety">{s("Safety & access", "নিরাপত্তা ও প্রবেশ")}</Link>
         </nav>
         <div className="adult-account">
-          <button type="button" className="explore-lang" onClick={toggleLanguage}>
+          <button lang={language === "bn" ? "en" : "bn"} type="button" className="explore-lang" onClick={toggleLanguage}>
             {s("বাংলায় দেখুন", "View in English")}
           </button>
         </div>

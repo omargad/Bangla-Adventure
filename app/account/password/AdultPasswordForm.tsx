@@ -40,7 +40,7 @@ export default function AdultPasswordForm({ name, email, destination }: { name: 
   }
   const signedInAs = <p>{s("Signed in as", "সাইন ইন করেছেন")} <strong>{name}</strong> ({email})</p>;
   return <main className="adult-app auth-app" lang={language}>
-    <header className="adult-header"><Link className="adult-brand" href="/"><span>বা</span><strong>Bangla Adventures</strong></Link><a href="/api/auth/sign-out?returnTo=%2Fgrown-ups">{s("Sign out", "সাইন আউট")}</a><button type="button" className="outline-button" onClick={toggleLanguage}>{s("বাংলা", "English")}</button></header>
+    <header className="adult-header"><Link className="adult-brand" href="/"><span>বা</span><strong>Bangla Adventures</strong></Link><a href="/api/auth/sign-out?returnTo=%2Fgrown-ups">{s("Sign out", "সাইন আউট")}</a><button lang={language === "bn" ? "en" : "bn"} type="button" className="outline-button" onClick={toggleLanguage}>{s("বাংলা", "English")}</button></header>
     <div className="auth-layout"><section className="auth-intro"><p className="adult-eyebrow">{s("Keep your account safe", "আপনার অ্যাকাউন্ট নিরাপদ রাখুন")}</p>
       <h1>{codes ? s("Your password is changed", "আপনার পাসওয়ার্ড বদলানো হয়েছে") : s("Choose your own password", "নিজের পাসওয়ার্ড বেছে নিন")}</h1>
       <p>{s("An administrator gave you this temporary password. Now choose a password that only you know. You will use it every time you sign in, and any other device signed in to this account will be signed out.", "একজন প্রশাসক আপনাকে এই অস্থায়ী পাসওয়ার্ডটি দিয়েছেন। এখন এমন একটি পাসওয়ার্ড বেছে নিন যা শুধু আপনি জানেন। প্রতিবার সাইন ইন করতে এটি লাগবে, আর এই অ্যাকাউন্টে সাইন ইন থাকা অন্য সব ডিভাইস সাইন আউট হয়ে যাবে।")}</p>

@@ -23,7 +23,7 @@ export default function AlphabetHub() {
         type="button"
         className={`letter-card ${speaking === key ? "is-speaking" : ""}`}
         onClick={() => speak(`${letter.glyph}। ${letter.example.bn}।`, key)}
-        aria-label={`${letter.name}. ${letter.example.transliteration}, ${letter.example.en}`}
+        aria-label={s(`${letter.name}. ${letter.example.transliteration}, ${letter.example.en}`, `${letter.glyph} — ${letter.example.bn}`)}
       >
         <span className="letter-glyph" lang="bn">{letter.glyph}</span>
         <span className="letter-name">{letter.name}</span>
@@ -55,7 +55,7 @@ export default function AlphabetHub() {
           <Link href="/phrasebook">{s("Phrasebook", "বাক্যের ঝুলি")}</Link>
           <Link href="/numbers">{s("Numbers", "সংখ্যা")}</Link>
         </nav>
-        <button type="button" className="explore-lang" onClick={toggleLanguage}>
+        <button lang={language === "bn" ? "en" : "bn"} type="button" className="explore-lang" onClick={toggleLanguage}>
           {s("বাংলায় দেখুন", "View in English")}
         </button>
       </header>

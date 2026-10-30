@@ -52,14 +52,14 @@ export default async function WorksheetsIndexPage() {
           return (
             <section key={band.id} className="worksheet-band">
               <h2>
-                <span className="worksheet-band-code">{band.code}</span> {band.title} · {band.titleBn}
+                <span className="worksheet-band-code">{band.code}</span> <span lang="en">{band.title}</span> · <span lang="bn">{band.titleBn}</span>
               </h2>
-              <p>{band.descriptor}</p>
+              <p lang="en">{band.descriptor}</p>
               <ul className="worksheet-list">
                 {bandLessons.map((lesson) => (
                   <li key={lesson.id}>
                     <Link href={`/worksheets/${lesson.id}`}>
-                      <strong>
+                      <strong lang="en">
                         {lesson.number}. {lesson.title}
                       </strong>
                       <span lang="bn">{lesson.titleBn}</span>

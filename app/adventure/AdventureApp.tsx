@@ -12,8 +12,9 @@ import VoiceNote from "../components/VoiceNote";
 import { bundledClip, lessonClip, playbackPlan, playingStatus, voiceStatusText, type Clip, type RecordingMap, type VoiceStatus } from "../../lib/voice-playback";
 import { deviceVoices, runPlayback, stopPlayback } from "../../lib/voice-player";
 import { useLessonRecordings } from "../../lib/use-voice-player";
+import { useLanguage } from "../../lib/use-language";
+import { siteTitle } from "../../lib/site-title";
 
-type Language = "en" | "bn";
 type LessonStep = "start" | "learn" | "practice" | "watch" | "check";
 type CloudLearner = { id: string; displayName: string };
 type ModalState =
@@ -458,7 +459,8 @@ export default function AdventureApp({ approvedLessonIds, videos, recordings: in
   const lessons = useMemo(() => visibleLessons(allLessons, approvedLessonIds), [approvedLessonIds]);
   const videoFor = (lesson: Lesson): LearnerVideo | null => (lesson.id in videos ? videos[lesson.id] : lesson.video);
   const { recordings, refresh: refreshRecordings } = useLessonRecordings(initialRecordings);
-  const [language, setLanguage] = useState<Language>("en");
+  // The shared preference, so the page opens in the learner's language and <html lang> and the tab title follow it.
+  const [language, toggleLanguage] = useLanguage({ title: siteTitle });
   const [stars, setStars] = useState(0);
   const [completed, setCompleted] = useState<string[]>([]);
   const [modal, setModal] = useState<ModalState>(null);
@@ -1131,17 +1133,19 @@ export default function AdventureApp({ approvedLessonIds, videos, recordings: in
           <div className="language-switch" aria-label={language === "en" ? "Language" : "ভাষা"}>
             <button
               type="button"
+              lang="en"
               className={language === "en" ? "active" : ""}
               aria-pressed={language === "en"}
-              onClick={() => setLanguage("en")}
+              onClick={() => { if (language !== "en") toggleLanguage(); }}
             >
               EN
             </button>
             <button
               type="button"
+              lang="bn"
               className={language === "bn" ? "active" : ""}
               aria-pressed={language === "bn"}
-              onClick={() => setLanguage("bn")}
+              onClick={() => { if (language !== "bn") toggleLanguage(); }}
             >
               বাংলা
             </button>
@@ -1370,7 +1374,7 @@ export default function AdventureApp({ approvedLessonIds, videos, recordings: in
 
         <section className="section words-section" id="words">
           <div className="section-heading">
-            <p className="section-number">Stop 01 · শব্দের ঘাট</p>
+            <p className="section-number">{language === "en" ? "Stop 01" : "ধাপ ০১"} · শব্দের ঘাট</p>
             <h2>{t.wordsTitle}</h2>
             <p>{t.wordsIntro}</p>
           </div>
@@ -1401,7 +1405,7 @@ export default function AdventureApp({ approvedLessonIds, videos, recordings: in
             <div className="paper-label">এক দেশে… <small>Once upon a river…</small></div>
           </div>
           <div className="story-copy">
-            <p className="section-number">Stop 02 · {t.storyKicker}</p>
+            <p className="section-number">{language === "en" ? "Stop 02" : "ধাপ ০২"} · {t.storyKicker}</p>
             <h2>{t.storyTitle}</h2>
             <p>{t.storyIntro}</p>
             <ul className="story-features" aria-label={language === "en" ? "Story features" : "গল্পে যা আছে"}>
@@ -1419,7 +1423,7 @@ export default function AdventureApp({ approvedLessonIds, videos, recordings: in
         <section className="section culture-section" id="culture">
           <div className="culture-heading-row">
             <div className="section-heading">
-              <p className="section-number">Stop 03 · সংস্কৃতির পোস্টকার্ড</p>
+              <p className="section-number">{language === "en" ? "Stop 03" : "ধাপ ০৩"} · সংস্কৃতির পোস্টকার্ড</p>
               <h2>{t.cultureTitle}</h2>
               <p>{t.cultureIntro}</p>
             </div>
@@ -1441,7 +1445,7 @@ export default function AdventureApp({ approvedLessonIds, videos, recordings: in
 
         <section className="game-section" id="game">
           <div className="game-intro">
-            <p className="section-number light">Stop 04 · {t.gameKicker}</p>
+            <p className="section-number light">{language === "en" ? "Stop 04" : "ধাপ ০৪"} · {t.gameKicker}</p>
             <h2>{t.gameTitle}</h2>
             <p>{t.gameIntro}</p>
             <div className="game-progress" aria-label={language === "en" ? `${matchedPairs.length} of 4 pairs matched` : `৪টির মধ্যে ${matchedPairs.length.toLocaleString("bn-BD")}টি জোড়া মিলেছে`}>
@@ -1486,7 +1490,7 @@ export default function AdventureApp({ approvedLessonIds, videos, recordings: in
 
         <section className="safety-section">
           <div className="safety-art" aria-hidden="true"><span>☂</span><i>★</i><i>•</i></div>
-          <div><p className="section-number">For families · পরিবারের জন্য</p><h2>{t.safeTitle}</h2><p>{t.safeText}</p></div>
+          <div><p className="section-number">{language === "en" ? "For families · পরিবারের জন্য" : "পরিবারের জন্য"}</p><h2>{t.safeTitle}</h2><p>{t.safeText}</p></div>
           <button type="button" className="outline-button" onClick={() => setModal({ type: "grownups" })}>{t.grownups} <span aria-hidden="true">→</span></button>
         </section>
       </main>
@@ -1494,7 +1498,7 @@ export default function AdventureApp({ approvedLessonIds, videos, recordings: in
       <footer className="site-footer">
         <a className="brand footer-brand" href="#top"><span className="brand-mark" aria-hidden="true">বা</span><span><strong>Bangla</strong><small>Adventures</small></span></a>
         <div><strong>{t.sourceTitle}</strong><p>{t.sourceText}</p></div>
-        <div className="footer-links"><Link href="/topics">{language === "en" ? "Classroom topics — history, festivals & literature" : "শ্রেণিকক্ষের বিষয় — ইতিহাস, উৎসব ও সাহিত্য"}</Link><Link href="/library">{language === "en" ? "NCTB textbook library" : "এনসিটিবি পাঠ্যবই লাইব্রেরি"}</Link><Link href="/learn">{language === "en" ? "All activities — alphabet, stories, games & more" : "সব কার্যক্রম — বর্ণমালা, গল্প, খেলা ও আরও"}</Link><Link href="/explore">{language === "en" ? "Explore Bangladesh" : "বাংলাদেশ ঘুরে দেখো"}</Link><a href="https://whc.unesco.org/en/statesparties/bd" target="_blank" rel="noreferrer">UNESCO places</a><a href="https://www.unesco.org/en/days/mother-language" target="_blank" rel="noreferrer">Mother Language Day</a><button type="button" onClick={() => setModal({ type: "grownups" })}>{t.privacy}</button></div>
+        <div className="footer-links"><Link href="/topics">{language === "en" ? "Classroom topics — history, festivals & literature" : "শ্রেণিকক্ষের বিষয় — ইতিহাস, উৎসব ও সাহিত্য"}</Link><Link href="/library">{language === "en" ? "NCTB textbook library" : "এনসিটিবি পাঠ্যবই লাইব্রেরি"}</Link><Link href="/learn">{language === "en" ? "All activities — alphabet, stories, games & more" : "সব কার্যক্রম — বর্ণমালা, গল্প, খেলা ও আরও"}</Link><Link href="/explore">{language === "en" ? "Explore Bangladesh" : "বাংলাদেশ ঘুরে দেখো"}</Link><a href="https://whc.unesco.org/en/statesparties/bd" target="_blank" rel="noreferrer">{language === "en" ? "UNESCO places" : "ইউনেসকোর ঐতিহ্যের স্থান (ইংরেজিতে)"}</a><a href="https://www.unesco.org/en/days/mother-language" target="_blank" rel="noreferrer">{language === "en" ? "Mother Language Day" : "আন্তর্জাতিক মাতৃভাষা দিবস (ইংরেজিতে)"}</a><button type="button" onClick={() => setModal({ type: "grownups" })}>{t.privacy}</button></div>
       </footer>
 
       {modal && (

@@ -194,8 +194,8 @@ export default function LessonExperience({
   if (!extension) {
     return (
       <div className="lesson-shell lesson-content-missing">
-        <h2>Lesson content is being reviewed.</h2>
-        <button type="button" className="primary-button" onClick={onClose}>Close</button>
+        <h2>{s("Lesson content is being reviewed.", "পাঠটি এখন যাচাই করা হচ্ছে।")}</h2>
+        <button type="button" className="primary-button" onClick={onClose}>{s("Close", "বন্ধ করি")}</button>
       </div>
     );
   }
@@ -342,12 +342,12 @@ export default function LessonExperience({
         {step === "overview" && (
           <div className="lesson-start-pane">
             <div className="module-overview-banner">
-              <div><span>108-session pathway</span><strong>6 × {lesson.duration}</strong></div>
+              <div><span>{s("108-session pathway", "১০৮ ধাপের পথ")}</span><strong>6 × {lesson.duration}</strong></div>
               <p>{lesson.summary}</p>
             </div>
             <div className="lesson-can-do large">
               <span aria-hidden="true">✓</span>
-              <p><strong>By the end, I can…</strong>{lesson.canDo}</p>
+              <p><strong>{s("By the end, I can…", "শেষে আমি পারব…")}</strong>{lesson.canDo}</p>
             </div>
             <div className="lesson-start-grid">
               <section>
@@ -363,7 +363,7 @@ export default function LessonExperience({
                     <li key={skill}>
                       <span>{String(index + 1).padStart(2, "0")}</span>
                       <strong>{labels[language][skill]}</strong>
-                      <small>{completed.includes(sessionKey(lesson.id, skill)) ? "✓ Complete" : skill === "culture" ? "video + culture inquiry" : `${skill} practice`}</small>
+                      <small>{completed.includes(sessionKey(lesson.id, skill)) ? s("✓ Complete", "✓ শেষ") : skill === "culture" ? s("video + culture inquiry", "ভিডিও + সংস্কৃতি নিয়ে খোঁজ") : s(`${skill} practice`, `${labels.bn[skill]} অনুশীলন`)}</small>
                     </li>
                   ))}
                 </ul>
@@ -371,7 +371,7 @@ export default function LessonExperience({
             </div>
             <aside className="adaptive-tip">
               <span aria-hidden="true">↺</span>
-              <div><strong>Adaptive route</strong><p>Start with Listen. If a check feels difficult, replay with the transcript, visit Read, then return. Confident learners can go straight to the skill they need.</p></div>
+              <div><strong>{s("Adaptive route", "নিজের মতো পথ")}</strong><p>{s("Start with Listen. If a check feels difficult, replay with the transcript, visit Read, then return. Confident learners can go straight to the skill they need.", "শুনি দিয়ে শুরু করো। কোনো যাচাই কঠিন লাগলে লেখা দেখে আবার শোনো, পড়ি অংশে যাও, তারপর ফিরে এসো। যারা ভালো পারে, তারা সোজা দরকারি দক্ষতায় যেতে পারে।")}</p></div>
             </aside>
           </div>
         )}
@@ -499,7 +499,7 @@ export default function LessonExperience({
               <label className="writing-pad">
                 <span>Your draft · তোমার লেখা</span>
                 <textarea value={writing} onChange={(event) => setWriting(event.target.value)} placeholder={s("Write, copy or trace here. English planning is allowed.", "এখানে লেখো, দেখে লেখো বা হাত বুলিয়ে লেখো। চাইলে আগে ইংরেজিতে ভেবে নিতে পারো।")} rows={8} />
-                <small>{writing.length} characters · saved only while this lesson is open</small>
+                <small>{s(`${writing.length} characters · saved only while this lesson is open`, `${localNumber(writing.length, "bn")}টি অক্ষর · পাঠটি খোলা থাকা পর্যন্তই রাখা থাকে`)}</small>
               </label>
               <div className="model-answer-card">
                 <button type="button" className="text-button" onClick={() => setShowModel((value) => !value)}>{showModel ? "Hide model" : "Reveal one possible model after trying"}</button>
@@ -585,9 +585,9 @@ export default function LessonExperience({
       </div>
 
       <div className="lesson-modal-footer expanded-footer">
-        <button type="button" onClick={() => changeStep(lessonSteps[Math.max(0, stepIndex - 1)])} disabled={stepIndex === 0}>← Previous</button>
-        <span>{stepIndex === 0 ? "Overview" : `Session ${stepIndex} of 6`} {currentSessionComplete ? "· ✓ complete" : ""}</span>
-        {stepIndex === lessonSteps.length - 1 ? <button className="primary-button" type="button" onClick={onClose}>{preview ? (language === "en" ? "Close preview ×" : "প্রিভিউ বন্ধ করুন ×") : "Close lesson ×"}</button> : <button className="primary-button" type="button" onClick={() => changeStep(lessonSteps[stepIndex + 1])}>Next <span aria-hidden="true">→</span></button>}
+        <button type="button" onClick={() => changeStep(lessonSteps[Math.max(0, stepIndex - 1)])} disabled={stepIndex === 0}>← {s("Previous", "আগের")}</button>
+        <span>{stepIndex === 0 ? labels[language].overview : s(`Session ${stepIndex} of 6`, `৬টির মধ্যে ${localNumber(stepIndex, "bn")} নম্বর ধাপ`)} {currentSessionComplete ? s("· ✓ complete", "· ✓ শেষ") : ""}</span>
+        {stepIndex === lessonSteps.length - 1 ? <button className="primary-button" type="button" onClick={onClose}>{preview ? (language === "en" ? "Close preview ×" : "প্রিভিউ বন্ধ করুন ×") : s("Close lesson ×", "পাঠ বন্ধ করি ×")}</button> : <button className="primary-button" type="button" onClick={() => changeStep(lessonSteps[stepIndex + 1])}>{s("Next", "পরের")} <span aria-hidden="true">→</span></button>}
       </div>
     </div>
   );

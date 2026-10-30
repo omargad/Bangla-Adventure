@@ -33,7 +33,7 @@ export default function PhrasebookHub() {
           <Link className="active" href="/phrasebook">{s("Phrasebook", "বাক্যের ঝুলি")}</Link>
           <Link href="/numbers">{s("Numbers", "সংখ্যা")}</Link>
         </nav>
-        <button type="button" className="explore-lang" onClick={toggleLanguage}>
+        <button lang={language === "bn" ? "en" : "bn"} type="button" className="explore-lang" onClick={toggleLanguage}>
           {s("বাংলায় দেখুন", "View in English")}
         </button>
       </header>
@@ -71,7 +71,7 @@ export default function PhrasebookHub() {
                   key={key}
                   className={`phrase-card ${speaking === key ? "is-speaking" : ""}`}
                   onClick={() => speak(phrase.bn, key)}
-                  aria-label={`${phrase.transliteration} — ${phrase.en}`}
+                  aria-label={s(`${phrase.transliteration} — ${phrase.en}`, phrase.bn)}
                 >
                   <strong lang="bn">{phrase.bn}</strong>
                   <em>{phrase.transliteration}</em>

@@ -16,6 +16,8 @@ export default function PwaBridge({ initialSessionKey, release }: { initialSessi
   const s = (en: string, bn: string) => language === "bn" ? bn : en;
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
   const [installed, setInstalled] = useState(false);
+  // A new release is live. The page offers a reload rather than reloading itself, so nothing typed or shown once is lost.
+  const [updateReady, setUpdateReady] = useState(false);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -55,7 +57,7 @@ export default function PwaBridge({ initialSessionKey, release }: { initialSessi
         const session = await response.json();
         if (!session.authenticated) window.location.replace(loginDestination(url.pathname + url.search));
         else if (session.key !== initialSessionKey) window.location.replace(session.home);
-        else if (session.release !== release) window.location.reload();
+        else setUpdateReady(session.release !== release);
       } catch { return; }
     };
     const restored = (event: PageTransitionEvent) => { if (event.persisted) void check(); };
@@ -73,19 +75,27 @@ export default function PwaBridge({ initialSessionKey, release }: { initialSessi
     if (choice.outcome === "accepted") setInstallPrompt(null);
   }
 
-  if (online && !installPrompt && !installed) return null;
-
   const [title, hint] = !online
     ? [s("You are offline", "ইন্টারনেট সংযোগ নেই"), s("Connect to the internet and sign in to open learning content.", "শেখার বিষয় খুলতে ইন্টারনেটে যুক্ত হয়ে সাইন ইন করতে হবে।")]
-    : installed
-      ? [s("Bangla Adventures installed", "Bangla Adventures ইনস্টল হয়েছে"), s("The app can open from your device.", "এখন ডিভাইস থেকেই অ্যাপটি খোলা যাবে।")]
-      : [s("Keep the river close", "নদীর পথ থাকুক হাতের কাছে"), s("Install the app for easier return visits.", "সহজে আবার ফিরতে অ্যাপটি ইনস্টল করে রাখা যায়।")];
+    : updateReady
+      ? [s("A new version is ready", "নতুন সংস্করণ এসেছে"), s("Reload when you have finished what you are doing here.", "এখানের কাজ শেষ হলে পাতাটি আবার খুলুন।")]
+      : installed
+        ? [s("Bangla Adventures installed", "Bangla Adventures ইনস্টল হয়েছে"), s("The app can open from your device.", "এখন ডিভাইস থেকেই অ্যাপটি খোলা যাবে।")]
+        : [s("Keep the river close", "নদীর পথ থাকুক হাতের কাছে"), s("Install the app for easier return visits.", "সহজে আবার ফিরতে অ্যাপটি ইনস্টল করে রাখা যায়।")];
+  const shown = !online || updateReady || installPrompt !== null || installed;
 
+  // The live region is always in the page, empty while there is nothing to say, so screen readers announce the banner.
   return (
-    <div className={`pwa-status ${online ? "online" : "offline"}`} role="status" lang={language}>
-      <span aria-hidden="true">{online ? "⌂" : "↯"}</span>
-      <div><strong>{title}</strong><small>{hint}</small></div>
-      {online && installPrompt && <button type="button" onClick={() => void install()}>{s("Install", "ইনস্টল")}</button>}
+    <div className="pwa-announcer" role="status" aria-live="polite" aria-atomic="true">
+      {shown && (
+        <div className={`pwa-status ${online ? "online" : "offline"}`} lang={language}>
+          <span aria-hidden="true">{!online ? "↯" : updateReady ? "↻" : "⌂"}</span>
+          <div><strong>{title}</strong><small>{hint}</small></div>
+          {online && (updateReady
+            ? <button type="button" onClick={() => window.location.reload()}>{s("Reload", "আবার খুলুন")}</button>
+            : installPrompt && <button type="button" onClick={() => void install()}>{s("Install", "ইনস্টল")}</button>)}
+        </div>
+      )}
     </div>
   );
 }

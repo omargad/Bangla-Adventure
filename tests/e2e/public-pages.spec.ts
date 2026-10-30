@@ -37,10 +37,15 @@ test("signed-out visitors are not told they are offline, and the banner follows 
     await expect(page.getByRole("status").filter({ hasText: "You are offline" })).toHaveCount(0);
     await expect(page.locator(".pwa-status")).toHaveCount(0);
   }
+  // The live region is already in the page, empty, so the banner put into it later is announced.
+  const region = page.locator(".pwa-announcer[role=status][aria-live=polite]");
+  await expect(region).toHaveCount(1);
+  await expect(region).toBeEmpty();
   await context.setOffline(true);
-  await expect(page.locator(".pwa-status.offline")).toContainText("You are offline");
+  await expect(region.locator(".pwa-status.offline")).toContainText("You are offline");
   await context.setOffline(false);
   await expect(page.locator(".pwa-status")).toHaveCount(0);
+  await expect(region).toBeEmpty();
 });
 
 for (const width of [1920, 1280, 1024, 820, 768, 390]) {
@@ -68,11 +73,14 @@ for (const path of ["/grown-ups", "/safety"]) {
     await page.goto(path, { waitUntil: "networkidle" });
     const button = page.getByRole("button", { name: "বাংলায় দেখুন" });
     await expect(button).toBeVisible();
+    // The button's label is in the other language, so it carries that language.
+    await expect(button).toHaveAttribute("lang", "bn");
     await button.click();
     await expect(page.locator("main")).toHaveAttribute("lang", "bn");
     await expect(page.locator("html")).toHaveAttribute("lang", "bn");
     await expect(page.getByRole("navigation", { name: "প্ল্যাটফর্মের তথ্য" })).toBeVisible();
     await expect(page.getByRole("button", { name: "View in English" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "View in English" })).toHaveAttribute("lang", "en");
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   });
 }
@@ -115,6 +123,32 @@ for (const width of [1280, 390]) {
     }
   });
 }
+
+test("keyboard focus in the public page headers stands out from the cream header", async ({ page }) => {
+  for (const path of publicPages) {
+    await page.goto(path, { waitUntil: "networkidle" });
+    const focused = page.locator(".adult-header :focus-visible");
+    for (let i = 0; i < 10 && (await focused.count()) === 0; i += 1) await page.keyboard.press("Tab");
+    await expect(focused, path).toHaveCount(1);
+    // WCAG 1.4.11: a focus ring needs 3:1 against the header behind it.
+    const ratio = await focused.evaluate((element) => {
+      const parse = (value: string) => {
+        const [r, g, b, a = 1] = (value.match(/[\d.]+/g) ?? []).map(Number);
+        return { r, g, b, a };
+      };
+      const header = parse(getComputedStyle(element.closest(".adult-header")!).backgroundColor);
+      const page = parse(getComputedStyle(document.body).backgroundColor);
+      const background = { r: header.r * header.a + page.r * (1 - header.a), g: header.g * header.a + page.g * (1 - header.a), b: header.b * header.a + page.b * (1 - header.a) };
+      const luminance = ({ r, g, b }: { r: number; g: number; b: number }) => {
+        const channel = (value: number) => { const v = value / 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
+        return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+      };
+      const [light, dark] = [luminance(parse(getComputedStyle(element).outlineColor)), luminance(background)].sort((a, b) => b - a);
+      return (light + 0.05) / (dark + 0.05);
+    });
+    expect(ratio, path).toBeGreaterThanOrEqual(3);
+  }
+});
 
 test("the welcome footer text and privacy link are readable", async ({ page }) => {
   await page.goto("/welcome");
