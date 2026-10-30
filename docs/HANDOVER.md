@@ -26,7 +26,9 @@ site requires a verified private database/media transfer, not test fixtures.
 
 ## Deployment and ownership
 
-Follow [`DEPLOYMENT.md`](DEPLOYMENT.md) for native service or container setup.
+The live site is <https://bangla-adventure.onrender.com> on Render; its settings, first
+administrator, upgrades and backups are in [`DEPLOYMENT.md`](DEPLOYMENT.md#render-current-hosting).
+Follow [`DEPLOYMENT.md`](DEPLOYMENT.md) for native service or container setup elsewhere.
 Production needs HTTPS, the actual `PUBLIC_ORIGIN`, persistent `DATABASE_PATH` and
 an absolute persistent `MEDIA_ROOT`. Run one instance. Uploading source or opening
 a Codespace does not configure production hosting or restore its data.
@@ -36,8 +38,8 @@ a Codespace does not configure production hosting or restore its data.
 site blocks. Do not copy historical paths to another host or replace unrelated
 proxy sites. Private keys and unrelated configurations are not included.
 
-Agree who owns hosting, domain/TLS, support, backup storage and recovery keys. The
-existing host serves other projects: provide application-scoped access or use
+Agree who owns hosting, domain/TLS, support, backup storage and recovery keys,
+including the Render account and its billing. The earlier host at 31.56.120.148 serves other projects: provide application-scoped access or use
 client-owned hosting instead of transferring shared-server root access.
 
 The client also owns the ElevenLabs account and API key used to make the Bangla

@@ -109,6 +109,62 @@ Never run `docker compose down -v` during an upgrade. The CI Docker smoke test
 validates a disposable container; record its actual result before accepting a
 release, and separately verify the production host configuration.
 
+## Render (current hosting)
+
+Since 30 October 2026 the live site is <https://bangla-adventure.onrender.com>, a Render
+**Web Service** built from this repository's `main` branch. Render was chosen because it
+runs the app unchanged, keeps one persistent disk and needs no server administration.
+Vercel and other serverless hosts cannot keep the SQLite database or uploaded media.
+
+| Setting | Value |
+| --- | --- |
+| Language / runtime | Docker, branch `main`, root directory empty |
+| Region | Singapore (closest to the client in Australia) |
+| Instance | Starter (0.5 CPU, 512 MB); one instance. The free plan has no disk, so every restart would wipe all data |
+| Dockerfile Path | `./Dockerfile.render`; build context `.` |
+| Docker Command / Pre-Deploy Command | Empty: `Dockerfile.render` starts the app, and the database updates itself on start |
+| Health Check Path | `/api/health` (200 only when a database query succeeds) |
+| Environment | `PORT=10000`, `PUBLIC_ORIGIN=https://bangla-adventure.onrender.com` (the database, media and `PLATFORM_MODE` settings come from the image) |
+| Disk | 1 GB mounted at `/app/.data`: the database and uploaded media |
+| Auto-Deploy | **After CI checks pass**, so a commit with failing checks never reaches the live site |
+
+`Dockerfile.render` is the normal image with a different start: Render mounts the disk
+owned by root, so `scripts/render-start.sh` hands `/app/.data` to the unprivileged
+`node` user and then runs the app as `node`. Keep the part above its RENDER section
+identical to `./Dockerfile` when either changes.
+
+**First administrator.** Register the client's account on the site (it waits for
+approval), then in the service's **Shell** tab run:
+
+```sh
+scripts/render-run-as-app.sh npm run admin:grant -- REGISTERED_EMAIL
+```
+
+Run every Shell command that touches the database through
+`scripts/render-run-as-app.sh`, never directly as root, so new database files stay
+owned by `node`.
+
+**Upgrades and rollback.** Merge to `main`; once CI passes Render builds and deploys
+the new commit. The single instance restarts, so expect a short interruption. To go
+back, use **Rollback** on an earlier deploy in the Render dashboard, subject to the
+schema caution in *Upgrade and rollback* below.
+
+**Backups.** Render snapshots the disk automatically every 24 hours and keeps
+snapshots for at least seven days; a restore rolls back the whole disk. Render warns
+that a disk snapshot may not be a consistent copy of a database, so also make
+database-consistent backups with the app's tool (not yet exercised on Render):
+
+1. Turn on **Maintenance Mode** in the service settings so no one can write.
+2. In the Shell, run
+   `scripts/render-run-as-app.sh bash scripts/backup.sh /app/.data/backups 3 --application-stopped`.
+3. Turn Maintenance Mode off.
+4. Copy the archive to the client's own storage. Archives on the same disk are not an
+   off-site backup, and they use the 1 GB; until a copy off Render is set up and a
+   restore has been rehearsed, off-site backup remains open.
+
+Ownership: the Render account, its billing and the service belong in the client's
+hands at handover (transfer the service or recreate it with these settings).
+
 ## First administrator and recovery
 
 1. Confirm the client's intended account identity. Have that person register an

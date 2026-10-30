@@ -19,9 +19,10 @@ Bangladesh's culture, history and literature for Bangladeshi-heritage children o
 </div>
 
 > [!NOTE]
-> An **ICT Project B capstone** for clients **Dr Tanjila Kanij** and **Faysal Alam**. Use the
-> [deployment guide](docs/DEPLOYMENT.md) for the current custom application and the
-> [handover guide](docs/HANDOVER.md) for client setup and release evidence.
+> An **ICT Project B capstone** for clients **Dr Tanjila Kanij** and **Faysal Alam**, live at
+> <https://bangla-adventure.onrender.com>. Use the [deployment guide](docs/DEPLOYMENT.md) for
+> the current custom application and the [handover guide](docs/HANDOVER.md) for client setup
+> and release evidence.
 
 ## Features
 
@@ -63,7 +64,7 @@ where they stand:
 | Results stay readable with many students | ✅ Gradebook table |
 | Attendance (optional) | ✅ Present by default; parents, students and administrators see "attended X of Y" |
 | Bangla pronunciation | 🟡 Recordings play first; ElevenLabs is the chosen voice provider and the clips are generated once the client's API key is set up |
-| Deploy on the client's server | ⬜ Waiting for server access |
+| Deploy on the client's server | 🟡 Live on Render at <https://bangla-adventure.onrender.com>; moving to the client's own server waits for access |
 
 ## Screenshots
 
@@ -153,7 +154,7 @@ where they stand:
 | 🟡 Official NCTB catalogue and PDF audit | Source records implemented; a verified PDF is not an approved adaptation |
 | 🟡 Bilingual topics and lessons | Teachers preview and approve content before students see it; the shipped content is approved as a baseline and still needs individual educator and community review |
 | 🟡 Bangla audio | Approved human recordings play first, then provider clips, the device voice and the bundled eSpeak voice; ElevenLabs is the chosen provider and generation waits for the client's key (Azure remains an alternative); native-speaker review and reviewed recordings remain incomplete |
-| 🟡 Application deployment and operations | Existing-host reference configuration, portable service and Compose setup, and backup and restore tools included; actual hosting ownership, off-server scheduling and recovery evidence require operator handover |
+| 🟡 Application deployment and operations | Live on Render (Singapore, one instance, 1 GB disk with daily snapshots); portable service and Compose setup and backup and restore tools included; hosting ownership, off-site backups and a recovery exercise still need handover |
 | 🟡 Moodle pilot course | Installable hidden-course plugin implemented: 15 bilingual chapters, nine activities and nine questions |
 | 🔒 Optional Moodle publication control | Draft validation passes; pilot release validation intentionally fails while 27 human-review gates are pending |
 | ⬜ YouTube and media verification | Not complete; media excluded from the first pilot |
@@ -327,9 +328,13 @@ course repeatably; it has no command that can publish it.
 
 ## Current deployment and handover
 
-- **Existing website:** <https://31.56.120.148>. Portals: `/student`, `/teach`, `/admin`,
-  `/family`. Confirm live readiness and ownership during handover; source files alone do not
-  establish the current server state.
+- **Live website:** <https://bangla-adventure.onrender.com>, on Render (Singapore, Starter plan,
+  1 GB disk), deployed automatically from `main` once CI passes; see the
+  [deployment guide](docs/DEPLOYMENT.md#render-current-hosting). Portals: `/student`, `/teach`,
+  `/admin`, `/family`.
+- **Earlier server:** <https://31.56.120.148>, set up with Devin under a team member's account,
+  still runs the version from before 28 October 2026. Update it with the deployment guide or
+  retire it, and confirm who owns it.
 - **Setting up or taking over:** start with the [deployment guide](docs/DEPLOYMENT.md) and the
   [handover guide](docs/HANDOVER.md), then work through the checklist below.
 

@@ -631,6 +631,7 @@ These files were added after the package import by the commits that created them
 - `.github/CODEOWNERS`
 - `.nvmrc`
 - `CONTRIBUTIONS.md`
+- `Dockerfile.render`
 - `app/account/password/AdultPasswordForm.tsx`
 - `app/account/password/page.tsx`
 - `app/admin/FamilyImport.tsx`
@@ -734,6 +735,8 @@ These files were added after the package import by the commits that created them
 - `public/audio/voice-manifest.json`
 - `scripts/backup-offsite.sh`
 - `scripts/backup_restore.py`
+- `scripts/render-run-as-app.sh`
+- `scripts/render-start.sh`
 - `scripts/restore.sh`
 - `scripts/test-container.sh`
 - `tests/account-approval.test.mjs`
