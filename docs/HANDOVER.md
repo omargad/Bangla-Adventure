@@ -56,13 +56,18 @@ has the licence check, dry run, samples, generation and native-speaker review.
 2. On the intended deployment, run `npm run admin:grant -- YOUR_REGISTERED_EMAIL`
    using the **same `DATABASE_PATH`** as the app. The command makes the account an
    administrator **and approves it**. Native/Compose commands are in
-   [`DEPLOYMENT.md`](DEPLOYMENT.md#first-administrator-and-recovery).
+   [`DEPLOYMENT.md`](DEPLOYMENT.md#first-administrator-and-recovery); on Render, run
+   `scripts/render-run-as-app.sh npm run admin:grant -- YOUR_REGISTERED_EMAIL` in the
+   service's Shell (see [`DEPLOYMENT.md`](DEPLOYMENT.md#render-current-hosting)).
 3. Sign in again at `/grown-ups?returnTo=/admin&switchAccount=1`. Promotion revokes
    previous sessions. There are no default admin credentials or public admin signup.
 4. If the only administrator later forgets the password and has lost the recovery
-   codes, run `npm run admin:reset-password -- THEIR_EMAIL` the same way. It prints a
-   temporary password once; signing in with it leads to choosing a new password, and
-   fresh recovery codes follow.
+   codes, run `npm run admin:reset-password -- THEIR_EMAIL` the same way, against the
+   same database (on Render, in the service's Shell:
+   `scripts/render-run-as-app.sh npm run admin:reset-password -- THEIR_EMAIL`; see
+   [`DEPLOYMENT.md`](DEPLOYMENT.md#render-current-hosting)). It prints a temporary
+   password once; signing in with it leads to choosing a new password, and fresh
+   recovery codes follow.
 
 Students, parents and teachers who register themselves wait in the administrator's
 **Waiting for approval** queue on the Users page until they are approved (approving
