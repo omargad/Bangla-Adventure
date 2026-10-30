@@ -568,10 +568,10 @@ Confidence: **high** â€” the Jira item clearly describes this file; **medium** â
 | `public/favicon.svg` | [@omargad](https://github.com/omargad) | [SCRUM-25](https://ictprojectb26.atlassian.net/browse/SCRUM-25) | medium | [`44b646b`](https://github.com/omargad/Bangla-Adventure/commit/44b646b73d3850224ef7d213fbb8ea3a696c5151) | unchanged, [`6d34040`](https://github.com/omargad/Bangla-Adventure/commit/6d340407b017648343a4134e5ef9751a4d278a8e) (3 Aug) |
 | `public/file.svg` | [@omargad](https://github.com/omargad) | [SCRUM-25](https://ictprojectb26.atlassian.net/browse/SCRUM-25) | high | [`44b646b`](https://github.com/omargad/Bangla-Adventure/commit/44b646b73d3850224ef7d213fbb8ea3a696c5151) | unchanged, [`6d34040`](https://github.com/omargad/Bangla-Adventure/commit/6d340407b017648343a4134e5ef9751a4d278a8e) (3 Aug) |
 | `public/globe.svg` | [@omargad](https://github.com/omargad) | [SCRUM-25](https://ictprojectb26.atlassian.net/browse/SCRUM-25) | high | [`44b646b`](https://github.com/omargad/Bangla-Adventure/commit/44b646b73d3850224ef7d213fbb8ea3a696c5151) | unchanged, [`6d34040`](https://github.com/omargad/Bangla-Adventure/commit/6d340407b017648343a4134e5ef9751a4d278a8e) (3 Aug) |
-| `public/hero-quest-map.png` | [@104985376](https://github.com/104985376) | [SCRUM-55](https://ictprojectb26.atlassian.net/browse/SCRUM-55) | high | [`4120060`](https://github.com/omargad/Bangla-Adventure/commit/412006070ed8690e4bd2bc64b38483f2c6e5f3e6) | unchanged, [`6d34040`](https://github.com/omargad/Bangla-Adventure/commit/6d340407b017648343a4134e5ef9751a4d278a8e) (3 Aug) |
+| `public/hero-quest-map.png` (since re-encoded as `public/hero-quest-map.webp`) | [@104985376](https://github.com/104985376) | [SCRUM-55](https://ictprojectb26.atlassian.net/browse/SCRUM-55) | high | [`4120060`](https://github.com/omargad/Bangla-Adventure/commit/412006070ed8690e4bd2bc64b38483f2c6e5f3e6) | unchanged, [`6d34040`](https://github.com/omargad/Bangla-Adventure/commit/6d340407b017648343a4134e5ef9751a4d278a8e) (3 Aug) |
 | `public/manifest.webmanifest` | [@omargad](https://github.com/omargad) | [SCRUM-25](https://ictprojectb26.atlassian.net/browse/SCRUM-25) | medium | [`44b646b`](https://github.com/omargad/Bangla-Adventure/commit/44b646b73d3850224ef7d213fbb8ea3a696c5151) | unchanged, [`6d34040`](https://github.com/omargad/Bangla-Adventure/commit/6d340407b017648343a4134e5ef9751a4d278a8e) (3 Aug) |
-| `public/postcard-collage.png` | [@104985376](https://github.com/104985376) | [SCRUM-37](https://ictprojectb26.atlassian.net/browse/SCRUM-37) | medium | [`dd7fee9`](https://github.com/omargad/Bangla-Adventure/commit/dd7fee9d94c4afb4fcc47042adc267b28ae475c7) | unchanged, [`6d34040`](https://github.com/omargad/Bangla-Adventure/commit/6d340407b017648343a4134e5ef9751a4d278a8e) (3 Aug) |
-| `public/river-story.png` | [@104985376](https://github.com/104985376) | [SCRUM-37](https://ictprojectb26.atlassian.net/browse/SCRUM-37) | medium | [`dd7fee9`](https://github.com/omargad/Bangla-Adventure/commit/dd7fee9d94c4afb4fcc47042adc267b28ae475c7) | unchanged, [`6d34040`](https://github.com/omargad/Bangla-Adventure/commit/6d340407b017648343a4134e5ef9751a4d278a8e) (3 Aug) |
+| `public/postcard-collage.png` (since re-encoded as `public/postcard-collage.webp`) | [@104985376](https://github.com/104985376) | [SCRUM-37](https://ictprojectb26.atlassian.net/browse/SCRUM-37) | medium | [`dd7fee9`](https://github.com/omargad/Bangla-Adventure/commit/dd7fee9d94c4afb4fcc47042adc267b28ae475c7) | unchanged, [`6d34040`](https://github.com/omargad/Bangla-Adventure/commit/6d340407b017648343a4134e5ef9751a4d278a8e) (3 Aug) |
+| `public/river-story.png` (since re-encoded as `public/river-story.webp`) | [@104985376](https://github.com/104985376) | [SCRUM-37](https://ictprojectb26.atlassian.net/browse/SCRUM-37) | medium | [`dd7fee9`](https://github.com/omargad/Bangla-Adventure/commit/dd7fee9d94c4afb4fcc47042adc267b28ae475c7) | unchanged, [`6d34040`](https://github.com/omargad/Bangla-Adventure/commit/6d340407b017648343a4134e5ef9751a4d278a8e) (3 Aug) |
 | `public/sw.js` | [@omargad](https://github.com/omargad) | [SCRUM-53](https://ictprojectb26.atlassian.net/browse/SCRUM-53) | medium | [`ab8d3b2`](https://github.com/omargad/Bangla-Adventure/commit/ab8d3b224bc5a3bf7171d8028fa6c91a26ad39a9) | earlier form, [`6d34040`](https://github.com/omargad/Bangla-Adventure/commit/6d340407b017648343a4134e5ef9751a4d278a8e) (3 Aug) |
 | `public/window.svg` | [@omargad](https://github.com/omargad) | [SCRUM-25](https://ictprojectb26.atlassian.net/browse/SCRUM-25) | high | [`44b646b`](https://github.com/omargad/Bangla-Adventure/commit/44b646b73d3850224ef7d213fbb8ea3a696c5151) | unchanged, [`6d34040`](https://github.com/omargad/Bangla-Adventure/commit/6d340407b017648343a4134e5ef9751a4d278a8e) (3 Aug) |
 | `scripts/backup.sh` | [@omargad](https://github.com/omargad) | [SCRUM-54](https://ictprojectb26.atlassian.net/browse/SCRUM-54) | medium | [`d187809`](https://github.com/omargad/Bangla-Adventure/commit/d187809ad866c85d00e0cc2bacf77deac427f7f8) | unchanged, [`5490c6d`](https://github.com/omargad/Bangla-Adventure/commit/5490c6d7ba389412eb041bb99bfed0b80edd8dac) (4 Aug) |
@@ -662,6 +662,7 @@ These files were added after the package import by the commits that created them
 - `app/components/ClassAttendance.tsx`
 - `app/components/Gradebook.tsx`
 - `app/components/PasswordChangeGate.tsx`
+- `app/components/PortalText.tsx`
 - `app/components/StudentImport.tsx`
 - `app/components/VoiceNote.tsx`
 - `app/components/leave-guard.ts`
@@ -727,18 +728,31 @@ These files were added after the package import by the commits that created them
 - `lib/library-catalog.ts`
 - `lib/library-links.ts`
 - `lib/local-format.ts`
+- `lib/release.ts`
+- `lib/site-title.ts`
 - `lib/student-import.ts`
 - `lib/topic-model.ts`
 - `lib/use-voice-player.ts`
 - `lib/voice-playback.ts`
 - `lib/voice-player.ts`
+- `public/apple-touch-icon.png`
 - `public/audio/voice-manifest.json`
+- `public/favicon.ico`
+- `public/hero-quest-map.webp` (re-encoded from `public/hero-quest-map.png`; keeps its owner [@104985376](https://github.com/104985376))
+- `public/icon-192.png`
+- `public/icon-512.png`
+- `public/icon-maskable-512.png`
+- `public/postcard-collage.webp` (re-encoded from `public/postcard-collage.png`; keeps its owner [@104985376](https://github.com/104985376))
+- `public/river-story.webp` (re-encoded from `public/river-story.png`; keeps its owner [@104985376](https://github.com/104985376))
+- `public/robots.txt`
 - `scripts/backup-offsite.sh`
 - `scripts/backup_restore.py`
 - `scripts/render-run-as-app.sh`
 - `scripts/render-start.sh`
 - `scripts/restore.sh`
 - `scripts/test-container.sh`
+- `scripts/test-render-container.sh`
+- `scripts/update-manifest.sh`
 - `tests/account-approval.test.mjs`
 - `tests/announcements.test.mjs`
 - `tests/attendance.test.mjs`
@@ -749,6 +763,7 @@ These files were added after the package import by the commits that created them
 - `tests/class-management.test.mjs`
 - `tests/class-sources.test.mjs`
 - `tests/csv.test.mjs`
+- `tests/dockerfile-render.test.mjs`
 - `tests/e2e/accounts.spec.ts`
 - `tests/e2e/admin-classes.spec.ts`
 - `tests/e2e/admin-results.spec.ts`
@@ -756,6 +771,7 @@ These files were added after the package import by the commits that created them
 - `tests/e2e/attendance.spec.ts`
 - `tests/e2e/families.spec.ts`
 - `tests/e2e/lesson-approval.spec.ts`
+- `tests/e2e/public-pages.spec.ts`
 - `tests/e2e/sources.spec.ts`
 - `tests/e2e/student-import.spec.ts`
 - `tests/e2e/topic-approval.spec.ts`
@@ -774,12 +790,15 @@ These files were added after the package import by the commits that created them
 - `tests/integration/family-import-flow.test.mjs`
 - `tests/integration/lesson-approval-flow.test.mjs`
 - `tests/integration/password-change-flow.test.mjs`
+- `tests/integration/serving-flow.test.mjs`
 - `tests/integration/sources-flow.test.mjs`
 - `tests/integration/student-import-flow.test.mjs`
 - `tests/integration/topic-approval-flow.test.mjs`
 - `tests/integration/voice-audio-flow.test.mjs`
 - `tests/lesson-approval.test.mjs`
 - `tests/library-catalog.test.mjs`
+- `tests/pwa-bridge.test.mjs`
+- `tests/release.test.mjs`
 - `tests/student-import-db.test.mjs`
 - `tests/student-import.test.mjs`
 - `tests/topic-approval.test.mjs`

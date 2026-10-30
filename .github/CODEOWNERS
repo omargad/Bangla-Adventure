@@ -1,6 +1,7 @@
 # Code owners follow file authorship in the Jira-attributed import (docs/FILE_OWNERSHIP.md).
 # Each path belongs to the Jira assignee of the item that delivered it; see CONTRIBUTIONS.md.
-# Files added after the import, and parts no individual Jira item covers, belong to the repository owner.
+# Files added after the import, and parts no individual Jira item covers, belong to the repository owner;
+# an imported image re-encoded under a new name keeps its original owner.
 # Brackets and spaces in names are matched with "?"; generation checks that every pattern resolves
 # each tracked file to its recorded owner. This file does not make review mandatory.
 
@@ -113,6 +114,7 @@
 /moodle/local/banglapilot/data/ @MAQ022
 /moodle/local/banglapilot/data/content-manifest.json @MohammedAlAjmi24
 /public/ @MAQ022
+/public/apple-touch-icon.png @omargad
 /public/audio/hello-bn.ogg @104985376
 /public/audio/place-bagerhat-bn.ogg @omargad
 /public/audio/place-bagerhat-en.ogg @omargad
@@ -135,13 +137,18 @@
 /public/audio/word-river-example-bn.ogg @104985376
 /public/audio/word-tiger-bn.ogg @104985376
 /public/audio/word-tiger-example-bn.ogg @104985376
+/public/favicon.ico @omargad
 /public/favicon.svg @omargad
 /public/file.svg @omargad
 /public/globe.svg @omargad
-/public/hero-quest-map.png @104985376
+/public/hero-quest-map.webp @104985376
+/public/icon-192.png @omargad
+/public/icon-512.png @omargad
+/public/icon-maskable-512.png @omargad
 /public/manifest.webmanifest @omargad
-/public/postcard-collage.png @104985376
-/public/river-story.png @104985376
+/public/postcard-collage.webp @104985376
+/public/river-story.webp @104985376
+/public/robots.txt @omargad
 /public/sw.js @omargad
 /public/window.svg @omargad
 /scripts/crawl-nctb.mjs @MohammedAlAjmi24
