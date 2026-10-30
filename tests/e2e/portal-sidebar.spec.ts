@@ -349,7 +349,7 @@ test("the sidebar stays readable: legible labels, a long class name kept to two 
   }));
   await page.goto("/teach");
   // The class list's eyebrow is readable and dark enough (about 5:1 on the page background).
-  expect(await style("#portal-main .adult-eyebrow")).toEqual([{ size: 12, spacing: expect.any(String), color: "rgb(185, 61, 46)" }]);
+  expect(await style("#portal-main .adult-eyebrow")).toEqual([{ size: 12, spacing: expect.any(String), color: "rgb(185, 61, 43)" }]);
   for (const heading of await style(".portal-nav-heading")) expect(heading.size).toBeGreaterThanOrEqual(12);
 
   await page.getByLabel("Find a class").fill(suffix);

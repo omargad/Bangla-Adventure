@@ -31,7 +31,7 @@
 .portal-content .adult-content { padding:0; width:100%; max-width:none; margin:0; }
 .portal-content :is(.adult-hero,.explore-hero,.management-heading) { padding:0; margin:0 0 24px; min-height:0; border:0; box-shadow:none; background:transparent; }
 .portal-content .adult-hero { display:block; }
-.portal-content .adult-eyebrow { font-size:.75rem; color:#b93d2e; }
+.portal-content .adult-eyebrow { font-size:.75rem; color:var(--coral-text); }
 .portal-content .adult-eyebrow:lang(bn) { letter-spacing:0; }
 .portal-content .explore-section { max-width:none; padding:0; margin:24px 0; }
 .portal-content h1 { font-family:var(--sans); font-size:clamp(1.8rem,3vw,2.6rem); line-height:1.2; letter-spacing:-.035em; margin:12px 0 18px; }
