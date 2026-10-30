@@ -1,13 +1,20 @@
 .portal-shell { min-height:100vh; display:grid; grid-template-columns:230px minmax(0,1fr); background:#f5f7f6; color:#17324d; }
-.portal-sidebar { position:sticky; top:0; height:100vh; display:flex; flex-direction:column; padding:28px 18px; border-right:1px solid #dce5e1; background:#fffdf6; z-index:30; }
+.portal-sidebar { position:sticky; top:0; height:100vh; display:flex; flex-direction:column; overflow-y:auto; overscroll-behavior:contain; padding:22px 16px 18px; border-right:1px solid #dce5e1; background:#fffdf6; z-index:30; }
 .portal-brand { display:flex; align-items:center; gap:12px; font-size:1.12rem; line-height:1.3; padding:0 8px; }
 .portal-brand>span { width:45px; height:45px; display:grid; place-items:center; background:#075b4c; color:white; border-radius:14px; font-size:1.65rem; }
-.portal-role { margin:25px 12px 12px; text-transform:uppercase; letter-spacing:.12em; font-size:.7rem; font-weight:800; color:#63756f; }
-.portal-sidebar nav { display:grid; gap:5px; overflow-y:auto; }
-.portal-sidebar nav :is(a,button) { display:block; width:100%; text-align:left; border:0; padding:13px 14px; border-radius:12px; background:transparent; font:inherit; font-size:.9rem; cursor:pointer; color:#294d44; text-decoration:none; }
+.portal-role { margin:16px 12px 10px; text-transform:uppercase; letter-spacing:.12em; font-size:.7rem; font-weight:800; color:#63756f; }
+.portal-sidebar nav { display:grid; align-content:start; gap:12px; }
+.portal-sidebar nav :is(a,button) { display:block; width:100%; text-align:left; border:0; padding:7px 14px; border-radius:10px; background:transparent; font:inherit; font-size:.9rem; line-height:1.35; cursor:pointer; color:#294d44; text-decoration:none; }
+/* Staff links come in small named groups; the open class's sections sit under its name, indented. */
+.portal-nav-group { display:grid; gap:2px; }
+.portal-nav-heading { margin:0 0 4px; padding:0 14px; font-size:.7rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:#075b4c; }
+.portal-nav-class { display:grid; gap:2px; margin:4px 0 0 14px; padding-left:8px; border-left:2px solid #cfe2d9; }
+.portal-nav-class-name { margin:4px 0 2px; padding:0 6px; font-size:.88rem; font-weight:800; line-height:1.3; color:#17324d; overflow-wrap:anywhere; }
+.portal-nav-class-name small { display:block; font-size:.68rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:#63756f; }
+.portal-nav-end { padding-top:10px; border-top:1px solid #dce5e1; }
 .portal-sidebar nav [aria-current=page] { background:#075b4c; color:white; font-weight:750; }
 .portal-sidebar nav :is(a,button):hover { background:#dceee5; color:#075b4c; }
-.portal-signout { margin-top:auto; padding:20px 14px 0; font-size:.9rem; font-weight:700; }
+.portal-signout { margin-top:auto; padding:14px 14px 0; font-size:.9rem; font-weight:700; }
 .portal-workspace { min-width:0; }
 .portal-topbar { display:flex; align-items:center; justify-content:space-between; gap:16px; min-height:78px; padding:16px 32px; background:white; border-bottom:1px solid #dce5e1; }
 .portal-topbar .outline-button { min-height:40px; padding:8px 14px; font-size:.8rem; box-shadow:none; }
@@ -31,6 +38,14 @@
 .portal-content .outline-button { min-height:42px; box-shadow:none; font-size:.85rem; border-radius:10px; margin:4px; }
 .portal-content .workspace-stats { margin:24px 0; }
 .portal-heading { display:flex; align-items:center; justify-content:space-between; gap:16px; }
+/* The teacher workspace with a class open: the class bar, then the chosen section's own heading. */
+.portal-content .teach-class-head { display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:center; gap:6px 18px; padding:16px 22px; margin:0 0 4px; }
+.portal-content .teach-class-head .topics-back { justify-self:start; }
+.portal-content .teach-class-head .danger { justify-self:end; }
+.portal-content .teach-class-title h1 { font-size:1.45rem; margin:0 0 4px; letter-spacing:-.02em; }
+.portal-content .teach-section-head { margin:26px 0 6px; }
+.portal-content .teach-section-head h2 { font-size:clamp(1.5rem,2.4vw,1.9rem); line-height:1.2; letter-spacing:-.02em; margin:0 0 6px; color:#075b4c; }
+.portal-content .teach-section-head > p:not(.teach-message) { margin:0; max-width:70ch; color:#546b62; }
 .portal-topic-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(250px,100%),1fr)); gap:18px; margin:20px 0 28px; }
 .portal-topic-card { display:flex; flex-direction:column; text-align:left; min-width:0; border:1px solid #cdddD4; border-radius:18px; padding:24px; background:white; color:inherit; font:inherit; text-decoration:none; box-shadow:0 3px 12px #17324d05; cursor:pointer; }
 .portal-topic-card h3 { margin:14px 0 8px; }
@@ -60,6 +75,9 @@
  .portal-shell { display:block; }
  .portal-sidebar { position:fixed; width:245px; left:-260px; visibility:hidden; transition:left .18s; box-shadow:5px 0 25px #17324d22; padding-top:86px; }
  .portal-sidebar.is-open { left:0; visibility:visible; }
+ .portal-sidebar nav :is(a,button) { padding:10px 14px; }
+ .portal-content .teach-class-head { grid-template-columns:minmax(0,1fr) auto; }
+ .portal-content .teach-class-title { grid-column:1 / -1; grid-row:2; }
  .portal-topbar { position:sticky; top:0; z-index:40; padding:12px 16px; min-height:68px; }
  .portal-topbar>span { font-size:.82rem; }
  .portal-menu { display:inline-block; padding:10px; border:1px solid #c8d6d0; border-radius:8px; background:white; font:inherit; }
@@ -259,7 +277,7 @@
 .class-source-form, .admin-source-form { display:grid; gap:10px; margin-top:16px; max-width:640px; }
 .class-source-form label, .admin-source-form label { display:grid; gap:4px; font-weight:600; }
 .class-source-form input, .admin-source-form input, .admin-source-form select, .admin-source-link input { font:inherit; padding:8px 12px; border:2px solid #d6e6dc; border-radius:10px; background:#fff; width:100%; }
-.class-source-form h4 { margin:0; }
+.class-source-form h3 { margin:0; }
 /* A class's sources inside a parent's or student's class card. */
 .class-sources-inline { margin:10px 0 14px; }
 .class-sources-inline h4 { margin:0; font-size:1rem; }

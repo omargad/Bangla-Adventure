@@ -1,13 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLanguage } from "../../lib/use-language";
 
 export default function AccountPanel({ email, displayName }: { email: string; displayName: string }) {
   const router = useRouter();
-  const [language, toggleLanguage] = useLanguage({ title: ["Your account | Bangla Adventures", "আপনার অ্যাকাউন্ট | Bangla Adventures"] });
+  const [language] = useLanguage({ title: ["Your account | Bangla Adventures", "আপনার অ্যাকাউন্ট | Bangla Adventures"] });
   const s = (en: string, bn: string) => (language === "bn" ? bn : en);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -119,21 +118,6 @@ export default function AccountPanel({ email, displayName }: { email: string; di
 
   return (
     <main className="adult-app" lang={language}>
-      <header className="adult-header">
-        <Link className="adult-brand" href="/"><span>বা</span><span><strong>Bangla Adventures</strong><small>{s("Your account", "আপনার অ্যাকাউন্ট")}</small></span></Link>
-        <nav aria-label={s("Adult tools", "বড়দের মেনু")}>
-          <Link href="/family">{s("Learners", "শিক্ষার্থী")}</Link>
-          <Link href="/studio">{s("Lessons", "পাঠ")}</Link>
-          <Link href="/worksheets">{s("Worksheets", "ওয়ার্কশিট")}</Link>
-          <Link href="/safety">{s("Safety & access", "নিরাপত্তা ও প্রবেশ")}</Link>
-          <Link className="active" href="/account">{s("Account", "অ্যাকাউন্ট")}</Link>
-        </nav>
-        <div className="adult-account">
-          <button lang={language === "bn" ? "en" : "bn"} type="button" className="explore-lang" onClick={toggleLanguage}>{s("বাংলায় দেখুন", "View in English")}</button>
-          <a href="/api/auth/sign-out?returnTo=%2F">{s("Sign out", "সাইন আউট")}</a>
-        </div>
-      </header>
-
       <div className="adult-content account-content">
         <section className="adult-hero">
           <div>

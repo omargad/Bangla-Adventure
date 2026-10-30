@@ -83,7 +83,6 @@ export default function ClassSources({ classId, language, isAdmin = false }: { c
 
   return (
     <section className="teach-panel class-sources-editor" aria-label={s("Class sources", "ক্লাসের উৎস")}>
-      <h3>{s("Class sources", "ক্লাসের উৎস")}</h3>
       <p className="teach-note">
         {s(
           "Add links for this class only, such as a worksheet, a video or a page of this year's textbook. Students allocated to this class see them in Sources & references, and their parents see them on the family page.",
@@ -118,7 +117,7 @@ export default function ClassSources({ classId, language, isAdmin = false }: { c
       )}
 
       <form className="class-source-form" onSubmit={save} aria-label={editing ? s("Edit source", "উৎস সম্পাদনা") : s("Add a source", "উৎস যোগ করুন")}>
-        <h4>{editing ? s("Edit source", "উৎস সম্পাদনা") : s("Add a source", "উৎস যোগ করুন")}</h4>
+        <h3>{editing ? s("Edit source", "উৎস সম্পাদনা") : s("Add a source", "উৎস যোগ করুন")}</h3>
         <label>{s("Title (English)", "নাম (ইংরেজি)")}<input maxLength={120} {...field("titleEn")} /></label>
         <label>{s("Title (Bangla)", "নাম (বাংলা)")}<input lang="bn" maxLength={120} {...field("titleBn")} /></label>
         <label>{s("Link", "লিংক")}<input type="url" required maxLength={500} placeholder="https://" {...field("url")} /></label>

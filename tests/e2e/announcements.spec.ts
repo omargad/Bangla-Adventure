@@ -63,7 +63,7 @@ test("a teacher posts a parents-only announcement: the linked parent sees it, th
   await page.goto("/teach");
   await page.getByLabel("Find a class").fill(suffix);
   await page.getByRole("button", { name: new RegExp(className) }).click();
-  await expect(page.getByRole("heading", { name: className, level: 2 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: className, level: 1 })).toBeVisible();
   await page.getByRole("navigation", { name: "Portal navigation" }).getByRole("button", { name: "Announcements", exact: true }).click();
   const panel = page.getByRole("region", { name: "Announcements" });
   await expect(panel.getByLabel("Who can see it")).toHaveValue("all");

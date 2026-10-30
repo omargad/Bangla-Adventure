@@ -118,7 +118,6 @@ export default function ClassAttendance({ classId, language, onSaved, onDirtyCha
   const unrecorded = students.length - recorded.length;
   const dayLabel = localDate(date, language);
   return <section className="teach-panel" aria-label={s("Attendance", "উপস্থিতি")}>
-    <h3>{s("Attendance", "উপস্থিতি")}</h3>
     <p>{s("Everyone starts ticked as present. Untick the students who are absent, then save. You can open a saved date again to correct it.", "সবাই শুরুতে উপস্থিত হিসেবে টিক দেওয়া থাকে। যারা অনুপস্থিত তাদের টিক তুলে দিন, তারপর সংরক্ষণ করুন। ভুল ঠিক করতে সংরক্ষিত তারিখ আবার খুলতে পারেন।")}</p>
     <label className="attendance-date">{s("Class date", "ক্লাসের তারিখ")}<input type="date" value={date} max={today} required onChange={(event) => { if (event.target.value) openDate(event.target.value); }} /></label>
     {error && <div className="attendance-error">
@@ -159,7 +158,7 @@ export default function ClassAttendance({ classId, language, onSaved, onDirtyCha
           <button type="button" className="primary-button" disabled={busy || loading || recorded.length === 0} onClick={() => void save()}>{busy ? s("Saving…", "সংরক্ষণ হচ্ছে…") : s(`Save attendance for ${dayLabel}`, `${dayLabel}-এর উপস্থিতি সংরক্ষণ করুন`)}</button>
         </div>
       </>}
-      <h4>{s("Past sessions", "আগের ক্লাসগুলো")}</h4>
+      <h3>{s("Past sessions", "আগের ক্লাসগুলো")}</h3>
       {sheet.sessions.length === 0 ? <p className="teach-empty">{s("No attendance saved for this class yet.", "এই ক্লাসের কোনো উপস্থিতি এখনও সংরক্ষণ করা হয়নি।")}</p>
         : <div className="management-table-wrap"><table className="teach-submissions">
           <caption className="sr-only">{s("Attendance by session", "ক্লাস অনুযায়ী উপস্থিতি")}</caption>
