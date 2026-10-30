@@ -222,6 +222,18 @@ test("administrators reset student and adult passwords, including other administ
   for (const secret of [child.temporaryPassword, teacher.temporaryPassword]) assert.ok(!everything.includes(secret));
 });
 
+test("recent changes made within the same second are listed newest first", async () => {
+  const second = "2098-06-01 10:00:00";
+  // Ids sort the opposite way to insertion, so only the recorded order can put them right.
+  db.insert(userAuditEvents).values([
+    { id: "same-second-z", actorId: "admin", targetId: "hello-me", targetType: "lesson", action: "lesson-approved", detailsJson: "{}", createdAt: second },
+    { id: "same-second-m", actorId: "admin", targetId: "my-family", targetType: "lesson", action: "lesson-approved", detailsJson: "{}", createdAt: second },
+    { id: "same-second-a", actorId: "admin", targetId: "food-please", targetType: "lesson", action: "lesson-approved", detailsJson: "{}", createdAt: second },
+  ]).run();
+  const { audit } = await listUsers(new URLSearchParams());
+  assert.deepEqual(audit.filter((event) => event.id.startsWith("same-second-")).map((event) => event.id), ["same-second-a", "same-second-m", "same-second-z"]);
+});
+
 test("recent changes name what each change was about, in both languages, without the stored details", async () => {
   const { user } = await createUser("admin", { kind: "student", username: "labelled-child", displayName: "Labelled Child" });
   const later = "2099-01-01 00:00:00";

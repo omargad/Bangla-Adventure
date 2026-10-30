@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, inArray, like, or, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, like, or, sql, type SQL } from "drizzle-orm";
 import { getDb } from "../db";
 import { adults, adultSessions, classes, classStudents, recoveryCodes, students, studentSessions, userAuditEvents } from "../db/schema";
 import { lessons } from "../app/curriculum";
@@ -109,8 +109,9 @@ export async function listUsers(params: URLSearchParams) {
     ].sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id)).slice(0, APPROVAL_QUEUE_LIMIT),
     total: stats.pending,
   };
+  // Newest first; rowid orders changes made within the same second by when they were recorded.
   const events = db.select({ id: userAuditEvents.id, action: userAuditEvents.action, targetType: userAuditEvents.targetType, targetId: userAuditEvents.targetId, createdAt: userAuditEvents.createdAt })
-    .from(userAuditEvents).orderBy(desc(userAuditEvents.createdAt), desc(userAuditEvents.id)).limit(15).all();
+    .from(userAuditEvents).orderBy(desc(userAuditEvents.createdAt), desc(sql`${userAuditEvents}.rowid`)).limit(15).all();
   const labels = await auditTargetLabels(db, events);
   const audit = events.map((event) => ({ ...event, targetLabel: labels.get(`${event.targetType}:${event.targetId}`) ?? null }));
   return { users, total, page, pageSize, stats, approvals, audit };
