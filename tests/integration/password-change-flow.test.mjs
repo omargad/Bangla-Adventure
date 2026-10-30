@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
 import { once } from "node:events";
 import { tmpdir } from "node:os";
@@ -15,6 +15,7 @@ import Database from "better-sqlite3";
 
 const PORT = 3231;
 const BASE = `http://127.0.0.1:${PORT}`;
+const ROOT = new URL("../..", import.meta.url).pathname;
 const stateDir = mkdtempSync(path.join(tmpdir(), "bangla-password-"));
 const password = "integration-admin-password";
 const temporaryPattern = /^[a-z2-9]{4}-[a-z2-9]{4}-[a-z2-9]{2}$/;
@@ -74,7 +75,7 @@ async function expectHeldAtForm(cookie) {
 
 before(async () => {
   server = spawn(process.execPath, ["node_modules/next/dist/bin/next", "start", "-H", "127.0.0.1", "-p", String(PORT)], {
-    cwd: new URL("../..", import.meta.url).pathname,
+    cwd: ROOT,
     env: { ...process.env, NODE_ENV: "production", PLATFORM_MODE: "legacy", DATABASE_PATH: path.join(stateDir, "test.db"), MEDIA_ROOT: path.join(stateDir, "media") }, stdio: "ignore",
   });
   for (let attempt = 0; attempt < 60; attempt++) {
@@ -262,4 +263,28 @@ test("account errors come in Bangla too, and a signed-in return address cannot l
     assert.equal(location.origin, BASE, returnTo);
     assert.ok(!location.pathname.startsWith("//"), returnTo);
   }
+});
+
+test("a locked-out sole administrator gets back in with a password reset on the server", async () => {
+  const reset = spawnSync(process.execPath, ["--import", "tsx", "scripts/reset-password.ts", "Password-Admin@example.com"], { cwd: ROOT, env: { ...process.env, DATABASE_PATH: path.join(stateDir, "test.db") }, encoding: "utf8" });
+  assert.equal(reset.status, 0, reset.stderr);
+  const temporaryPassword = reset.stdout.match(/^Temporary password for Password Admin \(password-admin@example\.com\): (\S+)$/m)?.[1];
+  assert.match(temporaryPassword, temporaryPattern);
+  assert.equal((await send("/api/classes", "GET", undefined, adminCookie)).status, 401, "earlier sessions are signed out");
+  assert.equal((await adultSignIn("password-admin@example.com", password, "admin-forgotten")).status, 401, "the forgotten password no longer works");
+  const signIn = await send("/api/auth/sign-in", "POST", { email: "password-admin@example.com", password: temporaryPassword, requireAdmin: true }, undefined, device("admin-reset"));
+  assert.equal(signIn.status, 200);
+  assert.equal((await signIn.json()).mustChangePassword, true);
+  const cookie = cookieFrom(signIn);
+  const held = await send("/admin", "GET", undefined, cookie);
+  assert.equal(held.status, 307);
+  assert.equal(new URL(held.headers.get("location"), BASE).pathname, "/account/password");
+  const changed = await changeAdultPassword(cookie, temporaryPassword, "admin-chose-a-new-one");
+  assert.equal(changed.status, 200);
+  assert.equal((await changed.json()).recoveryCodes.length, 8, "fresh recovery codes replace the lost ones");
+  assert.equal((await send("/api/admin/users", "GET", undefined, cookie)).status, 200);
+  fixture((db) => {
+    const audit = db.prepare("SELECT actor_id, details_json FROM user_audit_events WHERE action = 'password-reset-by-server-operator'").all();
+    assert.deepEqual(audit, [{ actor_id: null, details_json: "{}" }]);
+  });
 });

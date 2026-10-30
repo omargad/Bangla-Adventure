@@ -27,7 +27,7 @@ COPY --from=builder /app/lib ./lib
 COPY --from=builder /app/db ./db
 # Server commands such as admin:grant load the database code, which reads app/ sources.
 COPY --from=builder /app/app ./app
-COPY --from=builder /app/scripts/grant-admin.ts ./scripts/grant-admin.ts
+COPY --from=builder /app/scripts/grant-admin.ts /app/scripts/reset-password.ts ./scripts/
 COPY --from=builder /app/scripts/backup_restore.py /app/scripts/backup.sh /app/scripts/restore.sh ./scripts/
 COPY --from=builder /app/tsconfig.json ./tsconfig.json
 

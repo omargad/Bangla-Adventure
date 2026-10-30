@@ -99,12 +99,14 @@ fs.writeFileSync(path.join(process.env.MEDIA_ROOT, 'render-smoke.txt'), 'persist
 NODE
 
 # What the Render Shell instructions in docs/DEPLOYMENT.md run.
-grant_output="$(docker exec "$container_id" scripts/render-run-as-app.sh npm run --silent admin:grant -- missing-owner@example.com 2>&1 || true)"
-if ! printf '%s' "$grant_output" | grep -q "No active account matched"; then
-  echo "admin:grant could not run through render-run-as-app.sh:" >&2
-  printf '%s\n' "$grant_output" >&2
-  exit 1
-fi
+for server_command in admin:grant admin:reset-password; do
+  server_output="$(docker exec "$container_id" scripts/render-run-as-app.sh npm run --silent "$server_command" -- missing-owner@example.com 2>&1 || true)"
+  if ! printf '%s' "$server_output" | grep -q "No active account matched"; then
+    echo "$server_command could not run through render-run-as-app.sh:" >&2
+    printf '%s\n' "$server_output" >&2
+    exit 1
+  fi
+done
 backup_output="$(docker exec "$container_id" scripts/render-run-as-app.sh bash scripts/backup.sh /app/.data/backups 3 --application-stopped)"
 if ! printf '%s' "$backup_output" | grep -q '"verified": true'; then
   echo "The backup did not verify:" >&2
@@ -145,4 +147,4 @@ assert.equal(db.pragma('quick_check', { simple: true }), 'ok');
 db.close();
 assert.equal(fs.readFileSync(path.join(process.env.MEDIA_ROOT, 'render-smoke.txt'), 'utf8'), 'persistent media');
 NODE
-echo "Render container smoke passed: root-owned disk handed to node, server on port 10000 as node, admin:grant and backup as node, and database/media persistence."
+echo "Render container smoke passed: root-owned disk handed to node, server on port 10000 as node, admin:grant, admin:reset-password and backup as node, and database/media persistence."
