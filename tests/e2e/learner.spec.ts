@@ -186,19 +186,46 @@ test("a new release offers a reload instead of throwing away the draft a learner
   const checked = page.waitForResponse((response) => new URL(response.url()).pathname === "/api/auth/session");
   await page.evaluate(() => window.dispatchEvent(new Event("focus")));
   await checked;
-  const notice = page.locator(".pwa-status");
-  await expect(notice).toContainText("A new version is ready");
+  // The open lesson has the learner's attention: the live region stays empty, so nothing is announced over it.
+  const region = page.locator(".pwa-announcer[role=status][aria-live=polite]");
+  const notice = region.locator(".pwa-status");
+  await page.waitForTimeout(500);
+  await expect(region).toBeEmpty();
   await expect(draft).toHaveValue("আমার নাম মায়া।");
   expect(await page.evaluate(() => (window as unknown as { sameLoad?: boolean }).sameLoad)).toBe(true);
 
-  // The notice waits behind the open lesson, then the learner reloads when ready.
+  // Closing the lesson puts the notice into the live region, so screen readers announce it; the learner reloads when ready.
   await page.keyboard.press("Escape");
   await expect(lesson).toHaveCount(0);
+  await expect(region).toContainText("A new version is ready");
   await expect(notice).toBeVisible();
+  await page.waitForTimeout(500);
+  expect(await page.evaluate(() => (window as unknown as { sameLoad?: boolean }).sameLoad)).toBe(true);
   await page.unroute("**/api/auth/session");
   await Promise.all([page.waitForEvent("load"), notice.getByRole("button", { name: "Reload" }).click()]);
   expect(await page.evaluate(() => (window as unknown as { sameLoad?: boolean }).sameLoad)).toBeUndefined();
   await expect(page.locator(".pwa-status")).toHaveCount(0);
+});
+
+test("the offline banner waits for an open lesson to close, then goes into the live region", async ({ page, context }) => {
+  await page.goto("/adventure?module=hello-me");
+  const lesson = page.getByRole("dialog", { name: "Full curriculum lesson" });
+  await expect(lesson).toBeVisible();
+  const region = page.locator(".pwa-announcer[role=status][aria-live=polite]");
+  await context.setOffline(true);
+  await expect.poll(() => page.evaluate(() => navigator.onLine)).toBe(false);
+  await page.waitForTimeout(500);
+  await expect(region).toBeEmpty();
+  await page.keyboard.press("Escape");
+  await expect(lesson).toHaveCount(0);
+  await expect(region.locator(".pwa-status.offline")).toContainText("You are offline");
+  // Opening another lesson takes the banner out again; back online, it is gone.
+  await page.getByRole("button", { name: /Open six-session lesson|Continue lesson/ }).first().click();
+  await expect(page.getByRole("dialog", { name: "Full curriculum lesson" })).toBeVisible();
+  await expect(region).toBeEmpty();
+  await context.setOffline(false);
+  await page.keyboard.press("Escape");
+  await expect(region).toBeEmpty();
 });
 
 // Students now see only approved topics, so the draft notices are gone; the textbook sources stay.
