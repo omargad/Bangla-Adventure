@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { localDateTime as localTime, MessageError, serverMessage, useLanguage, type Message } from "@/lib/use-language";
 import FamilyLinks from "./FamilyLinks";
@@ -233,11 +232,6 @@ export default function UserManagement({ actorId, actorName }: { actorId: string
   </>;
 
   return <PortalShell role="admin" name={actorName} active="admin-users" language={language} toggleLanguage={toggleLanguage}><main className="adult-app management-app" lang={language}>
-    <header className="adult-header">
-      <Link className="adult-brand" href="/"><span>বা</span><span><strong>Bangla Adventures</strong><small>{s("Administration", "প্রশাসন")}</small></span></Link>
-      <nav aria-label={s("Administration", "প্রশাসন")}><Link className="active" href="/admin">{s("Users", "ব্যবহারকারী")}</Link><Link href="/teach">{s("Teacher workspace", "শিক্ষকের কর্মক্ষেত্র")}</Link><Link href="/account">{s("My account", "আমার অ্যাকাউন্ট")}</Link></nav>
-      <div className="adult-account"><button lang={language === "bn" ? "en" : "bn"} className="outline-button" onClick={toggleLanguage}>{s("বাংলা", "English")}</button><a href="/api/auth/sign-out?returnTo=%2F">{s("Sign out", "সাইন আউট")}</a></div>
-    </header>
     <div className="adult-content">
       <section className="management-heading"><div><p className="adult-eyebrow">{s(`Welcome, ${actorName}`, `স্বাগতম, ${actorName}`)}</p><h1>{s("People make the adventure", "মানুষের হাতেই অভিযানের শুরু")}</h1><p>{s("Approve new accounts, support families and keep account access under control.", "নতুন অ্যাকাউন্ট অনুমোদন করুন, পরিবারকে সহায়তা করুন ও অ্যাকাউন্টের প্রবেশাধিকার পরিচালনা করুন।")}</p></div><div className="management-heading-actions"><button className="outline-button" aria-expanded={showFamilyImport || familySheetShown} onClick={() => showFamilyImport || familySheetShown ? closeFamilyImport() : setShowFamilyImport(true)}>{s("Import families (CSV)", "পরিবার যোগ করুন (CSV)")}</button><button className="primary-button" onClick={() => { setShowCreate(!showCreate); setEditing(null); }}>{showCreate ? s("Close form", "ফর্ম বন্ধ করুন") : s("Create user", "ব্যবহারকারী তৈরি")}</button></div></section>
       {error && <p role="alert" className="auth-error">{typeof error === "string" ? error : pick(error)}</p>}

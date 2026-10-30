@@ -117,8 +117,8 @@ export default function AdminResults({ name }: { name: string }) {
     )}</p>
     {error && <p role="alert" className="auth-error">{error}</p>}
     {notice && <p role="status" className="teach-message">{notice}</p>}
-    <section className="teach-panel" aria-labelledby="all-classes-heading">
-      <h2 id="all-classes-heading">{s("All classes", "সব ক্লাস")}</h2>
+    <section className="teach-panel" aria-labelledby="results-by-class-heading">
+      <h2 id="results-by-class-heading">{s("Results by class", "ক্লাস অনুযায়ী ফলাফল")}</h2>
       <div className="management-toolbar"><div className="management-search">
         <label className="sr-only" htmlFor="results-search">{s("Search classes", "ক্লাস খুঁজুন")}</label>
         <input id="results-search" type="search" value={query} maxLength={120} onChange={(event) => setQuery(event.target.value)} placeholder={s("Search by class or teacher…", "ক্লাস বা শিক্ষকের নাম দিয়ে খুঁজুন…")} />

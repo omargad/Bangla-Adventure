@@ -72,14 +72,14 @@ test("a teacher takes attendance with one student absent, and the gradebook show
     await page.goto("/teach");
     await page.getByLabel("Find a class").fill(suffix);
     await page.getByRole("button", { name: new RegExp(className) }).click();
-    await expect(page.getByRole("heading", { name: className, level: 2 })).toBeVisible();
+    await expect(page.getByRole("heading", { name: className, level: 1 })).toBeVisible();
   };
   await openClass();
   const nav = page.getByRole("navigation", { name: "Portal navigation" });
 
   // The gradebook: one row per student, missing work shown as — (unlike Zara's real zero).
   await nav.getByRole("button", { name: "Results", exact: true }).click();
-  const gradebook = page.getByRole("region", { name: "Gradebook" });
+  const gradebook = page.getByRole("region", { name: "Gradebook", exact: true });
   await expect(gradebook.getByRole("columnheader")).toHaveCount(7);
   const rows = gradebook.getByRole("row");
   await expect(rows).toHaveCount(4);
@@ -203,7 +203,9 @@ test("a teacher takes attendance with one student absent, and the gradebook show
   const down = await gradebook.evaluate((region) => { region.style.maxHeight = "150px"; region.scrollTop = 60; return region.scrollTop; });
   expect(down).toBeGreaterThan(0);
   const header = gradebook.getByRole("columnheader").first();
-  await expect.poll(() => header.evaluate((cell) => cell.getBoundingClientRect().top)).toBeCloseTo(edge.top, -1);
+  // Measured again: a shorter box makes the page shorter, which can move the box when the page is scrolled to its end.
+  const top = () => gradebook.evaluate((region) => region.getBoundingClientRect().top + region.clientTop);
+  await expect.poll(async () => await header.evaluate((cell) => cell.getBoundingClientRect().top) - await top()).toBeCloseTo(0, -1);
   await expect.poll(() => header.evaluate((cell) => cell.getBoundingClientRect().left)).toBeCloseTo(edge.left, -1);
-  expect(await name.evaluate((cell) => cell.getBoundingClientRect().top)).toBeLessThan(edge.top);
+  expect(await name.evaluate((cell) => cell.getBoundingClientRect().top)).toBeLessThan(await top());
 });

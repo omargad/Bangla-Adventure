@@ -148,7 +148,7 @@ test("language buttons are marked with the language their label is written in", 
       assert.match(opening, /\blang=\{language === "bn" \? "en" : "bn"\}/, `app/${file}: the language button has no lang`);
     }
   }
-  assert.ok(buttons >= 25, `found only ${buttons} language buttons`);
+  assert.ok(buttons >= 24, `found only ${buttons} language buttons`);
   const adventure = read("adventure/AdventureApp.tsx");
   assert.match(adventure, /<button\s+type="button"\s+lang="en"[^]*?>\s*EN\s*<\/button>/);
   assert.match(adventure, /<button\s+type="button"\s+lang="bn"[^]*?>\s*বাংলা\s*<\/button>/);

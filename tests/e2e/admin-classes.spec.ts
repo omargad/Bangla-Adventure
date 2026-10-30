@@ -47,16 +47,16 @@ test("an administrator opens and manages another teacher's class from the teache
   expect((await page.request.post("/api/auth/sign-in", { data: { email: adminEmail, password } })).status()).toBe(200);
 
   await page.goto("/admin");
-  await page.getByRole("navigation", { name: "Portal navigation" }).getByRole("link", { name: "Teacher workspace" }).click();
+  await page.getByRole("navigation", { name: "Portal navigation" }).getByRole("link", { name: "All classes", exact: true }).click();
   await expect(page).toHaveURL(/\/teach$/);
-  await expect(page.getByRole("heading", { name: "All classes", level: 2 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "All classes", level: 1 })).toBeVisible();
   await page.getByLabel("Find a class").fill(suffix);
   const card = page.getByRole("button", { name: new RegExp(className) });
   await expect(card).toContainText("Teacher: Owning Teacher");
   await card.click();
 
   const head = page.getByRole("region", { name: className });
-  await expect(head.getByRole("heading", { name: className, level: 2 })).toBeVisible();
+  await expect(head.getByRole("heading", { name: className, level: 1 })).toBeVisible();
   await expect(head).toContainText("Teacher: Owning Teacher");
   const nav = page.getByRole("navigation", { name: "Portal navigation" });
   await nav.getByRole("button", { name: "Activities & quizzes", exact: true }).click();
@@ -79,7 +79,7 @@ test("an administrator opens and manages another teacher's class from the teache
   await head.getByRole("button", { name: "Delete class" }).click();
   await expect(head).toHaveCount(0);
   await nav.getByRole("button", { name: "All classes", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "All classes", level: 2 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "All classes", level: 1 })).toBeVisible();
   await expect(card).toHaveCount(0);
   // Other specs may or may not have left classes behind: either the search finds nothing,
   // or the platform is empty and the administrator sees the platform-wide empty state.

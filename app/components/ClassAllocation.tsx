@@ -13,8 +13,10 @@ const searchFailed: [string, string] = ["Students could not be loaded.", "শি
  * them and add them in one go; the one list of students now in the class, where access can be
  * removed; or upload a CSV (StudentImport).
  */
-export default function ClassAllocation({ classId, language = "en", onChange, onPasswordsChange }: { classId: string; language?: Language; onChange?: () => void; onPasswordsChange?: (shown: boolean) => void }) {
+export default function ClassAllocation({ classId, language = "en", headingLevel = 2, onChange, onPasswordsChange }: { classId: string; language?: Language; headingLevel?: 2 | 3; onChange?: () => void; onPasswordsChange?: (shown: boolean) => void }) {
   const s = (en: string, bn: string) => language === "bn" ? bn : en;
+  // h2 panels on /admin/classes; h3 inside a class's Students section, which has its own h2.
+  const [Heading, Subheading] = headingLevel === 3 ? ["h3", "h4"] as const : ["h2", "h3"] as const;
   const number = (value: number) => localNumber(value, language);
   const [students, setStudents] = useState<Allocation[]>([]);
   const [query, setQuery] = useState("");
@@ -86,7 +88,7 @@ export default function ClassAllocation({ classId, language = "en", onChange, on
   }
   const shown = available?.students ?? [];
   const allShownSelected = shown.length > 0 && shown.every((student) => selected.has(student.id));
-  return <><section className="teach-panel" aria-label={s("Allocate students", "শিক্ষার্থী বরাদ্দ")}><h2>{s("Allocate students", "শিক্ষার্থী বরাদ্দ")}</h2>
+  return <><section className="teach-panel" aria-label={s("Allocate students", "শিক্ষার্থী বরাদ্দ")}><Heading>{s("Allocate students", "শিক্ষার্থী বরাদ্দ")}</Heading>
     <p>{s("Find students by name or username, tick them and add them to this class. The class appears automatically on their dashboard; no code is needed.", "নাম বা ব্যবহারকারীর নাম দিয়ে শিক্ষার্থী খুঁজুন, টিক দিন এবং এই ক্লাসে যোগ করুন। ড্যাশবোর্ডে ক্লাস নিজেই দেখা যাবে; কোড লাগবে না।")}</p>
     <form className="teach-inline-form" role="search" onSubmit={(event) => event.preventDefault()}>
       <label>{s("Find students", "শিক্ষার্থী খুঁজুন")}<input type="search" value={query} maxLength={60} autoComplete="off" placeholder={s("Name or username", "নাম বা ব্যবহারকারীর নাম")} onChange={(event) => setQuery(event.target.value)} /></label>
@@ -106,9 +108,9 @@ export default function ClassAllocation({ classId, language = "en", onChange, on
       {available?.more && <p className="allocation-more">{s(`Showing the first ${shown.length} students. Type part of a name or username to find others.`, `প্রথম ${number(shown.length)} জন দেখানো হচ্ছে। অন্যদের খুঁজতে নাম বা ব্যবহারকারীর নামের অংশ লিখুন।`)}</p>}
     </div>
     {error && <p role="alert" className="auth-error">{error}</p>}{message && <p role="status" className="teach-message">{message}</p>}
-    <h3>{s(`Students in this class (${students.length})`, `এই ক্লাসের শিক্ষার্থী (${number(students.length)})`)}</h3>
+    <Subheading>{s(`Students in this class (${students.length})`, `এই ক্লাসের শিক্ষার্থী (${number(students.length)})`)}</Subheading>
     <ul className="family-link-list">{students.map((student) => <li key={student.id}><span><strong>{student.displayName}</strong> · {student.username ?? s("joined with a class code (no account)", "ক্লাস কোড দিয়ে যোগ দিয়েছে (অ্যাকাউন্ট নেই)")}</span>{student.studentId && <button className="text-button" disabled={busy} onClick={() => void remove(student)}>{s("Remove allocation", "বরাদ্দ সরান")}</button>}</li>)}</ul>
     {students.length === 0 && <p className="teach-empty">{s("No students yet. Tick students above or upload a CSV file below.", "এখনও কোনো শিক্ষার্থী নেই। ওপরে টিক দিন বা নিচে CSV ফাইল আপলোড করুন।")}</p>}
   </section>
-  <StudentImport classId={classId} language={language} onPasswordsChange={onPasswordsChange} onImported={() => { setRefresh((value) => value + 1); void load().catch((error) => setError(error.message)); onChange?.(); }} /></>;
+  <StudentImport classId={classId} language={language} headingLevel={headingLevel} onPasswordsChange={onPasswordsChange} onImported={() => { setRefresh((value) => value + 1); void load().catch((error) => setError(error.message)); onChange?.(); }} /></>;
 }

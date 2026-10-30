@@ -1,7 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { localDateTime, localMessage, localNumber, useLanguage } from "../../lib/use-language";
 import { siteTitle } from "../../lib/site-title";
 import type { AttendanceSummary } from "../../lib/attendance";
@@ -106,7 +105,26 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
   // Administrators work in every class: name the teacher of each class they do not own.
   const otherTeacher = (item?: ClassSummary) => (isAdmin && item && item.teacherId !== userId ? item.teacherName : undefined);
   const detailTeacher = detail ? otherTeacher(classList.find((item) => item.id === detail.class.id)) : undefined;
-  const classesLabel = isAdmin ? s("All classes", "সব ক্লাস") : s("Your classes", "আপনার ক্লাস");
+  const classesLabel = isAdmin ? s("All classes", "সব ক্লাস") : s("My classes", "আমার ক্লাস");
+  // The open class's sections, each with its own heading and a line on what it is for.
+  const sections: Array<[id: string, label: string, intro: string]> = [
+    ["students", s("Students", "শিক্ষার্থী"), s("Who is in this class: add registered students, upload a list or remove someone.", "এই ক্লাসে কারা আছে: নিবন্ধিত শিক্ষার্থী যোগ করুন, তালিকা আপলোড করুন বা কাউকে সরিয়ে দিন।")],
+    ["activities", s("Activities & quizzes", "কার্যক্রম ও কুইজ"), s("Set a quiz for this class, then close, reopen or delete it.", "এই ক্লাসের জন্য কুইজ দিন, পরে সেটি বন্ধ করুন, আবার খুলুন বা মুছে ফেলুন।")],
+    ["results", s("Results", "ফলাফল"), s("Each student's scores, the submissions for each activity and the topics each student has read.", "প্রত্যেক শিক্ষার্থীর স্কোর, প্রতিটি কার্যক্রমের জমা আর কে কোন বিষয় পড়েছে।")],
+    ["attendance", s("Attendance", "উপস্থিতি"), s("Mark who was present at each class session.", "প্রতিটি ক্লাসে কে উপস্থিত ছিল তা চিহ্নিত করুন।")],
+    ["announcements", s("Announcements", "ঘোষণা"), s("Post a note for this class's students, their parents or both.", "এই ক্লাসের শিক্ষার্থী, অভিভাবক বা সবার জন্য ঘোষণা দিন।")],
+    ["sources", s("Class sources", "ক্লাসের উৎস"), s("Add links just for this class's students and their parents.", "শুধু এই ক্লাসের শিক্ষার্থী ও তাদের অভিভাবকদের জন্য লিংক যোগ করুন।")],
+  ];
+  const currentSection = sections.find(([id]) => id === section);
+  // After a pick from the sidebar (or opening or closing a class), go back to the top, so the class bar is not left
+  // under the phone's sticky top bar, and take keyboard and screen-reader focus to the new heading.
+  const heading = useRef<HTMLHeadingElement>(null);
+  const [focusRequest, setFocusRequest] = useState(0);
+  useEffect(() => {
+    if (!focusRequest) return;
+    window.scrollTo({ top: 0, behavior: "instant" });
+    heading.current?.focus({ preventScroll: true });
+  }, [focusRequest]);
 
   const [newClassName, setNewClassName] = useState("");
   const [announcement, setAnnouncement] = useState("");
@@ -155,19 +173,20 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
     return () => controller.abort();
   }, [resultsClassId, detail]);
 
-  async function openClass(id: string) {
+  async function openClass(id: string, focus = false) {
     try {
       const data = await requestJson<ClassDetail>(`/api/classes/${id}`);
       setDetail(data);
       if (section === "classes") setSection("students");
       if (data.class.id !== detail?.class.id) setOpenSubmissions(new Set());
+      if (focus) setFocusRequest((count) => count + 1);
     } catch (error) { setMessage(localMessage(error instanceof RequestError ? error.data : null, language, ["Could not open the class.", "ক্লাসটি খোলা যায়নি।"])); }
   }
 
   /** Switch the workspace section from the sidebar, asking first where unsaved work would be lost. */
   function showSection(id: string) {
     if (id === "classes" && detail ? !canLeaveClass() : section === "attendance" && id !== "attendance" && !canLeaveAttendance()) return;
-    setSection(id); setMessage("");
+    setSection(id); setMessage(""); setFocusRequest((count) => count + 1);
     if (id === "classes") { setDetail(null); void loadClasses(); } else if (detail) void openClass(detail.class.id);
   }
 
@@ -216,6 +235,7 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
     if (response.ok) {
       setDetail(null);
       setSection("classes");
+      setFocusRequest((count) => count + 1);
       await loadClasses();
     }
   };
@@ -324,78 +344,34 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
   };
 
   return (
-    <PortalShell role={isAdmin ? "admin" : "teacher"} name={teacherName} language={language} toggleLanguage={toggleLanguage} active={section} sections={[
-      ["classes", isAdmin ? s("All classes", "সব ক্লাস") : s("My classes", "আমার ক্লাস")],
-      ["students", s("Students", "শিক্ষার্থী")],
-      ["activities", s("Activities & quizzes", "কার্যক্রম ও কুইজ")],
-      ["results", s("Results", "ফলাফল")],
-      ["attendance", s("Attendance", "উপস্থিতি")],
-      ["announcements", s("Announcements", "ঘোষণা")],
-      ["sources", s("Class sources", "ক্লাসের উৎস")],
-    ].map(([id, label]) => ({ id, label, onClick: () => showSection(id) }))}>
+    <PortalShell role={isAdmin ? "admin" : "teacher"} name={teacherName} language={language} toggleLanguage={toggleLanguage} active={detail ? section : "classes"}
+      classes={{ id: "classes", label: classesLabel, onClick: () => showSection("classes") }}
+      openClass={detail ? { name: detail.class.name, sections: sections.map(([id, label]) => ({ id, label, onClick: () => showSection(id) })) } : undefined}>
     <main className="adult-app teach-app" lang={language}>
-      <header className="adult-header">
-        <Link className="adult-brand" href="/">
-          <span>বা</span>
-          <span>
-            <strong>Bangla Adventures</strong>
-            <small>{s("Teacher workspace", "শিক্ষকের কর্মক্ষেত্র")}</small>
-          </span>
-        </Link>
-        <nav aria-label={s("Sections", "বিভাগ")}>
-          <Link className="active" href="/teach">{s("Classes", "ক্লাস")}</Link>
-          <Link href="/family">{s("Family", "পরিবার")}</Link>
-          <Link href="/studio">{s("Lessons", "পাঠ")}</Link>
-          <Link href="/library">{s("Library", "লাইব্রেরি")}</Link>
-          <Link href="/account">{s("My account", "আমার অ্যাকাউন্ট")}</Link>
-          {isAdmin && <Link href="/admin">{s("Manage users", "ব্যবহারকারী পরিচালনা")}</Link>}
-        </nav>
-        <div className="adult-account">
-          <button lang={language === "bn" ? "en" : "bn"} type="button" className="explore-lang" onClick={toggleLanguage}>
-            {s("বাংলায় দেখুন", "View in English")}
-          </button>
-          <a href="/api/auth/sign-out?returnTo=%2Fgrown-ups">{s("Sign out", "সাইন আউট")}</a>
-        </div>
-      </header>
-
       <div className="adult-content">
-        <section className="adult-hero">
-          <div>
-            <p className="adult-eyebrow">{s(`Welcome, ${teacherName}`, `স্বাগতম, ${teacherName}`)}</p>
-            <h1>{s("Run your Bangla-school class here.", "আপনার বাংলা স্কুলের ক্লাস এখানেই চালান।")}</h1>
-            <p>
-              {s(
-                "Create a class, allocate registered students and set learning activities. Use the sidebar to switch between students, quizzes, results, attendance, announcements and class sources.",
-                "ক্লাস তৈরি করে নিবন্ধিত শিক্ষার্থীদের বরাদ্দ করুন। পাশের মেনু থেকে শিক্ষার্থী, কুইজ, ফলাফল, উপস্থিতি, ঘোষণা ও ক্লাসের উৎস বেছে নিন।",
-              )}
-            </p>
-            {message && <p className="teach-message" role="status">{message}</p>}
-          </div>
-        </section>
-
-        <section className="workspace-stats" aria-label={s("Teaching overview", "পড়ানোর সারসংক্ষেপ")}>
-          <div><small>{classesLabel}</small><strong>{loading ? "—" : number(classList.length)}</strong></div>
-          <div><small>{s("Enrolments", "ভর্তি")}</small><strong>{loading ? "—" : number(totals.students)}</strong></div>
-          <div><small>{s("Activities", "কার্যক্রম")}</small><strong>{loading ? "—" : number(totals.activities)}</strong></div>
-          <div><small>{s("Submissions", "জমা কাজ")}</small><strong>{loading ? "—" : number(totals.submissions)}</strong></div>
-        </section>
-
-        {section !== "classes" && <label className="portal-field">{s("Choose a class", "ক্লাস বেছে নিন")}<select value={detail?.class.id ?? ""} onChange={(event) => { if (event.target.value !== detail?.class.id && !canLeaveClass()) return; void openClass(event.target.value); }}><option value="">{s("Select a class", "ক্লাস নির্বাচন")}</option>{classList.map((item) => <option key={item.id} value={item.id}>{otherTeacher(item) ? `${item.name} — ${otherTeacher(item)}` : item.name}</option>)}</select></label>}
-        {/* A class section needs a class: say so, and how to make one, instead of leaving an empty list. */}
-        {section !== "classes" && !detail && !loading && (
-          <div className="teach-empty">
-            <p>{classList.length === 0
-              ? isAdmin
-                ? s("No teacher has created a class yet. Create one in All classes first.", "এখনো কোনো ক্লাস নেই। আগে “সব ক্লাস”-এ একটি ক্লাস তৈরি করুন।")
-                : s("You have no classes yet. Create your first class in My classes, then come back here.", "আপনার এখনো কোনো ক্লাস নেই। আগে “আমার ক্লাস”-এ একটি ক্লাস তৈরি করুন, তারপর এখানে ফিরে আসুন।")
-              : s("Choose a class above to continue.", "চালিয়ে যেতে ওপর থেকে একটি ক্লাস বেছে নিন।")}</p>
-            {classList.length === 0 && <button type="button" className="outline-button" onClick={() => showSection("classes")}>{isAdmin ? s("Go to All classes", "সব ক্লাসে যান") : s("Go to My classes", "আমার ক্লাসে যান")}</button>}
-          </div>
-        )}
         {!detail && (
           <>
-            <section hidden={section !== "classes"} className="teach-panel" aria-label={classesLabel}>
-              <h2>{classesLabel}</h2>
+            <section className="adult-hero">
+              <div>
+                <p className="adult-eyebrow">{s("Teacher workspace", "শিক্ষকের কর্মক্ষেত্র")}</p>
+                <h1 ref={heading} tabIndex={-1}>{classesLabel}</h1>
+                <p>
+                  {isAdmin
+                    ? s("Every teacher's classes. Create a class, or open one to work with its students, activities and quizzes, results, attendance, announcements and class sources.", "সব শিক্ষকের ক্লাস। নতুন ক্লাস তৈরি করুন, অথবা একটি ক্লাস খুলে তার শিক্ষার্থী, কার্যক্রম ও কুইজ, ফলাফল, উপস্থিতি, ঘোষণা ও ক্লাসের উৎস নিয়ে কাজ করুন।")
+                    : s("Create a class, or open one to work with its students, activities and quizzes, results, attendance, announcements and class sources.", "নতুন ক্লাস তৈরি করুন, অথবা একটি ক্লাস খুলে তার শিক্ষার্থী, কার্যক্রম ও কুইজ, ফলাফল, উপস্থিতি, ঘোষণা ও ক্লাসের উৎস নিয়ে কাজ করুন।")}
+                </p>
+                {message && <p className="teach-message" role="status">{message}</p>}
+              </div>
+            </section>
+
+            <section className="workspace-stats" aria-label={s("Teaching overview", "পড়ানোর সারসংক্ষেপ")}>
+              <div><small>{classesLabel}</small><strong>{loading ? "—" : number(classList.length)}</strong></div>
+              <div><small>{s("Enrolments", "ভর্তি")}</small><strong>{loading ? "—" : number(totals.students)}</strong></div>
+              <div><small>{s("Activities", "কার্যক্রম")}</small><strong>{loading ? "—" : number(totals.activities)}</strong></div>
+              <div><small>{s("Submissions", "জমা কাজ")}</small><strong>{loading ? "—" : number(totals.submissions)}</strong></div>
+            </section>
+
+            <section className="teach-panel" aria-label={classesLabel}>
               <form className="teach-inline-form" onSubmit={createClass}>
                 <input
                   value={newClassName}
@@ -415,7 +391,7 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
               ) : visibleClasses.length === 0 ? <p className="teach-empty">{s("No class matches your search.", "খোঁজ অনুযায়ী কোনো ক্লাস নেই।")}</p> : (
                 <div className="teach-class-grid">
                   {visibleClasses.map((item) => (
-                    <button type="button" className="teach-class-card" key={item.id} onClick={() => openClass(item.id)}>
+                    <button type="button" className="teach-class-card" key={item.id} onClick={() => openClass(item.id, true)}>
                       <strong>{item.name}</strong>
                       {otherTeacher(item) && <small>{s("Teacher", "শিক্ষক")}: {otherTeacher(item)}</small>}
                       <small>
@@ -432,25 +408,27 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
         {detail && (
           <>
             <section className="teach-panel teach-class-head" aria-label={detail.class.name}>
-              <button type="button" className="topics-back" onClick={() => { if (!canLeaveClass()) return; setDetail(null); setSection("classes"); void loadClasses(); }}>
-                ← {s("All classes", "সব ক্লাস")}
+              <button type="button" className="topics-back" onClick={() => showSection("classes")}>
+                ← {classesLabel}
               </button>
               <div className="teach-class-title">
-                <h2>{detail.class.name}</h2>
+                <h1>{detail.class.name}</h1>
                 {detailTeacher && <p>{s("Teacher", "শিক্ষক")}: <strong>{detailTeacher}</strong></p>}
-                <p>
-                  {s("Students see allocated classes in My Learning. No class code is required.", "শিক্ষার্থীরা ড্যাশবোর্ডে বরাদ্দ ক্লাস দেখে। কোনো কোড লাগে না।")}
-                </p>
               </div>
               <button type="button" className="text-button danger" onClick={() => removeClass(detail.class.id)}>
                 {s("Delete class", "ক্লাস মুছুন")}
               </button>
             </section>
 
+            {currentSection && <div className="teach-section-head">
+              <h2 ref={heading} tabIndex={-1}>{currentSection[1]}</h2>
+              <p>{currentSection[2]}</p>
+              {message && <p className="teach-message" role="status">{message}</p>}
+            </div>}
             {/* Hidden rather than unmounted, so moving between sections keeps an upload's temporary passwords. */}
-            <div hidden={section !== "students"}><ClassAllocation key={detail.class.id} classId={detail.class.id} language={language} onPasswordsChange={setPasswordsOnScreen} onChange={() => { void loadClasses(); void openClass(detail.class.id); }} /></div>
-            <section hidden={section !== "results"} className="teach-panel" aria-label={s("Grades and results", "গ্রেড ও ফলাফল")}>
-              <h3>{s("Grades & results", "গ্রেড ও ফলাফল")}</h3>
+            <div className="teach-students" hidden={section !== "students"}><ClassAllocation key={detail.class.id} classId={detail.class.id} language={language} headingLevel={3} onPasswordsChange={setPasswordsOnScreen} onChange={() => { void loadClasses(); void openClass(detail.class.id); }} /></div>
+            <section hidden={section !== "results"} className="teach-panel" aria-label={s("Gradebook and attendance", "গ্রেডবুক ও উপস্থিতি")}>
+              <h3>{s("Gradebook and attendance", "গ্রেডবুক ও উপস্থিতি")}</h3>
               <div className="grade-tools">
                 <a className="outline-button" href={`/api/classes/${detail.class.id}/grades?format=csv`}>
                   {s("Export CSV", "CSV নামান")}
@@ -553,7 +531,6 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
             {section === "sources" && <ClassSources key={detail.class.id} classId={detail.class.id} language={language} isAdmin={isAdmin} />}
 
             <section hidden={section !== "announcements"} className="teach-panel" aria-label={s("Announcements", "ঘোষণা")}>
-              <h3>{s("Announcements", "ঘোষণা")}</h3>
               <form className="teach-activity-form teach-announcement-form" onSubmit={postAnnouncement}>
                 <textarea
                   value={announcement}
