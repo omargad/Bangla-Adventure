@@ -7,7 +7,7 @@ import VoiceNote from "../components/VoiceNote";
 import { days, months, seasons } from "../calendar-content";
 
 export default function CalendarHub() {
-  const [language, toggleLanguage] = useLanguage();
+  const [language, toggleLanguage] = useLanguage({ title: ["Days, months & the six seasons | Bangla Adventures", "দিন, মাস ও ছয় ঋতু | Bangla Adventures"] });
   const s = (en: string, bn: string) => (language === "bn" ? bn : en);
   const voice = useVoicePlayer();
   const speaking = voice.speakingKey;

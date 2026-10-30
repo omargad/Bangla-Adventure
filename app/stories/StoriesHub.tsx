@@ -8,7 +8,7 @@ import VoiceNote from "../components/VoiceNote";
 import { stories, type Story } from "../stories-content";
 
 export default function StoriesHub() {
-  const [language, toggleLanguage] = useLanguage();
+  const [language, toggleLanguage] = useLanguage({ title: ["Story time — bilingual tales | Bangla Adventures", "গল্পের সময় — দুই ভাষার গল্প | Bangla Adventures"] });
   const s = (en: string, bn: string) => (language === "bn" ? bn : en);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [page, setPage] = useState(0);

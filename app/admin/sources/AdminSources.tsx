@@ -52,7 +52,7 @@ const failed = (failure: unknown): Notice => failure instanceof RequestError ? f
  * library and each topic's sources at once.
  */
 export default function AdminSources({ name }: { name: string }) {
-  const [language, toggleLanguage] = useLanguage();
+  const [language, toggleLanguage] = useLanguage({ title: ["Textbook links | Bangla Adventures", "পাঠ্যবইয়ের লিংক | Bangla Adventures"] });
   const s = (en: string, bn: string) => (language === "bn" ? bn : en);
   const [books, setBooks] = useState<AdminCatalogBook[] | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);

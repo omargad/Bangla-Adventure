@@ -4,6 +4,7 @@ import PortalShell from "@/app/components/PortalShell";
 import ClassAllocation from "@/app/components/ClassAllocation";
 import { confirmDiscardPasswords } from "@/app/components/StudentImport";
 import { localMessage, useLanguage } from "@/lib/use-language";
+import { siteTitle } from "@/lib/site-title";
 
 type ClassRow = { id: string; name: string; teacherId: string; teacherName?: string };
 type Teacher = { id: string; displayName: string; email: string };
@@ -14,7 +15,7 @@ type ServerMessage = { error?: string; errorBn?: string };
  * another teacher, and allocate students. Teachers still create their own classes in /teach.
  */
 export default function AdminClasses({ name }: { name: string }) {
-  const [language, toggleLanguage] = useLanguage();
+  const [language, toggleLanguage] = useLanguage({ title: siteTitle });
   const s = (en: string, bn: string) => language === "bn" ? bn : en;
   const [classes, setClasses] = useState<ClassRow[]>([]);
   const [teachers, setTeachers] = useState<Teacher[] | null>(null);

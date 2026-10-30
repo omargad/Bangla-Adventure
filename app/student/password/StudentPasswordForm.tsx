@@ -5,7 +5,7 @@ import { localMessage, useLanguage } from "@/lib/use-language";
 import PortalShell from "@/app/components/PortalShell";
 
 export default function StudentPasswordForm({ name, username, required }: { name: string; username: string; required: boolean }) {
-  const [language, toggleLanguage] = useLanguage();
+  const [language, toggleLanguage] = useLanguage({ title: ["Change your password | Bangla Adventures", "পাসওয়ার্ড বদলাও | Bangla Adventures"] });
   const s = (en: string, bn: string) => language === "bn" ? bn : en;
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");

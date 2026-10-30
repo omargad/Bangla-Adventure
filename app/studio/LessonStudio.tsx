@@ -25,7 +25,7 @@ const lessonById = new Map(lessons.map((lesson) => [lesson.id, lesson]));
  * member wait here until someone listens to them and approves them.
  */
 export default function LessonStudio({ name, role, initialLessonId }: { name: string; role: "teacher" | "admin"; initialLessonId: string | null }) {
-  const [language, toggleLanguage] = useLanguage();
+  const [language, toggleLanguage] = useLanguage({ title: ["Lessons | Bangla Adventures", "পাঠ | Bangla Adventures"] });
   const s = (en: string, bn: string) => (language === "bn" ? bn : en);
   const n = (value: number) => formatNumber(value, language);
   const [lessonId, setLessonId] = useState<string | null>(initialLessonId);

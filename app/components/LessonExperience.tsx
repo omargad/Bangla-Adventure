@@ -5,6 +5,7 @@ import type { Lesson } from "../curriculum";
 import { lessonExtensions, lessonSessionSkills, type LearningSkill, type QuickCheck } from "../learning-content";
 import type { LearnerVideo } from "../../lib/lesson-model";
 import { lessonClip, voiceStatusText, type Clip, type VoiceStatus } from "../../lib/voice-playback";
+import { localNumber } from "../../lib/local-format";
 
 type Language = "en" | "bn";
 type Cue = "tap" | "success" | "retry" | "star";
@@ -78,6 +79,7 @@ function sessionKey(lessonId: string, skill: LearningSkill) {
 const previewAnswerLabel = " ✓ correct answer · সঠিক উত্তর";
 
 function QuickCheckCard({
+  language,
   check,
   answer,
   submitted,
@@ -85,6 +87,7 @@ function QuickCheckCard({
   onAnswer,
   onSubmit,
 }: {
+  language: Language;
   check: QuickCheck;
   answer: number | null;
   submitted: boolean;
@@ -94,7 +97,7 @@ function QuickCheckCard({
 }) {
   const correct = answer === check.answer;
   return (
-    <section className="session-check" aria-label="Quick check">
+    <section className="session-check" aria-label={language === "bn" ? "ছোট যাচাই" : "Quick check"}>
       <p className="modal-kicker">Quick check · ছোট যাচাই</p>
       <h4>{check.prompt}</h4>
       <div className="session-check-options">
@@ -309,10 +312,10 @@ export default function LessonExperience({
             <p className="lesson-modal-title-bn" lang="bn">{lesson.titleBn}</p>
           </div>
           <span className={`module-session-seal ${completeSessions === 6 ? "complete" : ""}`}>
-            <strong>{completeSessions}/6</strong><small>{completeSessions === 6 ? "Lesson complete" : "sessions complete"}</small>
+            <strong>{completeSessions}/6</strong><small>{completeSessions === 6 ? s("Lesson complete", "পাঠ শেষ") : s("sessions complete", "ধাপ শেষ")}</small>
           </span>
         </div>
-        <div className="lesson-step-progress" aria-label={`${completeSessions} of 6 sessions complete`}>
+        <div className="lesson-step-progress" aria-label={s(`${completeSessions} of 6 sessions complete`, `৬টির মধ্যে ${localNumber(completeSessions, "bn")}টি ধাপ শেষ`)}>
           {lessonSessionSkills.map((skill) => (
             <span key={skill} className={completed.includes(sessionKey(lesson.id, skill)) ? "filled" : ""} />
           ))}
@@ -397,7 +400,7 @@ export default function LessonExperience({
                 <ol className="dialogue-transcript">
                   {extension.dialogue.map((line, index) => (
                     <li key={`${line.speaker}-${line.bn}`}>
-                      <button type="button" onClick={() => onSpeak(line.bn, "bn-BD")} disabled={!soundEnabled} aria-label={`Play line ${index + 1}`}>♪</button>
+                      <button type="button" onClick={() => onSpeak(line.bn, "bn-BD")} disabled={!soundEnabled} aria-label={s(`Play line ${index + 1}`, `${localNumber(index + 1, "bn")} নম্বর লাইন শোনো`)}>♪</button>
                       <div><span>{line.speaker}</span><strong lang="bn">{line.bn}</strong><em>/{line.transliteration}/</em><p>{line.en}</p></div>
                     </li>
                   ))}
@@ -406,7 +409,7 @@ export default function LessonExperience({
                 <div className="transcript-gate"><span aria-hidden="true">👂</span><p>First listen: names, places, feelings or actions.<br />Second listen: exact words and sequence.</p></div>
               )}
             </div>
-            <QuickCheckCard check={extension.listening.check} answer={listenAnswer} submitted={listenSubmitted} showAnswer={preview} onAnswer={(answer) => { setListenAnswer(answer); setListenSubmitted(false); }} onSubmit={submitListen} />
+            <QuickCheckCard language={language} check={extension.listening.check} answer={listenAnswer} submitted={listenSubmitted} showAnswer={preview} onAnswer={(answer) => { setListenAnswer(answer); setListenSubmitted(false); }} onSubmit={submitListen} />
           </div>
         )}
 
@@ -433,7 +436,7 @@ export default function LessonExperience({
                 </button>
               ))}</div>
             </div>
-            <QuickCheckCard check={extension.reading.check} answer={readAnswer} submitted={readSubmitted} showAnswer={preview} onAnswer={(answer) => { setReadAnswer(answer); setReadSubmitted(false); }} onSubmit={submitRead} />
+            <QuickCheckCard language={language} check={extension.reading.check} answer={readAnswer} submitted={readSubmitted} showAnswer={preview} onAnswer={(answer) => { setReadAnswer(answer); setReadSubmitted(false); }} onSubmit={submitRead} />
           </div>
         )}
 
@@ -495,7 +498,7 @@ export default function LessonExperience({
               </div>
               <label className="writing-pad">
                 <span>Your draft · তোমার লেখা</span>
-                <textarea value={writing} onChange={(event) => setWriting(event.target.value)} placeholder="Write, copy or trace here. English planning is allowed." rows={8} />
+                <textarea value={writing} onChange={(event) => setWriting(event.target.value)} placeholder={s("Write, copy or trace here. English planning is allowed.", "এখানে লেখো, দেখে লেখো বা হাত বুলিয়ে লেখো। চাইলে আগে ইংরেজিতে ভেবে নিতে পারো।")} rows={8} />
                 <small>{writing.length} characters · saved only while this lesson is open</small>
               </label>
               <div className="model-answer-card">

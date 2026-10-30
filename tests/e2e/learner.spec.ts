@@ -97,6 +97,36 @@ test("language toggle switches an activity page to Bangla", async ({ page }) => 
   await expect(page.locator(".portal-topbar").getByRole("button", { name: "English", exact: true })).toBeVisible();
 });
 
+test("Bangla mode reaches the tab title and labels on signed-in pages, including the worksheet, book and adventure pages", async ({ page }) => {
+  await page.goto("/alphabet");
+  await expect(page).toHaveTitle("Bornomala — the Bangla alphabet | Bangla Adventures");
+  await page.locator(".portal-topbar").getByRole("button", { name: "বাংলা", exact: true }).click();
+  await expect(page).toHaveTitle("বর্ণমালা — বাংলা বর্ণ | Bangla Adventures");
+  // The hub's own header is hidden inside the portal, but its label still follows the language.
+  await expect(page.locator(".explore-header nav")).toHaveAttribute("aria-label", "বিভাগ");
+  await expect(page.getByRole("button", { name: /^স আর ক মিলে স্ক।/ })).toBeVisible();
+
+  // Server-rendered pages take the language from the portal around them.
+  await page.goto("/worksheets");
+  await expect(page).toHaveTitle("প্রিন্ট করার ওয়ার্কশিট | Bangla Adventures");
+  await expect(page.locator(".adult-header nav")).toHaveAttribute("aria-label", "প্ল্যাটফর্মের তথ্য");
+  await expect(page.getByRole("heading", { level: 1, name: "প্রতিটি পাঠের জন্য একটি প্রিন্ট করার ওয়ার্কশিট।" })).toBeVisible();
+  await page.goto("/books");
+  await expect(page).toHaveTitle("এনসিটিবি Book Bridge | Bangla Adventures");
+  await expect(page.getByRole("region", { name: "এনসিটিবি যাচাইয়ের সারাংশ" })).toBeVisible();
+  await page.locator(".portal-topbar").getByRole("button", { name: "English", exact: true }).click();
+  await expect(page).toHaveTitle("NCTB Book Bridge | Bangla Adventures");
+  await expect(page.getByRole("navigation", { name: "Book Bridge navigation" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "NCTB audit summary" })).toBeVisible();
+
+  // The adventure page has its own switch.
+  await page.goto("/adventure");
+  await page.locator(".language-switch").getByRole("button", { name: "বাংলা", exact: true }).click();
+  await expect(page.getByRole("navigation", { name: "মূল মেনু" })).toBeVisible();
+  await expect(page.locator(".language-switch")).toHaveAttribute("aria-label", "ভাষা");
+  await expect(page.getByRole("img", { name: "হাসিখুশি বাঘ আর বাংলাদেশের চেনা জায়গাসহ নদীর রঙিন ছবির মানচিত্র" })).toBeVisible();
+});
+
 // Students now see only approved topics, so the draft notices are gone; the textbook sources stay.
 test("approved topics appear by category without draft notices", async ({ page }) => {
   await page.goto("/topics");

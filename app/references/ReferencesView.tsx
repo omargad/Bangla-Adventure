@@ -15,7 +15,7 @@ import ClassSourceList from "./ClassSourceList";
  * the links the administrator keeps up to date each year.
  */
 export default function ReferencesView({ books, classSources }: { books: CatalogBook[]; classSources: StudentClassSources | null }) {
-  const [language] = useLanguage();
+  const [language] = useLanguage({ title: ["Sources & references | Bangla Adventures", "উৎস ও তথ্যসূত্র | Bangla Adventures"] });
   const s = (en: string, bn: string) => (language === "bn" ? bn : en);
   const other = language === "bn" ? "en" : "bn";
   return (

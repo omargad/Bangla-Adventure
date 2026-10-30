@@ -7,7 +7,7 @@ import VoiceNote from "../components/VoiceNote";
 import { poems, poemsPagePolicy } from "../poems-content";
 
 export default function PoemsHub() {
-  const [language, toggleLanguage] = useLanguage();
+  const [language, toggleLanguage] = useLanguage({ title: ["Poetry corner — as the poets wrote it | Bangla Adventures", "কবিতার কোণ — কবিরা যেমন লিখেছেন | Bangla Adventures"] });
   const s = (en: string, bn: string) => (language === "bn" ? bn : en);
   const voice = useVoicePlayer();
   const speaking = voice.speakingKey;

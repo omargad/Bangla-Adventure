@@ -38,7 +38,7 @@ const levels: Array<{ id: "primary" | "secondary" | "higher-secondary"; en: stri
 
 /** The textbook library; books come merged with the administrator's yearly links (lib/library-catalog.ts). */
 export default function LibraryHub({ books }: { books: CatalogBook[] }) {
-  const [language, toggleLanguage] = useLanguage();
+  const [language, toggleLanguage] = useLanguage({ title: ["NCTB textbook library | Bangla Adventures", "এনসিটিবি পাঠ্যবই লাইব্রেরি | Bangla Adventures"] });
   const s = (en: string, bn: string) => (language === "bn" ? bn : en);
 
   return (

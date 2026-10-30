@@ -45,6 +45,23 @@ export function useLanguage({ documentLang = true, title }: { documentLang?: boo
     };
   }, [documentLang]);
 
+  useLanguageTitle(language, title);
+
+  function toggle() {
+    const next = language === "en" ? "bn" : "en";
+    setLanguage(next);
+    window.localStorage.setItem(STORAGE_KEY, next);
+    window.dispatchEvent(new CustomEvent("bangla-language", { detail: next }));
+  }
+
+  return [language, toggle];
+}
+
+/**
+ * Shows the tab title in Bangla while the page is in Bangla. `title` is the page's metadata title and its
+ * Bangla version; parts that get the language from their page (not useLanguage) call this directly.
+ */
+export function useLanguageTitle(language: Language, title?: [en: string, bn: string]) {
   const [englishTitle, banglaTitle] = title ?? [];
   useEffect(() => {
     if (language !== "bn" || !englishTitle || !banglaTitle) return;
@@ -59,15 +76,6 @@ export function useLanguage({ documentLang = true, title }: { documentLang?: boo
       if (document.title === banglaTitle) document.title = englishTitle;
     };
   }, [englishTitle, banglaTitle, language]);
-
-  function toggle() {
-    const next = language === "en" ? "bn" : "en";
-    setLanguage(next);
-    window.localStorage.setItem(STORAGE_KEY, next);
-    window.dispatchEvent(new CustomEvent("bangla-language", { detail: next }));
-  }
-
-  return [language, toggle];
 }
 
 /**

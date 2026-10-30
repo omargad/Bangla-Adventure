@@ -3,11 +3,13 @@
 import { useMemo, useState } from "react";
 import { levelBands, type CurriculumLevel } from "../curriculum";
 import { bundledClip, type Clip } from "../../lib/voice-playback";
+import { localNumber, type Language } from "../../lib/local-format";
 
 type Skill = "listening" | "speaking" | "reading" | "writing";
 type Cue = "tap" | "success" | "retry" | "star";
 
 type DiagnosticProps = {
+  language: Language;
   soundEnabled: boolean;
   onSpeak: (text: string, lang?: string, clip?: Clip) => void;
   onCue: (cue: Cue) => void;
@@ -81,7 +83,8 @@ function scoreToLevel(score: number): CurriculumLevel {
   return "c1-c2";
 }
 
-export default function FourSkillDiagnostic({ soundEnabled, onSpeak, onCue, onChoose, onClose }: DiagnosticProps) {
+export default function FourSkillDiagnostic({ language, soundEnabled, onSpeak, onCue, onChoose, onClose }: DiagnosticProps) {
+  const s = (en: string, bn: string) => (language === "bn" ? bn : en);
   const [skillIndex, setSkillIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, number>>({});
   const [drafts, setDrafts] = useState<Record<string, string>>({});
@@ -129,6 +132,7 @@ export default function FourSkillDiagnostic({ soundEnabled, onSpeak, onCue, onCh
   }
 
   const showResults = submitted && skillIndex === skillOrder.length - 1 && allCurrentAnswered;
+  const part = s(`Part ${skillIndex + 1} of 4`, `৪টির মধ্যে ${localNumber(skillIndex + 1, "bn")} নম্বর অংশ`);
 
   return (
     <div className="diagnostic-shell">
@@ -136,7 +140,7 @@ export default function FourSkillDiagnostic({ soundEnabled, onSpeak, onCue, onCh
         <p className="modal-kicker">Four-skill starting-point guide · চার দক্ষতার পথনির্দেশ</p>
         <h2>Find the next useful challenge—not a label</h2>
         <p>Complete 12 short tasks in listening, speaking, reading and writing. This child- and heritage-learner guide is not an official CEFR test, diagnosis or certificate.</p>
-        <div className="diagnostic-skill-track" aria-label={`Part ${skillIndex + 1} of 4`}>
+        <div className="diagnostic-skill-track" aria-label={part}>
           {skillOrder.map((skill, index) => <span key={skill} className={`${index === skillIndex ? "active" : ""} ${index < skillIndex ? "complete" : ""}`}><i>{skillMeta[skill].icon}</i>{skillMeta[skill].label}</span>)}
         </div>
       </header>
@@ -145,7 +149,7 @@ export default function FourSkillDiagnostic({ soundEnabled, onSpeak, onCue, onCh
         <div className="diagnostic-body">
           <div className="diagnostic-part-heading">
             <span>{skillMeta[currentSkill].icon}</span>
-            <div><small>Part {skillIndex + 1} of 4</small><h3>{skillMeta[currentSkill].label} <em lang="bn">· {skillMeta[currentSkill].bn}</em></h3><p>{skillMeta[currentSkill].note}</p></div>
+            <div><small>{part}</small><h3>{skillMeta[currentSkill].label} <em lang="bn">· {skillMeta[currentSkill].bn}</em></h3><p>{skillMeta[currentSkill].note}</p></div>
           </div>
           <div className="diagnostic-tasks">
             {currentTasks.map((task, index) => (
@@ -163,11 +167,11 @@ export default function FourSkillDiagnostic({ soundEnabled, onSpeak, onCue, onCh
                     </>
                   ) : (
                     <>
-                      {currentSkill === "writing" && <textarea value={drafts[task.id] || ""} onChange={(event) => setDrafts((current) => ({ ...current, [task.id]: event.target.value }))} placeholder="Draft here before choosing the closest rubric…" rows={4} />}
+                      {currentSkill === "writing" && <textarea value={drafts[task.id] || ""} onChange={(event) => setDrafts((current) => ({ ...current, [task.id]: event.target.value }))} placeholder={s("Draft here before choosing the closest rubric…", "সবচেয়ে মেলে এমন বর্ণনা বাছার আগে এখানে খসড়া লেখো…")} rows={4} />}
                       <button type="button" className="text-button diagnostic-example-toggle" onClick={() => setShowExamples((current) => ({ ...current, [task.id]: !current[task.id] }))}>{showExamples[task.id] ? "Hide support" : "Show a starter after trying"}</button>
                       {showExamples[task.id] && <p className="diagnostic-example" lang="bn">{task.example}</p>}
                       <p className="diagnostic-rubric">{task.support}</p>
-                      <div className="performance-options" aria-label="Choose the closest performance description">
+                      <div className="performance-options" aria-label={s("Choose the closest performance description", "যে বর্ণনাটি সবচেয়ে মেলে, সেটি বেছে নাও")}>
                         {[{ score: 2, label: "I did this independently" }, { score: 1, label: "I did part of it / used support" }, { score: 0, label: "Not yet—and that is useful to know" }].map((option) => <button type="button" key={option.score} className={answers[task.id] === option.score ? "selected" : ""} aria-pressed={answers[task.id] === option.score} onClick={() => setAnswer(task.id, option.score)}><span>{option.score}</span>{option.label}</button>)}
                       </div>
                     </>

@@ -1,10 +1,13 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { createContext, useContext, useState } from "react";
 import type { ReactNode } from "react";
 import type { Language } from "@/lib/use-language";
 export type PortalRole = "student" | "teacher" | "admin" | "parent";
+const PortalLanguage = createContext<Language>("en");
+/** The portal's language, for page parts that cannot read it themselves (such as server-rendered pages). */
+export function usePortalLanguage() { return useContext(PortalLanguage); }
 type Item = { id: string; label: string; href?: string; onClick?: () => void };
 const roleLabels: Record<PortalRole, [string, string]> = {
   student: ["Student", "শিক্ষার্থী"],
@@ -60,7 +63,7 @@ export default function PortalShell({ role, name, language, toggleLanguage, acti
     </aside>
     <div className="portal-workspace">
       <header className="portal-topbar"><button className="portal-menu" type="button" aria-expanded={open} aria-controls="portal-navigation" onClick={() => setOpen(!open)}>{s("Menu", "মেনু")}</button><span>{s("Welcome", "স্বাগতম")}, <strong>{name}</strong></span><button className="outline-button" onClick={toggleLanguage}>{s("বাংলা", "English")}</button></header>
-      <div id="portal-main" className="portal-content">{children}</div>
+      <div id="portal-main" className="portal-content"><PortalLanguage value={language}>{children}</PortalLanguage></div>
     </div>
   </div>;
 }

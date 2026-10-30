@@ -19,6 +19,8 @@ import {
   nctbPdfAuditFindings,
   nctbTeenSubjectOutlines,
 } from "../nctb-content";
+import { localNumber } from "@/lib/local-format";
+import { Labelled, PageTitle, Say } from "../components/PortalText";
 import styles from "./BookBridge.module.css";
 
 export const metadata: Metadata = {
@@ -42,17 +44,18 @@ function ExternalLink({ href, children, className }: { href: string; children: R
 export default function BooksPage() {
   return (
     <main className={styles.page}>
+      <PageTitle title={["NCTB Book Bridge | Bangla Adventures", "এনসিটিবি Book Bridge | Bangla Adventures"]} />
       <header className={styles.header}>
         <Link className={styles.brand} href="/">
           <span aria-hidden="true">বা</span>
           <span><strong>Bangla Adventures</strong><small>NCTB Book Bridge</small></span>
         </Link>
-        <nav aria-label="Book Bridge navigation">
-          <Link href="/">Learner site</Link>
-          <Link href="/practice">Practice Lab</Link>
-          <Link href="/resources">Research register</Link>
-          <Link href="/safety">Safety &amp; access</Link>
-        </nav>
+        <Labelled as="nav" label={["Book Bridge navigation", "Book Bridge-এর মেনু"]}>
+          <Link href="/"><Say en="Learner site" bn="শেখার সাইট" /></Link>
+          <Link href="/practice"><Say en="Practice Lab" bn="অনুশীলন" /></Link>
+          <Link href="/resources"><Say en="Research register" bn="গবেষণার তালিকা" /></Link>
+          <Link href="/safety"><Say en="Safety & access" bn="নিরাপত্তা ও প্রবেশ" /></Link>
+        </Labelled>
       </header>
 
       <div className={styles.content}>
@@ -70,18 +73,18 @@ export default function BooksPage() {
               <a href="#review-queue">See the lesson review queue</a>
             </div>
           </div>
-          <aside className={styles.heroBoundary} aria-label="Publication boundary">
+          <Labelled as="aside" className={styles.heroBoundary} label={["Publication boundary", "প্রকাশের সীমা"]}>
             <strong>Source verified ≠ lesson approved</strong>
             <p>Every adaptation still needs Bangla, cultural, age, accessibility and copyright review.</p>
-          </aside>
+          </Labelled>
         </section>
 
-        <section className={styles.auditStrip} aria-label="NCTB audit summary">
+        <Labelled as="section" className={styles.auditStrip} label={["NCTB audit summary", "এনসিটিবি যাচাইয়ের সারাংশ"]}>
           <article><strong>{nctbAuditSummary.officialPagesChecked}</strong><span>official pages checked</span></article>
           <article><strong>{nctbAuditSummary.pdfEndpoints}</strong><span>PDF endpoints resolved</span></article>
           <article><strong>{nctbAuditSummary.representativePdfsInspected}</strong><span>PDFs deeply inspected</span></article>
           <article><strong>{nctbAuditSummary.activeContentFindings}</strong><span>active-content findings</span></article>
-        </section>
+        </Labelled>
 
         <section className={styles.findings} aria-labelledby="audit-findings-title">
           <div className={styles.sectionHeading}>
@@ -117,7 +120,7 @@ export default function BooksPage() {
                   <div><dt>Status</dt><dd>Adaptation review pending</dd></div>
                 </dl>
                 <p>{book.curriculumUse}</p>
-                <div className={styles.versions} role="group" aria-label={`${book.titleEn}, Class ${book.grade} versions`}>
+                <Labelled as="div" className={styles.versions} role="group" label={[`${book.titleEn}, Class ${book.grade} versions`, `${book.titleBn} (শ্রেণি ${localNumber(book.grade, "bn")}) — সংস্করণ`]}>
                   <strong>{book.variants.length > 1 ? "Choose a version" : "Official PDF"}</strong>
                   <div>
                     {book.variants.map((variant) => (
@@ -126,7 +129,7 @@ export default function BooksPage() {
                       </ExternalLink>
                     ))}
                   </div>
-                </div>
+                </Labelled>
                 <ExternalLink href={book.officialPage} className={styles.catalogueLink}>Open the NCTB catalogue record</ExternalLink>
               </article>
             ))}
@@ -169,7 +172,7 @@ export default function BooksPage() {
                 <h3>{lessonTitleById.get(bridge.lessonId) ?? bridge.lessonId}</h3>
                 <p className={styles.evidenceAnchor}><strong>Evidence anchor:</strong> {bridge.evidenceAnchor}</p>
                 <p>{bridge.adaptation}</p>
-                <div className={styles.sourceChips} aria-label="Proposed source records">
+                <Labelled as="div" className={styles.sourceChips} label={["Proposed source records", "প্রস্তাবিত উৎসের তালিকা"]}>
                   {bridge.sourceIds.map((sourceId) => {
                     const core = coreSourceById.get(sourceId);
                     const early = earlySourceById.get(sourceId);
@@ -180,7 +183,7 @@ export default function BooksPage() {
                       </ExternalLink>
                     ) : <span key={sourceId}>{sourceId}</span>;
                   })}
-                </div>
+                </Labelled>
               </article>
             ))}
           </div>

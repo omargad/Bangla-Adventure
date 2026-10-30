@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { localDateTime, localMessage, localNumber, useLanguage } from "../../lib/use-language";
+import { siteTitle } from "../../lib/site-title";
 import type { AttendanceSummary } from "../../lib/attendance";
 import { ANNOUNCEMENT_AUDIENCES, ANNOUNCEMENT_MAX_LENGTH, AUDIENCE_BADGES, AUDIENCE_CHOICES, POSTED_MESSAGES, type AnnouncementAudience } from "../../lib/announcements";
 import { buildGradebook } from "../../lib/gradebook";
@@ -82,7 +83,7 @@ async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
 }
 
 export default function TeacherDashboard({ teacherName, userId, isAdmin = false }: { teacherName: string; userId?: string; isAdmin?: boolean }) {
-  const [language, toggleLanguage] = useLanguage();
+  const [language, toggleLanguage] = useLanguage({ title: siteTitle });
   const s = (en: string, bn: string) => (language === "bn" ? bn : en);
   const number = (value: number) => localNumber(value, language);
 
@@ -643,7 +644,7 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
                       onChange={(event) => updateQuestion(questionIndex, (q) => ({ ...q, prompt: event.target.value }))}
                       placeholder={s("The question prompt", "প্রশ্নটি লিখুন")}
                       maxLength={300}
-                      aria-label={`Question ${questionIndex + 1}`}
+                      aria-label={s(`Question ${questionIndex + 1}`, `প্রশ্ন ${questionIndex + 1}`)}
                       required
                     />
                     {question.options.map((option, optionIndex) => (
@@ -665,7 +666,7 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
                           }
                           placeholder={`${s("Option", "অপশন")} ${optionIndex + 1}`}
                           maxLength={200}
-                          aria-label={`Question ${questionIndex + 1} option ${optionIndex + 1}`}
+                          aria-label={s(`Question ${questionIndex + 1} option ${optionIndex + 1}`, `প্রশ্ন ${questionIndex + 1}, অপশন ${optionIndex + 1}`)}
                           required
                         />
                         {question.options.length > 2 && (

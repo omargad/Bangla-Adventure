@@ -16,7 +16,7 @@ type HubTopic = Topic & { approval?: Approval; references?: TopicReference[] };
 type QuizScores = Record<string, { best: number; total: number }>;
 
 export default function TopicsHub({ initialTopic }: { initialTopic?: string }) {
-  const [language, toggleLanguage] = useLanguage();
+  const [language, toggleLanguage] = useLanguage({ title: ["Classroom topics — culture, history & literature | Bangla Adventures", "শ্রেণিকক্ষের বিষয় — সংস্কৃতি, ইতিহাস ও সাহিত্য | Bangla Adventures"] });
   const s = (en: string, bn: string) => (language === "bn" ? bn : en);
   const n = (value: number) => formatNumber(value, language);
 

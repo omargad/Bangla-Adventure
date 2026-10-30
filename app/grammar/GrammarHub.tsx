@@ -7,7 +7,7 @@ import VoiceNote from "../components/VoiceNote";
 import { grammarSections } from "../grammar-content";
 
 export default function GrammarHub() {
-  const [language, toggleLanguage] = useLanguage();
+  const [language, toggleLanguage] = useLanguage({ title: ["How Bangla works — grammar guide | Bangla Adventures", "বাংলার নিয়ম — ব্যাকরণ | Bangla Adventures"] });
   const s = (en: string, bn: string) => (language === "bn" ? bn : en);
   const voice = useVoicePlayer();
   const speaking = voice.speakingKey;

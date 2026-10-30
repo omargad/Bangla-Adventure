@@ -4,11 +4,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useLanguage } from "@/lib/use-language";
+import { siteTitle } from "@/lib/site-title";
 import type { TeacherStatus } from "@/lib/roles";
 
 export default function TeacherAccess({ name, status }: { name: string; status: TeacherStatus }) {
   const router = useRouter();
-  const [language, toggleLanguage] = useLanguage();
+  const [language, toggleLanguage] = useLanguage({ title: siteTitle });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const s = (en: string, bn: string) => language === "bn" ? bn : en;

@@ -57,7 +57,7 @@ const ui = {
 } as const;
 
 export default function ExploreHub() {
-  const [language, toggleLanguage] = useLanguage();
+  const [language, toggleLanguage] = useLanguage({ title: ["Explore Bangladesh | Bangla Adventures", "বাংলাদেশ ঘুরে দেখো | Bangla Adventures"] });
 
   const t = ui[language];
   const say = (value: Bilingual) => value[language];

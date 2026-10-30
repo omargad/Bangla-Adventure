@@ -21,7 +21,7 @@ const achievements: Achievement[] = [
 ];
 
 export default function CertificateMaker() {
-  const [language, toggleLanguage] = useLanguage();
+  const [language, toggleLanguage] = useLanguage({ title: ["Make a certificate | Bangla Adventures", "সনদ তৈরি করো | Bangla Adventures"] });
   const s = (en: string, bn: string) => (language === "bn" ? bn : en);
   const [name, setName] = useState("");
   const [achievementId, setAchievementId] = useState(achievements[0].id);

@@ -7,7 +7,7 @@ import VoiceNote from "../components/VoiceNote";
 import { phraseCategories } from "../phrasebook-content";
 
 export default function PhrasebookHub() {
-  const [language, toggleLanguage] = useLanguage();
+  const [language, toggleLanguage] = useLanguage({ title: ["First phrases — the phrasebook | Bangla Adventures", "প্রথম কথাগুলো — বাক্যের ঝুলি | Bangla Adventures"] });
   const s = (en: string, bn: string) => (language === "bn" ? bn : en);
   const voice = useVoicePlayer();
   const speaking = voice.speakingKey;

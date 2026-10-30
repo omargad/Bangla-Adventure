@@ -6,7 +6,7 @@ import { externalResources, resourceCategories } from "../resources-content";
 import type { Bilingual } from "../explore-content";
 
 export default function ResourcesHub() {
-  const [language, toggleLanguage] = useLanguage();
+  const [language, toggleLanguage] = useLanguage({ title: ["More ways to learn Bangla | Bangla Adventures", "বাংলা শেখার আরও পথ | Bangla Adventures"] });
   const s = (en: string, bn: string) => (language === "bn" ? bn : en);
   const say = (value: Bilingual) => value[language];
 

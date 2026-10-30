@@ -46,7 +46,7 @@ function loadStates(): Record<string, CardState> {
 
 export default function PracticeHub({ approvedLessonIds, recordings: initialRecordings }: { approvedLessonIds: string[]; recordings: RecordingMap }) {
   const allCards = useMemo(() => cardsFor(visibleLessons(lessons, approvedLessonIds)), [approvedLessonIds]);
-  const [language, toggleLanguage] = useLanguage();
+  const [language, toggleLanguage] = useLanguage({ title: ["Word practice | Bangla Adventures", "শব্দ অনুশীলন | Bangla Adventures"] });
   const s = (en: string, bn: string) => (language === "bn" ? bn : en);
   const [states, setStates] = useState<Record<string, CardState> | null>(null);
   const [queue, setQueue] = useState<WordCard[]>([]);

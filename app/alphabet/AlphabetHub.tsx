@@ -7,7 +7,7 @@ import VoiceNote from "../components/VoiceNote";
 import { conjuncts, consonants, digits, karForms, vowels, type Letter } from "../alphabet-content";
 
 export default function AlphabetHub() {
-  const [language, toggleLanguage] = useLanguage();
+  const [language, toggleLanguage] = useLanguage({ title: ["Bornomala — the Bangla alphabet | Bangla Adventures", "বর্ণমালা — বাংলা বর্ণ | Bangla Adventures"] });
   const s = (en: string, bn: string) => (language === "bn" ? bn : en);
   const voice = useVoicePlayer();
   const speaking = voice.speakingKey;
@@ -138,7 +138,7 @@ export default function AlphabetHub() {
                 key={conjunct.glyph}
                 className={`letter-card ${speaking === key ? "is-speaking" : ""}`}
                 onClick={() => speak(`${conjunct.example.bn}`, key)}
-                aria-label={`${conjunct.parts[0]} plus ${conjunct.parts[1]} makes ${conjunct.transliteration}. ${conjunct.example.transliteration}, ${conjunct.example.en}`}
+                aria-label={s(`${conjunct.parts[0]} plus ${conjunct.parts[1]} makes ${conjunct.transliteration}. ${conjunct.example.transliteration}, ${conjunct.example.en}`, `${conjunct.parts[0]} আর ${conjunct.parts[1]} মিলে ${conjunct.glyph}। ${conjunct.example.bn}, ${conjunct.example.en}`)}
               >
                 <span className="conjunct-formula" lang="bn">
                   {conjunct.parts[0]} + {conjunct.parts[1]} =

@@ -37,7 +37,7 @@ async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
 const byActivityThenStudent = (a: ResultRow, b: ResultRow) => a.activityTitle.localeCompare(b.activityTitle) || a.studentName.localeCompare(b.studentName);
 
 export default function AdminResults({ name }: { name: string }) {
-  const [language, toggleLanguage] = useLanguage();
+  const [language, toggleLanguage] = useLanguage({ title: ["Grades & results | Bangla Adventures", "গ্রেড ও ফলাফল | Bangla Adventures"] });
   const s = (en: string, bn: string) => language === "bn" ? bn : en;
   const number = (value: number) => localNumber(value, language);
   const percent = (value: number | null) => value === null ? "—" : `${number(value)}%`;

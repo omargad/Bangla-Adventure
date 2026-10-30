@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { localDateTime, localNumber, useLanguage } from "@/lib/use-language";
+import { siteTitle } from "@/lib/site-title";
 import type { ParentOverview } from "@/lib/parent-access";
 import { AUDIENCE_BADGES } from "@/lib/announcements";
 import PortalShell from "../components/PortalShell";
@@ -12,7 +13,7 @@ import ClassSourceList from "../references/ClassSourceList";
 type SavedProfile = { id: string; displayName: string; progress: { id: string; lessonId: string; skill: string; score: number | null }[]; assignments: { id: string; title: string; status: string; dueAt: string | null }[] };
 
 export default function ParentDashboard({ parentName }: { parentName: string }) {
-  const [language, toggleLanguage] = useLanguage();
+  const [language, toggleLanguage] = useLanguage({ title: siteTitle });
   const s = (en: string, bn: string) => language === "bn" ? bn : en;
   const number = (value: number) => localNumber(value, language);
   /** "Attended 3 of 5 classes", or a note that the teacher has not taken attendance yet. */

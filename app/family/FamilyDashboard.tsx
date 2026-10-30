@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { lessons } from "../curriculum";
 import { useLanguage, type Language } from "../../lib/use-language";
+import { siteTitle } from "../../lib/site-title";
 import { groupLessonsByCategory, visibleLessons } from "../../lib/lesson-model";
 
 type Progress = { id: string; lessonId: string; sessionId: string; skill: string; score: number | null; updatedAt: string };
@@ -27,7 +28,7 @@ const skillLabels: Record<string, string> = {
 export default function FamilyDashboard({ adultName, approvedLessonIds }: { adultName: string; approvedLessonIds: string[] }) {
   // Only lessons a teacher has approved can be assigned to learners.
   const assignable = useMemo(() => visibleLessons(lessons, approvedLessonIds), [approvedLessonIds]);
-  const [language, toggleLanguage] = useLanguage();
+  const [language, toggleLanguage] = useLanguage({ title: siteTitle });
   const s = useCallback((en: string, bn: string) => (language === "bn" ? bn : en), [language]);
   const skillLabel = (skill: string) => (language === "bn" ? skillLabels[skill] ?? skill : skill);
   const [profiles, setProfiles] = useState<Profile[]>([]);

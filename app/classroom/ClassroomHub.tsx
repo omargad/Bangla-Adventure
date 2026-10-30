@@ -39,7 +39,7 @@ function loadStored(): Stored | null {
 }
 
 export default function ClassroomHub() {
-  const [language, toggleLanguage] = useLanguage();
+  const [language, toggleLanguage] = useLanguage({ title: ["My classroom | Bangla Adventures", "আমার শ্রেণিকক্ষ | Bangla Adventures"] });
   const s = (en: string, bn: string) => (language === "bn" ? bn : en);
 
   const [stored, setStored] = useState<Stored | null>(null);

@@ -69,7 +69,7 @@ const tryAgain: Message = ["Please try again.", "আবার চেষ্টা
 type Credentials = { reason: "created" | "reset"; kind: "adult" | "student"; displayName: string; account: string; temporaryPassword: string; recoveryCodes: string[]; signInUrl: string };
 
 export default function UserManagement({ actorId, actorName }: { actorId: string; actorName: string }) {
-  const [language, toggleLanguage] = useLanguage();
+  const [language, toggleLanguage] = useLanguage({ title: ["User management | Bangla Adventures", "ব্যবহারকারী ব্যবস্থাপনা | Bangla Adventures"] });
   const s = (en: string, bn: string) => language === "bn" ? bn : en;
   const pick = ([en, bn]: Message) => s(en, bn);
   const number = (value: number | undefined) => value === undefined ? "—" : value.toLocaleString(language === "bn" ? "bn-BD" : "en-AU");

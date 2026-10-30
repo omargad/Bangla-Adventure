@@ -38,7 +38,7 @@ const languageHubs: HubCard[] = [
 ];
 
 export default function LearnHub() {
-  const [language, toggleLanguage] = useLanguage();
+  const [language, toggleLanguage] = useLanguage({ title: ["Learn more — all activities | Bangla Adventures", "আরও শেখো — সব কার্যক্রম | Bangla Adventures"] });
   const s = (en: string, bn: string) => (language === "bn" ? bn : en);
 
   const renderGrid = (cards: HubCard[]) => (

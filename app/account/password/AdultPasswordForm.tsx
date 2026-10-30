@@ -8,7 +8,7 @@ import { localMessage, useLanguage } from "@/lib/use-language";
  * every other adult page is blocked until it is done.
  */
 export default function AdultPasswordForm({ name, email, destination }: { name: string; email: string; destination: string }) {
-  const [language, toggleLanguage] = useLanguage();
+  const [language, toggleLanguage] = useLanguage({ title: ["Choose your password | Bangla Adventures", "আপনার পাসওয়ার্ড বেছে নিন | Bangla Adventures"] });
   const s = (en: string, bn: string) => language === "bn" ? bn : en;
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");

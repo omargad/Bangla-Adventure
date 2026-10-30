@@ -6,6 +6,7 @@ import "./portal.css";
 import PwaBridge from "./components/PwaBridge";
 import { getSessionStatus } from "@/lib/session-status";
 import { currentRelease } from "@/lib/release";
+import { siteTitle } from "@/lib/site-title";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -19,7 +20,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Bangla Adventures | Bangladesh's culture, history & literature for kids",
+  title: siteTitle[0],
   description:
     "A bilingual platform for community-school kids outside Bangladesh: classroom topics on history, festivals, literature and arts sourced from official NCTB textbooks — plus an optional Bangla language corner.",
   manifest: "/manifest.webmanifest",

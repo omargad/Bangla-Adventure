@@ -7,7 +7,7 @@ import { useLanguage } from "../../lib/use-language";
 
 export default function AccountPanel({ email, displayName }: { email: string; displayName: string }) {
   const router = useRouter();
-  const [language, toggleLanguage] = useLanguage();
+  const [language, toggleLanguage] = useLanguage({ title: ["Your account | Bangla Adventures", "আপনার অ্যাকাউন্ট | Bangla Adventures"] });
   const s = (en: string, bn: string) => (language === "bn" ? bn : en);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");

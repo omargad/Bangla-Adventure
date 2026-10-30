@@ -25,7 +25,7 @@ function viewPath(view: View) {
  * students.
  */
 export default function TopicStudio({ name, role, initialView }: { name: string; role: "teacher" | "admin"; initialView: View }) {
-  const [language, toggleLanguage] = useLanguage();
+  const [language, toggleLanguage] = useLanguage({ title: ["Topics | Bangla Adventures", "বিষয় | Bangla Adventures"] });
   const s = (en: string, bn: string) => (language === "bn" ? bn : en);
   const n = (value: number) => formatNumber(value, language);
   const [view, setView] = useState<View>(initialView);

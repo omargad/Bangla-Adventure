@@ -24,6 +24,14 @@ type ModalState =
   | { type: "placement" }
   | { type: "grownups" }
   | null;
+const modalLabels: Record<NonNullable<ModalState>["type"], [string, string]> = {
+  word: ["Word lesson", "শব্দের পাঠ"],
+  story: ["River story", "নদীর গল্প"],
+  place: ["Culture postcard", "সংস্কৃতির পোস্টকার্ড"],
+  lesson: ["Full curriculum lesson", "পুরো পাঠ"],
+  placement: ["Starting level guide", "শুরুর ধাপের নির্দেশিকা"],
+  grownups: ["Grown-ups information", "বড়দের জন্য তথ্য"],
+};
 
 const copy = {
   en: {
@@ -1083,14 +1091,14 @@ export default function AdventureApp({ approvedLessonIds, videos, recordings: in
       <VoiceNote status={voiceStatus} language={language} announce={false} />
 
       <header className="site-header">
-        <a className="brand" href="#top" aria-label="Bangla Adventures home">
+        <a className="brand" href="#top" aria-label={language === "en" ? "Bangla Adventures home" : "Bangla Adventures প্রথম পাতা"}>
           <span className="brand-mark" aria-hidden="true">বা</span>
           <span>
             <strong>Bangla</strong>
             <small>Adventures</small>
           </span>
         </a>
-        <nav aria-label="Main navigation">
+        <nav aria-label={language === "en" ? "Main navigation" : "মূল মেনু"}>
           <a href="#curriculum">{t.navLessons}</a>
           <a href="#story">{t.navStory}</a>
           <a href="#culture">{t.navExplore}</a>
@@ -1120,7 +1128,7 @@ export default function AdventureApp({ approvedLessonIds, videos, recordings: in
               <span aria-hidden="true">≋</span>
             </button>
           </div>
-          <div className="language-switch" aria-label="Language">
+          <div className="language-switch" aria-label={language === "en" ? "Language" : "ভাষা"}>
             <button
               type="button"
               className={language === "en" ? "active" : ""}
@@ -1158,10 +1166,10 @@ export default function AdventureApp({ approvedLessonIds, videos, recordings: in
           <div className="hero-copy">
             <p className="age-pill"><span aria-hidden="true">✦</span> {t.age}</p>
             {cloudLearner && (
-              <a className={`active-learner-chip ${syncStatus}`} href="/family" title="Return to the grown-up dashboard">
+              <a className={`active-learner-chip ${syncStatus}`} href="/family" title={language === "en" ? "Return to the grown-up dashboard" : "বড়দের ড্যাশবোর্ডে ফিরে যাও"}>
                 <span aria-hidden="true">☁</span>
                 <strong>{cloudLearner.displayName}</strong>
-                <small>{syncStatus === "synced" ? "progress synced" : syncStatus === "syncing" ? "syncing…" : "saved here · sync pending"}</small>
+                <small>{syncStatus === "synced" ? (language === "en" ? "progress synced" : "অগ্রগতি সিঙ্ক হয়েছে") : syncStatus === "syncing" ? (language === "en" ? "syncing…" : "সিঙ্ক হচ্ছে…") : (language === "en" ? "saved here · sync pending" : "এখানে রাখা আছে · সিঙ্ক বাকি")}</small>
               </a>
             )}
             <p className="eyebrow">{t.eyebrow}</p>
@@ -1182,7 +1190,7 @@ export default function AdventureApp({ approvedLessonIds, videos, recordings: in
                 {language === "en" ? "All activities" : "সব কার্যক্রম"} <span aria-hidden="true">🎒</span>
               </Link>
             </div>
-            <div className="hero-mini-stats" aria-label="What is inside">
+            <div className="hero-mini-stats" aria-label={language === "en" ? "What is inside" : "ভেতরে যা আছে"}>
               <span><strong>{topicCount === null ? "—" : language === "en" ? topicCount : topicCount.toLocaleString("bn-BD")}</strong> {language === "en" ? "classroom topics" : "শ্রেণিকক্ষের বিষয়"}</span>
               <span><strong>{libraryBooks.length}</strong> {language === "en" ? "textbook sources" : "পাঠ্যবইয়ের উৎস"}</span>
               <span><strong>{lessons.length}</strong> {language === "en" ? "Bangla lessons" : "বাংলা পাঠ"}</span>
@@ -1190,8 +1198,8 @@ export default function AdventureApp({ approvedLessonIds, videos, recordings: in
             </div>
           </div>
 
-          <div className="hero-art" aria-label="Illustrated Bangladesh river quest map">
-            <Image src="/hero-quest-map.webp" width={1584} height={990} priority alt="A colourful illustrated river map with a friendly tiger and Bangladesh landmarks" />
+          <div className="hero-art" aria-label={language === "en" ? "Illustrated Bangladesh river quest map" : "বাংলাদেশের নদী-অভিযানের ছবির মানচিত্র"}>
+            <Image src="/hero-quest-map.webp" width={1584} height={990} priority alt={language === "en" ? "A colourful illustrated river map with a friendly tiger and Bangladesh landmarks" : "হাসিখুশি বাঘ আর বাংলাদেশের চেনা জায়গাসহ নদীর রঙিন ছবির মানচিত্র"} />
             <div className="tiger-note">
               <span aria-hidden="true">🐯</span>
               <p><strong>{language === "en" ? "Hi, I’m Bagh!" : "হাই, আমি বাঘ!"}</strong>{language === "en" ? " Let’s follow the river." : " চলো নদীর পথে যাই।"}</p>
@@ -1231,7 +1239,7 @@ export default function AdventureApp({ approvedLessonIds, videos, recordings: in
               <h2>{t.curriculumTitle}</h2>
               <p>{t.curriculumIntro}</p>
             </div>
-            <div className="curriculum-progress-card" aria-label={`${completedSessions} of ${lessons.length * 6} guided sessions complete`}>
+            <div className="curriculum-progress-card" aria-label={language === "en" ? `${completedSessions} of ${lessons.length * 6} guided sessions complete` : `${(lessons.length * 6).toLocaleString("bn-BD")}টির মধ্যে ${completedSessions.toLocaleString("bn-BD")}টি সেশন শেষ`}>
               <span className="curriculum-progress-number">{completedSessions}<small>/{lessons.length * 6}</small></span>
               <div>
                 <strong>{language === "en" ? "Guided sessions complete" : "শেখার সেশন শেষ"}</strong>
@@ -1329,7 +1337,7 @@ export default function AdventureApp({ approvedLessonIds, videos, recordings: in
                         <ul className="lesson-focus-list">
                           {lesson.objectives.slice(0, 2).map((objective) => <li key={objective}>{objective}</li>)}
                         </ul>
-                        <div className="lesson-session-preview" aria-label={`${lessonSessions} of 6 sessions complete`}>
+                        <div className="lesson-session-preview" aria-label={language === "en" ? `${lessonSessions} of 6 sessions complete` : `৬টির মধ্যে ${lessonSessions.toLocaleString("bn-BD")}টি সেশন শেষ`}>
                           <div>{[["listening", "L"], ["reading", "R"], ["speaking", "S"], ["writing", "W"], ["culture", "V"], ["mastery", "M"]].map(([skill, label]) => <span key={skill} className={completed.includes(`session-${lesson.id}-${skill}`) ? "complete" : ""}>{label}</span>)}</div>
                           <small>{lessonSessions}/6 {language === "en" ? "sessions" : "সেশন"}</small>
                         </div>
@@ -1381,7 +1389,7 @@ export default function AdventureApp({ approvedLessonIds, videos, recordings: in
                     <span aria-hidden="true">＋</span>
                   </button>
                 </div>
-                {completed.includes(`word-${word.id}`) && <span className="earned-badge" aria-label="Completed">★</span>}
+                {completed.includes(`word-${word.id}`) && <span className="earned-badge" aria-label={language === "en" ? "Completed" : "শেষ হয়েছে"}>★</span>}
               </article>
             ))}
           </div>
@@ -1389,14 +1397,14 @@ export default function AdventureApp({ approvedLessonIds, videos, recordings: in
 
         <section className="story-section" id="story">
           <div className="story-image-wrap">
-            <Image src="/river-story.png" width={1448} height={1086} alt="Two children travelling by boat through a colourful Bangladeshi river village" />
+            <Image src="/river-story.png" width={1448} height={1086} alt={language === "en" ? "Two children travelling by boat through a colourful Bangladeshi river village" : "রঙিন এক বাংলাদেশি নদীর গ্রামের ভেতর দিয়ে নৌকায় চলেছে দুই শিশু"} />
             <div className="paper-label">এক দেশে… <small>Once upon a river…</small></div>
           </div>
           <div className="story-copy">
             <p className="section-number">Stop 02 · {t.storyKicker}</p>
             <h2>{t.storyTitle}</h2>
             <p>{t.storyIntro}</p>
-            <ul className="story-features" aria-label="Story features">
+            <ul className="story-features" aria-label={language === "en" ? "Story features" : "গল্পে যা আছে"}>
               <li><span aria-hidden="true">♪</span>{language === "en" ? "Bangla audio" : "বাংলা অডিও"}</li>
               <li><span aria-hidden="true">Aa</span>{language === "en" ? "Two languages" : "দুই ভাষা"}</li>
               <li><span aria-hidden="true">★</span>{language === "en" ? "One quick quiz" : "একটি ছোট প্রশ্ন"}</li>
@@ -1418,7 +1426,7 @@ export default function AdventureApp({ approvedLessonIds, videos, recordings: in
             <div className="passport-stamp" aria-hidden="true"><span>বাংলাদেশ</span><strong>EXPLORE</strong><small>21 · 02</small></div>
           </div>
           <div className="culture-layout">
-            <div className="collage-wrap"><Image src="/postcard-collage.png" width={1448} height={1086} alt="A cut-paper collage of a rickshaw, mangroves, a Bengal tiger and folk instruments" /></div>
+            <div className="collage-wrap"><Image src="/postcard-collage.png" width={1448} height={1086} alt={language === "en" ? "A cut-paper collage of a rickshaw, mangroves, a Bengal tiger and folk instruments" : "রিকশা, ম্যানগ্রোভ বন, বাঘ আর লোকবাদ্য দিয়ে কাগজ কেটে বানানো কোলাজ"} /></div>
             <div className="place-list">
               {places.map((place) => (
                 <button className="place-card" type="button" key={place.id} onClick={() => { stopNarration(); playCue("tap"); setModal({ type: "place", id: place.id }); }}>
@@ -1436,7 +1444,7 @@ export default function AdventureApp({ approvedLessonIds, videos, recordings: in
             <p className="section-number light">Stop 04 · {t.gameKicker}</p>
             <h2>{t.gameTitle}</h2>
             <p>{t.gameIntro}</p>
-            <div className="game-progress" aria-label={`${matchedPairs.length} of 4 pairs matched`}>
+            <div className="game-progress" aria-label={language === "en" ? `${matchedPairs.length} of 4 pairs matched` : `৪টির মধ্যে ${matchedPairs.length.toLocaleString("bn-BD")}টি জোড়া মিলেছে`}>
               {[0, 1, 2, 3].map((step) => <span className={matchedPairs.length > step ? "filled" : ""} key={step} />)}
             </div>
           </div>
@@ -1495,7 +1503,7 @@ export default function AdventureApp({ approvedLessonIds, videos, recordings: in
             className={`modal-card ${modal.type === "story" ? "story-modal" : ""} ${modal.type === "lesson" ? "lesson-modal" : ""} ${modal.type === "placement" ? "placement-modal" : ""}`}
             role="dialog"
             aria-modal="true"
-            aria-label={modal.type === "word" ? "Word lesson" : modal.type === "story" ? "River story" : modal.type === "place" ? "Culture postcard" : modal.type === "lesson" ? "Full curriculum lesson" : modal.type === "placement" ? "Starting level guide" : "Grown-ups information"}
+            aria-label={modalLabels[modal.type][language === "en" ? 0 : 1]}
           >
             <button className="modal-close" type="button" onClick={() => { stopNarration(); setModal(null); }} aria-label={t.close}>×</button>
 
@@ -1763,6 +1771,7 @@ export default function AdventureApp({ approvedLessonIds, videos, recordings: in
 
             {modal.type === "placement" && (
               <FourSkillDiagnostic
+                language={language}
                 soundEnabled={soundEnabled}
                 onSpeak={speak}
                 onCue={playCue}
@@ -1833,7 +1842,7 @@ export default function AdventureApp({ approvedLessonIds, videos, recordings: in
 
             {modal.type === "story" && (
               <div className="story-reader">
-                <div className="story-reader-art"><Image src="/river-story.png" width={1448} height={1086} alt="Maya and Rafi travelling on the river" /><span>{storyPage + 1} / {storyPages.length + 1}</span></div>
+                <div className="story-reader-art"><Image src="/river-story.png" width={1448} height={1086} alt={language === "en" ? "Maya and Rafi travelling on the river" : "নদীতে নৌকায় চলেছে মায়া আর রাফি"} /><span>{storyPage + 1} / {storyPages.length + 1}</span></div>
                 <div className="story-reader-copy">
                   <p className="modal-kicker">{t.storyKicker}</p>
                   <h2>{t.storyTitle}</h2>

@@ -55,7 +55,7 @@ export default function FamilyLinks({ student, language, onClose }: { student: {
     finally { setBusy(false); }
   }
 
-  return <section className="teach-panel" aria-label="Family access">
+  return <section className="teach-panel" aria-label={s("Family access", "পরিবারের প্রবেশাধিকার")}>
     <div className="parent-child-heading"><h2>{s("Family access", "পরিবারের প্রবেশাধিকার")}: {student.displayName}</h2><button className="text-button" onClick={onClose}>{s("Close", "বন্ধ করুন")}</button></div>
     <p>{s("Link only verified parents or guardians. A linked Parent account can view this student's classes, activities and results, but cannot edit them.", "যাচাই করা অভিভাবককেই যুক্ত করুন। যুক্ত Parent অ্যাকাউন্ট ক্লাস, কার্যক্রম ও ফলাফল দেখতে পারবে, বদলাতে পারবে না।")}</p>
     {error && <p role="alert" className="auth-error">{error}</p>}{notice && <p role="status" className="teach-message">{notice}</p>}

@@ -30,7 +30,7 @@ function makeQuestion(): Question {
 }
 
 export default function NumbersHub() {
-  const [language, toggleLanguage] = useLanguage();
+  const [language, toggleLanguage] = useLanguage({ title: ["Numbers & counting | Bangla Adventures", "সংখ্যা ও গোনা | Bangla Adventures"] });
   const s = (en: string, bn: string) => (language === "bn" ? bn : en);
   const voice = useVoicePlayer();
   const speaking = voice.speakingKey;

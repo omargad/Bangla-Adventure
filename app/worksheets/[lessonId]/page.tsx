@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { lessons, levelBands } from "../../curriculum";
 import { lessonExtensions } from "../../learning-content";
 import PrintButton from "../PrintButton";
+import { Labelled, PageTitle, Say } from "../../components/PortalText";
 import { getSessionAdult } from "@/lib/auth";
 import { canTeach } from "@/lib/roles";
 import { isLessonApproved } from "@/lib/lesson-approval";
@@ -39,9 +40,10 @@ export default async function WorksheetPage({ params }: PageProps) {
 
   return (
     <main className="adult-app worksheets-app">
+      <PageTitle title={[`Worksheet: ${lesson.title} | Bangla Adventures`, `ওয়ার্কশিট: ${lesson.titleBn} | Bangla Adventures`]} />
       <header className="adult-header worksheet-no-print">
-        <Link className="adult-brand" href="/"><span>বা</span><span><strong>Bangla Adventures</strong><small>Printable worksheet</small></span></Link>
-        <nav aria-label="Platform information"><Link href="/">Learner site</Link><Link href="/worksheets">All worksheets</Link><a href="/family">Grown-up dashboard</a></nav>
+        <Link className="adult-brand" href="/"><span>বা</span><span><strong>Bangla Adventures</strong><small><Say en="Printable worksheet" bn="প্রিন্ট করার ওয়ার্কশিট" /></small></span></Link>
+        <Labelled as="nav" label={["Platform information", "প্ল্যাটফর্মের তথ্য"]}><Link href="/"><Say en="Learner site" bn="শেখার সাইট" /></Link><Link href="/worksheets"><Say en="All worksheets" bn="সব ওয়ার্কশিট" /></Link><a href="/family"><Say en="Grown-up dashboard" bn="বড়দের ড্যাশবোর্ড" /></a></Labelled>
         <div className="adult-account"><PrintButton /></div>
       </header>
 
@@ -84,7 +86,7 @@ export default async function WorksheetPage({ params }: PageProps) {
                   <td lang="bn">{item.bn}</td>
                   <td>{item.transliteration}</td>
                   <td>{item.en}</td>
-                  <td className="worksheet-trace" aria-label="Space to practise writing" />
+                  <Labelled as="td" className="worksheet-trace" label={["Space to practise writing", "লেখা অনুশীলনের জায়গা"]} />
                 </tr>
               ))}
             </tbody>
