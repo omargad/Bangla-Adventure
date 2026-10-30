@@ -225,6 +225,8 @@
 .lesson-review-title-bn { margin:-6px 0 10px; color:#075b4c; font-size:1.2rem; font-weight:700; }
 .lesson-preview-frame { border:2px dashed #b8d8c9; border-radius:20px; background:#fffdf8; overflow:hidden; }
 .lesson-preview-frame .expanded-lesson-pane { min-height:0; }
+/* Beside the sidebar the preview is narrower than the lesson dialog: stack each tab's number over its name, as phones do. */
+@media(min-width:781px) and (max-width:1000px) { .lesson-preview-frame .expanded-tabs button { flex-direction:column; gap:4px; } }
 .preview-answer { color:#075b4c; font-style:normal; font-weight:800; }
 .preview-answer-note { margin:8px 0 0; padding:8px 12px; border-left:4px solid #43a580; border-radius:8px; background:#f1f8f4; color:#17324d; }
 .lesson-review-progress { margin:12px 0; padding:8px 14px; border-radius:10px; background:#fff0c2; color:#714900; font-weight:700; }

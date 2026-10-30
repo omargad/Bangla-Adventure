@@ -105,3 +105,24 @@ test("a teacher previews a lesson in Bangla, withdraws it from students and appr
     await studentContext.close().catch(() => undefined);
   }
 });
+
+test("beside the sidebar, the English lesson preview keeps all seven tabs inside its frame", async ({ browser, baseURL }) => {
+  const teacherContext = await signedInTeacher(browser, baseURL, randomUUID().slice(0, 8));
+  try {
+    const teacher = await teacherContext.newPage();
+    await teacher.goto("/studio?lesson=hello-me");
+    const frame = teacher.getByRole("region", { name: "Student view preview" }).locator(".lesson-preview-frame");
+    const tabs = frame.getByRole("navigation", { name: "Lesson sections" }).getByRole("button");
+    await expect(tabs).toHaveCount(7);
+    // Between the phone layout (780px) and about 830px the frame is narrowest; the long English names fit there too.
+    for (const width of [781, 800, 820, 900, 1280]) {
+      await teacher.setViewportSize({ width, height: 900 });
+      const [frameBox, lastBox] = [(await frame.boundingBox())!, (await tabs.last().boundingBox())!];
+      expect(lastBox.x + lastBox.width, `${width}px`).toBeLessThanOrEqual(frameBox.x + frameBox.width);
+      await expect(tabs.last()).toHaveText(/Mastery$/);
+      await expect(tabs.last()).toHaveCSS("font-size", "12px");
+    }
+  } finally {
+    await teacherContext.close().catch(() => undefined);
+  }
+});
