@@ -627,73 +627,244 @@ Confidence: **high** â€” the Jira item clearly describes this file; **medium** â
 ## Added after the import
 
 These files were added after the package import by the commits that created them (see `git log -- <path>`).
+All of them are authored by `omargad`. Each one is assigned to a team member to review and test, with one GitHub issue per area; [`.github/CODEOWNERS`](../.github/CODEOWNERS) names that reviewer, not the author.
+
+### Hosting, containers, database upgrades, backups and caching
+
+Review and test: [@omargad](https://github.com/omargad) in [#100](https://github.com/omargad/Bangla-Adventure/issues/100).
 
 - `.github/CODEOWNERS`
 - `.nvmrc`
-- `CONTRIBUTIONS.md`
 - `Dockerfile.render`
-- `app/account/password/AdultPasswordForm.tsx`
-- `app/account/password/page.tsx`
-- `app/admin/FamilyImport.tsx`
+- `compose.yaml`
+- `db/content-migration.ts`
+- `docs/BACKUP_RESTORE.md`
+- `infra/custom-app/Caddyfile.example`
+- `infra/custom-app/README.md`
+- `infra/custom-app/app.env.example`
+- `infra/custom-app/bangla-adventures.service`
+- `lib/release.ts`
+- `public/robots.txt`
+- `scripts/backup-offsite.sh`
+- `scripts/backup_restore.py`
+- `scripts/render-run-as-app.sh`
+- `scripts/render-start.sh`
+- `scripts/restore.sh`
+- `scripts/test-container.sh`
+- `scripts/test-render-container.sh`
+- `scripts/update-manifest.sh`
+- `tests/backup_restore_test.py`
+- `tests/dockerfile-render.test.mjs`
+- `tests/integration/serving-flow.test.mjs`
+- `tests/node-version.test.mjs`
+- `tests/release.test.mjs`
+
+### Sign-up approval and password resets (including the server reset command)
+
+Review and test: [@omargad](https://github.com/omargad) in [#101](https://github.com/omargad/Bangla-Adventure/issues/101).
+
+- `app/api/admin/users/[id]/password/route.ts`
+- `scripts/reset-password.ts`
+- `tests/account-approval.test.mjs`
+- `tests/e2e/accounts.spec.ts`
+- `tests/integration/account-approval-flow.test.mjs`
+- `tests/reset-password.test.mjs`
+
+### Project records: Jira map, contribution credit and acceptance evidence
+
+Review and test: [@bahaa11-prog](https://github.com/bahaa11-prog) in [#102](https://github.com/omargad/Bangla-Adventure/issues/102).
+
+- `CONTRIBUTIONS.md`
+- `docs/ACCEPTANCE.md`
+- `docs/FILE_OWNERSHIP.md`
+- `docs/JIRA_TASK_MAP.md`
+- `docs/ORIGINAL_CONTRIBUTIONS.md`
+- `docs/VERIFICATION.md`
+- `docs/atlassian-role-mapping.json`
+- `docs/jira-task-mapping.json`
+
+### Administrators in every class: results, CSV export and resets
+
+Review and test: [@bahaa11-prog](https://github.com/bahaa11-prog) in [#103](https://github.com/omargad/Bangla-Adventure/issues/103).
+
 - `app/admin/results/AdminResults.tsx`
 - `app/admin/results/page.tsx`
-- `app/admin/sources/AdminSources.tsx`
-- `app/admin/sources/page.tsx`
-- `app/adventure/AdventureApp.tsx`
-- `app/adventure/layout.tsx`
-- `app/api/admin/families/import/route.ts`
 - `app/api/admin/results/route.ts`
-- `app/api/admin/teachers/route.ts`
-- `app/api/admin/users/[id]/password/route.ts`
-- `app/api/audio/[lessonId]/route.ts`
-- `app/api/classes/[id]/attendance/route.ts`
-- `app/api/classes/[id]/sources/route.ts`
-- `app/api/classes/[id]/students/import/route.ts`
+- `lib/class-access.ts`
+- `lib/csv.ts`
+- `lib/grades.ts`
+- `tests/class-access.test.mjs`
+- `tests/csv.test.mjs`
+- `tests/e2e/admin-classes.spec.ts`
+- `tests/e2e/admin-results.spec.ts`
+- `tests/grades.test.mjs`
+- `tests/integration/admin-classes-flow.test.mjs`
+- `tests/integration/admin-results-flow.test.mjs`
+
+### Topic writing and approval
+
+Review and test: [@bahaa11-prog](https://github.com/bahaa11-prog) in [#104](https://github.com/omargad/Bangla-Adventure/issues/104).
+
 - `app/api/classes/[id]/topic-progress/route.ts`
-- `app/api/family/sources/route.ts`
-- `app/api/student/password/route.ts`
-- `app/api/studio/lessons/[id]/route.ts`
-- `app/api/studio/lessons/route.ts`
-- `app/api/studio/media/[id]/route.ts`
 - `app/api/topics/[id]/route.ts`
 - `app/api/topics/[id]/versions/[version]/route.ts`
 - `app/api/topics/route.ts`
-- `app/certificate/layout.tsx`
-- `app/components/ClassAttendance.tsx`
-- `app/components/Gradebook.tsx`
-- `app/components/PasswordChangeGate.tsx`
-- `app/components/PortalText.tsx`
-- `app/components/StudentImport.tsx`
-- `app/components/VoiceNote.tsx`
-- `app/components/leave-guard.ts`
-- `app/references/ClassSourceList.tsx`
 - `app/references/ReferenceNote.tsx`
-- `app/references/ReferencesView.tsx`
-- `app/references/SourceLinks.tsx`
-- `app/student/password/StudentPasswordForm.tsx`
-- `app/student/password/page.tsx`
-- `app/studio/LessonMedia.tsx`
-- `app/studio/LessonReview.tsx`
-- `app/studio/LessonStudio.tsx`
-- `app/studio/SpecialistChecks.tsx`
-- `app/studio/labels.ts`
-- `app/teach/ClassSources.tsx`
 - `app/teach/topics/TopicEditor.tsx`
 - `app/teach/topics/TopicReview.tsx`
 - `app/teach/topics/TopicStudio.tsx`
 - `app/teach/topics/page.tsx`
 - `app/teach/topics/shared.ts`
 - `app/topics/TopicReader.tsx`
-- `compose.yaml`
-- `db/content-migration.ts`
-- `docs/ACCEPTANCE.md`
-- `docs/BACKUP_RESTORE.md`
-- `docs/JIRA_TASK_MAP.md`
-- `docs/ORIGINAL_CONTRIBUTIONS.md`
-- `docs/VERIFICATION.md`
+- `lib/topic-model.ts`
+- `tests/e2e/topic-approval.spec.ts`
+- `tests/integration/topic-approval-flow.test.mjs`
+- `tests/topic-approval.test.mjs`
+
+### Lesson approval in the Lessons studio
+
+Review and test: [@Tlm0v](https://github.com/Tlm0v) in [#105](https://github.com/omargad/Bangla-Adventure/issues/105).
+
+- `app/api/studio/lessons/[id]/route.ts`
+- `app/api/studio/lessons/route.ts`
+- `app/api/studio/media/[id]/route.ts`
+- `app/studio/LessonMedia.tsx`
+- `app/studio/LessonReview.tsx`
+- `app/studio/LessonStudio.tsx`
+- `app/studio/SpecialistChecks.tsx`
+- `app/studio/labels.ts`
+- `lib/lesson-approval.ts`
+- `lib/lesson-model.ts`
+- `tests/e2e/lesson-approval.spec.ts`
+- `tests/integration/lesson-approval-flow.test.mjs`
+- `tests/lesson-approval.test.mjs`
+
+### Administrator set-up: family import and classes for teachers
+
+Review and test: [@Tlm0v](https://github.com/Tlm0v) in [#106](https://github.com/omargad/Bangla-Adventure/issues/106).
+
+- `app/admin/FamilyImport.tsx`
+- `app/api/admin/families/import/route.ts`
+- `app/api/admin/teachers/route.ts`
+- `lib/class-management.ts`
+- `lib/families.ts`
+- `lib/family-import.ts`
+- `tests/class-management.test.mjs`
+- `tests/e2e/families.spec.ts`
+- `tests/family-import-db.test.mjs`
+- `tests/family-import.test.mjs`
+- `tests/integration/class-management-flow.test.mjs`
+- `tests/integration/family-import-flow.test.mjs`
+
+### Adding students to a class: CSV upload, temporary passwords and the student picker
+
+Review and test: [@MohammedAlAjmi24](https://github.com/MohammedAlAjmi24) in [#107](https://github.com/omargad/Bangla-Adventure/issues/107).
+
+- `app/api/classes/[id]/students/import/route.ts`
+- `app/components/StudentImport.tsx`
+- `lib/student-import.ts`
+- `tests/class-allocation.test.mjs`
+- `tests/e2e/student-import.spec.ts`
+- `tests/integration/class-picker-flow.test.mjs`
+- `tests/integration/student-import-flow.test.mjs`
+- `tests/student-import-db.test.mjs`
+- `tests/student-import.test.mjs`
+
+### Teacher gradebook and class attendance
+
+Review and test: [@MohammedAlAjmi24](https://github.com/MohammedAlAjmi24) in [#108](https://github.com/omargad/Bangla-Adventure/issues/108).
+
+- `app/api/classes/[id]/attendance/route.ts`
+- `app/components/ClassAttendance.tsx`
+- `app/components/Gradebook.tsx`
+- `app/components/leave-guard.ts`
+- `lib/attendance.ts`
+- `lib/class-attendance.ts`
+- `lib/class-roster.ts`
+- `lib/gradebook.ts`
+- `tests/attendance.test.mjs`
+- `tests/class-attendance-db.test.mjs`
+- `tests/e2e/attendance.spec.ts`
+- `tests/gradebook.test.mjs`
+- `tests/integration/attendance-flow.test.mjs`
+
+### Class announcements for students and parents
+
+Review and test: [@MohammedAlAjmi24](https://github.com/MohammedAlAjmi24) in [#109](https://github.com/omargad/Bangla-Adventure/issues/109).
+
+- `lib/announcements.ts`
+- `lib/class-announcements.ts`
+- `tests/announcements.test.mjs`
+- `tests/e2e/announcements.spec.ts`
+- `tests/integration/announcements-flow.test.mjs`
+
+### Choosing your own password after a temporary one
+
+Review and test: [@MAQ022](https://github.com/MAQ022) in [#110](https://github.com/omargad/Bangla-Adventure/issues/110).
+
+- `app/account/password/AdultPasswordForm.tsx`
+- `app/account/password/page.tsx`
+- `app/adventure/layout.tsx`
+- `app/api/student/password/route.ts`
+- `app/certificate/layout.tsx`
+- `app/components/PasswordChangeGate.tsx`
+- `app/student/password/StudentPasswordForm.tsx`
+- `app/student/password/page.tsx`
+- `tests/integration/password-change-flow.test.mjs`
+
+### Textbook links and class sources
+
+Review and test: [@MAQ022](https://github.com/MAQ022) in [#111](https://github.com/omargad/Bangla-Adventure/issues/111).
+
+- `app/admin/sources/AdminSources.tsx`
+- `app/admin/sources/page.tsx`
+- `app/api/classes/[id]/sources/route.ts`
+- `app/api/family/sources/route.ts`
+- `app/references/ClassSourceList.tsx`
+- `app/references/ReferencesView.tsx`
+- `app/references/SourceLinks.tsx`
+- `app/teach/ClassSources.tsx`
+- `lib/class-sources.ts`
+- `lib/library-catalog.ts`
+- `lib/library-links.ts`
+- `tests/class-sources.test.mjs`
+- `tests/e2e/sources.spec.ts`
+- `tests/integration/sources-flow.test.mjs`
+- `tests/library-catalog.test.mjs`
+
+### Bangla mode, text size, accessibility and the portal sidebar
+
+Review and test: [@104985376](https://github.com/104985376) in [#112](https://github.com/omargad/Bangla-Adventure/issues/112).
+
+- `app/adventure/AdventureApp.tsx`
+- `app/components/PortalText.tsx`
+- `lib/local-format.ts`
+- `lib/site-title.ts`
+- `tests/e2e/portal-sidebar.spec.ts`
+- `tests/e2e/public-pages.spec.ts`
+- `tests/pwa-bridge.test.mjs`
+- `tests/use-language.test.mjs`
+
+### Bangla voice playback in lessons and learning pages
+
+Review and test: [@104985376](https://github.com/104985376) in [#113](https://github.com/omargad/Bangla-Adventure/issues/113).
+
+- `app/api/audio/[lessonId]/route.ts`
+- `app/components/VoiceNote.tsx`
+- `lib/use-voice-player.ts`
+- `lib/voice-playback.ts`
+- `lib/voice-player.ts`
+- `public/audio/voice-manifest.json`
+- `tests/e2e/voice-playback.spec.ts`
+- `tests/integration/voice-audio-flow.test.mjs`
+- `tests/voice-assets.test.mjs`
+- `tests/voice-playback.test.mjs`
+
+### Pictures, app icons and README screenshots
+
+Review and test: [@104985376](https://github.com/104985376) in [#114](https://github.com/omargad/Bangla-Adventure/issues/114).
+
 - `docs/assets/readme-banner.jpg`
-- `docs/atlassian-role-mapping.json`
-- `docs/jira-task-mapping.json`
 - `docs/screenshots/family-import.jpg`
 - `docs/screenshots/landing.jpg`
 - `docs/screenshots/lessons-studio.jpg`
@@ -706,37 +877,7 @@ These files were added after the package import by the commits that created them
 - `docs/screenshots/topic-reader-bn.jpg`
 - `docs/screenshots/topic-reader.jpg`
 - `docs/screenshots/topics.jpg`
-- `infra/custom-app/Caddyfile.example`
-- `infra/custom-app/README.md`
-- `infra/custom-app/app.env.example`
-- `infra/custom-app/bangla-adventures.service`
-- `lib/announcements.ts`
-- `lib/attendance.ts`
-- `lib/class-access.ts`
-- `lib/class-announcements.ts`
-- `lib/class-attendance.ts`
-- `lib/class-management.ts`
-- `lib/class-roster.ts`
-- `lib/class-sources.ts`
-- `lib/csv.ts`
-- `lib/families.ts`
-- `lib/family-import.ts`
-- `lib/gradebook.ts`
-- `lib/grades.ts`
-- `lib/lesson-approval.ts`
-- `lib/lesson-model.ts`
-- `lib/library-catalog.ts`
-- `lib/library-links.ts`
-- `lib/local-format.ts`
-- `lib/release.ts`
-- `lib/site-title.ts`
-- `lib/student-import.ts`
-- `lib/topic-model.ts`
-- `lib/use-voice-player.ts`
-- `lib/voice-playback.ts`
-- `lib/voice-player.ts`
 - `public/apple-touch-icon.png`
-- `public/audio/voice-manifest.json`
 - `public/favicon.ico`
 - `public/hero-quest-map.webp` (re-encoded from `public/hero-quest-map.png`; keeps its owner [@104985376](https://github.com/104985376))
 - `public/icon-192.png`
@@ -744,65 +885,3 @@ These files were added after the package import by the commits that created them
 - `public/icon-maskable-512.png`
 - `public/postcard-collage.webp` (re-encoded from `public/postcard-collage.png`; keeps its owner [@104985376](https://github.com/104985376))
 - `public/river-story.webp` (re-encoded from `public/river-story.png`; keeps its owner [@104985376](https://github.com/104985376))
-- `public/robots.txt`
-- `scripts/backup-offsite.sh`
-- `scripts/backup_restore.py`
-- `scripts/render-run-as-app.sh`
-- `scripts/render-start.sh`
-- `scripts/restore.sh`
-- `scripts/test-container.sh`
-- `scripts/test-render-container.sh`
-- `scripts/update-manifest.sh`
-- `tests/account-approval.test.mjs`
-- `tests/announcements.test.mjs`
-- `tests/attendance.test.mjs`
-- `tests/backup_restore_test.py`
-- `tests/class-access.test.mjs`
-- `tests/class-allocation.test.mjs`
-- `tests/class-attendance-db.test.mjs`
-- `tests/class-management.test.mjs`
-- `tests/class-sources.test.mjs`
-- `tests/csv.test.mjs`
-- `tests/dockerfile-render.test.mjs`
-- `tests/e2e/accounts.spec.ts`
-- `tests/e2e/admin-classes.spec.ts`
-- `tests/e2e/admin-results.spec.ts`
-- `tests/e2e/announcements.spec.ts`
-- `tests/e2e/attendance.spec.ts`
-- `tests/e2e/families.spec.ts`
-- `tests/e2e/lesson-approval.spec.ts`
-- `tests/e2e/public-pages.spec.ts`
-- `tests/e2e/sources.spec.ts`
-- `tests/e2e/student-import.spec.ts`
-- `tests/e2e/topic-approval.spec.ts`
-- `tests/e2e/voice-playback.spec.ts`
-- `tests/family-import-db.test.mjs`
-- `tests/family-import.test.mjs`
-- `tests/gradebook.test.mjs`
-- `tests/grades.test.mjs`
-- `tests/integration/account-approval-flow.test.mjs`
-- `tests/integration/admin-classes-flow.test.mjs`
-- `tests/integration/admin-results-flow.test.mjs`
-- `tests/integration/announcements-flow.test.mjs`
-- `tests/integration/attendance-flow.test.mjs`
-- `tests/integration/class-management-flow.test.mjs`
-- `tests/integration/class-picker-flow.test.mjs`
-- `tests/integration/family-import-flow.test.mjs`
-- `tests/integration/lesson-approval-flow.test.mjs`
-- `tests/integration/password-change-flow.test.mjs`
-- `tests/integration/serving-flow.test.mjs`
-- `tests/integration/sources-flow.test.mjs`
-- `tests/integration/student-import-flow.test.mjs`
-- `tests/integration/topic-approval-flow.test.mjs`
-- `tests/integration/voice-audio-flow.test.mjs`
-- `tests/lesson-approval.test.mjs`
-- `tests/library-catalog.test.mjs`
-- `tests/pwa-bridge.test.mjs`
-- `tests/release.test.mjs`
-- `tests/student-import-db.test.mjs`
-- `tests/student-import.test.mjs`
-- `tests/topic-approval.test.mjs`
-- `tests/use-language.test.mjs`
-- `tests/voice-assets.test.mjs`
-- `tests/voice-playback.test.mjs`
-- `docs/FILE_OWNERSHIP.md`

@@ -7,7 +7,7 @@ The team planned and tracked this project in [Jira SCRUM](https://ictprojectb26.
 - **Commit authorship.** The project was built outside this repository and arrived as one ZIP package without Git history. The import is recorded as one commit per Jira item: each commit adds the files credited to that item and is authored by the item's Jira assignee through their GitHub account, with `omargad` as committer. GitHub's Contributors list and `git blame` therefore follow Jira ownership. The commits are a reconstruction from the Jira record at import time, and their messages say so; the team's day-by-day history is not part of the package.
 - **Disclosure: the August prototype.** The repository also holds the August prototype history, 47 commits by `omargad` from 2 to 12 August 2026, made before the Jira project began on 14 August. Many files credited to teammates were already in that prototype unchanged (counted in the table below, listed per file in [docs/FILE_OWNERSHIP.md](docs/FILE_OWNERSHIP.md), and stated in each import commit). The repository owner reports that this was the credited assignees' work, committed to the prototype by `omargad` for the group, and chose to have authorship follow that Jira credit.
 - **One owner per file.** Each file belongs to the single Jira item whose described deliverable it most directly implements. Shared foundation sits with the repository and architecture items, and files that no individual item covers stay with the repository owner. The complete list is in [docs/FILE_OWNERSHIP.md](docs/FILE_OWNERSHIP.md).
-- **Code owners.** [.github/CODEOWNERS](.github/CODEOWNERS) assigns each path to the same person.
+- **Code owners.** [.github/CODEOWNERS](.github/CODEOWNERS) assigns each imported path to the same person. Files added after the import are all authored by `omargad`; for those, it names the team member assigned to review and test them, with one GitHub issue per area (listed under each person below and in [docs/FILE_OWNERSHIP.md](docs/FILE_OWNERSHIP.md#added-after-the-import)).
 - **Items without an import commit.** Research, planning, coordination, review and testing items, and implementation items whose deliverable is not in the final package, are credited below and in their GitHub issues. The [task map](docs/JIRA_TASK_MAP.md) explains each mapping and its limits.
 - **Other history.** Deployment and backup fixes and these records were committed after the import and keep their real authorship. Original commits recovered from earlier repositories (Turki's admin work, Dilsha's UI work, Bahaa's form validation and the August prototype) are merged into `main` and described in [docs/ORIGINAL_CONTRIBUTIONS.md](docs/ORIGINAL_CONTRIBUTIONS.md). Dilsha's two original commits, made as `Dilsha28`, are credited to the `104985376` account at the repository owner's request and record their original IDs.
 - **Built after the import.** Features that Jira records as Done but that were missing from the package were built on 28 October 2026 by `omargad` and are linked from their Jira items below; the Jira assignees keep the task credit.
@@ -32,6 +32,8 @@ Bahaa → `bahaa11-prog`, Omar → `omargad`, Mohammed Alajmi → `MohammedAlAjm
 GitHub: [@bahaa11-prog](https://github.com/bahaa11-prog). **19 assigned Jira items; 6 import commits authoring 12 files, 4 of them already in the August prototype.**
 
 Coordinates scope, requirements, client feedback and QA, and is the single Jira manager under SCRUM-60. Owns admin grades/results. Individual assignments also include student authentication (SCRUM-38), the initial student dashboard (SCRUM-39), frontend validation (SCRUM-64) and the student-results story SCRUM-79.
+
+Assigned to review and test files added after the import (authored by `omargad`): [#102](https://github.com/omargad/Bangla-Adventure/issues/102) Project records: Jira map, contribution credit and acceptance evidence; [#103](https://github.com/omargad/Bangla-Adventure/issues/103) Administrators in every class: results, CSV export and resets; [#104](https://github.com/omargad/Bangla-Adventure/issues/104) Topic writing and approval.
 
 | Jira item | Individual contribution | Import commit | GitHub issue and mapping |
 | --- | --- | --- | --- |
@@ -61,6 +63,8 @@ GitHub: [@omargad](https://github.com/omargad). **6 assigned Jira items; 7 impor
 
 Owns repository setup, final architecture/database, authentication/access control, deployment, end-to-end regression testing and recovery-code review. SCRUM-54 retains its historical Vercel title; the mapped source explains the current native/Compose deployment. Files that no individual Jira item covers stay with Omar as the repository owner who imported the package.
 
+Assigned to review and test files added after the import (authored by `omargad`): [#100](https://github.com/omargad/Bangla-Adventure/issues/100) Hosting, containers, database upgrades, backups and caching; [#101](https://github.com/omargad/Bangla-Adventure/issues/101) Sign-up approval and password resets (including the server reset command).
+
 | Jira item | Individual contribution | Import commit | GitHub issue and mapping |
 | --- | --- | --- | --- |
 | [SCRUM-25](https://ictprojectb26.atlassian.net/browse/SCRUM-25) | Set Up GitHub Repository | [`44b646b`](https://github.com/omargad/Bangla-Adventure/commit/44b646b73d3850224ef7d213fbb8ea3a696c5151) · 15 files | [#32](https://github.com/omargad/Bangla-Adventure/issues/32) · [map](docs/JIRA_TASK_MAP.md#scrum-25) |
@@ -75,6 +79,8 @@ Owns repository setup, final architecture/database, authentication/access contro
 GitHub: [@MAQ022](https://github.com/MAQ022). **18 assigned Jira items; 6 import commits authoring 250 files, 240 of them already in the August prototype.**
 
 Owns the student learning content and activity flows, results/progress, later learning-dashboard refinement, student login integration and visible educational sources, plus the technology comparison, initial system architecture and later UI-alignment/responsive review. Jira records this work under two accounts, Mohammed Ali A Alqahtani and Mohammed Alqahtani; the repository owner confirmed on 28 October 2026 that both belong to the same person, who uses `MAQ022` on GitHub.
+
+Assigned to review and test files added after the import (authored by `omargad`): [#110](https://github.com/omargad/Bangla-Adventure/issues/110) Choosing your own password after a temporary one; [#111](https://github.com/omargad/Bangla-Adventure/issues/111) Textbook links and class sources.
 
 | Jira item | Individual contribution | Import commit | GitHub issue and mapping |
 | --- | --- | --- | --- |
@@ -102,6 +108,8 @@ Owns the student learning content and activity flows, results/progress, later le
 GitHub: [@MohammedAlAjmi24](https://github.com/MohammedAlAjmi24). **22 assigned Jira items; 7 import commits authoring 140 files, 118 of them already in the August prototype.**
 
 Owns teacher authentication/dashboard, CSV student upload, automatic accounts and temporary passwords, teacher grades/results and class allocation. Historical research assignments SCRUM-15–17 cover NCTB resources, MVP-topic prioritisation and copyright/content use.
+
+Assigned to review and test files added after the import (authored by `omargad`): [#107](https://github.com/omargad/Bangla-Adventure/issues/107) Adding students to a class: CSV upload, temporary passwords and the student picker; [#108](https://github.com/omargad/Bangla-Adventure/issues/108) Teacher gradebook and class attendance; [#109](https://github.com/omargad/Bangla-Adventure/issues/109) Class announcements for students and parents.
 
 | Jira item | Individual contribution | Import commit | GitHub issue and mapping |
 | --- | --- | --- | --- |
@@ -134,6 +142,8 @@ GitHub: [@Tlm0v](https://github.com/Tlm0v). **11 assigned Jira items; 4 import c
 
 Owns the admin shell, users and content management, curriculum updates and teacher-portal section organisation. Initial user flows and wireframes belong to Turki under SCRUM-20–21. Admin grades/results remain Bahaa's responsibility.
 
+Assigned to review and test files added after the import (authored by `omargad`): [#105](https://github.com/omargad/Bangla-Adventure/issues/105) Lesson approval in the Lessons studio; [#106](https://github.com/omargad/Bangla-Adventure/issues/106) Administrator set-up: family import and classes for teachers.
+
 | Jira item | Individual contribution | Import commit | GitHub issue and mapping |
 | --- | --- | --- | --- |
 | [SCRUM-20](https://ictprojectb26.atlassian.net/browse/SCRUM-20) | Create Initial User Flows | — | [#27](https://github.com/omargad/Bangla-Adventure/issues/27) · [map](docs/JIRA_TASK_MAP.md#scrum-20) |
@@ -153,6 +163,8 @@ Owns the admin shell, users and content management, curriculum updates and teach
 GitHub: [@104985376](https://github.com/104985376). **7 assigned Jira items; 4 import commits authoring 32 files, 12 of them already in the August prototype.**
 
 Owns child-friendly UX and content-presentation research, animations/feedback, landing page, later student/teacher/admin wireframes, responsive presentation and shared portal navigation. Dilsha's two original commits, made from the earlier `Dilsha28` account, are credited to `104985376` in `main` and described in the original-contribution evidence.
+
+Assigned to review and test files added after the import (authored by `omargad`): [#112](https://github.com/omargad/Bangla-Adventure/issues/112) Bangla mode, text size, accessibility and the portal sidebar; [#113](https://github.com/omargad/Bangla-Adventure/issues/113) Bangla voice playback in lessons and learning pages; [#114](https://github.com/omargad/Bangla-Adventure/issues/114) Pictures, app icons and README screenshots.
 
 | Jira item | Individual contribution | Import commit | GitHub issue and mapping |
 | --- | --- | --- | --- |
