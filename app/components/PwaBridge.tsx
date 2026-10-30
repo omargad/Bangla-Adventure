@@ -18,6 +18,9 @@ export default function PwaBridge({ initialSessionKey, release }: { initialSessi
   const [installed, setInstalled] = useState(false);
   // A new release is live. The page offers a reload rather than reloading itself, so nothing typed or shown once is lost.
   const [updateReady, setUpdateReady] = useState(false);
+  // While a lesson or another dialog is open (body.modal-open) the banner stays out of the live region; it is put in
+  // when the dialog closes, so screen readers announce it then rather than never.
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -45,6 +48,14 @@ export default function PwaBridge({ initialSessionKey, release }: { initialSessi
       window.removeEventListener("beforeinstallprompt", onInstallPrompt);
       window.removeEventListener("appinstalled", onInstalled);
     };
+  }, []);
+
+  useEffect(() => {
+    const update = () => setDialogOpen(document.body.classList.contains("modal-open"));
+    update();
+    const observer = new MutationObserver(update);
+    observer.observe(document.body, { attributes: true, attributeFilter: ["class"] });
+    return () => observer.disconnect();
   }, []);
 
   useEffect(() => {
@@ -82,7 +93,7 @@ export default function PwaBridge({ initialSessionKey, release }: { initialSessi
       : installed
         ? [s("Bangla Adventures installed", "Bangla Adventures ইনস্টল হয়েছে"), s("The app can open from your device.", "এখন ডিভাইস থেকেই অ্যাপটি খোলা যাবে।")]
         : [s("Keep the river close", "নদীর পথ থাকুক হাতের কাছে"), s("Install the app for easier return visits.", "সহজে আবার ফিরতে অ্যাপটি ইনস্টল করে রাখা যায়।")];
-  const shown = !online || updateReady || installPrompt !== null || installed;
+  const shown = (!online || updateReady || installPrompt !== null || installed) && !dialogOpen;
 
   // The live region is always in the page, empty while there is nothing to say, so screen readers announce the banner.
   return (

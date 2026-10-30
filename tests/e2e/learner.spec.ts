@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Locator, type Page } from "@playwright/test";
 import Database from "better-sqlite3";
 import { randomUUID } from "node:crypto";
 
@@ -186,19 +186,194 @@ test("a new release offers a reload instead of throwing away the draft a learner
   const checked = page.waitForResponse((response) => new URL(response.url()).pathname === "/api/auth/session");
   await page.evaluate(() => window.dispatchEvent(new Event("focus")));
   await checked;
-  const notice = page.locator(".pwa-status");
-  await expect(notice).toContainText("A new version is ready");
+  // The open lesson has the learner's attention: the live region stays empty, so nothing is announced over it.
+  const region = page.locator(".pwa-announcer[role=status][aria-live=polite]");
+  const notice = region.locator(".pwa-status");
+  await page.waitForTimeout(500);
+  await expect(region).toBeEmpty();
   await expect(draft).toHaveValue("আমার নাম মায়া।");
   expect(await page.evaluate(() => (window as unknown as { sameLoad?: boolean }).sameLoad)).toBe(true);
 
-  // The notice waits behind the open lesson, then the learner reloads when ready.
+  // Closing the lesson puts the notice into the live region, so screen readers announce it; the learner reloads when ready.
   await page.keyboard.press("Escape");
   await expect(lesson).toHaveCount(0);
+  await expect(region).toContainText("A new version is ready");
   await expect(notice).toBeVisible();
+  await page.waitForTimeout(500);
+  expect(await page.evaluate(() => (window as unknown as { sameLoad?: boolean }).sameLoad)).toBe(true);
   await page.unroute("**/api/auth/session");
   await Promise.all([page.waitForEvent("load"), notice.getByRole("button", { name: "Reload" }).click()]);
   expect(await page.evaluate(() => (window as unknown as { sameLoad?: boolean }).sameLoad)).toBeUndefined();
   await expect(page.locator(".pwa-status")).toHaveCount(0);
+});
+
+test("the offline banner waits for an open lesson to close, then goes into the live region", async ({ page, context }) => {
+  await page.goto("/adventure?module=hello-me");
+  const lesson = page.getByRole("dialog", { name: "Full curriculum lesson" });
+  await expect(lesson).toBeVisible();
+  const region = page.locator(".pwa-announcer[role=status][aria-live=polite]");
+  await context.setOffline(true);
+  await expect.poll(() => page.evaluate(() => navigator.onLine)).toBe(false);
+  await page.waitForTimeout(500);
+  await expect(region).toBeEmpty();
+  await page.keyboard.press("Escape");
+  await expect(lesson).toHaveCount(0);
+  await expect(region.locator(".pwa-status.offline")).toContainText("You are offline");
+  // Opening another lesson takes the banner out again; back online, it is gone.
+  await page.getByRole("button", { name: /Open six-session lesson|Continue lesson/ }).first().click();
+  await expect(page.getByRole("dialog", { name: "Full curriculum lesson" })).toBeVisible();
+  await expect(region).toBeEmpty();
+  await context.setOffline(false);
+  await page.keyboard.press("Escape");
+  await expect(region).toBeEmpty();
+});
+
+const lessonSteps = ["overview", "listening", "reading", "speaking", "writing", "culture", "mastery"];
+
+/** Opens each step of the open lesson in turn and shows what it can show: transcripts, scaffolds, models and answer feedback. */
+async function walkLesson(lesson: Locator, check: (step: string) => Promise<void>) {
+  for (const [index, step] of lessonSteps.entries()) {
+    await lesson.locator(".lesson-step-tabs button").nth(index).click();
+    await expect(lesson.locator(".lesson-step-tabs button").nth(index)).toHaveAttribute("aria-current", "step");
+    if (step === "listening" || step === "reading") {
+      await lesson.locator(".lesson-pane .text-button").first().click();
+      await lesson.locator(".session-check-options button").first().click();
+      await lesson.locator(".session-check .compact-button").click();
+      await expect(lesson.locator(".session-feedback")).toBeVisible();
+    }
+    if (step === "speaking") await lesson.locator(".success-checklist input").first().check();
+    if (step === "writing") {
+      await lesson.locator(".writing-pad textarea").fill("আমার নাম মায়া।");
+      await lesson.locator(".model-answer-card .text-button").click();
+    }
+    if (step === "culture") for (const box of await lesson.locator(".video-learning-cycle input").all()) await box.check();
+    if (step === "mastery") {
+      await lesson.locator(".lesson-check-button").click();
+      await expect(lesson.locator(".mastery-result")).toBeVisible();
+      for (const question of await lesson.locator(".lesson-quiz-question").all()) await question.locator(".lesson-quiz-options button").first().click();
+      await lesson.locator(".lesson-check-button").click();
+    }
+    await check(step);
+  }
+}
+
+/**
+ * Visible text written in the other script than the page language and not marked with its own language: Latin
+ * letters in Bangla mode (outside lang="en" and transliterated bn-Latn), Bangla letters in English mode (outside lang="bn").
+ */
+function unmarkedText(root: Locator, language: "en" | "bn") {
+  return root.evaluate((element, language) => {
+    const found: string[] = [];
+    for (const node of element.querySelectorAll("*")) {
+      const text = Array.from(node.childNodes).filter((child) => child.nodeType === Node.TEXT_NODE).map((child) => child.textContent).join("").trim();
+      // A text box holds the learner's own words, in either language.
+      if (!text || node.matches("textarea") || !(node as HTMLElement).checkVisibility()) continue;
+      const lang = node.closest("[lang]")?.getAttribute("lang") ?? "";
+      // Product names stay as they are in both languages.
+      if (language === "bn" && /[A-Za-z]/.test(text.replace(/\bYouTube\b/g, "")) && !/^(en|bn-Latn)$/.test(lang)) found.push(`${text} (lang=${lang})`);
+      if (language === "en" && /[\u0980-\u09ff]/.test(text) && lang !== "bn") found.push(`${text} (lang=${lang})`);
+    }
+    return found;
+  }, language);
+}
+
+for (const language of ["bn", "en"] as const) {
+  test(`every step of a lesson in ${language === "bn" ? "Bangla" : "English"} has its interface in that language and marks the other`, async ({ page }) => {
+    await page.addInitScript((choice) => window.localStorage.setItem("bangla-adventures-language", choice), language);
+    await page.goto("/adventure?module=hello-me");
+    const lesson = page.getByRole("dialog", { name: language === "bn" ? "পুরো পাঠ" : "Full curriculum lesson" });
+    await expect(lesson).toBeVisible();
+    await walkLesson(lesson, async (step) => {
+      expect(await unmarkedText(lesson, language), step).toEqual([]);
+    });
+    if (language === "bn") {
+      await expect(lesson.getByRole("button", { name: "আমার উত্তর যাচাই করি" })).toBeVisible();
+      await expect(lesson.getByText("Check my answers")).toHaveCount(0);
+      await lesson.locator(".lesson-step-tabs button").nth(3).click();
+      await expect(lesson.getByRole("button", { name: "● মাইক চালু করে রেকর্ড করি" })).toBeVisible();
+      await lesson.locator(".lesson-step-tabs button").nth(5).click();
+      await expect(lesson.getByRole("button", { name: "গোপনীয়তা-সুরক্ষিত ভিডিও খুলি ▶" })).toBeVisible();
+    }
+  });
+}
+
+/** Visible text under 12px, and small text under 4.5:1 against a plain background behind it. */
+function smallOrFaintText(root: Locator) {
+  return root.evaluate((element) => {
+    const rgba = (value: string) => { const parts = value.match(/[\d.]+/g)!.map(Number); return { r: parts[0], g: parts[1], b: parts[2], a: parts[3] ?? 1 }; };
+    const over = (top: ReturnType<typeof rgba>, bottom: ReturnType<typeof rgba>) => ({ r: top.r * top.a + bottom.r * (1 - top.a), g: top.g * top.a + bottom.g * (1 - top.a), b: top.b * top.a + bottom.b * (1 - top.a), a: 1 });
+    const luminance = ({ r, g, b }: ReturnType<typeof rgba>) => [r, g, b].map((value) => { const c = value / 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; }).reduce((sum, c, index) => sum + c * [0.2126, 0.7152, 0.0722][index], 0);
+    /** The plain colour behind an element, or null when a picture or gradient is behind it. */
+    const background = (node: Element) => {
+      const layers = [];
+      for (let current: Element | null = node; current; current = current.parentElement) {
+        const style = getComputedStyle(current);
+        if (style.backgroundImage !== "none" && current !== document.body) return null;
+        const color = rgba(style.backgroundColor);
+        if (color.a > 0) layers.push(color);
+        if (color.a === 1) return layers.reduceRight((below, layer) => over(layer, below));
+      }
+      return null;
+    };
+    const found: string[] = [];
+    for (const node of element.querySelectorAll("*")) {
+      const text = Array.from(node.childNodes).filter((child) => child.nodeType === Node.TEXT_NODE).map((child) => child.textContent).join("").trim();
+      if (!text || !(node as HTMLElement).checkVisibility()) continue;
+      const style = getComputedStyle(node);
+      const size = parseFloat(style.fontSize);
+      if (size < 12) found.push(`${size}px: ${text.slice(0, 40)}`);
+      // Contrast is for words: decorative marks are hidden from screen readers, and disabled buttons are exempt.
+      if (node.closest("[aria-hidden=true], :disabled") || size >= 24 || (size >= 18.66 && Number(style.fontWeight) >= 700)) continue;
+      const behind = background(node);
+      if (!behind) continue;
+      const [light, dark] = [luminance(over(rgba(style.color), behind)), luminance(behind)].sort((a, b) => b - a);
+      const ratio = (light + 0.05) / (dark + 0.05);
+      if (ratio < 4.5) found.push(`${ratio.toFixed(2)}:1: ${text.slice(0, 40)}`);
+    }
+    return found;
+  });
+}
+
+async function fitsWidth(page: Page) {
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+}
+
+for (const width of [390, 1280]) {
+  for (const language of ["en", "bn"] as const) {
+    test(`the adventure page and every lesson step keep text at 12px or more with clear contrast at ${width}px in ${language === "bn" ? "Bangla" : "English"}`, async ({ page }) => {
+      await page.setViewportSize({ width, height: width < 600 ? 844 : 800 });
+      await page.addInitScript((choice) => window.localStorage.setItem("bangla-adventures-language", choice), language);
+      await page.goto("/adventure");
+      await expect(page.locator(".lesson-card").first()).toBeVisible();
+      expect(await smallOrFaintText(page.locator("body"))).toEqual([]);
+      await fitsWidth(page);
+      await page.goto("/adventure?module=hello-me");
+      const lesson = page.getByRole("dialog");
+      await expect(lesson).toBeVisible();
+      await walkLesson(lesson, async (step) => {
+        expect(await smallOrFaintText(lesson), step).toEqual([]);
+        await fitsWidth(page);
+      });
+    });
+  }
+}
+
+test("on a tall tablet screen the lesson's close button stays in its corner, clear of the session seal, while the lesson scrolls", async ({ page }) => {
+  await page.setViewportSize({ width: 820, height: 1180 });
+  await page.goto("/adventure?module=hello-me");
+  const lesson = page.getByRole("dialog");
+  const close = lesson.getByRole("button", { name: "Close", exact: true });
+  await expect(close).toBeVisible();
+  const box = async (locator: Locator) => (await locator.boundingBox())!;
+  const [closeBox, sealBox] = [await box(close), await box(lesson.locator(".module-session-seal"))];
+  const apart = closeBox.y + closeBox.height <= sealBox.y || sealBox.y + sealBox.height <= closeBox.y || closeBox.x + closeBox.width <= sealBox.x || sealBox.x + sealBox.width <= closeBox.x;
+  expect(apart).toBe(true);
+  for (const scrollTop of [0, 700]) {
+    await lesson.evaluate((element, top) => { element.scrollTop = top; }, scrollTop);
+    const [now, dialog] = [await box(close), await box(lesson)];
+    expect(now.y - dialog.y).toBeLessThan(30);
+    expect(dialog.x + dialog.width - (now.x + now.width)).toBeLessThan(30);
+  }
 });
 
 // Students now see only approved topics, so the draft notices are gone; the textbook sources stay.

@@ -67,7 +67,7 @@ test("a teacher previews a lesson in Bangla, withdraws it from students and appr
     await preview.getByRole("group", { name: "Preview language" }).getByRole("button", { name: "বাংলা", exact: true }).click();
     await preview.getByRole("navigation", { name: "পাঠের অংশ" }).getByRole("button", { name: /শুনি/ }).click();
     await expect(preview.getByText("তোমার প্রিয় ঋতু কোনটি?", { exact: true })).toBeVisible();
-    await expect(preview.getByText("✓ correct answer").first()).toBeVisible();
+    await expect(preview.getByText("✓ সঠিক উত্তর").first()).toBeVisible();
 
     // Withdrawing needs a reason and hides the lesson from the student at once.
     const decision = teacher.getByRole("region", { name: "Your decision" });

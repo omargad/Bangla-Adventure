@@ -11,6 +11,8 @@
   --sky: #bde7f5;
   --indigo: #29348a;
   --coral: #ef6554;
+  /* Coral for words and button fills: 4.5:1 or more against the page's light backgrounds and white text. */
+  --coral-text: #b93d2b;
   --saffron: #f6b93b;
   --banana: #ffd84d;
   --mint: #91dfc2;
@@ -171,6 +173,20 @@ a:focus-visible {
   font-weight: 800;
   letter-spacing: 0.12em;
   text-transform: uppercase;
+}
+
+/* The adventure page keeps every label at 12px or more; other pages' brands are unchanged. */
+.site-header .brand small,
+.site-footer .brand small {
+  font-size: 12px;
+}
+
+.site-header .brand small {
+  color: var(--coral-text);
+}
+
+.site-footer .brand small {
+  color: #ff8d7d;
 }
 
 .site-header nav {
@@ -476,11 +492,17 @@ a:focus-visible {
 .section-number,
 .modal-kicker {
   margin: 0 0 14px;
-  color: var(--coral);
+  color: var(--coral-text);
   font-size: 12px;
   font-weight: 850;
   letter-spacing: 0.15em;
   text-transform: uppercase;
+}
+
+/* Letter-spacing pulls Bangla letters apart and breaks the line along their tops, so small Bangla labels have none. */
+:is(.eyebrow, .section-number, .modal-kicker, .selected-level-banner > div:nth-child(2) > p:first-child, .lesson-card-meta, .word-card-top, .match-column h3, .lesson-modal-meta, .lesson-complete-seal small, .pattern-card > span, .playlist-card small, .placement-result small, .module-overview-banner strong, .extra-videos-label, .adventure-path small):lang(bn),
+:is(.eyebrow, .section-number, .modal-kicker, .playlist-card small) :lang(bn) {
+  letter-spacing: normal;
 }
 
 .hero h1,
@@ -558,8 +580,8 @@ a:focus-visible {
 }
 
 .primary-button.coral {
-  background: var(--coral);
-  box-shadow: 5px 5px 0 #b33e32;
+  background: var(--coral-text);
+  box-shadow: 5px 5px 0 #8a2d20;
 }
 
 .sound-button {
@@ -609,6 +631,10 @@ a:focus-visible {
   color: var(--muted);
   font-size: 10px;
   font-weight: 650;
+}
+
+:is(.hero-actions, .modal-card) .sound-button small {
+  font-size: 12px;
 }
 
 .sound-button strong {
@@ -678,13 +704,13 @@ a:focus-visible {
 
 .tiger-note p {
   margin: 0;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.4;
 }
 
 .tiger-note strong {
   display: block;
-  color: var(--coral);
+  color: var(--coral-text);
 }
 
 .floating-word {
@@ -706,7 +732,7 @@ a:focus-visible {
 
 .floating-word small {
   font-family: var(--sans);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 700;
 }
 
@@ -766,7 +792,7 @@ a:focus-visible {
 .quest-bar p {
   margin: 0;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .quest-stops {
@@ -798,7 +824,7 @@ a:focus-visible {
   align-items: center;
   gap: 5px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   text-align: center;
 }
@@ -838,7 +864,7 @@ a:focus-visible {
   border-radius: 999px;
   background: #fff1ac;
   color: var(--ink);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 750;
   white-space: nowrap;
 }
@@ -913,7 +939,7 @@ a:focus-visible {
 }
 
 .curriculum-progress-number small {
-  color: #6f8b85;
+  color: #4f6a64;
   font-size: 15px;
 }
 
@@ -924,7 +950,7 @@ a:focus-visible {
 .curriculum-progress-card strong {
   display: block;
   margin-bottom: 8px;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .curriculum-progress-track {
@@ -986,7 +1012,7 @@ a:focus-visible {
   border-color: var(--indigo);
   border-radius: 14px 14px 14px 5px;
   color: var(--indigo);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .level-picker {
@@ -1031,7 +1057,7 @@ a:focus-visible {
   border-radius: 999px;
   background: var(--level-accent);
   color: white;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 900;
 }
 
@@ -1043,8 +1069,8 @@ a:focus-visible {
 
 .level-tab small {
   margin-top: 4px;
-  color: rgba(23, 50, 77, 0.66);
-  font-size: 9px;
+  color: rgba(23, 50, 77, 0.8);
+  font-size: 12px;
   line-height: 1.25;
 }
 
@@ -1152,7 +1178,7 @@ a:focus-visible {
 .selected-level-banner > div:nth-child(2) > p:first-child {
   margin-bottom: 3px;
   color: var(--level-accent);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 850;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -1174,7 +1200,7 @@ a:focus-visible {
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.64);
   color: var(--level-accent);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 850;
   white-space: nowrap;
 }
@@ -1249,8 +1275,8 @@ a:focus-visible {
   display: flex;
   align-items: center;
   gap: 9px;
-  color: #6a7a7d;
-  font-size: 9px;
+  color: #5b6a6d;
+  font-size: 12px;
   font-weight: 750;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -1304,14 +1330,14 @@ a:focus-visible {
   border-radius: 50%;
   background: var(--level-accent);
   color: white;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 900;
 }
 
 .lesson-can-do p {
   margin: 0;
   color: #43575d;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.55;
 }
 
@@ -1336,7 +1362,7 @@ a:focus-visible {
   border: 1px solid rgba(23, 50, 77, 0.13);
   border-radius: 999px;
   color: #52676d;
-  font-size: 8px;
+  font-size: 12px;
   line-height: 1.25;
 }
 
@@ -1358,7 +1384,7 @@ a:focus-visible {
   border-radius: 10px;
   background: #e94545;
   color: white;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .lesson-video-preview p {
@@ -1372,14 +1398,14 @@ a:focus-visible {
 }
 
 .lesson-video-preview small {
-  color: #7b8589;
-  font-size: 8px;
+  color: #56666a;
+  font-size: 12px;
 }
 
 .lesson-video-preview strong {
   margin-top: 2px;
   overflow: hidden;
-  font-size: 10px;
+  font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1395,7 +1421,7 @@ a:focus-visible {
   border-radius: 15px 15px 15px 5px;
   background: var(--level-accent);
   color: white;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 850;
   cursor: pointer;
 }
@@ -1433,7 +1459,7 @@ a:focus-visible {
 
 .curriculum-source-note p {
   margin: 0;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.65;
 }
 
@@ -1483,8 +1509,8 @@ a:focus-visible {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  color: rgba(23, 50, 77, 0.72);
-  font-size: 11px;
+  color: rgba(23, 50, 77, 0.86);
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: 0.1em;
 }
@@ -1505,7 +1531,7 @@ a:focus-visible {
 
 .pronunciation {
   margin: 12px 0 3px;
-  color: rgba(23, 50, 77, 0.62);
+  color: rgba(23, 50, 77, 0.86);
   font-size: 12px;
   font-weight: 720;
 }
@@ -1535,7 +1561,7 @@ a:focus-visible {
   border: 1.5px solid var(--ink);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.66);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 850;
   cursor: pointer;
 }
@@ -1606,7 +1632,7 @@ a:focus-visible {
 .paper-label small {
   display: block;
   font-family: var(--sans);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .story-copy .section-number {
@@ -1634,7 +1660,7 @@ a:focus-visible {
   border: 1px solid rgba(255, 255, 255, 0.22);
   border-radius: 999px;
   color: rgba(255, 255, 255, 0.86);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 740;
 }
 
@@ -1646,8 +1672,8 @@ a:focus-visible {
 .time-note {
   display: inline-block;
   margin: 18px 0 0;
-  color: rgba(255, 255, 255, 0.65);
-  font-size: 10px;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 12px;
 }
 
 .culture-section {
@@ -1688,7 +1714,7 @@ a:focus-visible {
 }
 
 .passport-stamp small {
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .culture-layout {
@@ -1791,7 +1817,7 @@ a:focus-visible {
 .place-card small {
   margin-top: 5px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .postcard-arrow {
@@ -1866,7 +1892,7 @@ a:focus-visible {
 .match-column h3 {
   margin: 0 0 6px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.13em;
   text-align: center;
   text-transform: uppercase;
@@ -1931,7 +1957,7 @@ a:focus-visible {
   left: 25px;
   margin: 0;
   color: var(--emerald);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
 }
 
@@ -1944,7 +1970,7 @@ a:focus-visible {
   border-bottom: 1px solid currentColor;
   background: transparent;
   color: var(--indigo);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 800;
   cursor: pointer;
 }
@@ -2038,7 +2064,7 @@ a:focus-visible {
 .site-footer > div:nth-child(2) p {
   margin: 7px 0 0;
   color: rgba(255, 255, 255, 0.64);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.6;
 }
 
@@ -2056,7 +2082,7 @@ a:focus-visible {
   border-bottom: 1px solid rgba(255, 255, 255, 0.28);
   background: transparent;
   color: rgba(255, 255, 255, 0.8);
-  font-size: 10px;
+  font-size: 12px;
   cursor: pointer;
 }
 
@@ -2116,10 +2142,12 @@ a:focus-visible {
   background: #fffdf8;
 }
 
+/* Stays in the lesson's top corner while it scrolls, whatever the lesson's height; it takes no room in the flow. */
 .lesson-modal .modal-close {
-  position: fixed;
-  top: max(32px, calc((100vh - min(94vh, 900px)) / 2 + 14px));
-  right: max(32px, calc((100vw - min(1120px, calc(100vw - 44px))) / 2 + 14px));
+  position: sticky;
+  top: 14px;
+  right: auto;
+  margin: 14px 14px -54px auto;
   border-color: rgba(23, 50, 77, 0.32);
   background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(8px);
@@ -2144,7 +2172,7 @@ a:focus-visible {
   gap: 11px;
   padding-right: 50px;
   color: var(--level-accent);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 850;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -2168,7 +2196,7 @@ a:focus-visible {
 .lesson-modal-title-row > div > p:first-child {
   margin: 0 0 6px;
   color: var(--level-accent);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
 }
 
@@ -2203,7 +2231,7 @@ a:focus-visible {
 .lesson-complete-seal small {
   max-width: 70px;
   margin-top: 3px;
-  font-size: 7px;
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: 0.04em;
   text-align: center;
@@ -2244,8 +2272,8 @@ a:focus-visible {
   border: 0;
   border-bottom: 3px solid transparent;
   background: transparent;
-  color: #647477;
-  font-size: 11px;
+  color: #56666a;
+  font-size: 12px;
   font-weight: 800;
   cursor: pointer;
 }
@@ -2257,7 +2285,7 @@ a:focus-visible {
   height: 24px;
   border-radius: 50%;
   background: #edf1f1;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .lesson-step-tabs button.active {
@@ -2329,7 +2357,7 @@ a:focus-visible {
   line-height: 1.45;
 }
 
-.objective-list span {
+.objective-list li > span:first-child {
   display: grid;
   flex: 0 0 auto;
   place-items: center;
@@ -2338,7 +2366,7 @@ a:focus-visible {
   border: 1px solid var(--level-accent);
   border-radius: 50%;
   color: var(--level-accent);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 850;
 }
 
@@ -2435,12 +2463,12 @@ a:focus-visible {
 .lesson-vocab-card > span {
   margin-top: 7px;
   color: #718084;
-  font-size: 8px;
+  font-size: 12px;
 }
 
 .lesson-vocab-card small {
   margin-top: 4px;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .vocab-listen {
@@ -2456,7 +2484,7 @@ a:focus-visible {
   border-radius: 50%;
   background: var(--level-bg);
   color: var(--level-accent);
-  font-size: 10px;
+  font-size: 12px;
   cursor: pointer;
 }
 
@@ -2484,7 +2512,7 @@ a:focus-visible {
 .pattern-card > span {
   display: block;
   color: var(--level-accent);
-  font-size: 8px;
+  font-size: 12px;
   font-weight: 850;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -2519,7 +2547,7 @@ a:focus-visible {
 .pattern-card em {
   margin-top: 3px;
   color: #718084;
-  font-size: 9px;
+  font-size: 12px;
   font-style: normal;
 }
 
@@ -2558,7 +2586,7 @@ a:focus-visible {
 .culture-note p {
   margin: 0;
   color: #5c6e72;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.68;
 }
 
@@ -2587,7 +2615,7 @@ a:focus-visible {
   margin-top: 10px;
   border-bottom: 1px solid currentColor;
   color: var(--indigo);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 800;
 }
 
@@ -2627,7 +2655,7 @@ a:focus-visible {
   margin-top: auto;
   padding-top: 18px;
   color: var(--level-accent);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 800;
 }
 
@@ -2667,14 +2695,14 @@ a:focus-visible {
   gap: 9px;
   margin: 16px 0 18px;
   flex-wrap: wrap;
-  color: #718084;
-  font-size: 9px;
+  color: #5b6a6d;
+  font-size: 12px;
 }
 
-.video-resource-meta span:first-child {
+.video-resource-meta > span:first-child {
   padding: 5px 8px;
   border-radius: 999px;
-  background: #e94545;
+  background: #c62828;
   color: white;
   font-weight: 850;
 }
@@ -2765,13 +2793,13 @@ a:focus-visible {
 .video-gate p {
   margin: 0 0 22px;
   color: #5e7074;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.65;
 }
 
 .video-gate .primary-button {
   min-height: 48px;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .lesson-video-frame {
@@ -2821,7 +2849,7 @@ a:focus-visible {
 }
 
 .playlist-card small {
-  font-size: 8px;
+  font-size: 12px;
   font-weight: 850;
   letter-spacing: 0.07em;
   text-transform: uppercase;
@@ -2835,15 +2863,15 @@ a:focus-visible {
 
 .playlist-card em {
   margin-top: 3px;
-  color: #6b7195;
-  font-size: 8px;
+  color: #565c80;
+  font-size: 12px;
   font-style: normal;
 }
 
 .external-resource-note {
   margin: 12px 5px 0;
   color: #798689;
-  font-size: 8px;
+  font-size: 12px;
   line-height: 1.6;
 }
 
@@ -2870,7 +2898,7 @@ a:focus-visible {
   font-weight: 750;
 }
 
-.lesson-quiz-question legend span {
+.lesson-quiz-question legend > span:first-child {
   display: grid;
   flex: 0 0 auto;
   place-items: center;
@@ -2880,7 +2908,7 @@ a:focus-visible {
   background: var(--level-accent);
   color: white;
   font-family: var(--sans);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .lesson-quiz-options {
@@ -2899,12 +2927,12 @@ a:focus-visible {
   border: 1.5px solid rgba(23, 50, 77, 0.16);
   border-radius: 13px;
   background: white;
-  font-size: 11px;
+  font-size: 12px;
   text-align: left;
   cursor: pointer;
 }
 
-.lesson-quiz-options button > span {
+.lesson-quiz-options button > span:first-child {
   display: grid;
   flex: 0 0 auto;
   place-items: center;
@@ -2912,7 +2940,7 @@ a:focus-visible {
   height: 25px;
   border-radius: 50%;
   background: #edf1f1;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 850;
 }
 
@@ -2938,7 +2966,7 @@ a:focus-visible {
   margin: 12px 0 0;
   padding: 10px 12px;
   border-radius: 10px;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.5;
 }
 
@@ -2956,7 +2984,7 @@ a:focus-visible {
   margin: 18px 0 0;
   padding: 14px;
   border-radius: 14px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
   line-height: 1.5;
 }
@@ -3052,7 +3080,7 @@ a:focus-visible {
 
 .placement-statements legend {
   display: contents;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.5;
 }
 
@@ -3072,7 +3100,7 @@ a:focus-visible {
   border-radius: 10px;
   background: white;
   color: #617276;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 750;
   cursor: pointer;
 }
@@ -3120,7 +3148,7 @@ a:focus-visible {
 
 .placement-result small {
   color: var(--level-accent);
-  font-size: 7px;
+  font-size: 12px;
   font-weight: 850;
   letter-spacing: 0.05em;
   text-align: center;
@@ -3147,7 +3175,7 @@ a:focus-visible {
 .placement-result p {
   margin: 0;
   color: #53686c;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.55;
 }
 
@@ -3155,7 +3183,7 @@ a:focus-visible {
   display: inline-block;
   margin-top: 6px;
   color: var(--level-accent);
-  font-size: 8px;
+  font-size: 12px;
   font-style: normal;
   font-weight: 850;
   text-transform: uppercase;
@@ -3164,7 +3192,7 @@ a:focus-visible {
 .placement-note {
   margin: 14px 0 0;
   color: #6c7a7d;
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.6;
 }
 
@@ -3179,7 +3207,7 @@ a:focus-visible {
 .placement-actions .primary-button,
 .placement-actions .outline-button {
   min-height: 47px;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .word-modal-content {
@@ -3225,8 +3253,8 @@ a:focus-visible {
 
 .modal-word-orb small {
   margin-top: 6px;
-  color: var(--muted);
-  font-size: 11px;
+  color: rgba(23, 50, 77, 0.86);
+  font-size: 12px;
   font-weight: 800;
 }
 
@@ -3301,7 +3329,7 @@ a:focus-visible {
   padding: 7px 11px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.88);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 800;
 }
 
@@ -3342,7 +3370,7 @@ a:focus-visible {
   border-radius: 999px;
   background: var(--sky);
   color: var(--indigo);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 800;
   cursor: pointer;
 }
@@ -3385,7 +3413,7 @@ a:focus-visible {
   border: 0;
   background: transparent;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
   cursor: pointer;
 }
@@ -3427,14 +3455,14 @@ a:focus-visible {
 
 .quiz-options small {
   font-family: var(--sans);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .quiz-result {
   margin: 15px 0 0;
   padding: 10px;
   border-radius: 10px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 750;
 }
 
@@ -3458,7 +3486,7 @@ a:focus-visible {
   right: 34px;
   width: 95px;
   height: 95px;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .place-modal-content h2 {
@@ -3475,7 +3503,7 @@ a:focus-visible {
   border-radius: 999px;
   background: var(--mint);
   color: var(--emerald);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 850;
 }
 
@@ -3501,7 +3529,7 @@ a:focus-visible {
 }
 
 .wonder-prompt span {
-  color: var(--coral);
+  color: var(--coral-text);
 }
 
 .wonder-prompt p {
@@ -3552,7 +3580,7 @@ a:focus-visible {
 }
 
 .progress-card > div:last-child strong {
-  color: var(--coral);
+  color: var(--coral-text);
   font-family: var(--display);
   font-size: 26px;
 }
@@ -3560,7 +3588,7 @@ a:focus-visible {
 .progress-card p {
   margin: 3px 0 0;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .privacy-card {
@@ -3586,7 +3614,7 @@ a:focus-visible {
 .privacy-card p {
   margin: 0;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.6;
 }
 
@@ -3610,6 +3638,10 @@ a:focus-visible {
   font-size: 10px;
   font-weight: 800;
   cursor: pointer;
+}
+
+:is(.lesson-shell, .modal-card) .text-button {
+  font-size: 12px;
 }
 
 .text-button.danger {
@@ -3742,14 +3774,14 @@ a:focus-visible {
   .student-login-link {
     min-height: 38px;
     padding: 0 10px;
-    font-size: 11px;
+    font-size: 12px;
   }
 
   .grownups-login-link {
     min-height: 38px;
     padding: 3px 10px 3px 5px;
     box-shadow: 2px 2px 0 var(--emerald);
-    font-size: 11px;
+    font-size: 12px;
   }
 
   .grownups-login-mark {
@@ -3761,7 +3793,7 @@ a:focus-visible {
   .language-switch button {
     min-height: 31px;
     padding: 3px 8px;
-    font-size: 10px;
+    font-size: 12px;
   }
 
   .hero {
@@ -3778,7 +3810,7 @@ a:focus-visible {
 
   .age-pill {
     margin-bottom: 21px;
-    font-size: 10px;
+    font-size: 12px;
   }
 
   .hero h1 {
@@ -3945,11 +3977,11 @@ a:focus-visible {
   }
 
   .passport-stamp strong {
-    font-size: 9px;
+    font-size: 12px;
   }
 
   .passport-stamp span {
-    font-size: 10px;
+    font-size: 12px;
   }
 
   .collage-wrap {
@@ -4032,6 +4064,7 @@ a:focus-visible {
     position: absolute;
     top: 12px;
     right: 12px;
+    margin: 0;
   }
 
   .lesson-modal-hero {
@@ -4067,13 +4100,13 @@ a:focus-visible {
     min-height: 61px;
     flex-direction: column;
     gap: 4px;
-    font-size: 8px;
+    font-size: 12px;
   }
 
   .lesson-step-tabs button span {
     width: 21px;
     height: 21px;
-    font-size: 8px;
+    font-size: 12px;
   }
 
   .lesson-pane {
@@ -4164,11 +4197,11 @@ a:focus-visible {
   .audio-toggle {
     width: 31px;
     height: 31px;
-    font-size: 11px;
+    font-size: 12px;
   }
 
   .hero-mini-stats {
-    font-size: 10px;
+    font-size: 12px;
   }
 
   .hero-mini-stats span {
@@ -4200,7 +4233,7 @@ a:focus-visible {
   }
 
   .lesson-step-tabs button {
-    font-size: 7px;
+    font-size: 12px;
   }
 
   .lesson-vocab-grid {
@@ -4241,7 +4274,7 @@ a:focus-visible {
   }
 
   .quest-stops li {
-    font-size: 9px;
+    font-size: 12px;
   }
 
   .match-board {
@@ -4348,7 +4381,7 @@ a:focus-visible {
 .expanded-tabs button {
   gap: 5px;
   padding-inline: 4px;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .expanded-tabs button.complete:not(.active) {
@@ -4384,7 +4417,7 @@ a:focus-visible {
   border-right: 1px solid rgba(23, 50, 77, 0.12);
 }
 
-.module-overview-banner span {
+.module-overview-banner > div > span {
   font-size: 12px;
   font-weight: 850;
 }
@@ -4493,7 +4526,7 @@ a:focus-visible {
 .audio-source-note {
   margin: 10px 0 0;
   color: #5f6d70;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
 }
 
@@ -4559,7 +4592,7 @@ a:focus-visible {
 }
 
 .dialogue-transcript div > span {
-  color: var(--coral);
+  color: var(--coral-text);
   font-family: var(--display);
   font-size: 15px;
   font-weight: 800;
@@ -4575,7 +4608,7 @@ a:focus-visible {
   grid-column: 2;
   margin: 0;
   color: #6a797c;
-  font-size: 10px;
+  font-size: 12px;
   font-style: normal;
 }
 
@@ -4611,13 +4644,13 @@ a:focus-visible {
   border: 1px solid rgba(23, 50, 77, 0.15);
   border-radius: 12px;
   background: #fafafa;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   text-align: left;
   cursor: pointer;
 }
 
-.session-check-options button > span,
+.session-check-options button > span:first-child,
 .diagnostic-options button > span {
   display: grid;
   flex: 0 0 auto;
@@ -4626,7 +4659,7 @@ a:focus-visible {
   height: 24px;
   border-radius: 50%;
   background: #edf1f1;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .session-check-options button.selected,
@@ -4649,14 +4682,14 @@ a:focus-visible {
 .compact-button {
   min-height: 39px;
   padding: 0 15px;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .session-feedback {
   margin: 13px 0 0;
   padding: 11px 13px;
   border-radius: 11px;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.5;
 }
 
@@ -4778,7 +4811,7 @@ a:focus-visible {
 .roleplay-grid p {
   margin-top: 8px;
   color: #5b7074;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.6;
 }
 
@@ -4813,7 +4846,7 @@ a:focus-visible {
 .local-recorder p:not(.modal-kicker) {
   margin-top: 6px;
   color: #637376;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.5;
 }
 
@@ -4842,7 +4875,7 @@ a:focus-visible {
   border-radius: 10px;
   background: #fff0ed;
   color: #933b32;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .success-checklist {
@@ -4860,7 +4893,7 @@ a:focus-visible {
   align-items: center;
   gap: 9px;
   color: #486267;
-  font-size: 11px;
+  font-size: 12px;
   cursor: pointer;
 }
 
@@ -4914,7 +4947,7 @@ a:focus-visible {
 }
 
 .writing-pad > span {
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 850;
 }
 
@@ -4963,7 +4996,7 @@ a:focus-visible {
 .model-answer-card p {
   margin: 0 0 5px;
   color: #57696d;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.55;
 }
 
@@ -4974,8 +5007,8 @@ a:focus-visible {
 }
 
 .model-answer-card small {
-  color: #7a888a;
-  font-size: 8px;
+  color: #56666a;
+  font-size: 12px;
   font-weight: 750;
   text-transform: uppercase;
 }
@@ -4989,7 +5022,7 @@ a:focus-visible {
   background: #fff3d5;
 }
 
-.stretch-card span {
+.stretch-card > span {
   color: #b46d00;
   font-weight: 900;
 }
@@ -4997,7 +5030,7 @@ a:focus-visible {
 .stretch-card p {
   margin: 0;
   color: #745a2c;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.5;
 }
 
@@ -5051,13 +5084,13 @@ a:focus-visible {
 .video-learning-cycle p {
   margin-top: 5px;
   color: #637478;
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.55;
 }
 
 .video-resource-meta em {
   color: var(--emerald);
-  font-size: 9px;
+  font-size: 12px;
   font-style: normal;
   font-weight: 750;
 }
@@ -5069,7 +5102,7 @@ a:focus-visible {
 
 .media-review-note > span {
   background: var(--indigo);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .mastery-result {
@@ -5080,7 +5113,7 @@ a:focus-visible {
   margin-top: 17px;
   padding: 14px;
   border-radius: 13px;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .mastery-result.success {
@@ -5104,7 +5137,7 @@ a:focus-visible {
   border-radius: 8px;
   background: transparent;
   color: inherit;
-  font-size: 8px;
+  font-size: 12px;
   font-weight: 800;
   cursor: pointer;
 }
@@ -5256,7 +5289,7 @@ a:focus-visible {
   height: 29px;
   border-radius: 50%;
   background: #e7eff0;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 900;
 }
 
@@ -5314,7 +5347,7 @@ a:focus-visible {
 .diagnostic-rubric {
   margin: 9px 0;
   color: #65767a;
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.5;
 }
 
@@ -5487,7 +5520,7 @@ a:focus-visible {
 .skill-profile-grid article > p {
   margin: 10px 0 0;
   color: #657579;
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.5;
 }
 
@@ -5535,7 +5568,7 @@ a:focus-visible {
 
   .expanded-tabs button {
     min-height: 56px;
-    font-size: 8px;
+    font-size: 12px;
   }
 
   .module-overview-banner,
@@ -5708,7 +5741,7 @@ a:focus-visible {
   border-radius: 10px;
   background: #f4f8f6;
   color: var(--emerald);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 800;
 }
 
@@ -5735,8 +5768,8 @@ a:focus-visible {
   height: 22px;
   border-radius: 50%;
   background: #e8eded;
-  color: #7a8789;
-  font-size: 7px;
+  color: #4f5f62;
+  font-size: 12px;
   font-weight: 850;
 }
 
@@ -5746,8 +5779,8 @@ a:focus-visible {
 }
 
 .lesson-session-preview small {
-  color: #6d7d80;
-  font-size: 7px;
+  color: #56666a;
+  font-size: 12px;
   font-weight: 750;
 }
 
@@ -10463,7 +10496,7 @@ body.modal-open .pwa-status {
 .path-class { background: #e7e8fc; }
 .path-illustration { display: grid; place-items: center; width: 70px; height: 70px; padding: 6px; border-radius: 20px; background: rgb(255 255 255 / 50%); color: var(--ink); }
 .path-illustration svg { width: 100%; height: 100%; }
-.adventure-path small { display: block; font-size: .7rem; text-transform: uppercase; letter-spacing: .09em; font-weight: 800; color: #475966; }
+.adventure-path small { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: .09em; font-weight: 800; color: #475966; }
 .adventure-path strong { display: block; margin-top: 8px; font-size: clamp(1.2rem, 2vw, 1.6rem); font-weight: 850; line-height: 1.2; }
 .adventure-path p { margin: 12px 0 0; line-height: 1.65; font-size: .95rem; }
 .path-arrow { position: absolute; top: 28px; right: 24px; width: 34px; height: 34px; display: grid; place-items: center; border: 1.5px solid var(--ink); border-radius: 50%; font-size: 1.3rem; background: var(--paper); }
@@ -10488,7 +10521,7 @@ body.modal-open .pwa-status {
   .path-illustration { width: 54px; height: 54px; flex-shrink: 0; }
   .path-arrow { width: 25px; height: 25px; top: 20px; right: 12px; font-size: 1rem; }
   .adventure-path p { font-size: .85rem; margin-top: 8px; }
-  .adventure-path small { font-size: .62rem; }
+  .adventure-path small { font-size: 12px; }
   .site-header .header-actions { flex-basis: 100%; justify-content: center; }
   .site-header .grownups-login-link, .site-header .teacher-login-link, .site-header .student-login-link { min-height: 44px; padding: 8px 10px; font-size: .8rem; }
   .hero .hero-actions { gap: 12px; }
@@ -10712,8 +10745,8 @@ body.modal-open .pwa-status {
 }
 
 .lesson-word-bank small {
-  color: #6b7a7d;
-  font-size: 11px;
+  color: #5b6a6d;
+  font-size: 12px;
 }
 
 .lesson-word-bank button,

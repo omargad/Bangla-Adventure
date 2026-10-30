@@ -3,6 +3,7 @@ import test from "node:test";
 import { readdirSync, readFileSync } from "node:fs";
 import { createElement } from "react";
 import { renderToString } from "react-dom/server";
+import ts from "typescript";
 
 const { default: PwaBridge } = await import("../app/components/PwaBridge.tsx");
 
@@ -67,6 +68,58 @@ test("the label check finds fixed English in every attribute form", () => {
   assert.equal(fixedEnglishLabels("<button aria-label={`${phrase.transliteration} — ${phrase.en}`} />").length, 1);
   assert.equal(fixedEnglishLabels("<div aria-label={`${value} ${countable.en}`} />").length, 1);
   assert.deepEqual(fixedEnglishLabels("<button aria-label={s(`${phrase.transliteration} — ${phrase.en}`, phrase.bn)} />"), []);
+});
+
+/**
+ * Fixed English a component shows as text: JSX text, and strings shown as a child (also through conditions,
+ * && and ||). Text is fine inside a choice on the language (s(en, bn), paired(language, en, bn) or a condition on
+ * `language`) or inside an element marked lang="en", which is how lesson content written in English is shown.
+ */
+function fixedEnglishText(source) {
+  const file = ts.createSourceFile("component.tsx", source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  // Product names stay as they are in both languages.
+  const english = (text) => /[A-Za-z]/.test(text.replace(/\bYouTube\b/g, ""));
+  const literalText = (node) => ts.isTemplateExpression(node) ? node.head.text + node.templateSpans.map((span) => span.literal.text).join("") : node.text;
+  const markedEnglish = (element) => element.attributes.properties.some((attribute) => ts.isJsxAttribute(attribute) && attribute.name.getText() === "lang" && attribute.initializer && ts.isStringLiteral(attribute.initializer) && attribute.initializer.text === "en");
+  const chosen = (node) => {
+    for (let child = node, parent = node.parent; parent; child = parent, parent = parent.parent) {
+      if (ts.isCallExpression(parent) && ts.isIdentifier(parent.expression) && ["s", "paired"].includes(parent.expression.text)) return true;
+      if (ts.isConditionalExpression(parent) && child !== parent.condition && /\blanguage\b/.test(parent.condition.getText())) return true;
+      if (ts.isJsxElement(parent) && markedEnglish(parent.openingElement)) return true;
+    }
+    return false;
+  };
+  const shown = (node) => {
+    for (let child = node, parent = node.parent; parent; child = parent, parent = parent.parent) {
+      if (ts.isJsxExpression(parent)) return ts.isJsxElement(parent.parent) || ts.isJsxFragment(parent.parent);
+      if (ts.isParenthesizedExpression(parent) || (ts.isConditionalExpression(parent) && child !== parent.condition)) continue;
+      const logical = [ts.SyntaxKind.AmpersandAmpersandToken, ts.SyntaxKind.BarBarToken, ts.SyntaxKind.QuestionQuestionToken];
+      if (ts.isBinaryExpression(parent) && logical.includes(parent.operatorToken.kind) && child === parent.right) continue;
+      return false;
+    }
+    return false;
+  };
+  const found = [];
+  const visit = (node) => {
+    if (ts.isJsxText(node) && english(node.text) && !chosen(node)) found.push(node.text.trim());
+    if ((ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node) || ts.isTemplateExpression(node)) && shown(node) && english(literalText(node)) && !chosen(node)) found.push(node.getText());
+    ts.forEachChild(node, visit);
+  };
+  visit(file);
+  return found;
+}
+
+test("lessons show no fixed English text: buttons, headings, hints and feedback all have a Bangla version", () => {
+  assert.deepEqual(fixedEnglishText(read("components/LessonExperience.tsx")), []);
+});
+
+test("the text check finds fixed English in JSX text and shown strings, and accepts language choices", () => {
+  assert.deepEqual(fixedEnglishText(`<button onClick={go}>Check my answers <span aria-hidden="true">✓</span></button>`), ["Check my answers"]);
+  assert.deepEqual(fixedEnglishText(`<p>{done ? "✓ Complete" : ready && "Try again"}</p>`), ['"✓ Complete"', '"Try again"']);
+  assert.deepEqual(fixedEnglishText("<p>{`Session ${step} of 6`}</p>"), ["`Session ${step} of 6`"]);
+  assert.deepEqual(fixedEnglishText(`<p className={open ? "open card" : "card"} key="a">{s("Close", "বন্ধ")}{language === "en" ? "Next" : "পরের"}</p>`), []);
+  assert.deepEqual(fixedEnglishText(`<p>{paired(language, "Quick check", "ছোট যাচাই")}<span lang="en">{lesson.title}: English data</span> · YouTube</p>`), []);
+  assert.deepEqual(fixedEnglishText(`<p lang="bn">Mixed <span lang="en">text</span></p>`), ["Mixed"]);
 });
 
 test("language buttons are marked with the language their label is written in", () => {
