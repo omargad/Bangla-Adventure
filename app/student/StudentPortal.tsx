@@ -26,7 +26,7 @@ async function request<T>(url: string, data?: object): Promise<T> {
 export default function StudentPortal({ initialStudent, destination = "/student", initialMode = "sign-in", initialSection = "learning" }: {
   initialStudent: Student | null; destination?: string; initialMode?: "sign-in" | "sign-up"; initialSection?: string;
 }) {
-  const [language, toggleLanguage] = useLanguage();
+  const [language, toggleLanguage] = useLanguage({ title: ["Student login | Bangla Adventures", "শিক্ষার্থীর সাইন ইন | Bangla Adventures"] });
   const s = (en: string, bn: string) => language === "bn" ? bn : en;
   const number = (value: number) => localNumber(value, language);
   const [student, setStudent] = useState(initialStudent);

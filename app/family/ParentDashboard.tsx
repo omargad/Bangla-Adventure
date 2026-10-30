@@ -69,7 +69,7 @@ export default function ParentDashboard({ parentName }: { parentName: string }) 
   return <PortalShell role="parent" name={parentName} active="family" language={language} toggleLanguage={toggleLanguage}><main className="adult-app parent-app" lang={language}>
     <header className="adult-header">
       <Link className="adult-brand" href="/"><span>বা</span><span><strong>Bangla Adventures</strong><small>{s("Parent dashboard", "অভিভাবকের ড্যাশবোর্ড")}</small></span></Link>
-      <nav aria-label="Parent navigation"><Link className="active" href="/family">{s("My children", "আমার সন্তান")}</Link><Link href="/account">{s("My account", "আমার অ্যাকাউন্ট")}</Link><Link href="/safety">{s("Safety & privacy", "নিরাপত্তা ও গোপনীয়তা")}</Link></nav>
+      <nav aria-label={s("Parent navigation", "অভিভাবকের মেনু")}><Link className="active" href="/family">{s("My children", "আমার সন্তান")}</Link><Link href="/account">{s("My account", "আমার অ্যাকাউন্ট")}</Link><Link href="/safety">{s("Safety & privacy", "নিরাপত্তা ও গোপনীয়তা")}</Link></nav>
       <div className="adult-account"><button className="outline-button" onClick={toggleLanguage}>{s("বাংলা", "English")}</button><a href="/api/auth/sign-out?returnTo=%2Fgrown-ups">{s("Sign out", "সাইন আউট")}</a></div>
     </header>
     <div className="adult-content">

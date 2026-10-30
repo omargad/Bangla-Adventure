@@ -77,6 +77,25 @@ for (const path of ["/grown-ups", "/safety"]) {
   });
 }
 
+for (const path of ["/grown-ups", "/safety"]) {
+  test(`the header on ${path} keeps the language button without covering a sideways phone or tablet`, async ({ page }) => {
+    for (const [width, height] of [[1000, 600], [915, 412], [844, 390], [768, 500]]) {
+      await page.setViewportSize({ width, height });
+      await page.goto(path, { waitUntil: "networkidle" });
+      await expect(page.getByRole("button", { name: "বাংলায় দেখুন" })).toBeVisible();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+      // Once the page is scrolled, a header that stays on screen may keep one row (76px), not two.
+      const covered = await page.evaluate(async () => {
+        document.documentElement.style.scrollBehavior = "auto";
+        window.scrollTo(0, 600);
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        return Math.max(0, document.querySelector(".adult-header")!.getBoundingClientRect().bottom);
+      });
+      expect(covered, `${width}x${height}`).toBeLessThanOrEqual(80);
+    }
+  });
+}
+
 for (const width of [1280, 390]) {
   test(`public pages have no text under 12px and readable small text at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
@@ -109,27 +128,45 @@ test("pages use the Geist stack with the Bengali fonts after it", async ({ page 
   const family = await page.evaluate(() => getComputedStyle(document.body).fontFamily);
   expect(family).toMatch(/^Geist/);
   expect(family).toContain("Noto Sans Bengali");
+  // Only Geist is preloaded; Geist Mono loads on the pages whose code text uses it.
+  expect(await page.locator('link[rel="preload"][as="font"]').count()).toBe(1);
+  await page.goto("/safety", { waitUntil: "networkidle" });
+  expect(await page.evaluate(async () => {
+    await document.fonts.ready;
+    return Array.from(document.fonts).some((font) => font.family.includes("Geist Mono") && font.status === "loaded");
+  })).toBe(true);
 });
 
 test("Bangla mode sets the page language and translates labels and the offline banner", async ({ page, context }) => {
   await page.goto("/welcome", { waitUntil: "networkidle" });
   await expect(page.getByRole("navigation", { name: "Welcome navigation" })).toBeVisible();
+  await expect(page).toHaveTitle("Welcome | Bangla Adventures");
   await page.getByRole("button", { name: "বাংলা", exact: true }).click();
   await expect(page.locator("html")).toHaveAttribute("lang", "bn");
+  await expect(page).toHaveTitle("স্বাগতম | Bangla Adventures");
   await expect(page.getByRole("navigation", { name: "স্বাগতম পাতার মেনু" })).toBeVisible();
   await context.setOffline(true);
   await expect(page.locator(".pwa-status.offline")).toContainText("ইন্টারনেট সংযোগ নেই");
   await expect(page.locator(".pwa-status.offline")).toHaveAttribute("lang", "bn");
   await context.setOffline(false);
 
-  // The choice is kept between pages.
+  // The choice is kept between pages, opened directly or through a link, and the tab title follows it.
+  await page.getByRole("navigation", { name: "স্বাগতম পাতার মেনু" }).getByRole("link").click();
+  await expect(page).toHaveURL(/\/safety$/);
+  await expect(page).toHaveTitle("নিরাপত্তা, গোপনীয়তা ও প্রবেশগম্যতা | Bangla Adventures");
   await page.goto("/student", { waitUntil: "networkidle" });
   await expect(page.locator("html")).toHaveAttribute("lang", "bn");
+  await expect(page).toHaveTitle("শিক্ষার্থীর সাইন ইন | Bangla Adventures");
   await expect(page.getByRole("tablist", { name: "শিক্ষার্থীর অ্যাকাউন্ট" })).toBeVisible();
   await expect(page.getByLabel("ব্যবহারকারীর নাম")).toHaveAttribute("title", /ইংরেজি অক্ষর/);
   await page.goto("/safety", { waitUntil: "networkidle" });
+  await expect(page).toHaveTitle("নিরাপত্তা, গোপনীয়তা ও প্রবেশগম্যতা | Bangla Adventures");
   await expect(page.getByRole("link", { name: /ইউটিউব এমবেড/ })).toBeVisible();
   await expect(page.getByRole("table", { name: "তথ্য সংগ্রহের মানচিত্র" })).toBeVisible();
   await page.goto("/grown-ups", { waitUntil: "networkidle" });
+  await expect(page).toHaveTitle("বড়দের সাইন ইন | Bangla Adventures");
   await expect(page.getByRole("tablist", { name: "সাইন ইন বা অ্যাকাউন্ট তৈরি" })).toBeVisible();
+  await page.getByRole("button", { name: "View in English" }).click();
+  await expect(page.locator("html")).toHaveAttribute("lang", "en");
+  await expect(page).toHaveTitle("Grown-up sign in | Bangla Adventures");
 });

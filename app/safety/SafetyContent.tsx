@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useLanguage } from "../../lib/use-language";
 
 export default function SafetyContent() {
-  const [language, toggleLanguage] = useLanguage();
+  const [language, toggleLanguage] = useLanguage({ title: ["Safety, privacy and accessibility | Bangla Adventures", "নিরাপত্তা, গোপনীয়তা ও প্রবেশগম্যতা | Bangla Adventures"] });
   const bn = language === "bn";
   const s = (en: string, bnText: string) => (bn ? bnText : en);
 

@@ -147,7 +147,7 @@ export default function FamilyDashboard({ adultName, approvedLessonIds }: { adul
     <main className="adult-app" lang={language}>
       <header className="adult-header">
         <Link className="adult-brand" href="/"><span>বা</span><span><strong>Bangla Adventures</strong><small>{s("Grown-up dashboard", "বড়দের ড্যাশবোর্ড")}</small></span></Link>
-        <nav aria-label="Adult tools">
+        <nav aria-label={s("Adult tools", "বড়দের মেনু")}>
           <Link className="active" href="/family">{s("Learners", "শিক্ষার্থী")}</Link>
           <Link href="/studio">{s("Lessons", "পাঠ")}</Link>
           <Link href="/worksheets">{s("Worksheets", "ওয়ার্কশিট")}</Link>

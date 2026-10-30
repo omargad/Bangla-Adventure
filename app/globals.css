@@ -10631,10 +10631,14 @@ body.modal-open .pwa-status {
 :is(.auth-app, .safety-app) .adult-account { font-size: 14px; }
 :is(.auth-app, .safety-app) .adult-account .explore-lang { color: var(--ink); }
 @media (max-width: 1000px) {
-  /* These pages have no portal top bar, so their language button stays: brand and button share the top row, links go below. */
-  :is(.auth-app, .safety-app) .adult-header:has(> .adult-account) { grid-template-columns: minmax(0, 1fr) auto; }
-  :is(.auth-app, .safety-app) .adult-header:has(> .adult-account) nav { grid-row: 2; grid-column: 1 / -1; justify-content: flex-start; }
+  /* These pages have no portal top bar, so their language button stays, in the same single row while it fits. */
+  :is(.auth-app, .safety-app) .adult-header:has(> .adult-account) { grid-template-columns: auto 1fr auto; }
   :is(.auth-app, .safety-app) .adult-account { display: flex; }
+}
+@media (max-width: 860px) {
+  /* Brand and button share the top row and the links go below; the taller header scrolls away instead of covering the page. */
+  :is(.auth-app, .safety-app) .adult-header:has(> .adult-account) { position: static; grid-template-columns: minmax(0, 1fr) auto; }
+  :is(.auth-app, .safety-app) .adult-header:has(> .adult-account) nav { grid-row: 2; grid-column: 1 / -1; justify-content: flex-start; }
 }
 @media (max-width: 700px) {
   :is(.welcome-gate, .auth-app, .safety-app) .adult-header nav { flex-wrap: wrap; overflow-x: visible; }

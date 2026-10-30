@@ -25,7 +25,7 @@ export default function PoemsHub() {
             <small>{s("Poetry corner", "কবিতার কোণ")}</small>
           </span>
         </Link>
-        <nav aria-label="Sections">
+        <nav aria-label={s("Sections", "বিভাগ")}>
           <Link href="/topics">{s("Topics", "বিষয়")}</Link>
           <Link href="/stories">{s("Stories", "গল্প")}</Link>
           <Link className="active" href="/poems">{s("Poems", "কবিতা")}</Link>

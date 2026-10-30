@@ -25,7 +25,7 @@ export default function GrammarHub() {
             <small>{s("How Bangla works", "বাংলার নিয়ম")}</small>
           </span>
         </Link>
-        <nav aria-label="Sections">
+        <nav aria-label={s("Sections", "বিভাগ")}>
           <Link href="/">{s("Learner site", "শেখার সাইট")}</Link>
           <Link href="/alphabet">{s("Alphabet", "বর্ণমালা")}</Link>
           <Link href="/phrasebook">{s("Phrasebook", "বাক্যের ঝুলি")}</Link>

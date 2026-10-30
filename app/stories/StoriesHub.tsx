@@ -46,7 +46,7 @@ export default function StoriesHub() {
             <small>{s("Story time", "গল্পের সময়")}</small>
           </span>
         </Link>
-        <nav aria-label="Sections">
+        <nav aria-label={s("Sections", "বিভাগ")}>
           <Link href="/">{s("Learner site", "শেখার সাইট")}</Link>
           <Link href="/phrasebook">{s("Phrasebook", "বাক্যের ঝুলি")}</Link>
           <Link className="active" href="/stories">{s("Stories", "গল্প")}</Link>

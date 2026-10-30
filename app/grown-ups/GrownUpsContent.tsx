@@ -6,7 +6,7 @@ import AuthCard from "./AuthCard";
 import { isAdminReturnPath } from "@/lib/safe-redirect";
 
 export default function GrownUpsContent({ destination, initialMode = "sign-in", currentAccount }: { destination: string; initialMode?: "sign-in" | "sign-up"; currentAccount?: string }) {
-  const [language, toggleLanguage] = useLanguage();
+  const [language, toggleLanguage] = useLanguage({ title: ["Grown-up sign in | Bangla Adventures", "বড়দের সাইন ইন | Bangla Adventures"] });
   const s = (en: string, bn: string) => (language === "bn" ? bn : en);
   const teacher = destination === "/teach" || destination === "/studio";
   const administrator = isAdminReturnPath(destination);

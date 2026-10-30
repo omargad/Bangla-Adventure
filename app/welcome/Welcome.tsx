@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useLanguage } from "@/lib/use-language";
 
 export default function Welcome({ destination }: { destination: string }) {
-  const [language, toggleLanguage] = useLanguage();
+  const [language, toggleLanguage] = useLanguage({ title: ["Welcome | Bangla Adventures", "স্বাগতম | Bangla Adventures"] });
   const s = (en: string, bn: string) => language === "bn" ? bn : en;
   const target = encodeURIComponent(destination);
   return <main className="welcome-gate" lang={language}>

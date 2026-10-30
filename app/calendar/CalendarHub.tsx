@@ -25,7 +25,7 @@ export default function CalendarHub() {
             <small>{s("Days & seasons", "দিন ও ঋতু")}</small>
           </span>
         </Link>
-        <nav aria-label="Sections">
+        <nav aria-label={s("Sections", "বিভাগ")}>
           <Link href="/">{s("Learner site", "শেখার সাইট")}</Link>
           <Link href="/alphabet">{s("Alphabet", "বর্ণমালা")}</Link>
           <Link href="/numbers">{s("Numbers", "সংখ্যা")}</Link>

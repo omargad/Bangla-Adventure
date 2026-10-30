@@ -14,7 +14,7 @@ export default function ResourcesHub() {
     <main className="adult-app resources-app" lang={language}>
       <header className="adult-header">
         <Link className="adult-brand" href="/"><span>বা</span><span><strong>Bangla Adventures</strong><small>{s("More ways to learn", "শেখার আরও পথ")}</small></span></Link>
-        <nav aria-label="Platform information">
+        <nav aria-label={s("Platform information", "প্ল্যাটফর্মের তথ্য")}>
           <Link href="/">{s("Learner site", "শেখার সাইট")}</Link>
           <Link href="/explore">{s("Explore", "ঘুরে দেখো")}</Link>
           <Link href="/worksheets">{s("Worksheets", "ওয়ার্কশিট")}</Link>
