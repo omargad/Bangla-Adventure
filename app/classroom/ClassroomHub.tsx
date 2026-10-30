@@ -348,7 +348,7 @@ function Header({
           <small>{subtitle}</small>
         </span>
       </Link>
-      <nav aria-label="Sections">
+      <nav aria-label={s("Sections", "বিভাগ")}>
         <Link href="/topics">{s("Topics", "বিষয়")}</Link>
         <Link className="active" href="/classroom">{s("My classroom", "আমার শ্রেণিকক্ষ")}</Link>
       </nav>

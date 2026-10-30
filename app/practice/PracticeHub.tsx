@@ -123,7 +123,7 @@ export default function PracticeHub({ approvedLessonIds, recordings: initialReco
             <small>{s("Word practice", "শব্দ অনুশীলন")}</small>
           </span>
         </Link>
-        <nav aria-label="Sections">
+        <nav aria-label={s("Sections", "বিভাগ")}>
           <Link href="/">{s("Learner site", "শেখার সাইট")}</Link>
           <Link href="/phrasebook">{s("Phrasebook", "বাক্যের ঝুলি")}</Link>
           <Link className="active" href="/practice">{s("Practice", "অনুশীলন")}</Link>

@@ -233,14 +233,14 @@ export default function UserManagement({ actorId, actorName }: { actorId: string
   return <PortalShell role="admin" name={actorName} active="admin-users" language={language} toggleLanguage={toggleLanguage}><main className="adult-app management-app" lang={language}>
     <header className="adult-header">
       <Link className="adult-brand" href="/"><span>বা</span><span><strong>Bangla Adventures</strong><small>{s("Administration", "প্রশাসন")}</small></span></Link>
-      <nav aria-label="Administration"><Link className="active" href="/admin">{s("Users", "ব্যবহারকারী")}</Link><Link href="/teach">{s("Teacher workspace", "শিক্ষকের কর্মক্ষেত্র")}</Link><Link href="/account">{s("My account", "আমার অ্যাকাউন্ট")}</Link></nav>
+      <nav aria-label={s("Administration", "প্রশাসন")}><Link className="active" href="/admin">{s("Users", "ব্যবহারকারী")}</Link><Link href="/teach">{s("Teacher workspace", "শিক্ষকের কর্মক্ষেত্র")}</Link><Link href="/account">{s("My account", "আমার অ্যাকাউন্ট")}</Link></nav>
       <div className="adult-account"><button className="outline-button" onClick={toggleLanguage}>{s("বাংলা", "English")}</button><a href="/api/auth/sign-out?returnTo=%2F">{s("Sign out", "সাইন আউট")}</a></div>
     </header>
     <div className="adult-content">
       <section className="management-heading"><div><p className="adult-eyebrow">{s(`Welcome, ${actorName}`, `স্বাগতম, ${actorName}`)}</p><h1>{s("People make the adventure", "মানুষের হাতেই অভিযানের শুরু")}</h1><p>{s("Approve new accounts, support families and keep account access under control.", "নতুন অ্যাকাউন্ট অনুমোদন করুন, পরিবারকে সহায়তা করুন ও অ্যাকাউন্টের প্রবেশাধিকার পরিচালনা করুন।")}</p></div><div className="management-heading-actions"><button className="outline-button" aria-expanded={showFamilyImport || familySheetShown} onClick={() => showFamilyImport || familySheetShown ? closeFamilyImport() : setShowFamilyImport(true)}>{s("Import families (CSV)", "পরিবার যোগ করুন (CSV)")}</button><button className="primary-button" onClick={() => { setShowCreate(!showCreate); setEditing(null); }}>{showCreate ? s("Close form", "ফর্ম বন্ধ করুন") : s("Create user", "ব্যবহারকারী তৈরি")}</button></div></section>
       {error && <p role="alert" className="auth-error">{typeof error === "string" ? error : pick(error)}</p>}
       {notice && <p role="status" className="teach-message">{notice}</p>}
-      <section className="workspace-stats" aria-label="User overview">
+      <section className="workspace-stats" aria-label={s("User overview", "ব্যবহারকারীদের সারসংক্ষেপ")}>
         <div><small>{s("Adult accounts", "বড়দের অ্যাকাউন্ট")}</small><strong>{number(data?.stats.adults)}</strong></div>
         <div><small>{s("Students", "শিক্ষার্থী")}</small><strong>{number(data?.stats.students)}</strong></div>
         <div><small>{s("Active teachers", "সক্রিয় শিক্ষক")}</small><strong>{number(data?.stats.teachers)}</strong></div>
@@ -298,7 +298,7 @@ export default function UserManagement({ actorId, actorName }: { actorId: string
       </section>
       <section className="teach-panel">
         <div className="management-toolbar">
-          <div className="management-tabs" role="group" aria-label="Account type"><button aria-pressed={kind === "adult"} onClick={() => { setKind("adult"); setFilter("all"); setPage(1); }}>{s("Adults", "বড়রা")}</button><button aria-pressed={kind === "student"} onClick={() => { setKind("student"); setFilter("all"); setPage(1); }}>{s("Students", "শিক্ষার্থী")}</button></div>
+          <div className="management-tabs" role="group" aria-label={s("Account type", "অ্যাকাউন্টের ধরন")}><button aria-pressed={kind === "adult"} onClick={() => { setKind("adult"); setFilter("all"); setPage(1); }}>{s("Adults", "বড়রা")}</button><button aria-pressed={kind === "student"} onClick={() => { setKind("student"); setFilter("all"); setPage(1); }}>{s("Students", "শিক্ষার্থী")}</button></div>
           <form className="management-search" onSubmit={(event) => { event.preventDefault(); setSearch(query); setPage(1); }}><label className="sr-only" htmlFor="user-search">{s("Search users", "ব্যবহারকারী খুঁজুন")}</label><input id="user-search" value={query} maxLength={120} onChange={(event) => setQuery(event.target.value)} placeholder={s("Search by name or account…", "নাম বা অ্যাকাউন্ট দিয়ে খুঁজুন…")} /><button className="outline-button">{s("Search", "খুঁজুন")}</button></form>
           <select aria-label={s("Filter users", "ব্যবহারকারী বাছাই")} value={filter} onChange={(event) => { setFilter(event.target.value); setPage(1); }}><option value="all">{s("All accounts", "সব অ্যাকাউন্ট")}</option><option value="pending">{s("Waiting for approval", "অনুমোদনের অপেক্ষায়")}</option><option value="declined">{s("Declined", "প্রত্যাখ্যাত")}</option>{kind === "adult" && roleOptions}<option value="suspended">{s("Suspended", "স্থগিত")}</option></select>
         </div>

@@ -341,7 +341,7 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
             <small>{s("Teacher workspace", "শিক্ষকের কর্মক্ষেত্র")}</small>
           </span>
         </Link>
-        <nav aria-label="Sections">
+        <nav aria-label={s("Sections", "বিভাগ")}>
           <Link className="active" href="/teach">{s("Classes", "ক্লাস")}</Link>
           <Link href="/family">{s("Family", "পরিবার")}</Link>
           <Link href="/studio">{s("Lessons", "পাঠ")}</Link>

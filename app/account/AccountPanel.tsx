@@ -121,7 +121,7 @@ export default function AccountPanel({ email, displayName }: { email: string; di
     <main className="adult-app" lang={language}>
       <header className="adult-header">
         <Link className="adult-brand" href="/"><span>বা</span><span><strong>Bangla Adventures</strong><small>{s("Your account", "আপনার অ্যাকাউন্ট")}</small></span></Link>
-        <nav aria-label="Adult tools">
+        <nav aria-label={s("Adult tools", "বড়দের মেনু")}>
           <Link href="/family">{s("Learners", "শিক্ষার্থী")}</Link>
           <Link href="/studio">{s("Lessons", "পাঠ")}</Link>
           <Link href="/worksheets">{s("Worksheets", "ওয়ার্কশিট")}</Link>
@@ -183,7 +183,7 @@ export default function AccountPanel({ email, displayName }: { email: string; di
             <p>{s("Recovery codes are the only way back in if you forget your password — there is no email reset. Generating a new set invalidates every previous code.", "পাসওয়ার্ড ভুলে গেলে পুনরুদ্ধার কোডই ফিরে আসার একমাত্র উপায় — ইমেইলে রিসেট নেই। নতুন সেট তৈরি করলে আগের সব কোড বাতিল হয়ে যায়।")}</p>
             {newCodes ? (
               <>
-                <ul className="auth-codes" aria-label="One-time recovery codes">
+                <ul className="auth-codes" aria-label={s("One-time recovery codes", "এককালীন পুনরুদ্ধার কোড")}>
                   {newCodes.map((code) => (
                     <li key={code}><code>{code}</code></li>
                   ))}

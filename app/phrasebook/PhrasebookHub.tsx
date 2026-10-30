@@ -26,7 +26,7 @@ export default function PhrasebookHub() {
             <small>{s("First phrases", "প্রথম কথাগুলো")}</small>
           </span>
         </Link>
-        <nav aria-label="Sections">
+        <nav aria-label={s("Sections", "বিভাগ")}>
           <Link href="/">{s("Learner site", "শেখার সাইট")}</Link>
           <Link href="/explore">{s("Explore", "ঘুরে দেখো")}</Link>
           <Link href="/alphabet">{s("Alphabet", "বর্ণমালা")}</Link>

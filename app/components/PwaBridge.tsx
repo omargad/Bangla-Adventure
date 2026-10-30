@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { isPublicPath, loginDestination } from "@/lib/learning-policy";
+import { useLanguage } from "@/lib/use-language";
 
 type InstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -9,11 +10,16 @@ type InstallPromptEvent = Event & {
 };
 
 export default function PwaBridge({ initialSessionKey, release }: { initialSessionKey: string; release: string }) {
-  const [online, setOnline] = useState(() => typeof navigator === "undefined" ? true : navigator.onLine);
+  // Start online on the server and the first client render (Node's navigator has no onLine), then read the real state.
+  const [online, setOnline] = useState(true);
+  const [language] = useLanguage({ documentLang: false });
+  const s = (en: string, bn: string) => language === "bn" ? bn : en;
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
   const [installed, setInstalled] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setOnline(navigator.onLine);
     const onOnline = () => setOnline(true);
     const onOffline = () => setOnline(false);
     const onInstallPrompt = (event: Event) => {
@@ -69,11 +75,17 @@ export default function PwaBridge({ initialSessionKey, release }: { initialSessi
 
   if (online && !installPrompt && !installed) return null;
 
+  const [title, hint] = !online
+    ? [s("You are offline", "ইন্টারনেট সংযোগ নেই"), s("Connect to the internet and sign in to open learning content.", "শেখার বিষয় খুলতে ইন্টারনেটে যুক্ত হয়ে সাইন ইন করতে হবে।")]
+    : installed
+      ? [s("Bangla Adventures installed", "Bangla Adventures ইনস্টল হয়েছে"), s("The app can open from your device.", "এখন ডিভাইস থেকেই অ্যাপটি খোলা যাবে।")]
+      : [s("Keep the river close", "নদীর পথ থাকুক হাতের কাছে"), s("Install the app for easier return visits.", "সহজে আবার ফিরতে অ্যাপটি ইনস্টল করে রাখা যায়।")];
+
   return (
-    <div className={`pwa-status ${online ? "online" : "offline"}`} role="status">
+    <div className={`pwa-status ${online ? "online" : "offline"}`} role="status" lang={language}>
       <span aria-hidden="true">{online ? "⌂" : "↯"}</span>
-      <div><strong>{online ? installed ? "Bangla Adventures installed" : "Keep the river close" : "You are offline"}</strong><small>{online ? installed ? "The app can open from your device." : "Install the app for easier return visits." : "Connect to the internet and sign in to open learning content."}</small></div>
-      {online && installPrompt && <button type="button" onClick={() => void install()}>Install</button>}
+      <div><strong>{title}</strong><small>{hint}</small></div>
+      {online && installPrompt && <button type="button" onClick={() => void install()}>{s("Install", "ইনস্টল")}</button>}
     </div>
   );
 }

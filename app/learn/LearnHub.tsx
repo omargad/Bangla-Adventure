@@ -63,7 +63,7 @@ export default function LearnHub() {
             <small>{s("Learn more", "আরও শেখো")}</small>
           </span>
         </Link>
-        <nav aria-label="Sections">
+        <nav aria-label={s("Sections", "বিভাগ")}>
           <Link href="/">{s("Learner site", "শেখার সাইট")}</Link>
           <Link className="active" href="/learn">{s("All activities", "সব কার্যক্রম")}</Link>
         </nav>

@@ -91,7 +91,7 @@ export default function ExploreHub() {
             <small>{t.explore}</small>
           </span>
         </Link>
-        <nav aria-label="Sections">
+        <nav aria-label={language === "bn" ? "বিভাগ" : "Sections"}>
           <Link href="/">{t.home}</Link>
           <Link className="active" href="/explore">
             {t.explore}

@@ -42,7 +42,7 @@ export default function CertificateMaker() {
             <small>{s("Make a certificate", "সনদ তৈরি করো")}</small>
           </span>
         </Link>
-        <nav aria-label="Sections">
+        <nav aria-label={s("Sections", "বিভাগ")}>
           <Link href="/">{s("Learner site", "শেখার সাইট")}</Link>
           <Link href="/worksheets">{s("Worksheets", "ওয়ার্কশিট")}</Link>
           <Link className="active" href="/certificate">{s("Certificate", "সনদ")}</Link>
@@ -90,7 +90,7 @@ export default function CertificateMaker() {
       </section>
 
       <section className="certificate-sheet-wrap">
-        <article className="certificate-sheet" aria-label="Certificate preview">
+        <article className="certificate-sheet" aria-label={s("Certificate preview", "সনদের প্রিভিউ")}>
           <div className="certificate-border">
             <p className="certificate-brand">বা · Bangla Adventures</p>
             <span className="certificate-emoji" aria-hidden="true">{achievement.emoji}</span>

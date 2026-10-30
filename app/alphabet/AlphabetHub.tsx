@@ -48,7 +48,7 @@ export default function AlphabetHub() {
             <small>{s("Bornomala — the alphabet", "বর্ণমালা")}</small>
           </span>
         </Link>
-        <nav aria-label="Sections">
+        <nav aria-label={s("Sections", "বিভাগ")}>
           <Link href="/">{s("Learner site", "শেখার সাইট")}</Link>
           <Link href="/explore">{s("Explore", "ঘুরে দেখো")}</Link>
           <Link className="active" href="/alphabet">{s("Alphabet", "বর্ণমালা")}</Link>

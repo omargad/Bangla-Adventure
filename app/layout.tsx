@@ -14,6 +14,7 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+  preload: false,
 });
 
 export const metadata: Metadata = {
@@ -41,10 +42,8 @@ export default async function RootLayout({
 }>) {
   const session = await getSessionStatus();
   return (
-    <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+    <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
+      <body className="antialiased">
         {children}
         <PwaBridge initialSessionKey={session.key} release={process.env.NEXT_DIST_DIR ?? "development"} />
       </body>

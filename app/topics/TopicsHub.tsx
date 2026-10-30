@@ -69,7 +69,7 @@ export default function TopicsHub({ initialTopic }: { initialTopic?: string }) {
         <span>বা</span>
         <span><strong>Bangla Adventures</strong><small>{s("Classroom topics", "শ্রেণিকক্ষের বিষয়")}</small></span>
       </Link>
-      <nav aria-label="Sections">
+      <nav aria-label={s("Sections", "বিভাগ")}>
         {active ? <button type="button" className="topics-back" onClick={closeTopic}>← {s("All topics", "সব বিষয়")}</button> : <>
           <a href={courseHref}>{s("Learning course", "শেখার কোর্স")}</a>
           <Link className="active" href="/topics">{s("Topics", "বিষয়")}</Link>
