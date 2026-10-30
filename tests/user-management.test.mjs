@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test, { after } from "node:test";
-import { eq } from "drizzle-orm";
+import { eq, like } from "drizzle-orm";
 
 const dir = mkdtempSync(path.join(os.tmpdir(), "bangla-users-test-"));
 process.env.DATABASE_PATH = path.join(dir, "users.db");
@@ -253,4 +253,30 @@ test("recent changes name what each change was about, in both languages, without
   assert.ok(audit.every((event) => event.detailsJson === undefined && event.actorId === undefined));
   const adultEvent = audit.find((event) => event.targetType === "adult");
   if (adultEvent) assert.equal(typeof adultEvent.targetLabel.en, "string");
+});
+
+test("accounts created in the same second are listed in the order they were created", async () => {
+  // A class upload creates every account in one transaction, so they share one created_at second.
+  // Ids are shuffled against that order, so only the recorded order can put them right.
+  const second = "2001-01-01 00:00:00";
+  const pad = (n) => String(n).padStart(2, "0");
+  const shuffled = (prefix, i, size) => `${prefix}-${pad((i * 7) % size)}`;
+  db.transaction((tx) => {
+    for (let i = 0; i < 30; i++) tx.insert(students).values({ id: shuffled("same-second-child", i, 30), username: `same-second-${pad(i)}`, displayName: `Same Second ${pad(i)}`, passwordHash: "test-only", approvalStatus: "pending", createdAt: second }).run();
+    for (let i = 0; i < 4; i++) tx.insert(adults).values({ id: shuffled("same-second-adult", i, 4), email: `same-second-${i}@example.com`, displayName: `Same Second Adult ${i}`, passwordHash: "test-only", approvalStatus: "pending", createdAt: second }).run();
+  });
+  const names = (users) => users.map((user) => user.displayName);
+  const studentName = (i) => `Same Second ${pad(i)}`;
+  const newestFirst = Array.from({ length: 30 }, (_, i) => studentName(29 - i));
+  const pageOf = async (page) => names((await listUsers(new URLSearchParams({ kind: "student", q: "Same Second", page: String(page) }))).users);
+  assert.deepEqual(await pageOf(1), newestFirst.slice(0, 25));
+  assert.deepEqual(await pageOf(2), newestFirst.slice(25));
+  const adultsListed = names((await listUsers(new URLSearchParams({ kind: "adult", q: "Same Second Adult" }))).users);
+  assert.deepEqual(adultsListed, ["Same Second Adult 3", "Same Second Adult 2", "Same Second Adult 1", "Same Second Adult 0"]);
+
+  const queue = (await listUsers(new URLSearchParams())).approvals.users.filter((user) => user.displayName.startsWith("Same Second"));
+  assert.deepEqual(names(queue.filter((user) => user.kind === "student")), Array.from({ length: 30 }, (_, i) => studentName(i)), "the queue is oldest first");
+  assert.deepEqual(names(queue.filter((user) => user.kind === "adult")), ["Same Second Adult 0", "Same Second Adult 1", "Same Second Adult 2", "Same Second Adult 3"]);
+  db.delete(students).where(like(students.username, "same-second-%")).run();
+  db.delete(adults).where(like(adults.email, "same-second-%")).run();
 });

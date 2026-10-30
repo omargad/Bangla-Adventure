@@ -41,8 +41,8 @@ jobs:
       DB_USER: bangla_moodle_ci
       DB_PASSWORD: MoodleCi_Db_2026_Safe_Value
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
 
@@ -134,7 +134,7 @@ jobs:
             if ($report["contentHash"] !== $report["expectedContentHash"]) exit(1);
           ' /tmp/banglapilot-report.json
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: local-banglapilot-${{ github.sha }}
           path: |

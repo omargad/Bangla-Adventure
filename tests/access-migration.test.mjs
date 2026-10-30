@@ -120,3 +120,27 @@ test("a class left pointing at a removed teacher does not stop the announcement 
   assert.deepEqual(rows, [{ id: "kept", audience: "students", author_id: "teacher" }, { id: "orphaned", audience: "students", author_id: null }]);
   db.close();
 });
+
+test("learner profile times written by SQLite's default become ISO, once", () => {
+  const db = new Database(":memory:");
+  db.exec(bootstrapSql);
+  const profile = db.prepare("INSERT INTO learner_profiles(id,owner_email,display_name,created_at,updated_at) VALUES(?,?,?,?,?)");
+  profile.run("old", "owner@example.com", "Rafi", "2026-10-30 08:00:00", "2026-10-30 10:00:00");
+  profile.run("edited", "owner@example.com", "Nadia", "2026-10-30 07:00:00", "2026-10-30T09:00:00.000Z");
+  profile.run("unreadable", "owner@example.com", "Mitu", "not a time", "not a time");
+  migrateAccessControl(db);
+  const rows = () => db.prepare("SELECT id, created_at, updated_at FROM learner_profiles ORDER BY id").all().map((row) => ({ ...row }));
+  const migrated = rows();
+  assert.deepEqual(migrated, [
+    { id: "edited", created_at: "2026-10-30T07:00:00.000Z", updated_at: "2026-10-30T09:00:00.000Z" },
+    { id: "old", created_at: "2026-10-30T08:00:00.000Z", updated_at: "2026-10-30T10:00:00.000Z" },
+    { id: "unreadable", created_at: "not a time", updated_at: "not a time" },
+  ]);
+  const ordered = db.prepare("SELECT id FROM learner_profiles WHERE id != 'unreadable' ORDER BY updated_at DESC").all().map((row) => row.id);
+  assert.deepEqual(ordered, ["old", "edited"], "the 10:00 profile is newer than the one edited at 09:00");
+  const changesBefore = db.prepare("SELECT total_changes() AS n").get().n;
+  migrateAccessControl(db);
+  assert.equal(db.prepare("SELECT total_changes() AS n").get().n, changesBefore, "a later start rewrites nothing");
+  assert.deepEqual(rows(), migrated);
+  db.close();
+});

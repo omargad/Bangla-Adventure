@@ -12,8 +12,8 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -32,8 +32,8 @@ jobs:
   e2e:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -43,9 +43,9 @@ jobs:
 
   container:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Validate the production Compose configuration
         env:
           PUBLIC_ORIGIN: https://bangla-container-test.example
@@ -54,3 +54,7 @@ jobs:
         run: docker build --tag bangla-adventures:ci .
       - name: Verify fresh database and persisted database/media after recreation
         run: bash scripts/test-container.sh bangla-adventures:ci
+      - name: Build the Render image
+        run: docker build -f Dockerfile.render --tag bangla-adventures-render:ci .
+      - name: Verify the Render image on a root-owned disk, as Render runs it
+        run: bash scripts/test-render-container.sh bangla-adventures-render:ci

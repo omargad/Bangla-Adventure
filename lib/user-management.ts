@@ -82,7 +82,7 @@ export async function listUsers(params: URLSearchParams) {
     if (filter === "suspended") conditions.push(eq(students.status, "suspended"));
     else if (filter === "pending") conditions.push(studentAwaitingApproval);
     else if (filter === "declined") conditions.push(eq(students.approvalStatus, "declined"));
-    users = db.select(studentFields).from(students).where(and(...conditions)).orderBy(desc(students.createdAt), students.id).limit(pageSize).offset((page - 1) * pageSize).all().map((user) => ({ ...user, role: "student", teacherStatus: "none", kind }));
+    users = db.select(studentFields).from(students).where(and(...conditions)).orderBy(desc(students.createdAt), desc(sql`${students}.rowid`)).limit(pageSize).offset((page - 1) * pageSize).all().map((user) => ({ ...user, role: "student", teacherStatus: "none", kind }));
     total = db.select({ value: count() }).from(students).where(and(...conditions)).get()!.value;
   } else {
     if (search) conditions.push(or(like(adults.displayName, `%${search}%`), like(adults.email, `%${search}%`))!);
@@ -90,7 +90,7 @@ export async function listUsers(params: URLSearchParams) {
     else if (filter === "declined") conditions.push(eq(adults.approvalStatus, "declined"));
     else if (filter === "suspended") conditions.push(eq(adults.status, "suspended"));
     else if (isRole(filter)) conditions.push(eq(adults.role, filter));
-    users = db.select(adultFields).from(adults).where(and(...conditions)).orderBy(desc(adults.createdAt), adults.id).limit(pageSize).offset((page - 1) * pageSize).all().map((user) => ({ ...user, kind }));
+    users = db.select(adultFields).from(adults).where(and(...conditions)).orderBy(desc(adults.createdAt), desc(sql`${adults}.rowid`)).limit(pageSize).offset((page - 1) * pageSize).all().map((user) => ({ ...user, kind }));
     total = db.select({ value: count() }).from(adults).where(and(...conditions)).get()!.value;
   }
   const pendingAdults = db.select({ value: count() }).from(adults).where(adultAwaitingApproval).get()!.value;
@@ -101,12 +101,13 @@ export async function listUsers(params: URLSearchParams) {
     teachers: db.select({ value: count() }).from(adults).where(and(eq(adults.role, "teacher"), eq(adults.status, "active"), eq(adults.teacherStatus, "approved"))).get()!.value,
     pending: pendingAdults + pendingStudents,
   };
-  // One queue for students, parents and teacher requests, oldest first.
+  // One queue for students, parents and teacher requests, oldest first. rowid keeps sign-ups from the same
+  // second in the order they arrived; the stable sort keeps that order (adults, then students) when merging.
   const approvals = {
     users: [
-      ...db.select(adultFields).from(adults).where(adultAwaitingApproval).orderBy(asc(adults.createdAt), adults.id).limit(APPROVAL_QUEUE_LIMIT).all().map((user) => ({ ...user, kind: "adult" as const })),
-      ...db.select(studentFields).from(students).where(studentAwaitingApproval).orderBy(asc(students.createdAt), students.id).limit(APPROVAL_QUEUE_LIMIT).all().map((user) => ({ ...user, role: "student", teacherStatus: "none", kind: "student" as const })),
-    ].sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id)).slice(0, APPROVAL_QUEUE_LIMIT),
+      ...db.select(adultFields).from(adults).where(adultAwaitingApproval).orderBy(asc(adults.createdAt), asc(sql`${adults}.rowid`)).limit(APPROVAL_QUEUE_LIMIT).all().map((user) => ({ ...user, kind: "adult" as const })),
+      ...db.select(studentFields).from(students).where(studentAwaitingApproval).orderBy(asc(students.createdAt), asc(sql`${students}.rowid`)).limit(APPROVAL_QUEUE_LIMIT).all().map((user) => ({ ...user, role: "student", teacherStatus: "none", kind: "student" as const })),
+    ].sort((a, b) => a.createdAt.localeCompare(b.createdAt)).slice(0, APPROVAL_QUEUE_LIMIT),
     total: stats.pending,
   };
   // Newest first; rowid orders changes made within the same second by when they were recorded.

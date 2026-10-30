@@ -15,8 +15,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -42,6 +42,9 @@ jobs:
           if git diff --cached --quiet; then
             echo "Nothing new to commit."
           else
+            # After staging, so the manifest also lists newly extracted files.
+            bash scripts/update-manifest.sh
+            git add MANIFEST.sha256
             git commit -m "Add crawled NCTB PDF catalog and extracted textbook text"
             git push
           fi

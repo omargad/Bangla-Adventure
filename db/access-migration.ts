@@ -75,5 +75,11 @@ export function migrateAccessControl(sqlite: Database.Database): void {
         SELECT classes.teacher_id FROM classes JOIN adults ON adults.id = classes.teacher_id WHERE classes.id = class_announcements.class_id
       )`);
     }
+    // Learner profiles were created with SQLite's 'YYYY-MM-DD HH:MM:SS' but edited with ISO times, and the
+    // list sorts by updated_at as text. Rewrite the old form as ISO UTC; a value SQLite cannot read stays as it is.
+    for (const column of ["created_at", "updated_at"]) {
+      sqlite.exec(`UPDATE learner_profiles SET ${column} = strftime('%Y-%m-%dT%H:%M:%fZ', ${column})
+        WHERE instr(${column}, 'T') = 0 AND strftime('%Y-%m-%dT%H:%M:%fZ', ${column}) IS NOT NULL`);
+    }
   })();
 }
