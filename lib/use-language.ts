@@ -7,13 +7,16 @@ import type { Language } from "./local-format";
 export { localDate, localDateTime, localNumber, type Language } from "./local-format";
 
 const STORAGE_KEY = "bangla-adventures-language";
+let documentLanguageUsers = 0;
 
 /**
  * Client hook for the shared English/Bangla preference used across the learner
  * and grown-up surfaces. The preference is read after mount to avoid an SSR
  * hydration mismatch and persisted to localStorage so it carries between pages.
+ * While a page uses it, <html lang> follows the choice; pass `documentLang: false` from parts
+ * that appear on every page (such as the offline banner) so pages with their own language keep "en".
  */
-export function useLanguage(): [Language, () => void] {
+export function useLanguage({ documentLang = true }: { documentLang?: boolean } = {}): [Language, () => void] {
   const [language, setLanguage] = useState<Language>("en");
 
   useEffect(() => {
@@ -26,6 +29,20 @@ export function useLanguage(): [Language, () => void] {
     window.addEventListener("bangla-language", changed);
     return () => window.removeEventListener("bangla-language", changed);
   }, []);
+
+  useEffect(() => {
+    if (documentLang) document.documentElement.lang = language;
+  }, [documentLang, language]);
+
+  useEffect(() => {
+    if (!documentLang) return;
+    documentLanguageUsers += 1;
+    return () => {
+      documentLanguageUsers -= 1;
+      // Back to the server's lang once no page part sets it, so a page with its own language switch is not left in Bangla.
+      if (documentLanguageUsers === 0) document.documentElement.lang = "en";
+    };
+  }, [documentLang]);
 
   function toggle() {
     const next = language === "en" ? "bn" : "en";

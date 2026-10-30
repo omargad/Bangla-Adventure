@@ -1483,7 +1483,7 @@ export default function AdventureApp({ approvedLessonIds, videos, recordings: in
         </section>
       </main>
 
-      <footer>
+      <footer className="site-footer">
         <a className="brand footer-brand" href="#top"><span className="brand-mark" aria-hidden="true">বা</span><span><strong>Bangla</strong><small>Adventures</small></span></a>
         <div><strong>{t.sourceTitle}</strong><p>{t.sourceText}</p></div>
         <div className="footer-links"><Link href="/topics">{language === "en" ? "Classroom topics — history, festivals & literature" : "শ্রেণিকক্ষের বিষয় — ইতিহাস, উৎসব ও সাহিত্য"}</Link><Link href="/library">{language === "en" ? "NCTB textbook library" : "এনসিটিবি পাঠ্যবই লাইব্রেরি"}</Link><Link href="/learn">{language === "en" ? "All activities — alphabet, stories, games & more" : "সব কার্যক্রম — বর্ণমালা, গল্প, খেলা ও আরও"}</Link><Link href="/explore">{language === "en" ? "Explore Bangladesh" : "বাংলাদেশ ঘুরে দেখো"}</Link><a href="https://whc.unesco.org/en/statesparties/bd" target="_blank" rel="noreferrer">UNESCO places</a><a href="https://www.unesco.org/en/days/mother-language" target="_blank" rel="noreferrer">Mother Language Day</a><button type="button" onClick={() => setModal({ type: "grownups" })}>{t.privacy}</button></div>

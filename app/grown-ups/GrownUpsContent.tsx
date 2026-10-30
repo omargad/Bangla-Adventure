@@ -21,7 +21,7 @@ export default function GrownUpsContent({ destination, initialMode = "sign-in", 
             <small>{administrator ? s("Administrator sign in", "প্রশাসকের সাইন ইন") : teacher ? s("Teacher sign in", "শিক্ষকের সাইন ইন") : s("Parent sign in", "অভিভাবকের সাইন ইন")}</small>
           </span>
         </Link>
-        <nav aria-label="Platform information">
+        <nav aria-label={s("Platform information", "প্ল্যাটফর্মের তথ্য")}>
           <Link href="/">{s("Learner site", "শেখার সাইট")}</Link>
           <Link className="active" href="/grown-ups">{s("Grown-up sign in", "বড়দের সাইন ইন")}</Link>
           <Link href="/safety">{s("Safety & access", "নিরাপত্তা ও প্রবেশ")}</Link>

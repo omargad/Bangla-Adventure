@@ -53,7 +53,7 @@ export default function PortalShell({ role, name, language, toggleLanguage, acti
     <aside className={`portal-sidebar ${open ? "is-open" : ""}`}>
       <Link className="portal-brand" href={home}><span aria-hidden="true">বা</span><strong>Bangla<br />Adventures</strong></Link>
       <p className="portal-role">{s(`${roleLabels[role][0]} portal`, `${roleLabels[role][1]} পোর্টাল`)}</p>
-      <nav id="portal-navigation" aria-label="Portal navigation">{navigation.map((item, index) => item.href
+      <nav id="portal-navigation" aria-label={s("Portal navigation", "পোর্টালের মেনু")}>{navigation.map((item, index) => item.href
         ? <Link key={`${item.id}-${index}`} href={item.href} aria-current={active === item.id ? "page" : undefined} onClick={() => setOpen(false)}>{item.label}</Link>
         : <button key={`${item.id}-${index}`} aria-current={active === item.id ? "page" : undefined} onClick={() => { item.onClick?.(); setOpen(false); }}>{item.label}</button>)}</nav>
       <a className="portal-signout" href={role === "student" ? "/api/student/sign-out?returnTo=%2Fstudent" : "/api/auth/sign-out?returnTo=%2Fgrown-ups"}>{s("Sign out", "সাইন আউট")}</a>

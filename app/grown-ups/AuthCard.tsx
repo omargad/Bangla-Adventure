@@ -107,7 +107,7 @@ export default function AuthCard({ returnTo, language = "en", initialMode = "sig
 
   if (issuedCodes) {
     return (
-      <section className="auth-card" aria-label="Recovery codes">
+      <section className="auth-card" aria-label={s("Recovery codes", "পুনরুদ্ধার কোড")}>
         {awaitingApproval && <>
           <h2>{s("Account created — waiting for approval", "অ্যাকাউন্ট তৈরি হয়েছে — অনুমোদনের অপেক্ষায়")}</h2>
           <p className="auth-success" role="status">{s(...pendingNotice)}</p>
@@ -119,7 +119,7 @@ export default function AuthCard({ returnTo, language = "en", initialMode = "sig
             "এই প্ল্যাটফর্মে ইমেইলে রিসেট নেই। পাসওয়ার্ড ভুলে গেলে এই এককালীন কোডগুলোর একটিই অ্যাকাউন্টে ফেরার একমাত্র উপায়। নিরাপদ জায়গায় রাখুন — এগুলো কেবল একবারই দেখানো হয়।",
           )}
         </p>
-        <ul className="auth-codes" aria-label="One-time recovery codes">
+        <ul className="auth-codes" aria-label={s("One-time recovery codes", "এককালীন পুনরুদ্ধার কোড")}>
           {issuedCodes.map((code) => (
             <li key={code}>
               <code>{code}</code>
@@ -150,8 +150,8 @@ export default function AuthCard({ returnTo, language = "en", initialMode = "sig
   }
 
   return (
-    <section className="auth-card" aria-label="Grown-up account">
-      <div className="auth-tabs" role="tablist" aria-label="Sign in or create account">
+    <section className="auth-card" aria-label={s("Grown-up account", "বড়দের অ্যাকাউন্ট")}>
+      <div className="auth-tabs" role="tablist" aria-label={s("Sign in or create account", "সাইন ইন বা অ্যাকাউন্ট তৈরি")}>
         <button
           type="button"
           role="tab"

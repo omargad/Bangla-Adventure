@@ -12,7 +12,7 @@ export default function SafetyContent() {
     <main className="adult-app safety-app" lang={language}>
       <header className="adult-header">
         <Link className="adult-brand" href="/"><span>বা</span><span><strong>Bangla Adventures</strong><small>{s("Safety & access", "নিরাপত্তা ও প্রবেশ")}</small></span></Link>
-        <nav aria-label="Platform information">
+        <nav aria-label={s("Platform information", "প্ল্যাটফর্মের তথ্য")}>
           <Link href="/">{s("Learner site", "শেখার সাইট")}</Link>
           <a href="/family">{s("Grown-up dashboard", "বড়দের ড্যাশবোর্ড")}</a>
           <a className="active" href="/safety">{s("Safety & access", "নিরাপত্তা ও প্রবেশ")}</a>
@@ -45,7 +45,7 @@ export default function SafetyContent() {
 
         <section className="safety-section data-map-section">
           <header><p className="adult-eyebrow">{s("Data map", "তথ্যের মানচিত্র")}</p><h2>{s("What moves where", "কী কোথায় যায়")}</h2><p>{s("No advertising profile, chat transcript, child email, exact birthday, school, photo, location or uploaded learner voice is part of the product model.", "কোনো বিজ্ঞাপন প্রোফাইল, চ্যাট, শিশুর ইমেইল, সঠিক জন্মতারিখ, স্কুল, ছবি, অবস্থান বা আপলোড করা শিক্ষার্থীর কণ্ঠ এই পণ্যের অংশ নয়।")}</p></header>
-          <div className="data-map-table" role="table" aria-label="Data collection map">
+          <div className="data-map-table" role="table" aria-label={s("Data collection map", "তথ্য সংগ্রহের মানচিত্র")}>
             <div className="data-map-head" role="row"><span role="columnheader">{s("Data", "তথ্য")}</span><span role="columnheader">{s("Where it lives", "কোথায় থাকে")}</span><span role="columnheader">{s("Why", "কেন")}</span><span role="columnheader">{s("Control", "নিয়ন্ত্রণ")}</span></div>
             <div role="row"><strong role="cell">{s("Local practice stars", "স্থানীয় অনুশীলনের তারা")}</strong><span role="cell">{s("This browser", "এই ব্রাউজার")}</span><span role="cell">{s("Resume practice after signing in; content requires an internet connection", "সাইন ইনের পর অনুশীলন; বিষয়বস্তু দেখতে ইন্টারনেট লাগে")}</span><span role="cell">{s("Reset from Grown-ups panel", "বড়দের প্যানেল থেকে রিসেট")}</span></div>
             <div role="row"><strong role="cell">{s("Learning records", "শেখার তথ্য")}</strong><span role="cell">{s("Access-controlled platform database", "প্রবেশাধিকার নিয়ন্ত্রিত ডেটাবেস")}</span><span role="cell">{s("Assignments and cross-device progress", "কাজ ও একাধিক ডিভাইসে অগ্রগতি")}</span><span role="cell">{s("Role and family-link permissions", "ভূমিকা ও পারিবারিক সম্পর্কের অনুমতি")}</span></div>
@@ -66,7 +66,7 @@ export default function SafetyContent() {
             <p className="adult-eyebrow">{s("External media", "বাইরের মিডিয়া")}</p>
             <h2>{s("Privacy-enhanced is not risk-free", "প্রাইভেসি-উন্নত মানেই ঝুঁকিহীন নয়")}</h2>
             <p>{s("Embeds use", "এমবেড ব্যবহার করে")} <code>youtube-nocookie.com</code> {s("and do not connect until a learner presses load. YouTube still controls its player, captions, recommendations and availability. Each lesson has before/during/after pedagogy plus an adult review record.", "এবং শিক্ষার্থী লোড না চাপা পর্যন্ত সংযোগ হয় না। ইউটিউব তার প্লেয়ার, ক্যাপশন, পরামর্শ ও প্রাপ্যতা নিয়ন্ত্রণ করে। প্রতিটি পাঠে আগে/চলাকালীন/পরে শিক্ষণ ও বড়দের পর্যালোচনার রেকর্ড থাকে।")}</p>
-            <a href="https://support.google.com/youtube/answer/171780?hl=en" target="_blank" rel="noreferrer">YouTube embed and privacy-enhanced guidance ↗</a>
+            <a href="https://support.google.com/youtube/answer/171780?hl=en" target="_blank" rel="noreferrer">{s("YouTube embed and privacy-enhanced guidance ↗", "ইউটিউব এমবেড ও প্রাইভেসি-উন্নত মোডের নির্দেশিকা ↗")}</a>
           </div>
         </section>
 
