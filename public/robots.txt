@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /welcome
+Allow: /safety
+Allow: /grown-ups
+Allow: /_next/static/
+Disallow: /

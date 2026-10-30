@@ -212,8 +212,9 @@ test("learning pages, media and content bundles require a real session", async (
   });
   expect(privateScript).toBeTruthy();
   expect((await page.request.get(privateScript!, { headers: { cookie: "" } })).status()).toBe(401);
+  // Signed in, the hashed script may stay in this browser's own cache, never in a shared one.
   const cache = await page.evaluate(async (src) => (await fetch(src!)).headers.get("cache-control"), privateScript);
-  expect(cache).toContain("no-store");
+  expect(cache).toBe("private, max-age=31536000, immutable");
   await page.goto("/api/student/sign-out?returnTo=%2Fstudent");
   expect((await page.request.get("/stories", { maxRedirects: 0 })).status()).toBe(307);
 });
