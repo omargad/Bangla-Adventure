@@ -127,6 +127,13 @@ bash scripts/restore.sh /var/backups/bangla-compose/NAME.tar.gz \
   /private/restore-drills/bangla-compose-20261028
 ```
 
+## Render
+
+On Render, take the snapshot from the service's Shell with Maintenance Mode on, as in
+[`DEPLOYMENT.md`](DEPLOYMENT.md#render-current-hosting). Run it through
+`scripts/render-run-as-app.sh` so the archives belong to the app's `node` user, never
+as root. The disk is the only storage there, so copy each archive off Render.
+
 ## Restore drill into a new directory
 
 Restore deliberately refuses every existing destination, even an empty directory.
@@ -266,6 +273,10 @@ Tests use disposable SQLite fixtures and cover committed WAL data, external
 database/media paths, round-trip restoration, permissions, missing sources,
 retention boundaries, tampering, invalid databases, path traversal, archive links,
 duplicate entries, extraction limits and refusing existing destinations.
+
+CI also runs `scripts/test-render-container.sh`, which takes a backup inside the Render
+image with the Render Shell command above and checks that it verifies and that every
+backup file belongs to `node`.
 
 Technical references: [SQLite Online Backup API](https://www.sqlite.org/backup.html),
 [Python sqlite3 backup](https://docs.python.org/3/library/sqlite3.html#sqlite3.Connection.backup),

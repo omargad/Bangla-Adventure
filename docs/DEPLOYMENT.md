@@ -131,7 +131,12 @@ Vercel and other serverless hosts cannot keep the SQLite database or uploaded me
 `Dockerfile.render` is the normal image with a different start: Render mounts the disk
 owned by root, so `scripts/render-start.sh` hands `/app/.data` to the unprivileged
 `node` user and then runs the app as `node`. Keep the part above its RENDER section
-identical to `./Dockerfile` when either changes.
+identical to `./Dockerfile` when either changes: `npm test` fails when they differ
+(`tests/dockerfile-render.test.mjs`). The CI container job also builds the Render image
+and runs `scripts/test-render-container.sh`, which starts it as Render does (`PORT=10000`,
+an empty root-owned disk at `/app/.data`), checks the server runs as `node`, runs
+`admin:grant` and a backup through `scripts/render-run-as-app.sh`, and restarts on the
+same disk to check the database and media stayed.
 
 **First administrator.** Register the client's account on the site (it waits for
 approval), then in the service's **Shell** tab run:
@@ -152,7 +157,8 @@ schema caution in *Upgrade and rollback* below.
 **Backups.** Render snapshots the disk automatically every 24 hours and keeps
 snapshots for at least seven days; a restore rolls back the whole disk. Render warns
 that a disk snapshot may not be a consistent copy of a database, so also make
-database-consistent backups with the app's tool (not yet exercised on Render):
+database-consistent backups with the app's tool (CI runs step 2 against the Render
+image on a test disk; it has not yet been run on the live service):
 
 1. Turn on **Maintenance Mode** in the service settings so no one can write.
 2. In the Shell, run
@@ -164,6 +170,28 @@ database-consistent backups with the app's tool (not yet exercised on Render):
 
 Ownership: the Render account, its billing and the service belong in the client's
 hands at handover (transfer the service or recreate it with these settings).
+
+## Caching, security headers and new releases
+
+The app sets these itself wherever it runs; the reverse proxy does not need to add them.
+
+- **Caching.** `proxy.ts` sets `Cache-Control` on every response it lets through
+  (`cacheControl` in `lib/learning-policy.ts`). Hashed build files under `/_next/static`
+  keep for a year: `public` when signed-out pages load them, `private` when only
+  signed-in visitors may. Public images, icons, the manifest and `robots.txt` keep for a
+  day, and the adventure page's two pictures for a day in the signed-in browser only.
+  `/sw.js` is checked again on every load. Pages, API data, errors and other gated files
+  such as `/audio` are `private, no-store`. Signing out asks the browser to clear the
+  site's cache (`Clear-Site-Data`).
+- **Security headers.** `next.config.ts` adds them to every response, including the
+  proxy's own 401, 403, 410 and redirects: HSTS, a Content-Security-Policy limited to
+  `frame-ancestors`, `object-src`, `base-uri` and `form-action`, a Permissions-Policy
+  that keeps the lesson microphone working, `X-Frame-Options`, `X-Content-Type-Options`
+  and `Referrer-Policy`. `X-Powered-By` is off.
+- **New releases.** The release id is the build's `BUILD_ID` file in `NEXT_DIST_DIR`
+  (`lib/release.ts`). Open pages compare it with `/api/auth/session` on focus and every
+  minute and reload themselves once a new release is live, which is one more reason to
+  build and run with the same `NEXT_DIST_DIR`.
 
 ## First administrator and recovery
 

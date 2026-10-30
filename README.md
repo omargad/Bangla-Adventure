@@ -279,8 +279,12 @@ npm run fetch:nctb    # controlled NCTB ingestion; PDFs themselves are not lesso
 
 </details>
 
-CI includes application checks, backup/restore fixture tests and a disposable container
-persistence smoke check. CI also validates the optional Moodle draft manifest; any workflow
+CI includes application checks, backup/restore fixture tests and disposable container
+smoke checks of both the Compose image and the Render image (`Dockerfile.render`, started on
+an empty root-owned disk as Render does). `npm test` also checks that `Dockerfile.render`
+matches `./Dockerfile` above its Render section. After changing files, stage them and run
+`bash scripts/update-manifest.sh` to refresh `MANIFEST.sha256`; the NCTB ingest workflow does
+this before it commits. CI also validates the optional Moodle draft manifest; any workflow
 publishing that pilot must call `verify:moodle-release`, and pending human gates must not be
 bypassed. The custom application has separate human acceptance evidence in
 [`docs/ACCEPTANCE.md`](docs/ACCEPTANCE.md).

@@ -108,7 +108,9 @@ NEXT_DIST_DIR=.next-test npm run test:integration
 Browser/API tests use temporary databases. Do not run type checking while builds
 replace generated types. Record the commit, runtime, commands, results and any
 unavailable checks; a workflow definition is not a passing run. Container testing
-is a separate CI smoke check; record its actual result before Docker acceptance.
+is a separate CI job that smoke-tests the Compose image (`scripts/test-container.sh`)
+and the Render image (`scripts/test-render-container.sh`); record its actual result
+before Docker acceptance.
 
 Use [`ACCEPTANCE.md`](ACCEPTANCE.md) for role journeys, educational/media reviews,
 accessibility, client sign-off and responsible owners. A working website or GitHub
@@ -129,6 +131,9 @@ The repository includes `.github`, `.gitignore`, `.dockerignore`, `.env.example`
 schema/bootstrap code and operating templates. Dependencies, generated builds,
 test output, databases, media uploads, backup archives and real environment files
 stay out of source control. `npm ci` and the build recreate their outputs.
+`MANIFEST.sha256` lists the SHA-256 of every tracked file: after changing files,
+stage them and run `bash scripts/update-manifest.sh` (the NCTB ingest workflow does
+this before it commits).
 
 Provide the client with the release/commit URL, lockfile, setup/recovery runbooks,
 role demonstrations, test evidence, acceptance record and support contact. Source
