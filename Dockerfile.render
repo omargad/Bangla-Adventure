@@ -1,6 +1,7 @@
-# Render variant of ./Dockerfile. Everything above the RENDER section must stay
-# identical to ./Dockerfile apart from the extra COPY line for the Render scripts
-# (tests/dockerfile-render.test.mjs checks this).
+# Render variant of ./Dockerfile. Everything between this header and the RENDER
+# section must stay identical to ./Dockerfile up to its "Persistent state" comment,
+# apart from the extra COPY line for the Render scripts. tests/dockerfile-render.test.mjs
+# checks this; scripts/test-render-container.sh runs the image the way Render does.
 FROM node:22-slim AS builder
 WORKDIR /app
 # Build tools so better-sqlite3 can compile if no prebuilt binary matches.
