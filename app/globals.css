@@ -2329,7 +2329,7 @@ a:focus-visible {
   line-height: 1.45;
 }
 
-.objective-list span {
+.objective-list li > span:first-child {
   display: grid;
   flex: 0 0 auto;
   place-items: center;
@@ -2671,7 +2671,7 @@ a:focus-visible {
   font-size: 9px;
 }
 
-.video-resource-meta span:first-child {
+.video-resource-meta > span:first-child {
   padding: 5px 8px;
   border-radius: 999px;
   background: #e94545;
@@ -2870,7 +2870,7 @@ a:focus-visible {
   font-weight: 750;
 }
 
-.lesson-quiz-question legend span {
+.lesson-quiz-question legend > span:first-child {
   display: grid;
   flex: 0 0 auto;
   place-items: center;
@@ -2904,7 +2904,7 @@ a:focus-visible {
   cursor: pointer;
 }
 
-.lesson-quiz-options button > span {
+.lesson-quiz-options button > span:first-child {
   display: grid;
   flex: 0 0 auto;
   place-items: center;
@@ -4384,7 +4384,7 @@ a:focus-visible {
   border-right: 1px solid rgba(23, 50, 77, 0.12);
 }
 
-.module-overview-banner span {
+.module-overview-banner > div > span {
   font-size: 12px;
   font-weight: 850;
 }
@@ -4617,7 +4617,7 @@ a:focus-visible {
   cursor: pointer;
 }
 
-.session-check-options button > span,
+.session-check-options button > span:first-child,
 .diagnostic-options button > span {
   display: grid;
   flex: 0 0 auto;
@@ -4989,7 +4989,7 @@ a:focus-visible {
   background: #fff3d5;
 }
 
-.stretch-card span {
+.stretch-card > span {
   color: #b46d00;
   font-weight: 900;
 }

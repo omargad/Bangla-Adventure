@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Locator } from "@playwright/test";
 import Database from "better-sqlite3";
 import { randomUUID } from "node:crypto";
 
@@ -227,6 +227,75 @@ test("the offline banner waits for an open lesson to close, then goes into the l
   await page.keyboard.press("Escape");
   await expect(region).toBeEmpty();
 });
+
+const lessonSteps = ["overview", "listening", "reading", "speaking", "writing", "culture", "mastery"];
+
+/** Opens each step of the open lesson in turn and shows what it can show: transcripts, scaffolds, models and answer feedback. */
+async function walkLesson(lesson: Locator, check: (step: string) => Promise<void>) {
+  for (const [index, step] of lessonSteps.entries()) {
+    await lesson.locator(".lesson-step-tabs button").nth(index).click();
+    await expect(lesson.locator(".lesson-step-tabs button").nth(index)).toHaveAttribute("aria-current", "step");
+    if (step === "listening" || step === "reading") {
+      await lesson.locator(".lesson-pane .text-button").first().click();
+      await lesson.locator(".session-check-options button").first().click();
+      await lesson.locator(".session-check .compact-button").click();
+      await expect(lesson.locator(".session-feedback")).toBeVisible();
+    }
+    if (step === "speaking") await lesson.locator(".success-checklist input").first().check();
+    if (step === "writing") {
+      await lesson.locator(".writing-pad textarea").fill("আমার নাম মায়া।");
+      await lesson.locator(".model-answer-card .text-button").click();
+    }
+    if (step === "culture") for (const box of await lesson.locator(".video-learning-cycle input").all()) await box.check();
+    if (step === "mastery") {
+      await lesson.locator(".lesson-check-button").click();
+      await expect(lesson.locator(".mastery-result")).toBeVisible();
+      for (const question of await lesson.locator(".lesson-quiz-question").all()) await question.locator(".lesson-quiz-options button").first().click();
+      await lesson.locator(".lesson-check-button").click();
+    }
+    await check(step);
+  }
+}
+
+/**
+ * Visible text written in the other script than the page language and not marked with its own language: Latin
+ * letters in Bangla mode (outside lang="en" and transliterated bn-Latn), Bangla letters in English mode (outside lang="bn").
+ */
+function unmarkedText(root: Locator, language: "en" | "bn") {
+  return root.evaluate((element, language) => {
+    const found: string[] = [];
+    for (const node of element.querySelectorAll("*")) {
+      const text = Array.from(node.childNodes).filter((child) => child.nodeType === Node.TEXT_NODE).map((child) => child.textContent).join("").trim();
+      // A text box holds the learner's own words, in either language.
+      if (!text || node.matches("textarea") || !(node as HTMLElement).checkVisibility()) continue;
+      const lang = node.closest("[lang]")?.getAttribute("lang") ?? "";
+      // Product names stay as they are in both languages.
+      if (language === "bn" && /[A-Za-z]/.test(text.replace(/\bYouTube\b/g, "")) && !/^(en|bn-Latn)$/.test(lang)) found.push(`${text} (lang=${lang})`);
+      if (language === "en" && /[\u0980-\u09ff]/.test(text) && lang !== "bn") found.push(`${text} (lang=${lang})`);
+    }
+    return found;
+  }, language);
+}
+
+for (const language of ["bn", "en"] as const) {
+  test(`every step of a lesson in ${language === "bn" ? "Bangla" : "English"} has its interface in that language and marks the other`, async ({ page }) => {
+    await page.addInitScript((choice) => window.localStorage.setItem("bangla-adventures-language", choice), language);
+    await page.goto("/adventure?module=hello-me");
+    const lesson = page.getByRole("dialog", { name: language === "bn" ? "পুরো পাঠ" : "Full curriculum lesson" });
+    await expect(lesson).toBeVisible();
+    await walkLesson(lesson, async (step) => {
+      expect(await unmarkedText(lesson, language), step).toEqual([]);
+    });
+    if (language === "bn") {
+      await expect(lesson.getByRole("button", { name: "আমার উত্তর যাচাই করি" })).toBeVisible();
+      await expect(lesson.getByText("Check my answers")).toHaveCount(0);
+      await lesson.locator(".lesson-step-tabs button").nth(3).click();
+      await expect(lesson.getByRole("button", { name: "● মাইক চালু করে রেকর্ড করি" })).toBeVisible();
+      await lesson.locator(".lesson-step-tabs button").nth(5).click();
+      await expect(lesson.getByRole("button", { name: "গোপনীয়তা-সুরক্ষিত ভিডিও খুলি ▶" })).toBeVisible();
+    }
+  });
+}
 
 // Students now see only approved topics, so the draft notices are gone; the textbook sources stay.
 test("approved topics appear by category without draft notices", async ({ page }) => {
