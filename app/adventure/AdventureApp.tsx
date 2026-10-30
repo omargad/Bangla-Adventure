@@ -1191,7 +1191,7 @@ export default function AdventureApp({ approvedLessonIds, videos, recordings: in
           </div>
 
           <div className="hero-art" aria-label="Illustrated Bangladesh river quest map">
-            <Image src="/hero-quest-map.png" width={1584} height={990} priority alt="A colourful illustrated river map with a friendly tiger and Bangladesh landmarks" />
+            <Image src="/hero-quest-map.webp" width={1584} height={990} priority alt="A colourful illustrated river map with a friendly tiger and Bangladesh landmarks" />
             <div className="tiger-note">
               <span aria-hidden="true">🐯</span>
               <p><strong>{language === "en" ? "Hi, I’m Bagh!" : "হাই, আমি বাঘ!"}</strong>{language === "en" ? " Let’s follow the river." : " চলো নদীর পথে যাই।"}</p>

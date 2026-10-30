@@ -5,6 +5,7 @@ import "./globals.css";
 import "./portal.css";
 import PwaBridge from "./components/PwaBridge";
 import { getSessionStatus } from "@/lib/session-status";
+import { currentRelease } from "@/lib/release";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -26,6 +27,7 @@ export const metadata: Metadata = {
   icons: {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",
+    apple: "/apple-touch-icon.png",
   },
 };
 
@@ -46,7 +48,7 @@ export default async function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         {children}
-        <PwaBridge initialSessionKey={session.key} release={process.env.NEXT_DIST_DIR ?? "development"} />
+        <PwaBridge initialSessionKey={session.key} release={currentRelease()} />
       </body>
     </html>
   );
