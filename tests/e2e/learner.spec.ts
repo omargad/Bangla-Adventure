@@ -1,4 +1,4 @@
-import { test, expect, type Locator } from "@playwright/test";
+import { test, expect, type Locator, type Page } from "@playwright/test";
 import Database from "better-sqlite3";
 import { randomUUID } from "node:crypto";
 
@@ -296,6 +296,85 @@ for (const language of ["bn", "en"] as const) {
     }
   });
 }
+
+/** Visible text under 12px, and small text under 4.5:1 against a plain background behind it. */
+function smallOrFaintText(root: Locator) {
+  return root.evaluate((element) => {
+    const rgba = (value: string) => { const parts = value.match(/[\d.]+/g)!.map(Number); return { r: parts[0], g: parts[1], b: parts[2], a: parts[3] ?? 1 }; };
+    const over = (top: ReturnType<typeof rgba>, bottom: ReturnType<typeof rgba>) => ({ r: top.r * top.a + bottom.r * (1 - top.a), g: top.g * top.a + bottom.g * (1 - top.a), b: top.b * top.a + bottom.b * (1 - top.a), a: 1 });
+    const luminance = ({ r, g, b }: ReturnType<typeof rgba>) => [r, g, b].map((value) => { const c = value / 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; }).reduce((sum, c, index) => sum + c * [0.2126, 0.7152, 0.0722][index], 0);
+    /** The plain colour behind an element, or null when a picture or gradient is behind it. */
+    const background = (node: Element) => {
+      const layers = [];
+      for (let current: Element | null = node; current; current = current.parentElement) {
+        const style = getComputedStyle(current);
+        if (style.backgroundImage !== "none" && current !== document.body) return null;
+        const color = rgba(style.backgroundColor);
+        if (color.a > 0) layers.push(color);
+        if (color.a === 1) return layers.reduceRight((below, layer) => over(layer, below));
+      }
+      return null;
+    };
+    const found: string[] = [];
+    for (const node of element.querySelectorAll("*")) {
+      const text = Array.from(node.childNodes).filter((child) => child.nodeType === Node.TEXT_NODE).map((child) => child.textContent).join("").trim();
+      if (!text || !(node as HTMLElement).checkVisibility()) continue;
+      const style = getComputedStyle(node);
+      const size = parseFloat(style.fontSize);
+      if (size < 12) found.push(`${size}px: ${text.slice(0, 40)}`);
+      // Contrast is for words: decorative marks are hidden from screen readers, and disabled buttons are exempt.
+      if (node.closest("[aria-hidden=true], :disabled") || size >= 24 || (size >= 18.66 && Number(style.fontWeight) >= 700)) continue;
+      const behind = background(node);
+      if (!behind) continue;
+      const [light, dark] = [luminance(over(rgba(style.color), behind)), luminance(behind)].sort((a, b) => b - a);
+      const ratio = (light + 0.05) / (dark + 0.05);
+      if (ratio < 4.5) found.push(`${ratio.toFixed(2)}:1: ${text.slice(0, 40)}`);
+    }
+    return found;
+  });
+}
+
+async function fitsWidth(page: Page) {
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+}
+
+for (const width of [390, 1280]) {
+  for (const language of ["en", "bn"] as const) {
+    test(`the adventure page and every lesson step keep text at 12px or more with clear contrast at ${width}px in ${language === "bn" ? "Bangla" : "English"}`, async ({ page }) => {
+      await page.setViewportSize({ width, height: width < 600 ? 844 : 800 });
+      await page.addInitScript((choice) => window.localStorage.setItem("bangla-adventures-language", choice), language);
+      await page.goto("/adventure");
+      await expect(page.locator(".lesson-card").first()).toBeVisible();
+      expect(await smallOrFaintText(page.locator("body"))).toEqual([]);
+      await fitsWidth(page);
+      await page.goto("/adventure?module=hello-me");
+      const lesson = page.getByRole("dialog");
+      await expect(lesson).toBeVisible();
+      await walkLesson(lesson, async (step) => {
+        expect(await smallOrFaintText(lesson), step).toEqual([]);
+        await fitsWidth(page);
+      });
+    });
+  }
+}
+
+test("on a tall tablet screen the lesson's close button stays in its corner, clear of the session seal, while the lesson scrolls", async ({ page }) => {
+  await page.setViewportSize({ width: 820, height: 1180 });
+  await page.goto("/adventure?module=hello-me");
+  const lesson = page.getByRole("dialog");
+  const close = lesson.getByRole("button", { name: "Close", exact: true });
+  await expect(close).toBeVisible();
+  const box = async (locator: Locator) => (await locator.boundingBox())!;
+  const [closeBox, sealBox] = [await box(close), await box(lesson.locator(".module-session-seal"))];
+  const apart = closeBox.y + closeBox.height <= sealBox.y || sealBox.y + sealBox.height <= closeBox.y || closeBox.x + closeBox.width <= sealBox.x || sealBox.x + sealBox.width <= closeBox.x;
+  expect(apart).toBe(true);
+  for (const scrollTop of [0, 700]) {
+    await lesson.evaluate((element, top) => { element.scrollTop = top; }, scrollTop);
+    const [now, dialog] = [await box(close), await box(lesson)];
+    expect(now.y - dialog.y).toBeLessThan(30);
+    expect(dialog.x + dialog.width - (now.x + now.width)).toBeLessThan(30);
+  }
+});
 
 // Students now see only approved topics, so the draft notices are gone; the textbook sources stay.
 test("approved topics appear by category without draft notices", async ({ page }) => {
