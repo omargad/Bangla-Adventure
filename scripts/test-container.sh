@@ -71,13 +71,15 @@ fs.mkdirSync(process.env.MEDIA_ROOT, { recursive: true });
 fs.writeFileSync(path.join(process.env.MEDIA_ROOT, 'container-smoke.txt'), 'persistent media');
 NODE
 docker exec "$container_id" python3 scripts/backup_restore.py --help >/dev/null
-# Server commands must run inside the image: an unknown address proves admin:grant loads and reaches the database.
-grant_output="$(docker exec "$container_id" npm run --silent admin:grant -- missing-owner@example.com 2>&1 || true)"
-if ! printf '%s' "$grant_output" | grep -q "No active account matched"; then
-  echo "admin:grant could not run in the image:" >&2
-  printf '%s\n' "$grant_output" >&2
-  exit 1
-fi
+# Server commands must run inside the image: an unknown address proves each one loads and reaches the database.
+for server_command in admin:grant admin:reset-password; do
+  server_output="$(docker exec "$container_id" npm run --silent "$server_command" -- missing-owner@example.com 2>&1 || true)"
+  if ! printf '%s' "$server_output" | grep -q "No active account matched"; then
+    echo "$server_command could not run in the image:" >&2
+    printf '%s\n' "$server_output" >&2
+    exit 1
+  fi
+done
 
 # Recreate the container, not just its process, to prove persistence is provided
 # by the named volume rather than the disposable writable container layer.

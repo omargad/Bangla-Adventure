@@ -37,7 +37,7 @@ function authorize(tx: Transaction, actorId: string) {
   if (!actor || !canManageUsers(actor)) throw refuse(["Administrator access required.", "প্রশাসকের অনুমতি প্রয়োজন।"], 403);
 }
 
-function record(tx: Transaction, actorId: string, targetId: string, targetType: string, action: string, details: object = {}) {
+function record(tx: Transaction, actorId: string | null, targetId: string, targetType: string, action: string, details: object = {}) {
   tx.insert(userAuditEvents).values({ id: crypto.randomUUID(), actorId, targetId, targetType, action, detailsJson: JSON.stringify(details) }).run();
 }
 
@@ -217,32 +217,68 @@ export async function createUser(actorId: string, input: Record<string, unknown>
   });
 }
 
+/** A new temporary password, shown once, and the hash that is stored. */
+async function temporaryCredentials() {
+  const temporaryPassword = generateTemporaryPassword();
+  return { temporaryPassword, passwordHash: await hashPasswordAsync(temporaryPassword) };
+}
+
+/**
+ * Store a temporary password that must be replaced at the next sign-in, end every session of the
+ * account and audit the reset, inside the caller's transaction. Null when there is no such account.
+ */
+function setTemporaryPassword(tx: Transaction, kind: "adult" | "student", id: string, passwordHash: string, actorId: string | null, action: string) {
+  if (kind === "student") {
+    const user = tx.update(students).set({ passwordHash, mustChangePassword: true }).where(eq(students.id, id))
+      .returning({ id: students.id, username: students.username, displayName: students.displayName }).get();
+    if (!user) return null;
+    tx.delete(studentSessions).where(eq(studentSessions.studentId, id)).run();
+    record(tx, actorId, id, "student", action);
+    return { ...user, kind: "student" as const };
+  }
+  const user = tx.update(adults).set({ passwordHash, mustChangePassword: true }).where(eq(adults.id, id))
+    .returning({ id: adults.id, email: adults.email, displayName: adults.displayName }).get();
+  if (!user) return null;
+  tx.delete(adultSessions).where(eq(adultSessions.adultId, id)).run();
+  record(tx, actorId, id, "adult", action);
+  return { ...user, kind: "adult" as const };
+}
+
 /**
  * Give a student or adult a new temporary password (for a forgotten one): it must be replaced at the
  * next sign-in and every existing session ends. Administrators may reset other administrators, never
  * themselves. The password is returned once and only its hash is stored.
  */
 export async function resetPassword(actorId: string, id: string, input: Record<string, unknown>) {
-  if (input.kind !== "adult" && input.kind !== "student") throw refuse(CHOOSE_KIND);
+  const kind = input.kind;
+  if (kind !== "adult" && kind !== "student") throw refuse(CHOOSE_KIND);
   if (id === actorId) throw refuse(["You cannot reset your own password here. Change it from My account.", "এখানে নিজের পাসওয়ার্ড রিসেট করা যায় না। ‘আমার অ্যাকাউন্ট’ থেকে বদলান।"], 409);
-  const temporaryPassword = generateTemporaryPassword();
-  const passwordHash = await hashPasswordAsync(temporaryPassword);
+  const { temporaryPassword, passwordHash } = await temporaryCredentials();
   const db = await getDb();
   return db.transaction((tx) => {
     authorize(tx, actorId);
-    if (input.kind === "student") {
-      const user = tx.update(students).set({ passwordHash, mustChangePassword: true }).where(eq(students.id, id))
-        .returning({ id: students.id, username: students.username, displayName: students.displayName }).get();
-      if (!user) throw refuse(NOT_FOUND, 404);
-      tx.delete(studentSessions).where(eq(studentSessions.studentId, id)).run();
-      record(tx, actorId, id, "student", "password-reset");
-      return { user: { ...user, kind: "student" as const }, temporaryPassword };
-    }
-    const user = tx.update(adults).set({ passwordHash, mustChangePassword: true }).where(eq(adults.id, id))
-      .returning({ id: adults.id, email: adults.email, displayName: adults.displayName }).get();
+    const user = setTemporaryPassword(tx, kind, id, passwordHash, actorId, "password-reset");
     if (!user) throw refuse(NOT_FOUND, 404);
-    tx.delete(adultSessions).where(eq(adultSessions.adultId, id)).run();
-    record(tx, actorId, id, "adult", "password-reset");
-    return { user: { ...user, kind: "adult" as const }, temporaryPassword };
+    return { user, temporaryPassword };
+  });
+}
+
+/**
+ * The same reset, run on the server (`npm run admin:reset-password`) for someone with no other way
+ * back in, such as a sole administrator who has lost both the password and the recovery codes.
+ * `account` is an adult's email (it contains "@") or a student's username; only an active account
+ * matches. Nobody is signed in, so the audit row has no actor. Null when nothing matches.
+ */
+export async function resetPasswordOnServer(account: string) {
+  const name = account.trim().toLowerCase();
+  const { temporaryPassword, passwordHash } = await temporaryCredentials();
+  const db = await getDb();
+  return db.transaction((tx) => {
+    const kind = name.includes("@") ? "adult" : "student";
+    const found = kind === "adult"
+      ? tx.select({ id: adults.id, approvalStatus: adults.approvalStatus }).from(adults).where(and(eq(adults.email, name), eq(adults.status, "active"))).get()
+      : tx.select({ id: students.id, approvalStatus: students.approvalStatus }).from(students).where(and(eq(students.username, name), eq(students.status, "active"))).get();
+    const user = found && setTemporaryPassword(tx, kind, found.id, passwordHash, null, "password-reset-by-server-operator");
+    return found && user ? { user, temporaryPassword, approvalStatus: found.approvalStatus } : null;
   });
 }

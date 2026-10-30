@@ -3,6 +3,7 @@
 # Render Shell for anything that touches the database, so new files stay owned
 # by `node`, for example:
 #   scripts/render-run-as-app.sh npm run admin:grant -- you@example.com
+#   scripts/render-run-as-app.sh npm run admin:reset-password -- you@example.com
 set -eu
 [ "$#" -gt 0 ] || { echo "Usage: scripts/render-run-as-app.sh <command> [args...]" >&2; exit 64; }
 if [ "$(id -u)" = "$(id -u node)" ]; then exec "$@"; fi

@@ -20,6 +20,8 @@ const AUDIT_ACTIONS: Record<string, Message> = {
   "account-declined": ["Account declined", "অ্যাকাউন্ট প্রত্যাখ্যাত"],
   "revoke-sessions": ["Signed out everywhere", "সব জায়গা থেকে সাইন আউট"],
   "password-reset": ["Password reset", "পাসওয়ার্ড রিসেট"],
+  "password-reset-by-server-operator": ["Password reset on the server", "সার্ভার থেকে পাসওয়ার্ড রিসেট"],
+  "administrator-granted-by-server-operator": ["Made administrator on the server", "সার্ভার থেকে প্রশাসক করা হয়েছে"],
   "password-changed": ["Password changed", "পাসওয়ার্ড বদলানো হয়েছে"],
   "student-password-changed": ["Student changed their password", "শিক্ষার্থী পাসওয়ার্ড বদলেছে"],
   "teacher-requested": ["Asked to become a teacher", "শিক্ষক হওয়ার আবেদন"],

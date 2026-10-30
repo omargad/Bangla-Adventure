@@ -135,8 +135,8 @@ identical to `./Dockerfile` when either changes: `npm test` fails when they diff
 (`tests/dockerfile-render.test.mjs`). The CI container job also builds the Render image
 and runs `scripts/test-render-container.sh`, which starts it as Render does (`PORT=10000`,
 an empty root-owned disk at `/app/.data`), checks the server runs as `node`, runs
-`admin:grant` and a backup through `scripts/render-run-as-app.sh`, and restarts on the
-same disk to check the database and media stayed.
+`admin:grant`, `admin:reset-password` and a backup through `scripts/render-run-as-app.sh`,
+and restarts on the same disk to check the database and media stayed.
 
 **First administrator.** Register the client's account on the site (it waits for
 approval), then in the service's **Shell** tab run:
@@ -144,6 +144,17 @@ approval), then in the service's **Shell** tab run:
 ```sh
 scripts/render-run-as-app.sh npm run admin:grant -- REGISTERED_EMAIL
 ```
+
+**Locked out.** If the only administrator has forgotten the password and lost the
+recovery codes, reset it in the Shell (a student's username works too):
+
+```sh
+scripts/render-run-as-app.sh npm run admin:reset-password -- ADMIN_EMAIL
+```
+
+It prints a temporary password once and signs the account out everywhere. Signing in
+with it leads straight to choosing a new password, and an adult then gets fresh
+recovery codes.
 
 Run every Shell command that touches the database through
 `scripts/render-run-as-app.sh`, never directly as root, so new database files stay
@@ -222,6 +233,20 @@ The app sets these itself wherever it runs; the reverse proxy does not need to a
 3. Sign in again at `/grown-ups?returnTo=/admin&switchAccount=1`. Promotion revokes
    previous sessions. Public registration never grants admin access; no default
    administrator credentials exist.
+
+**Locked out.** Adults reset a forgotten password themselves with a recovery code. If
+the only administrator has lost both, run the reset command the same way as the grant,
+against the same database (`npm run admin:reset-password -- ADMIN_EMAIL` natively, as
+the app account with its `DATABASE_PATH`), or for Compose:
+
+```sh
+docker compose exec app npm run admin:reset-password -- ADMIN_EMAIL
+```
+
+It prints a temporary password once, signs the account out everywhere and records the
+reset in the audit log without the password. Signing in with it leads straight to
+choosing a new password, and fresh recovery codes follow. It also takes a student's
+username.
 
 Approve self-registered students, parents and teacher requests explicitly from the
 Users page queue. Accounts an administrator creates, and passwords an administrator

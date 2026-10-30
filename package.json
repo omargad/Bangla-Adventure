@@ -13,6 +13,7 @@
     "test": "node --import tsx --test tests/*.test.mjs",
     "typecheck": "tsc --noEmit",
     "admin:grant": "tsx scripts/grant-admin.ts",
+    "admin:reset-password": "tsx scripts/reset-password.ts",
     "backup": "bash scripts/backup.sh",
     "backup:offsite": "bash scripts/backup-offsite.sh",
     "restore": "bash scripts/restore.sh",

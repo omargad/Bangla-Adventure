@@ -59,6 +59,10 @@ has the licence check, dry run, samples, generation and native-speaker review.
    [`DEPLOYMENT.md`](DEPLOYMENT.md#first-administrator-and-recovery).
 3. Sign in again at `/grown-ups?returnTo=/admin&switchAccount=1`. Promotion revokes
    previous sessions. There are no default admin credentials or public admin signup.
+4. If the only administrator later forgets the password and has lost the recovery
+   codes, run `npm run admin:reset-password -- THEIR_EMAIL` the same way. It prints a
+   temporary password once; signing in with it leads to choosing a new password, and
+   fresh recovery codes follow.
 
 Students, parents and teachers who register themselves wait in the administrator's
 **Waiting for approval** queue on the Users page until they are approved (approving
