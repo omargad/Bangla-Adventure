@@ -650,6 +650,31 @@ a:focus-visible {
   font-weight: 700;
 }
 
+/* Above the phone layout the stats and links can sit over the river picture: an opaque backing keeps their small text readable. */
+.hero-actions :is(.outline-button, .sound-button) {
+  background: var(--paper);
+}
+
+@media (min-width: 781px) {
+  .hero-mini-stats {
+    gap: 10px;
+    margin-left: -8px;
+  }
+
+  .hero-mini-stats span {
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--cream);
+  }
+}
+
+/* Two rows of two keep the English stats clear of the tiger's note beside them. */
+@media (min-width: 781px) and (max-width: 1000px) {
+  .hero-mini-stats {
+    max-width: 400px;
+  }
+}
+
 .hero-mini-stats strong {
   margin-right: 3px;
   color: var(--ink);
@@ -3929,8 +3954,9 @@ a:focus-visible {
     width: max-content;
   }
 
+  /* minmax(0, …): a card's long video title shortens with an ellipsis instead of widening the page. */
   .lesson-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .lesson-card {
@@ -5053,6 +5079,12 @@ a:focus-visible {
 .video-learning-cycle label.complete {
   border-color: #88caae;
   background: #eff9f4;
+}
+
+/* The checkbox itself is invisible, so its card shows keyboard focus. */
+.video-learning-cycle label:has(input:focus-visible) {
+  outline: 4px solid var(--ink);
+  outline-offset: 3px;
 }
 
 .video-learning-cycle label > span {

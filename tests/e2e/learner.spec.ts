@@ -258,8 +258,9 @@ async function walkLesson(lesson: Locator, check: (step: string) => Promise<void
 }
 
 /**
- * Visible text written in the other script than the page language and not marked with its own language: Latin
- * letters in Bangla mode (outside lang="en" and transliterated bn-Latn), Bangla letters in English mode (outside lang="bn").
+ * Visible text written in the other script than its marked language: Latin letters in Bangla mode outside lang="en"
+ * and transliterated bn-Latn, and in either mode Bangla letters outside lang="bn" (a Bangla letter inside an English
+ * gloss is read with the English voice).
  */
 function unmarkedText(root: Locator, language: "en" | "bn") {
   return root.evaluate((element, language) => {
@@ -271,35 +272,115 @@ function unmarkedText(root: Locator, language: "en" | "bn") {
       const lang = node.closest("[lang]")?.getAttribute("lang") ?? "";
       // Product names stay as they are in both languages.
       if (language === "bn" && /[A-Za-z]/.test(text.replace(/\bYouTube\b/g, "")) && !/^(en|bn-Latn)$/.test(lang)) found.push(`${text} (lang=${lang})`);
-      if (language === "en" && /[\u0980-\u09ff]/.test(text) && lang !== "bn") found.push(`${text} (lang=${lang})`);
+      if (/[\u0980-\u09ff]/.test(text) && lang !== "bn") found.push(`${text} (lang=${lang})`);
     }
     return found;
   }, language);
 }
 
-for (const language of ["bn", "en"] as const) {
-  test(`every step of a lesson in ${language === "bn" ? "Bangla" : "English"} has its interface in that language and marks the other`, async ({ page }) => {
-    await page.addInitScript((choice) => window.localStorage.setItem("bangla-adventures-language", choice), language);
-    await page.goto("/adventure?module=hello-me");
-    const lesson = page.getByRole("dialog", { name: language === "bn" ? "পুরো পাঠ" : "Full curriculum lesson" });
-    await expect(lesson).toBeVisible();
-    await walkLesson(lesson, async (step) => {
-      expect(await unmarkedText(lesson, language), step).toEqual([]);
-    });
-    if (language === "bn") {
+// letters-sounds teaches single letters, so its English transcript glosses have Bangla letters in them.
+for (const lessonId of ["hello-me", "letters-sounds"]) {
+  for (const language of ["bn", "en"] as const) {
+    test(`every step of ${lessonId} in ${language === "bn" ? "Bangla" : "English"} has its interface in that language and marks the other`, async ({ page }) => {
+      await page.addInitScript((choice) => window.localStorage.setItem("bangla-adventures-language", choice), language);
+      await page.goto(`/adventure?module=${lessonId}`);
+      const lesson = page.getByRole("dialog", { name: language === "bn" ? "পুরো পাঠ" : "Full curriculum lesson" });
+      await expect(lesson).toBeVisible();
+      // The overview's route names what each session is, before any of them is complete: a noun (not the tab's
+      // verb plus অনুশীলন), and in Bangla a session is a সেশন, as on the adventure page.
+      const route = lesson.locator(".six-session-route");
+      if (language === "en") await expect(route.locator("small").last()).toHaveText("mastery check");
+      else {
+        await expect(route.locator("small")).toHaveText(["শোনার অনুশীলন", "পড়ার অনুশীলন", "বলার অনুশীলন", "লেখার অনুশীলন", "ভিডিও + সংস্কৃতি নিয়ে খোঁজ", "দক্ষতা যাচাই"]);
+        await expect(route.locator(".modal-kicker")).toHaveText("ছয় সেশনের পথ");
+      }
+      await walkLesson(lesson, async (step) => {
+        expect(await unmarkedText(lesson, language), step).toEqual([]);
+      });
+      if (lessonId !== "hello-me" || language === "en") return;
+      const tabs = lesson.locator(".lesson-step-tabs button");
       await expect(lesson.getByRole("button", { name: "আমার উত্তর যাচাই করি" })).toBeVisible();
       await expect(lesson.getByText("Check my answers")).toHaveCount(0);
-      await lesson.locator(".lesson-step-tabs button").nth(3).click();
+      await tabs.nth(3).click();
       await expect(lesson.getByRole("button", { name: "● মাইক চালু করে রেকর্ড করি" })).toBeVisible();
-      await lesson.locator(".lesson-step-tabs button").nth(5).click();
+      await expect(lesson.locator(".local-recorder")).toContainText("তোমার রেকর্ডিং কোথাও পাঠানো হয় না");
+      await tabs.nth(5).click();
       await expect(lesson.getByRole("button", { name: "গোপনীয়তা-সুরক্ষিত ভিডিও খুলি ▶" })).toBeVisible();
-    }
-  });
+      // Opening the video puts it under YouTube's own privacy policy; a grown-up should preview it and stay near.
+      await expect(lesson.locator(".video-gate")).toContainText("ভিডিও খুললে YouTube-এর নিজের গোপনীয়তা নীতি প্রযোজ্য হবে। বাইরের ভিডিও আগে বড় কারও দেখে নেওয়া আর পাশে থাকা উচিত।");
+    });
+  }
 }
 
-/** Visible text under 12px, and small text under 4.5:1 against a plain background behind it. */
-function smallOrFaintText(root: Locator) {
-  return root.evaluate((element) => {
+/** Opens hello-me in Bangla on the Speak step. */
+async function banglaRecorder(page: Page) {
+  await page.addInitScript(() => window.localStorage.setItem("bangla-adventures-language", "bn"));
+  await page.goto("/adventure?module=hello-me");
+  const lesson = page.getByRole("dialog", { name: "পুরো পাঠ" });
+  await lesson.locator(".lesson-step-tabs button").nth(3).click();
+  return lesson;
+}
+
+test("in Bangla, the recorder explains a refused microphone in Bangla", async ({ page }) => {
+  // No microphone permission is granted, so the browser refuses it.
+  const lesson = await banglaRecorder(page);
+  await lesson.getByRole("button", { name: "● মাইক চালু করে রেকর্ড করি" }).click();
+  await expect(lesson.getByRole("alert")).toHaveText("মাইক্রোফোন চালুর অনুমতি পাওয়া যায়নি। কিছুই রেকর্ড হয়নি; জোরে জোরে অনুশীলন করো, বা তৈরি হলে আবার চেষ্টা করো।");
+  expect(await unmarkedText(lesson, "bn")).toEqual([]);
+});
+
+test("in Bangla, the recorder explains a browser that cannot record in Bangla", async ({ page }) => {
+  await page.addInitScript(() => { delete (window as { MediaRecorder?: unknown }).MediaRecorder; });
+  const lesson = await banglaRecorder(page);
+  await lesson.getByRole("button", { name: "● মাইক চালু করে রেকর্ড করি" }).click();
+  await expect(lesson.getByRole("alert")).toHaveText("এই ব্রাউজারে রেকর্ড করা যায় না। তবুও জোরে জোরে অনুশীলন করে সেশনটা শেষ করতে পারো।");
+  expect(await unmarkedText(lesson, "bn")).toEqual([]);
+});
+
+test("in Bangla, recording, stopping and deleting a recording all have Bangla controls", async ({ page }) => {
+  // A silent stand-in microphone: a Web Audio stream the real MediaRecorder can record.
+  await page.addInitScript(() => {
+    navigator.mediaDevices.getUserMedia = async () => new AudioContext().createMediaStreamDestination().stream;
+  });
+  const lesson = await banglaRecorder(page);
+  await lesson.getByRole("button", { name: "● মাইক চালু করে রেকর্ড করি" }).click();
+  await lesson.getByRole("button", { name: "■ রেকর্ড থামাই" }).click();
+  await expect(lesson.locator("audio.learner-recording")).toBeVisible();
+  const remove = lesson.getByRole("button", { name: "রেকর্ডিংটা মুছে ফেলি" });
+  await expect(remove).toBeVisible();
+  expect(await unmarkedText(lesson, "bn")).toEqual([]);
+  await remove.click();
+  await expect(lesson.locator("audio.learner-recording")).toHaveCount(0);
+  await expect(lesson.getByRole("button", { name: "● মাইক চালু করে রেকর্ড করি" })).toBeVisible();
+});
+
+test("on the Watch step, a keyboard user sees which before/during/after card has focus", async ({ page }) => {
+  await page.goto("/adventure?module=hello-me");
+  const lesson = page.getByRole("dialog", { name: "Full curriculum lesson" });
+  await lesson.locator(".lesson-step-tabs button").nth(5).click();
+  // Opening a step moves focus to its heading; start from there.
+  await expect(lesson.locator(".lesson-pane > h3[tabindex='-1']")).toBeFocused();
+  const boxes = lesson.locator(".video-learning-cycle input");
+  const cards = lesson.locator(".video-learning-cycle label");
+  for (let index = 0; index < 3; index += 1) {
+    // Reach each checkbox with the keyboard. The checkbox itself is invisible: its card carries the ring.
+    await boxes.nth(index).focus();
+    await page.keyboard.press("Shift+Tab");
+    await page.keyboard.press("Tab");
+    await expect(boxes.nth(index)).toBeFocused();
+    for (let other = 0; other < 3; other += 1) await expect(cards.nth(other)).toHaveCSS("outline-style", other === index ? "solid" : "none");
+    await expect(cards.nth(index)).toHaveCSS("outline-width", "4px");
+  }
+});
+
+type Colour = { r: number; g: number; b: number; a: number };
+
+/**
+ * Visible text under 12px, and small text under 4.5:1 against what is behind it: a plain background is read from
+ * the styles, and text over a picture or gradient is measured against the rendered pixels behind it.
+ */
+async function smallOrFaintText(root: Locator) {
+  const { found, probes } = await root.evaluate((element) => {
     const rgba = (value: string) => { const parts = value.match(/[\d.]+/g)!.map(Number); return { r: parts[0], g: parts[1], b: parts[2], a: parts[3] ?? 1 }; };
     const over = (top: ReturnType<typeof rgba>, bottom: ReturnType<typeof rgba>) => ({ r: top.r * top.a + bottom.r * (1 - top.a), g: top.g * top.a + bottom.g * (1 - top.a), b: top.b * top.a + bottom.b * (1 - top.a), a: 1 });
     const luminance = ({ r, g, b }: ReturnType<typeof rgba>) => [r, g, b].map((value) => { const c = value / 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; }).reduce((sum, c, index) => sum + c * [0.2126, 0.7152, 0.0722][index], 0);
@@ -316,6 +397,7 @@ function smallOrFaintText(root: Locator) {
       return null;
     };
     const found: string[] = [];
+    const probes: { color: ReturnType<typeof rgba>; text: string }[] = [];
     for (const node of element.querySelectorAll("*")) {
       const text = Array.from(node.childNodes).filter((child) => child.nodeType === Node.TEXT_NODE).map((child) => child.textContent).join("").trim();
       if (!text || !(node as HTMLElement).checkVisibility()) continue;
@@ -325,23 +407,109 @@ function smallOrFaintText(root: Locator) {
       // Contrast is for words: decorative marks are hidden from screen readers, and disabled buttons are exempt.
       if (node.closest("[aria-hidden=true], :disabled") || size >= 24 || (size >= 18.66 && Number(style.fontWeight) >= 700)) continue;
       const behind = background(node);
-      if (!behind) continue;
+      if (!behind) {
+        // Measured later from a screenshot; a faded ancestor fades the text too.
+        let opacity = 1;
+        for (let current: Element | null = node; current; current = current.parentElement) opacity *= Number(getComputedStyle(current).opacity);
+        const color = rgba(style.color);
+        node.setAttribute("data-contrast-probe", String(probes.length));
+        probes.push({ color: { ...color, a: color.a * opacity }, text: text.slice(0, 40) });
+        continue;
+      }
       const [light, dark] = [luminance(over(rgba(style.color), behind)), luminance(behind)].sort((a, b) => b - a);
       const ratio = (light + 0.05) / (dark + 0.05);
       if (ratio < 4.5) found.push(`${ratio.toFixed(2)}:1: ${text.slice(0, 40)}`);
     }
-    return found;
+    return { found, probes };
   });
+  return found.concat(await faintOverPictures(root.page(), probes));
+}
+
+/**
+ * Each marked text's contrast against the median of the pixels behind it, with every text on the page made
+ * transparent for the screenshot. Texts are brought into view in turn; each screenshot measures every marked text
+ * then wholly in view and not covered by something else.
+ */
+async function faintOverPictures(page: Page, probes: { color: Colour; text: string }[]) {
+  const found: string[] = [];
+  if (probes.length === 0) return found;
+  const hideText = await page.addStyleTag({ content: "*, *::before, *::after { color: transparent !important; -webkit-text-fill-color: transparent !important; text-shadow: none !important; text-decoration-color: transparent !important; }" });
+  try {
+    const pending = new Set(probes.keys());
+    while (pending.size > 0) {
+      const [first] = pending;
+      const boxes = await page.evaluate(async ({ first, pending }) => {
+        const probe = (index: number) => document.querySelector(`[data-contrast-probe="${index}"]`)!;
+        probe(first).scrollIntoView({ block: "center", inline: "nearest" });
+        // Pictures that scrolling brings into view finish loading first.
+        const loading = Array.from(document.images).filter((image) => !image.complete && image.getBoundingClientRect().bottom > 0 && image.getBoundingClientRect().top < innerHeight);
+        await Promise.all(loading.map((image) => new Promise((done) => { image.addEventListener("load", done); image.addEventListener("error", done); setTimeout(done, 5000); })));
+        const inView: Record<number, { x: number; y: number; width: number; height: number }[]> = {};
+        for (const index of pending) {
+          const node = probe(index);
+          const rects = Array.from(node.childNodes).filter((child) => child.nodeType === Node.TEXT_NODE && child.textContent!.trim()).flatMap((child) => {
+            const range = document.createRange();
+            range.selectNodeContents(child);
+            return Array.from(range.getClientRects());
+          }).filter((rect) => rect.width >= 1 && rect.height >= 1);
+          const shown = (rect: DOMRect) => {
+            const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+            return rect.left >= 0 && rect.top >= 0 && rect.right <= innerWidth && rect.bottom <= innerHeight && hit !== null && node.contains(hit);
+          };
+          if (rects.length > 0 && rects.every(shown)) inView[index] = rects.map(({ x, y, width, height }) => ({ x, y, width, height }));
+        }
+        return inView;
+      }, { first, pending: [...pending] });
+      // A text that is covered even in the middle of the screen has no background of its own to measure.
+      pending.delete(first);
+      if (Object.keys(boxes).length === 0) continue;
+      const screenshot = (await page.screenshot({ animations: "disabled", caret: "hide" })).toString("base64");
+      const medians = await page.evaluate(async ({ screenshot, boxes, colours }) => {
+        const bitmap = await createImageBitmap(new Blob([Uint8Array.from(atob(screenshot), (char) => char.charCodeAt(0))], { type: "image/png" }));
+        const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+        const context = canvas.getContext("2d")!;
+        context.drawImage(bitmap, 0, 0);
+        const scale = bitmap.width / innerWidth;
+        const luminance = (rgb: number[]) => rgb.map((value) => { const c = value / 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; }).reduce((sum, c, index) => sum + c * [0.2126, 0.7152, 0.0722][index], 0);
+        const medians: Record<string, number> = {};
+        for (const [index, rects] of Object.entries(boxes)) {
+          const { r, g, b, a } = colours[Number(index)];
+          const ratios: number[] = [];
+          for (const rect of rects) {
+            const { data } = context.getImageData(Math.floor(rect.x * scale), Math.floor(rect.y * scale), Math.max(1, Math.round(rect.width * scale)), Math.max(1, Math.round(rect.height * scale)));
+            for (let pixel = 0; pixel < data.length; pixel += 4) {
+              const behind = [data[pixel], data[pixel + 1], data[pixel + 2]];
+              const text = [r, g, b].map((value, channel) => value * a + behind[channel] * (1 - a));
+              const [light, dark] = [luminance(text), luminance(behind)].sort((x, y) => y - x);
+              ratios.push((light + 0.05) / (dark + 0.05));
+            }
+          }
+          ratios.sort((x, y) => x - y);
+          medians[index] = ratios[Math.floor(ratios.length / 2)];
+        }
+        return medians;
+      }, { screenshot, boxes, colours: probes.map((probe) => probe.color) });
+      for (const [index, ratio] of Object.entries(medians)) {
+        pending.delete(Number(index));
+        if (ratio < 4.5) found.push(`${ratio.toFixed(2)}:1 over a picture: ${probes[Number(index)].text}`);
+      }
+    }
+  } finally {
+    await hideText.evaluate((style) => (style as Element).remove());
+    await page.evaluate(() => document.querySelectorAll("[data-contrast-probe]").forEach((node) => node.removeAttribute("data-contrast-probe")));
+  }
+  return found;
 }
 
 async function fitsWidth(page: Page) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
 }
 
-for (const width of [390, 1280]) {
+// At 820px the hero's copy sits over the river picture.
+for (const [width, height] of [[390, 844], [820, 1180], [1280, 800]]) {
   for (const language of ["en", "bn"] as const) {
     test(`the adventure page and every lesson step keep text at 12px or more with clear contrast at ${width}px in ${language === "bn" ? "Bangla" : "English"}`, async ({ page }) => {
-      await page.setViewportSize({ width, height: width < 600 ? 844 : 800 });
+      await page.setViewportSize({ width, height });
       await page.addInitScript((choice) => window.localStorage.setItem("bangla-adventures-language", choice), language);
       await page.goto("/adventure");
       await expect(page.locator(".lesson-card").first()).toBeVisible();
@@ -357,6 +525,64 @@ for (const width of [390, 1280]) {
     });
   }
 }
+
+test("the contrast check measures text over a picture against the pixels behind it", async ({ page }) => {
+  await page.setViewportSize({ width: 820, height: 1180 });
+  await page.goto("/adventure");
+  // Grey text straight on the river picture fails; the same text on its own cream backing passes.
+  const stats = page.locator(".hero-mini-stats");
+  await stats.evaluate((element) => { for (const label of element.querySelectorAll("span")) (label as HTMLElement).style.background = "none"; });
+  expect((await smallOrFaintText(stats)).join("\n")).toMatch(/over a picture: (classroom topics|textbook sources|Bangla lessons|languages)/);
+  await stats.evaluate((element) => { for (const label of element.querySelectorAll("span")) (label as HTMLElement).style.background = ""; });
+  expect(await smallOrFaintText(stats)).toEqual([]);
+});
+
+test("the hero's stats stay clear of the tiger's note, in one tidy row on a phone", async ({ page }) => {
+  for (const language of ["en", "bn"]) {
+    await page.goto("/adventure");
+    await page.evaluate((choice) => window.localStorage.setItem("bangla-adventures-language", choice), language);
+    for (const width of [390, 781, 820, 900, 1024, 1280]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto("/adventure");
+      await expect(page.locator(".hero-mini-stats span")).toHaveCount(4);
+      const { overlaps, rows } = await page.evaluate(() => {
+        const note = document.querySelector(".tiger-note")!.getBoundingClientRect();
+        const stats = [...document.querySelectorAll(".hero-mini-stats span")].map((span) => span.getBoundingClientRect());
+        return {
+          overlaps: stats.filter((box) => box.right > note.left && box.left < note.right && box.bottom > note.top && box.top < note.bottom).length,
+          rows: new Set(stats.map((box) => Math.round(box.top))).size,
+        };
+      });
+      expect(overlaps, `${language} ${width}px`).toBe(0);
+      // The Bangla labels are short enough for one row on a phone; a backing's padding must not push one onto a row of its own.
+      if (width === 390 && language === "bn") expect(rows).toBe(1);
+    }
+  }
+});
+
+test.describe("on a phone", () => {
+  test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+
+  test("every level's lesson cards fit the screen, and a lesson from any level opens inside it", async ({ page }) => {
+    await page.goto("/adventure");
+    await expect(page.locator(".lesson-card").first()).toBeVisible();
+    // A phone widens the page to fit anything too wide, so the page width itself must stay 390.
+    for (const tab of await page.locator(".level-tab").all()) {
+      await tab.click();
+      expect(await page.evaluate(() => [window.innerWidth, document.documentElement.scrollWidth])).toEqual([390, 390]);
+    }
+    for (const lessonId of ["school-home", "two-homes"]) {
+      await page.goto(`/adventure?module=${lessonId}`);
+      const lesson = page.getByRole("dialog", { name: "Full curriculum lesson" });
+      await expect(lesson).toBeVisible();
+      expect(await page.evaluate(() => window.innerWidth)).toBe(390);
+      for (const box of [await lesson.boundingBox(), await lesson.getByRole("button", { name: "Close", exact: true }).boundingBox()]) {
+        expect(box!.x).toBeGreaterThanOrEqual(0);
+        expect(box!.x + box!.width).toBeLessThanOrEqual(390);
+      }
+    }
+  });
+});
 
 test("on a tall tablet screen the lesson's close button stays in its corner, clear of the session seal, while the lesson scrolls", async ({ page }) => {
   await page.setViewportSize({ width: 820, height: 1180 });

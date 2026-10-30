@@ -72,8 +72,10 @@ test("the label check finds fixed English in every attribute form", () => {
 
 /**
  * Fixed English a component shows as text: JSX text, and strings shown as a child (also through conditions,
- * && and ||). Text is fine inside a choice on the language (s(en, bn), paired(language, en, bn) or a condition on
- * `language`) or inside an element marked lang="en", which is how lesson content written in English is shown.
+ * && and ||, and as values in an array of objects mapped into the page, such as [{ label: "Before" }].map(...)).
+ * Text is fine inside a choice on the language (s(en, bn), paired(language, en, bn) or a condition on `language`)
+ * or inside an element marked lang="en", which is how lesson content written in English is shown. A message
+ * passed as an [en, bn] pair must have Bangla in its second half.
  */
 function fixedEnglishText(source) {
   const file = ts.createSourceFile("component.tsx", source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
@@ -93,14 +95,20 @@ function fixedEnglishText(source) {
     for (let child = node, parent = node.parent; parent; child = parent, parent = parent.parent) {
       if (ts.isJsxExpression(parent)) return ts.isJsxElement(parent.parent) || ts.isJsxFragment(parent.parent);
       if (ts.isParenthesizedExpression(parent) || (ts.isConditionalExpression(parent) && child !== parent.condition)) continue;
+      // A value in an array of objects that is mapped into the page: [{ label: "Before" }].map(...).
+      if ((ts.isPropertyAssignment(parent) && child === parent.initializer) || ts.isObjectLiteralExpression(parent) || ts.isArrayLiteralExpression(parent)) continue;
+      if ((ts.isPropertyAccessExpression(parent) || ts.isCallExpression(parent)) && child === parent.expression) continue;
       const logical = [ts.SyntaxKind.AmpersandAmpersandToken, ts.SyntaxKind.BarBarToken, ts.SyntaxKind.QuestionQuestionToken];
       if (ts.isBinaryExpression(parent) && logical.includes(parent.operatorToken.kind) && child === parent.right) continue;
       return false;
     }
     return false;
   };
+  const plainString = (node) => ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node);
   const found = [];
   const visit = (node) => {
+    if (ts.isArrayLiteralExpression(node) && ts.isCallExpression(node.parent) && node.parent.arguments.includes(node) && node.elements.length === 2 && node.elements.every(plainString)
+      && english(node.elements[0].text) && !/[\u0980-\u09ff]/.test(node.elements[1].text)) found.push(node.getText());
     if (ts.isJsxText(node) && english(node.text) && !chosen(node)) found.push(node.text.trim());
     if ((ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node) || ts.isTemplateExpression(node)) && shown(node) && english(literalText(node)) && !chosen(node)) found.push(node.getText());
     ts.forEachChild(node, visit);
@@ -120,6 +128,13 @@ test("the text check finds fixed English in JSX text and shown strings, and acce
   assert.deepEqual(fixedEnglishText(`<p className={open ? "open card" : "card"} key="a">{s("Close", "বন্ধ")}{language === "en" ? "Next" : "পরের"}</p>`), []);
   assert.deepEqual(fixedEnglishText(`<p>{paired(language, "Quick check", "ছোট যাচাই")}<span lang="en">{lesson.title}: English data</span> · YouTube</p>`), []);
   assert.deepEqual(fixedEnglishText(`<p lang="bn">Mixed <span lang="en">text</span></p>`), ["Mixed"]);
+  assert.deepEqual(fixedEnglishText(`<div>{[{ label: "Before", text: a }, { label: s("After", "পরে") }].map((item) => <b>{item.label}</b>)}</div>`), ['"Before"']);
+  assert.deepEqual(fixedEnglishText(`<div className={["a", "b"].join(" ")} />`), []);
+  assert.deepEqual(fixedEnglishText(`setRecordingError(["Recording failed", "Recording failed"]); setRecordingError(["Recording failed", "রেকর্ড হয়নি"]);`), ['["Recording failed", "Recording failed"]']);
+});
+
+test("a lesson session is a সেশন in Bangla: on the adventure page ধাপ names a level", () => {
+  assert.doesNotMatch(read("components/LessonExperience.tsx"), /ধাপ/);
 });
 
 test("language buttons are marked with the language their label is written in", () => {
