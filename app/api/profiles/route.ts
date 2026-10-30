@@ -49,12 +49,16 @@ export async function POST(request: Request) {
     if (!displayName) return Response.json({ error: "A display name is required." }, { status: 400 });
 
     const db = await getDb();
+    // ISO like PATCH writes, so the list's updated_at order compares like with like.
+    const now = new Date().toISOString();
     const [profile] = await db.insert(learnerProfiles).values({
       id: crypto.randomUUID(),
       ownerEmail: user.email,
       displayName,
       ageBand,
       homeLanguages: JSON.stringify(homeLanguages),
+      createdAt: now,
+      updatedAt: now,
     }).returning();
     return Response.json({ profile: { ...profile, homeLanguages } }, { status: 201 });
   } catch (error) {

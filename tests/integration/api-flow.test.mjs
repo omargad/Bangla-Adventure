@@ -151,6 +151,28 @@ test("approved staff profile, progress and export round-trip", async () => {
   assert.equal(payload.learnerProfiles[0].progress[0].score, 88);
 });
 
+test("learner profiles list the most recently created or edited first", async () => {
+  const headers = { "Content-Type": "application/json", cookie };
+  const pause = () => new Promise((resolve) => setTimeout(resolve, 20));
+  const create = async (displayName) => {
+    const response = await fetch(`${BASE}/api/profiles`, { method: "POST", headers, body: JSON.stringify({ displayName }) });
+    assert.equal(response.status, 201);
+    return (await response.json()).profile;
+  };
+  const rafi = await create("Rafi");
+  assert.match(rafi.createdAt, /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/);
+  assert.equal(rafi.updatedAt, rafi.createdAt);
+  await pause();
+  const edited = await fetch(`${BASE}/api/profiles/${rafi.id}`, { method: "PATCH", headers, body: JSON.stringify({ displayName: "Rafi (renamed)" }) });
+  assert.equal(edited.status, 200);
+  await pause();
+  const nadia = await create("Nadia");
+
+  const listed = await (await fetch(`${BASE}/api/profiles`, { headers: { cookie } })).json();
+  assert.deepEqual(listed.profiles.map((profile) => profile.displayName), ["Nadia", "Rafi (renamed)", "Nila"]);
+  for (const { id } of [rafi, nadia]) assert.equal((await fetch(`${BASE}/api/profiles/${id}`, { method: "DELETE", headers: { cookie } })).status, 200);
+});
+
 test("recovery code resets the password and consumes the code", async () => {
   const recovered = await fetch(`${BASE}/api/auth/recover`, {
     method: "POST",
