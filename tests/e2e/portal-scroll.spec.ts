@@ -577,7 +577,7 @@ test("on an iPad, Back from a worksheet puts the worksheet list back where it wa
   await expect.poll(() => columnTop(page)).toBe(before);
 });
 
-test("on an iPad, Back to a topic the studio opened in place, then the Topics link, leaves the column where it is, as on a computer", async ({ page, baseURL }) => {
+test("on an iPad, Back to a topic the studio opened in place, then the Topics link, starts the list at its top, and the column then stays where the reader leaves it", async ({ page, baseURL }) => {
   await signInAdmin(page, baseURL!);
   await page.setViewportSize({ width: 1180, height: 820 });
   await asAppleDevice(page);
@@ -589,21 +589,30 @@ test("on an iPad, Back to a topic the studio opened in place, then the Topics li
   await expect(page).toHaveURL(/\/teach$/);
   await page.goBack();
   await expect(page).toHaveURL(/\/teach\/topics\?edit=/);
-  await expect(page.getByRole("button", { name: /^Edit:/ }).first()).toBeVisible();
+  // The editor its address names, loaded again, before the column is tall enough to scroll.
+  await expect(page.locator("form.portal-editor")).toBeVisible();
+  await restingTop(page);
   await scrollColumn(page, 250);
   await nav(page).getByRole("link", { name: "Topics", exact: true }).click();
   await expect(page).toHaveURL(/\/teach\/topics$/);
+  await expect(page.getByRole("button", { name: /^Edit:/ }).first()).toBeVisible();
   await page.waitForLoadState("networkidle");
-  expect(await columnTop(page)).toBe(250);
-  // Next keeps the page as it is here, and only the shell renders again, for the new search params; whenever it next does (here
-  // the phone menu, opened by script because its button is hidden at this width, and closed), the column must still stay where it is.
+  // The list a link opened starts at its top, as a new page would.
+  expect(await restingTop(page)).toBe(0);
+  await scrollColumn(page, 250);
+  // Next keeps the page here, and only it and the shell render again, for the new search params; whenever the shell next does
+  // (here the phone menu, opened by script because its button is hidden at this width, and closed, and the language button),
+  // the column must still stay where it is.
   await page.locator(".portal-menu").evaluate((menu) => (menu as HTMLButtonElement).click());
   await page.keyboard.press("Escape");
   await expect(page.locator(".portal-sidebar")).not.toHaveClass(/is-open/);
   expect(await columnTop(page)).toBe(250);
+  await page.locator(".portal-topbar").getByRole("button", { name: "বাংলা" }).evaluate((button) => (button as HTMLButtonElement).click());
+  await expect(page.getByRole("heading", { level: 1, name: "বিষয়" })).toBeVisible();
+  expect(await settledTop(page)).toBe(250);
 });
 
-test("on an iPad, Back from the Topics link to the topic the studio opened in place puts the column back where it was there", async ({ page, baseURL }) => {
+test("on an iPad, Back from the Topics link to the topic the studio opened in place shows the topic, and Forward puts the list back", async ({ page, baseURL }) => {
   await signInAdmin(page, baseURL!);
   await page.setViewportSize({ width: 1180, height: 820 });
   await asAppleDevice(page);
@@ -614,17 +623,117 @@ test("on an iPad, Back from the Topics link to the topic the studio opened in pl
   await expect(page.locator("form.portal-editor")).toBeVisible();
   await restingTop(page);
   await scrollColumn(page, 250);
-  // The link changes only the search params, and the studio keeps showing the topic; Back returns to the topic's own entry.
+  // The link changes only the search params: the studio shows the list again, and Back returns to the topic's own entry. The
+  // editor loads the topic again there, after the column was put back, so it starts at its top, as the page does on a computer.
   await nav(page).getByRole("link", { name: "Topics", exact: true }).click();
   await expect(page).toHaveURL(/\/teach\/topics$/);
+  await expect(page.locator("form.portal-editor")).toHaveCount(0);
   await page.waitForLoadState("networkidle");
+  expect(await restingTop(page)).toBe(0);
   await scrollColumn(page, 300);
   await page.goBack();
   await expect(page).toHaveURL(/\/teach\/topics\?edit=/);
-  await expect.poll(() => columnTop(page)).toBe(250);
+  await expect(page.locator("form.portal-editor")).toBeVisible();
   await page.goForward();
   await expect(page).toHaveURL(/\/teach\/topics$/);
+  await expect(page.locator("form.portal-editor")).toHaveCount(0);
   await expect.poll(() => columnTop(page)).toBe(300);
+});
+
+// The lesson and topic studios and the topics page show their views in place and give each its own address (history.replaceState).
+// Next takes those for addresses of the same page, so the page must show what its address names after a link to another of them
+// and after Back to one.
+test("on a computer, the topic studio shows what its address names after the sidebar's Topics link and after Back, and the language button leaves the page where it is", async ({ page, baseURL }) => {
+  await signInAdmin(page, baseURL!);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  const editor = page.locator("form.portal-editor"), list = page.locator(".topic-admin-list").first();
+  const topics = nav(page).getByRole("link", { name: "Topics", exact: true });
+  await page.goto("/teach/topics");
+  await page.getByRole("button", { name: /^Edit:/ }).first().click();
+  await expect(page).toHaveURL(/\/teach\/topics\?edit=/);
+  await expect(editor).toBeVisible();
+  // The page was opened at /teach/topics: the link to it shows the list again, not the editor, and at its top, as a new page.
+  await page.evaluate(() => window.scrollTo({ top: 300, behavior: "instant" }));
+  await topics.click();
+  await expect(page).toHaveURL(/\/teach\/topics$/);
+  await expect(list).toBeVisible();
+  await expect(editor).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+  // Back to the topic's address from another page shows its editor, as a reload there does, not the list the page opened with.
+  await page.getByRole("button", { name: /^Edit:/ }).first().click();
+  await expect(editor).toBeVisible();
+  await nav(page).getByRole("link", { name: "All classes" }).click();
+  await expect(page).toHaveURL(/\/teach$/);
+  await page.goBack();
+  await expect(page).toHaveURL(/\/teach\/topics\?edit=/);
+  await expect(editor).toBeVisible();
+  await topics.click();
+  await expect(page).toHaveURL(/\/teach\/topics$/);
+  await expect(list).toBeVisible();
+  await expect(editor).toHaveCount(0);
+  // The language button keeps the page where the reader left it (the Bangla text above may move it a little). It sits in the top
+  // bar, which a computer does not pin, so it is pressed by script: Playwright's own click first scrolls it into view, to the top
+  // of the page, on every page.
+  await page.waitForLoadState("networkidle");
+  await page.evaluate(() => window.scrollTo({ top: 400, behavior: "instant" }));
+  await page.locator(".portal-topbar").getByRole("button", { name: "বাংলা" }).evaluate((button) => (button as HTMLButtonElement).click());
+  await expect(page.getByRole("heading", { level: 1, name: "বিষয়" })).toBeVisible();
+  expect(await page.evaluate(() => new Promise<number>((done) => requestAnimationFrame(() => requestAnimationFrame(() => done(window.scrollY)))))).toBeGreaterThan(300);
+});
+
+test("on a computer, the lesson studio shows what its address names after the sidebar's Lessons link and after Back", async ({ page, baseURL }) => {
+  await signInAdmin(page, baseURL!);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  const allLessons = page.getByRole("button", { name: "← All lessons" }), list = page.locator(".topic-admin-list").first();
+  const lessons = nav(page).getByRole("link", { name: "Lessons", exact: true });
+  await page.goto("/studio");
+  await page.getByRole("button", { name: /^Preview lesson:/ }).first().click();
+  await expect(page).toHaveURL(/\/studio\?lesson=/);
+  await expect(allLessons).toBeVisible();
+  await lessons.click();
+  await expect(page).toHaveURL(/\/studio$/);
+  await expect(list).toBeVisible();
+  await expect(allLessons).toHaveCount(0);
+  await page.getByRole("button", { name: /^Preview lesson:/ }).first().click();
+  await expect(allLessons).toBeVisible();
+  await nav(page).getByRole("link", { name: "All classes" }).click();
+  await expect(page).toHaveURL(/\/teach$/);
+  await page.goBack();
+  await expect(page).toHaveURL(/\/studio\?lesson=/);
+  await expect(allLessons).toBeVisible();
+  await lessons.click();
+  await expect(page).toHaveURL(/\/studio$/);
+  await expect(list).toBeVisible();
+  await expect(allLessons).toHaveCount(0);
+});
+
+test("on a computer, the topics page shows what its address names after the sidebar's Learning topics link and after Back", async ({ page }) => {
+  await signInStudent(page);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  const reader = page.locator(".topic-reader"), cards = page.locator(".topic-card");
+  const learningTopics = nav(page).getByRole("link", { name: "Learning topics" });
+  // A topic opened from My Learning has its own address; the link to the topics page shows the list again.
+  await page.goto("/student");
+  await page.locator(".portal-topic-card").first().click();
+  await expect(page).toHaveURL(/\/topics\?topic=/);
+  await expect(reader).toBeVisible();
+  await learningTopics.click();
+  await expect(page).toHaveURL(/\/topics$/);
+  await expect(cards.first()).toBeVisible();
+  await expect(reader).toHaveCount(0);
+  // So does a topic opened from the list, in place.
+  await cards.first().click();
+  await expect(page).toHaveURL(/\/topics\?topic=/);
+  await expect(reader).toBeVisible();
+  await nav(page).getByRole("link", { name: "My Learning" }).click();
+  await expect(page).toHaveURL(/\/student$/);
+  await page.goBack();
+  await expect(page).toHaveURL(/\/topics\?topic=/);
+  await expect(reader).toBeVisible();
+  await learningTopics.click();
+  await expect(page).toHaveURL(/\/topics$/);
+  await expect(cards.first()).toBeVisible();
+  await expect(reader).toHaveCount(0);
 });
 
 test("an administrator's Awaiting approval tile brings the approval queue into view and focuses it, on a computer as before and on an iPad", async ({ page, baseURL }) => {

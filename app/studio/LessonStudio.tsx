@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { usePathname, useSearchParams } from "next/navigation";
 import PortalShell from "@/app/components/PortalShell";
 import { lessons, levelBands } from "@/app/curriculum";
 import type { Bilingual } from "@/app/topics-content";
@@ -10,6 +11,7 @@ import { groupLessonsByCategory } from "@/lib/lesson-model";
 import { formatNumber, formatWhen } from "@/lib/topic-model";
 import { useLanguage } from "@/lib/use-language";
 import { scrollToTop } from "@/lib/scroll-to-top";
+import { justReturnedTo } from "@/lib/portal-scroll";
 import LessonReview from "./LessonReview";
 import { lessonStatusClass, lessonStatusLabel, slotLabel, type LessonApproval } from "./labels";
 
@@ -18,6 +20,8 @@ type PendingRecording = { id: string; lessonId: string; slot: string; speakerNam
 type StudioList = { lessons: LessonRow[]; pendingRecordings: PendingRecording[] };
 
 const lessonById = new Map(lessons.map((lesson) => [lesson.id, lesson]));
+/** The lesson an address of the studio names (?lesson=), if any. */
+const lessonAt = (params: URLSearchParams) => { const id = params.get("lesson"); return id && lessonById.has(id) ? id : null; };
 
 /**
  * Lessons: every teacher and administrator sees the 18 lessons grouped by
@@ -25,13 +29,28 @@ const lessonById = new Map(lessons.map((lesson) => [lesson.id, lesson]));
  * (in English and Bangla) and approves or withdraws it. Recordings from any staff
  * member wait here until someone listens to them and approves them.
  */
-export default function LessonStudio({ name, role, initialLessonId }: { name: string; role: "teacher" | "admin"; initialLessonId: string | null }) {
+export default function LessonStudio({ name, role }: { name: string; role: "teacher" | "admin" }) {
   const [language, toggleLanguage] = useLanguage({ title: ["Lessons | Bangla Adventures", "পাঠ | Bangla Adventures"] });
   const s = (en: string, bn: string) => (language === "bn" ? bn : en);
   const n = (value: number) => formatNumber(value, language);
-  const [lessonId, setLessonId] = useState<string | null>(initialLessonId);
+  const params = useSearchParams();
+  const [lessonId, setLessonId] = useState<string | null>(() => lessonAt(params));
   const [list, setList] = useState<StudioList | null>(null);
   const [error, setError] = useState<Bilingual | null>(null);
+  // The open lesson follows the address, as the topic studio's view does (see TopicStudio): open() gives each lesson its own
+  // address with history.replaceState, which Next takes for an address of the page as it was rendered.
+  const address = params.toString(), path = usePathname();
+  const [shownAt, setShownAt] = useState(address);
+  const [linkedViews, setLinkedViews] = useState(0);
+  if (shownAt !== address) {
+    setShownAt(address);
+    const named = lessonAt(params);
+    if (named !== lessonId) {
+      setLessonId(named); setError(null);
+      if (!justReturnedTo(address ? `${path}?${address}` : path)) setLinkedViews((count) => count + 1);
+    }
+  }
+  useEffect(() => { if (linkedViews) scrollToTop(); }, [linkedViews]);
 
   const fetchList = (signal?: AbortSignal) => call<StudioList>("/api/studio/lessons", { signal });
   const loadList = () => fetchList().then(setList).catch((caught) => setError(failure(caught)));
@@ -40,12 +59,17 @@ export default function LessonStudio({ name, role, initialLessonId }: { name: st
     fetchList(controller.signal).then(setList).catch((caught) => { if (!controller.signal.aborted) setError(failure(caught)); });
     return () => controller.abort();
   }, []);
+  // The list is loaded again whenever it is shown again, so it shows what was just approved or withdrawn.
+  const listing = !lessonId, listed = useRef(listing);
+  useEffect(() => {
+    if (listing && !listed.current) void fetchList().then(setList).catch((caught) => setError(failure(caught)));
+    listed.current = listing;
+  }, [listing]);
 
   const open = (next: string | null) => {
     setLessonId(next); setError(null);
     window.history.replaceState(null, "", next ? `/studio?lesson=${encodeURIComponent(next)}` : "/studio");
     scrollToTop();
-    if (!next) void loadList();
   };
 
   const rows = (list?.lessons ?? []).flatMap((row) => { const lesson = lessonById.get(row.lessonId); return lesson ? [{ ...row, category: lesson.category, lesson }] : []; });

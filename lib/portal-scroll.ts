@@ -7,11 +7,20 @@
  * The root layout's PwaBridge imports this module, so its popstate listener is added before Next's own on every page: React
  * can commit the page that Back returns to while Next's listener runs, and the return must be known by then.
  */
-let returningTo = "";
+let returningTo = "", returnedAt = -Infinity;
 if (typeof window !== "undefined") {
   const load = performance.getEntriesByType?.("navigation")?.[0] as PerformanceNavigationTiming | undefined;
   if (load?.type === "reload" || load?.type === "back_forward") returningTo = location.href;
-  window.addEventListener("popstate", () => { returningTo = location.href; });
+  window.addEventListener("popstate", () => { returningTo = location.href; returnedAt = performance.now(); });
+}
+
+/**
+ * Whether Back or Forward has just (within the last second) gone to this address, a path with its search params. A page that
+ * shows its views in place follows its address; it leaves the place to the browser (and PortalShell) after such a return and
+ * starts a view a link opened at its top. Asking does not clear the answer that takeReturn() gives.
+ */
+export function justReturnedTo(address: string) {
+  return performance.now() - returnedAt < 1000 && returningTo.split("#")[0] === new URL(address, location.href).href;
 }
 
 /** Whether the page now showing is one that Back, Forward or a reload returned to, leaving the answer for takeReturn(). */

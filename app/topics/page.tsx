@@ -9,7 +9,7 @@ export const metadata: Metadata = {
     "Kid-friendly readings about Bangladesh's history, festivals, literature and arts — each traced to the NCTB government textbook that covers it, with a short quiz to show your teacher.",
 };
 
-export default async function TopicsPage({ searchParams }: { searchParams: Promise<{ topic?: string }> }) {
-  const { topic } = await searchParams;
-  return <LearningLayout active="topics"><TopicsHub initialTopic={topic} /></LearningLayout>;
+// The page reads the topic to open (?topic=) from the address itself; see TopicsHub.
+export default async function TopicsPage() {
+  return <LearningLayout active="topics"><TopicsHub /></LearningLayout>;
 }

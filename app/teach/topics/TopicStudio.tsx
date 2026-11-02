@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { usePathname, useSearchParams } from "next/navigation";
 import PortalShell from "@/app/components/PortalShell";
 import { useLanguage } from "@/lib/use-language";
 import { scrollToTop } from "@/lib/scroll-to-top";
+import { justReturnedTo } from "@/lib/portal-scroll";
 import type { StaffTopicSummary } from "@/lib/curriculum-catalog";
-import { formatNumber, formatWhen, groupByCategory } from "@/lib/topic-model";
+import { formatNumber, formatWhen, groupByCategory, TOPIC_ID_PATTERN } from "@/lib/topic-model";
 import TopicEditor from "./TopicEditor";
 import TopicReview from "./TopicReview";
 import { authorLabel, call, failure, statusLabel, versionLabel } from "./shared";
@@ -20,19 +22,46 @@ function viewPath(view: View) {
   return "/teach/topics";
 }
 
+/** The view an address of the studio names (the page's search params). */
+function viewAt(params: URLSearchParams): View {
+  const topic = params.get("topic"), version = params.get("version"), edit = params.get("edit");
+  if (params.get("new") === "1") return { kind: "edit", topicId: null };
+  if (edit && TOPIC_ID_PATTERN.test(edit)) return { kind: "edit", topicId: edit };
+  if (topic && TOPIC_ID_PATTERN.test(topic)) return { kind: "review", topicId: topic, version: version && /^\d{1,6}$/.test(version) ? Number(version) : null };
+  return { kind: "list" };
+}
+
 /**
  * Topics: teachers and administrators write topics, edit them, preview
  * them as students will see them and approve them. Only approved versions reach
  * students.
  */
-export default function TopicStudio({ name, role, initialView }: { name: string; role: "teacher" | "admin"; initialView: View }) {
+export default function TopicStudio({ name, role }: { name: string; role: "teacher" | "admin" }) {
   const [language, toggleLanguage] = useLanguage({ title: ["Topics | Bangla Adventures", "বিষয় | Bangla Adventures"] });
   const s = (en: string, bn: string) => (language === "bn" ? bn : en);
   const n = (value: number) => formatNumber(value, language);
-  const [view, setView] = useState<View>(initialView);
+  const params = useSearchParams();
+  const [view, setView] = useState<View>(() => viewAt(params));
   const [topics, setTopics] = useState<StaffTopicSummary[] | null>(null);
   const [error, setError] = useState<Bilingual | null>(null);
   const [message, setMessage] = useState<Bilingual | null>(null);
+  // go() below shows a view in place and gives it its own address with history.replaceState. Next takes that for an address of
+  // the page as it was rendered: a link to another of these addresses (the sidebar's Topics) shows the page again without
+  // rendering it anew, and Back to one shows the page as rendered where it was opened. So the view is read from the address,
+  // here when the address changes and above when the studio opens.
+  // A view a link opened starts at its top, as go() and a new page do; after Back or Forward the place is left to the browser.
+  const address = params.toString(), path = usePathname();
+  const [shownAt, setShownAt] = useState(address);
+  const [linkedViews, setLinkedViews] = useState(0);
+  if (shownAt !== address) {
+    setShownAt(address);
+    const named = viewAt(params);
+    if (viewPath(named) !== viewPath(view)) {
+      setView(named); setMessage(null); setError(null);
+      if (!justReturnedTo(address ? `${path}?${address}` : path)) setLinkedViews((count) => count + 1);
+    }
+  }
+  useEffect(() => { if (linkedViews) scrollToTop(); }, [linkedViews]);
 
   const fetchTopics = (signal?: AbortSignal) => call<{ topics: StaffTopicSummary[] }>("/api/topics", { signal }).then((data) => data.topics);
   const loadTopics = () => fetchTopics().then(setTopics);
@@ -41,12 +70,17 @@ export default function TopicStudio({ name, role, initialView }: { name: string;
     fetchTopics(controller.signal).then(setTopics).catch((caught) => { if (!controller.signal.aborted) setError(failure(caught)); });
     return () => controller.abort();
   }, []);
+  // The list is loaded again whenever it is shown again, so it shows what was just saved or decided.
+  const listing = view.kind === "list", listed = useRef(listing);
+  useEffect(() => {
+    if (listing && !listed.current) void fetchTopics().then(setTopics).catch(() => undefined);
+    listed.current = listing;
+  }, [listing]);
 
   const go = (next: View, note: Bilingual | null = null) => {
     setView(next); setMessage(note); setError(null);
     window.history.replaceState(null, "", viewPath(next));
     scrollToTop();
-    if (next.kind === "list") void loadTopics().catch(() => undefined);
   };
 
   const pending = (topics ?? []).filter((topic) => topic.pendingVersions.length > 0);

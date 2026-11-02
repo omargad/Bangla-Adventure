@@ -2,11 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useLanguage } from "../../lib/use-language";
 import type { Topic } from "../topics-content";
 import { formatNumber, formatWhen, groupByCategory } from "@/lib/topic-model";
 import TopicReader from "./TopicReader";
 import { scrollToTop } from "@/lib/scroll-to-top";
+import { justReturnedTo } from "@/lib/portal-scroll";
 import type { TopicReference } from "@/lib/library-links";
 
 const moodleUrl = process.env.NEXT_PUBLIC_MOODLE_URL?.replace(/\/+$/, "");
@@ -16,7 +18,7 @@ type Approval = { version: number; baseline: boolean; approvedAt: string | null;
 type HubTopic = Topic & { approval?: Approval; references?: TopicReference[] };
 type QuizScores = Record<string, { best: number; total: number }>;
 
-export default function TopicsHub({ initialTopic }: { initialTopic?: string }) {
+export default function TopicsHub() {
   const [language, toggleLanguage] = useLanguage({ title: ["Classroom topics — culture, history & literature | Bangla Adventures", "শ্রেণিকক্ষের বিষয় — সংস্কৃতি, ইতিহাস ও সাহিত্য | Bangla Adventures"] });
   const s = (en: string, bn: string) => (language === "bn" ? bn : en);
   const n = (value: number) => formatNumber(value, language);
@@ -30,7 +32,23 @@ export default function TopicsHub({ initialTopic }: { initialTopic?: string }) {
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState("");
   const [quizSaved, setQuizSaved] = useState(false);
-  const [activeId, setActiveId] = useState<string | null>(initialTopic ?? null);
+  // The open topic has its own address (?topic=), given in place with history.replaceState, and follows the address as the
+  // topic studio's view does (see app/teach/topics/TopicStudio.tsx), so the sidebar's link to this page shows the list again.
+  const params = useSearchParams();
+  const [activeId, setActiveId] = useState<string | null>(() => params.get("topic"));
+  const address = params.toString(), path = usePathname();
+  const [shownAt, setShownAt] = useState(address);
+  const [linkedViews, setLinkedViews] = useState(0);
+  if (shownAt !== address) {
+    setShownAt(address);
+    const named = params.get("topic");
+    if (named !== activeId) {
+      setActiveId(named); setQuizSaved(false);
+      // A topic or the list a link opened starts at its top; after Back or Forward the place is left to the browser.
+      if (!justReturnedTo(address ? `${path}?${address}` : path)) setLinkedViews((count) => count + 1);
+    }
+  }
+  useEffect(() => { if (linkedViews) scrollToTop(); }, [linkedViews]);
   useEffect(() => {
     const controller = new AbortController();
     fetch("/api/curriculum", { signal: controller.signal, cache: "no-store" }).then(async (response) => {
@@ -47,9 +65,10 @@ export default function TopicsHub({ initialTopic }: { initialTopic?: string }) {
   const openTopic = (id: string) => {
     setActiveId(id);
     setQuizSaved(false);
+    window.history.replaceState(null, "", `/topics?topic=${encodeURIComponent(id)}`);
     scrollToTop();
   };
-  const closeTopic = () => { setActiveId(null); setQuizSaved(false); };
+  const closeTopic = () => { setActiveId(null); setQuizSaved(false); window.history.replaceState(null, "", "/topics"); };
 
   async function saveProgress(topicId: string, answers?: number[]) {
     setError(""); setQuizSaved(false);
