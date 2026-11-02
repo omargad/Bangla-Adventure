@@ -240,6 +240,75 @@ test("a teacher has no class sections until a class is open, and keeps the same 
   expect(seen).toEqual([]);
 });
 
+test("on a slow connection, My classes chosen while a class section is loading or a change is saving keeps the class list", async ({ page, baseURL }) => {
+  test.setTimeout(120000);
+  const suffix = randomUUID().slice(0, 8), email = `sidebar-slow-${suffix}@example.com`, className = `Sidebar Slow ${suffix}`;
+  const api = await apiRequest.newContext({ baseURL });
+  try { await staff(api, email, "Sidebar Slow Teacher", "teacher"); } finally { await api.dispose(); }
+  await signIn(page, email);
+  const seen = problems(page);
+  // Every reload of a class the page asks for, as soon as it asks.
+  const classReply = /\/api\/classes\/[^/?]+$/;
+  await page.addInitScript((pattern) => {
+    const asked: string[] = [];
+    Object.assign(window, { classReloads: asked });
+    const fetch = window.fetch;
+    window.fetch = (input, init) => {
+      const url = new URL(input instanceof Request ? input.url : String(input), location.href);
+      if (new RegExp(pattern).test(url.pathname)) asked.push(url.pathname);
+      return fetch(input, init);
+    };
+  }, classReply.source);
+  const reloads = () => page.evaluate(() => (window as unknown as { classReloads: string[] }).classReloads.splice(0));
+  /** Holds the next request to `url` back until it is released, as on a slow connection. */
+  const holdBack = async (url: RegExp) => {
+    let release!: () => void;
+    const held = new Promise<void>((done) => { release = done; });
+    await page.route(url, async (route) => { await held; await route.continue(); }, { times: 1 });
+    return { release, reply: page.waitForResponse(url) };
+  };
+  /** Two frames, by which time the page has acted on a reply it has read. */
+  const frames = () => page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
+  const nav = page.getByRole("navigation", { name: "Portal navigation" });
+  const myClasses = page.getByRole("heading", { name: "My classes", level: 1 });
+  const open = nav.getByRole("group", { name: className, exact: true });
+  await page.goto("/teach");
+  await page.getByLabel("New class name").fill(className);
+  await page.getByRole("button", { name: "Create class", exact: true }).click();
+  await page.getByRole("button", { name: new RegExp(className) }).click();
+  await expect(open.getByRole("button")).toHaveText(sections);
+
+  // Choosing a section reloads the class; its reply comes back only after My classes has been chosen.
+  const loading = await holdBack(classReply);
+  await open.getByRole("button", { name: "Results", exact: true }).click();
+  await nav.getByRole("button", { name: "My classes", exact: true }).click();
+  await expect(myClasses).toBeFocused();
+  loading.release();
+  await (await loading.reply).finished();
+  await frames();
+  await expect(myClasses).toBeFocused();
+  await expect(open).toHaveCount(0);
+
+  // A saved change reloads the class too; here the announcement is still saving when My classes is chosen.
+  await page.getByRole("button", { name: new RegExp(className) }).click();
+  await expect(open.getByRole("button")).toHaveText(sections);
+  await open.getByRole("button", { name: "Announcements", exact: true }).click();
+  await page.getByLabel("New announcement").fill("Bring your reading book tomorrow.");
+  await reloads();
+  const saving = await holdBack(/\/api\/classes\/[^/?]+\/announcements$/);
+  await page.getByRole("region", { name: "Announcements" }).getByRole("button", { name: "Post", exact: true }).click();
+  await nav.getByRole("button", { name: "My classes", exact: true }).click();
+  await expect(myClasses).toBeFocused();
+  saving.release();
+  // The page says the announcement is posted once the save has come back, straight after asking for any reload.
+  await expect(page.getByRole("status").filter({ hasText: "Announcement posted to everyone in the class." })).toBeVisible();
+  await frames();
+  expect(await reloads()).toEqual([]);
+  await expect(myClasses).toBeFocused();
+  await expect(open).toHaveCount(0);
+  expect(seen).toEqual([]);
+});
+
 test("at phone width the Menu shows the same groups, and the open class's sections once a class is open", async ({ browser, baseURL }) => {
   test.setTimeout(120000);
   const suffix = randomUUID().slice(0, 8), email = `sidebar-phone-${suffix}@example.com`, className = `Sidebar Phone ${suffix}`;

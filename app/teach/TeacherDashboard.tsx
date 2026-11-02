@@ -174,21 +174,42 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
     return () => controller.abort();
   }, [resultsClassId, detail]);
 
+  // On a slow connection a class's reply can come back after My classes was chosen (or another class opened), and a save
+  // can finish after it. A reply that arrives after a later opening or after the class was closed is left unused, and a
+  // reload after a change is only made while its class is still the one open, so a closed class never opens again.
+  const opening = useRef(0);
+  const openId = useRef<string | null>(null);
   async function openClass(id: string, focus = false) {
+    const ticket = ++opening.current;
+    openId.current = id;
     try {
       const data = await requestJson<ClassDetail>(`/api/classes/${id}`);
+      if (ticket !== opening.current) return;
       setDetail(data);
       if (section === "classes") setSection("students");
       if (data.class.id !== detail?.class.id) setOpenSubmissions(new Set());
       if (focus) setFocusRequest((count) => count + 1);
-    } catch (error) { setMessage(localMessage(error instanceof RequestError ? error.data : null, language, ["Could not open the class.", "ক্লাসটি খোলা যায়নি।"])); }
+    } catch (error) {
+      if (ticket === opening.current) setMessage(localMessage(error instanceof RequestError ? error.data : null, language, ["Could not open the class.", "ক্লাসটি খোলা যায়নি।"]));
+    }
+  }
+
+  /** Reloads the class after a change, unless it has been closed or another class opened since. */
+  async function refreshClass(id: string) {
+    if (openId.current === id) await openClass(id);
+  }
+
+  function closeClass() {
+    opening.current += 1;
+    openId.current = null;
+    setDetail(null);
   }
 
   /** Switch the workspace section from the sidebar, asking first where unsaved work would be lost. */
   function showSection(id: string) {
     if (id === "classes" && detail ? !canLeaveClass() : section === "attendance" && id !== "attendance" && !canLeaveAttendance()) return;
     setSection(id); setMessage(""); setFocusRequest((count) => count + 1);
-    if (id === "classes") { setDetail(null); void loadClasses(); } else if (detail) void openClass(detail.class.id);
+    if (id === "classes") { closeClass(); void loadClasses(); } else if (detail) void refreshClass(detail.class.id);
   }
 
   async function request(url: string, init?: RequestInit) {
@@ -234,7 +255,7 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
     if (!window.confirm(question)) return;
     const response = await request(`/api/classes/${id}`, { method: "DELETE" });
     if (response.ok) {
-      setDetail(null);
+      closeClass();
       setSection("classes");
       setFocusRequest((count) => count + 1);
       await loadClasses();
@@ -256,7 +277,7 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
       // The audience stays as chosen, so a run of parents-only notes never widens to everyone unnoticed.
       setAnnouncement("");
       setMessage(s(...POSTED_MESSAGES[audience]));
-      await openClass(detail.class.id);
+      await refreshClass(detail.class.id);
     }
   };
 
@@ -268,7 +289,7 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ announcementId }),
     });
-    await openClass(detail.class.id);
+    await refreshClass(detail.class.id);
   };
 
   const updateQuestion = (index: number, updater: (question: Question) => Question) => {
@@ -297,7 +318,7 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
       setActivityTopic("");
       setQuestions([emptyQuestion()]);
       setMessage(s("Activity published to the class.", "কার্যক্রমটি ক্লাসে প্রকাশিত হয়েছে।"));
-      await openClass(detail.class.id);
+      await refreshClass(detail.class.id);
     } else setMessage(data.error ?? "Could not create the activity.");
   };
 
@@ -308,7 +329,7 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ activityId, status }),
     });
-    await openClass(detail.class.id);
+    await refreshClass(detail.class.id);
   };
 
   const removeActivity = async (activityId: string) => {
@@ -319,7 +340,7 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ activityId }),
     });
-    await openClass(detail.class.id);
+    await refreshClass(detail.class.id);
   };
 
   const topicTitle = (topicId: string | null) =>
@@ -341,12 +362,13 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ submissionId }),
     });
-    await openClass(detail.class.id);
+    await refreshClass(detail.class.id);
   };
 
   return (
     <PortalShell role={isAdmin ? "admin" : "teacher"} name={teacherName} language={language} toggleLanguage={toggleLanguage} active={detail ? section : "classes"}
       classes={{ id: "classes", label: classesLabel, onClick: () => showSection("classes") }}
+      // eslint-disable-next-line react-hooks/refs -- showSection reads the open class's refs when a section is clicked, not while rendering.
       openClass={detail ? { name: detail.class.name, sections: sections.map(([id, label]) => ({ id, label, onClick: () => showSection(id) })) } : undefined}>
     <main className="adult-app teach-app" lang={language}>
       <div className="adult-content">
@@ -427,7 +449,7 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
               {message && <p className="teach-message" role="status">{message}</p>}
             </div>}
             {/* Hidden rather than unmounted, so moving between sections keeps an upload's temporary passwords. */}
-            <div className="teach-students" hidden={section !== "students"}><ClassAllocation key={detail.class.id} classId={detail.class.id} language={language} headingLevel={3} onPasswordsChange={setPasswordsOnScreen} onChange={() => { void loadClasses(); void openClass(detail.class.id); }} /></div>
+            <div className="teach-students" hidden={section !== "students"}><ClassAllocation key={detail.class.id} classId={detail.class.id} language={language} headingLevel={3} onPasswordsChange={setPasswordsOnScreen} onChange={() => { void loadClasses(); void refreshClass(detail.class.id); }} /></div>
             <section hidden={section !== "results"} className="teach-panel" aria-label={s("Gradebook and attendance", "গ্রেডবুক ও উপস্থিতি")}>
               <h3>{s("Gradebook and attendance", "গ্রেডবুক ও উপস্থিতি")}</h3>
               <div className="grade-tools">
@@ -527,7 +549,7 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
               )}
             </section>
 
-            {section === "attendance" && <ClassAttendance key={detail.class.id} classId={detail.class.id} language={language} onDirtyChange={setAttendanceUnsaved} onSaved={() => void openClass(detail.class.id)} />}
+            {section === "attendance" && <ClassAttendance key={detail.class.id} classId={detail.class.id} language={language} onDirtyChange={setAttendanceUnsaved} onSaved={() => void refreshClass(detail.class.id)} />}
 
             {section === "sources" && <ClassSources key={detail.class.id} classId={detail.class.id} language={language} isAdmin={isAdmin} />}
 
