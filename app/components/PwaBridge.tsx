@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { isPublicPath, loginDestination } from "@/lib/learning-policy";
 import { useLanguage } from "@/lib/use-language";
+// Adds the portal's popstate listener before Next's own on every page (see lib/portal-scroll.ts).
+import "@/lib/portal-scroll";
 
 type InstallPromptEvent = Event & {
   prompt: () => Promise<void>;

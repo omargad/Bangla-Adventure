@@ -240,7 +240,8 @@ export default function UserManagement({ actorId, actorName }: { actorId: string
         <div><small>{s("Adult accounts", "বড়দের অ্যাকাউন্ট")}</small><strong>{number(data?.stats.adults)}</strong></div>
         <div><small>{s("Students", "শিক্ষার্থী")}</small><strong>{number(data?.stats.students)}</strong></div>
         <div><small>{s("Active teachers", "সক্রিয় শিক্ষক")}</small><strong>{number(data?.stats.teachers)}</strong></div>
-        <button onClick={() => { const queue = document.getElementById("approval-queue-title"); queue?.scrollIntoView({ block: "start" }); queue?.focus(); }}><small>{s("Awaiting approval", "অনুমোদনের অপেক্ষায়")}</small><strong>{number(data?.stats.pending)}</strong></button>
+        {/* Where the main column scrolls instead of the page (iPhones and iPads, app/portal.css), focusing the heading would stop the scroll to it partway. */}
+        <button onClick={() => { const queue = document.getElementById("approval-queue-title"), column = queue?.closest(".portal-workspace"); queue?.scrollIntoView({ block: "start" }); queue?.focus({ preventScroll: !!column && getComputedStyle(column).overflowY !== "visible" }); }}><small>{s("Awaiting approval", "অনুমোদনের অপেক্ষায়")}</small><strong>{number(data?.stats.pending)}</strong></button>
       </section>
       {credentials && <section className="teach-panel" aria-labelledby="credential-sheet-title">
         <h2 id="credential-sheet-title">{credentials.reason === "created" ? s("Account created", "অ্যাকাউন্ট তৈরি হয়েছে") : s("Password reset", "পাসওয়ার্ড রিসেট হয়েছে")}: {credentials.displayName}</h2>

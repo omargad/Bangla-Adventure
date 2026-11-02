@@ -9,6 +9,7 @@ import { call, failure } from "@/app/teach/topics/shared";
 import { lessonCategory, LESSON_NOTE_LIMIT, type LearnerVideo } from "@/lib/lesson-model";
 import { formatNumber, formatWhen, type Language } from "@/lib/topic-model";
 import { useVoicePlayer } from "@/lib/use-voice-player";
+import { scrollToTop } from "@/lib/scroll-to-top";
 import type { RecordingMap } from "@/lib/voice-playback";
 import { lessonStatusClass, lessonStatusLabel, type LessonApproval } from "./labels";
 import { LessonRecordings, VideoCheck, type Recording, type VideoCheckRecord } from "./LessonMedia";
@@ -196,7 +197,7 @@ function PreviewPlayer({ lessonId, language, video, recordings, level, onStepVie
         lesson={lesson} video={video} preview onStepView={onStepView} level={level} language={language} completed={[]}
         soundEnabled isSpeaking={voice.speakingKey !== null} voiceStatus={voice.status} onSpeak={(text, lang = "bn-BD", clip) => voice.speak(text, { lang, clip })} onStopAudio={voice.stop}
         onAward={() => undefined} onCue={() => undefined}
-        onClose={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+        onClose={() => scrollToTop("smooth")}
       />
       <VoiceNote status={voice.status} language={language} />
     </div>

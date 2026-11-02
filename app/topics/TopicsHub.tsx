@@ -6,6 +6,7 @@ import { useLanguage } from "../../lib/use-language";
 import type { Topic } from "../topics-content";
 import { formatNumber, formatWhen, groupByCategory } from "@/lib/topic-model";
 import TopicReader from "./TopicReader";
+import { scrollToTop } from "@/lib/scroll-to-top";
 import type { TopicReference } from "@/lib/library-links";
 
 const moodleUrl = process.env.NEXT_PUBLIC_MOODLE_URL?.replace(/\/+$/, "");
@@ -46,7 +47,7 @@ export default function TopicsHub({ initialTopic }: { initialTopic?: string }) {
   const openTopic = (id: string) => {
     setActiveId(id);
     setQuizSaved(false);
-    if (typeof window !== "undefined") window.scrollTo({ top: 0 });
+    scrollToTop();
   };
   const closeTopic = () => { setActiveId(null); setQuizSaved(false); };
 

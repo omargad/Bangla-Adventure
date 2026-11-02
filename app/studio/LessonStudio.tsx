@@ -9,6 +9,7 @@ import { call, failure } from "@/app/teach/topics/shared";
 import { groupLessonsByCategory } from "@/lib/lesson-model";
 import { formatNumber, formatWhen } from "@/lib/topic-model";
 import { useLanguage } from "@/lib/use-language";
+import { scrollToTop } from "@/lib/scroll-to-top";
 import LessonReview from "./LessonReview";
 import { lessonStatusClass, lessonStatusLabel, slotLabel, type LessonApproval } from "./labels";
 
@@ -43,7 +44,7 @@ export default function LessonStudio({ name, role, initialLessonId }: { name: st
   const open = (next: string | null) => {
     setLessonId(next); setError(null);
     window.history.replaceState(null, "", next ? `/studio?lesson=${encodeURIComponent(next)}` : "/studio");
-    window.scrollTo({ top: 0 });
+    scrollToTop();
     if (!next) void loadList();
   };
 

@@ -1,5 +1,7 @@
 .portal-shell { min-height:100vh; display:grid; grid-template-columns:230px minmax(0,1fr); background:#f5f7f6; color:#17324d; }
-.portal-sidebar { position:sticky; top:0; height:100vh; display:flex; flex-direction:column; overflow-y:auto; overscroll-behavior:contain; padding:22px 16px 18px; border-right:1px solid #dce5e1; background:#fffdf6; z-index:30; }
+/* 100vh is the screen with the browser's toolbar hidden. While a phone or tablet shows its toolbar, the page scrolls further than
+   the shell leaves room for and the shell's end would push the sidebar up: the negative margin (none on a computer) stops that. */
+.portal-sidebar { position:sticky; top:0; height:100vh; margin-bottom:calc(100svh - 100vh); display:flex; flex-direction:column; overflow-y:auto; overscroll-behavior:contain; padding:22px 16px 18px; border-right:1px solid #dce5e1; background:#fffdf6; z-index:30; }
 .portal-brand { display:flex; align-items:center; gap:12px; font-size:1.12rem; line-height:1.3; padding:0 8px; }
 .portal-brand>span { width:45px; height:45px; display:grid; place-items:center; background:#075b4c; color:white; border-radius:14px; font-size:1.65rem; }
 .portal-role { margin:16px 12px 10px; text-transform:uppercase; letter-spacing:.12em; font-size:.7rem; font-weight:800; color:#63756f; }
@@ -108,6 +110,18 @@
 }
 @media(prefers-reduced-motion:reduce) { .portal-sidebar { transition:none; } }
 @media print { .portal-shell { display:block; } .portal-sidebar,.portal-topbar { display:none; } .portal-content { padding:0; } }
+/* iPhone and iPad browsers (all of them run Apple's WebKit) misplace pinned boxes while their toolbar shrinks and grows as the page
+   scrolls: the sidebar slid up to 150px out of view, then back. There the page itself never scrolls. The shell fills the screen,
+   the main column scrolls inside it and the sidebar is a plain full-height column, so nothing depends on the toolbar. The column is
+   positioned so that hidden helper text (.sr-only headings and labels) scrolls with it instead of making the page taller. */
+@supports (-webkit-touch-callout:none) {
+ @media screen {
+  .portal-shell { height:100vh; height:100dvh; min-height:0; grid-template-rows:minmax(0,1fr); overflow:hidden; }
+  .portal-sidebar { height:100vh; height:100dvh; margin-bottom:0; }
+  .portal-workspace { position:relative; height:100%; overflow-y:auto; overscroll-behavior-y:contain; scroll-behavior:smooth; scroll-padding-top:90px; }
+ }
+ @media screen and (max-width:780px) { .portal-workspace { scroll-padding-top:74px; } }
+}
 .student-import-errors { margin:10px 0 0; padding-left:20px; }
 .student-import-errors li { margin:4px 0; overflow-wrap:anywhere; }
 .student-import-actions { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:12px 0; }

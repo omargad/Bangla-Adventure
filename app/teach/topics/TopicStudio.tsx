@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import PortalShell from "@/app/components/PortalShell";
 import { useLanguage } from "@/lib/use-language";
+import { scrollToTop } from "@/lib/scroll-to-top";
 import type { StaffTopicSummary } from "@/lib/curriculum-catalog";
 import { formatNumber, formatWhen, groupByCategory } from "@/lib/topic-model";
 import TopicEditor from "./TopicEditor";
@@ -44,7 +45,7 @@ export default function TopicStudio({ name, role, initialView }: { name: string;
   const go = (next: View, note: Bilingual | null = null) => {
     setView(next); setMessage(note); setError(null);
     window.history.replaceState(null, "", viewPath(next));
-    window.scrollTo({ top: 0 });
+    scrollToTop();
     if (next.kind === "list") void loadTopics().catch(() => undefined);
   };
 

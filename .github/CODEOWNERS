@@ -236,7 +236,9 @@
 /lib/library-catalog.ts @MAQ022
 /lib/library-links.ts @MAQ022
 /lib/local-format.ts @104985376
+/lib/portal-scroll.ts @104985376
 /lib/release.ts @omargad
+/lib/scroll-to-top.ts @104985376
 /lib/site-title.ts @104985376
 /lib/student-import.ts @MohammedAlAjmi24
 /lib/topic-model.ts @bahaa11-prog
@@ -277,6 +279,7 @@
 /tests/e2e/attendance.spec.ts @MohammedAlAjmi24
 /tests/e2e/families.spec.ts @Tlm0v
 /tests/e2e/lesson-approval.spec.ts @Tlm0v
+/tests/e2e/portal-scroll.spec.ts @104985376
 /tests/e2e/portal-sidebar.spec.ts @104985376
 /tests/e2e/public-pages.spec.ts @104985376
 /tests/e2e/sources.spec.ts @MAQ022

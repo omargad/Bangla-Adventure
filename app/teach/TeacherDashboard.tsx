@@ -6,6 +6,7 @@ import { siteTitle } from "../../lib/site-title";
 import type { AttendanceSummary } from "../../lib/attendance";
 import { ANNOUNCEMENT_AUDIENCES, ANNOUNCEMENT_MAX_LENGTH, AUDIENCE_BADGES, AUDIENCE_CHOICES, POSTED_MESSAGES, type AnnouncementAudience } from "../../lib/announcements";
 import { buildGradebook } from "../../lib/gradebook";
+import { scrollToTop } from "../../lib/scroll-to-top";
 import type { Topic } from "../topics-content";
 import { groupByCategory } from "@/lib/topic-model";
 import PortalShell from "../components/PortalShell";
@@ -122,7 +123,7 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
   const [focusRequest, setFocusRequest] = useState(0);
   useEffect(() => {
     if (!focusRequest) return;
-    window.scrollTo({ top: 0, behavior: "instant" });
+    scrollToTop("instant");
     heading.current?.focus({ preventScroll: true });
   }, [focusRequest]);
 
