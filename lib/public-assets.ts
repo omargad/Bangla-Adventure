@@ -5,6 +5,8 @@ const PUBLIC_ROUTES = ["welcome", "grown-ups", "student", "safety"];
 const PUBLIC_COMPONENTS = [
   "/app/welcome/Welcome.tsx", "/app/grown-ups/GrownUpsContent.tsx", "/app/grown-ups/AuthCard.tsx",
   "/app/student/StudentPortal.tsx", "/app/safety/SafetyContent.tsx", "/app/components/PwaBridge.tsx",
+  // The root layout's LanguageProvider, on every page.
+  "/lib/use-language.ts",
 ];
 let cached: Set<string> | undefined;
 

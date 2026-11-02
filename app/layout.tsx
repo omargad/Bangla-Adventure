@@ -1,12 +1,15 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import type { Viewport } from "next";
+import { cookies } from "next/headers";
 import "./globals.css";
 import "./portal.css";
 import PwaBridge from "./components/PwaBridge";
 import { getSessionStatus } from "@/lib/session-status";
 import { currentRelease } from "@/lib/release";
 import { siteTitle } from "@/lib/site-title";
+import { chosenLanguage, LANGUAGE_COOKIE } from "@/lib/language-choice";
+import { LanguageProvider } from "@/lib/use-language";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -43,12 +46,16 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const session = await getSessionStatus();
+  const [session, cookieStore] = await Promise.all([getSessionStatus(), cookies()]);
+  // The reader's English/Bangla choice (kept by lib/use-language.ts), so each page is rendered in it from the first paint.
+  const language = chosenLanguage(cookieStore.get(LANGUAGE_COOKIE)?.value) ?? "en";
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
+    <html lang={language} className={`${geistSans.variable} ${geistMono.variable}`}>
       <body className="antialiased">
-        {children}
-        <PwaBridge initialSessionKey={session.key} release={currentRelease()} />
+        <LanguageProvider initialLanguage={language}>
+          {children}
+          <PwaBridge initialSessionKey={session.key} release={currentRelease()} />
+        </LanguageProvider>
       </body>
     </html>
   );

@@ -838,10 +838,12 @@ Review and test: [@104985376](https://github.com/104985376) in [#112](https://gi
 
 - `app/adventure/AdventureApp.tsx`
 - `app/components/PortalText.tsx`
+- `lib/language-choice.ts`
 - `lib/local-format.ts`
 - `lib/portal-scroll.ts`
 - `lib/scroll-to-top.ts`
 - `lib/site-title.ts`
+- `tests/e2e/language.spec.ts`
 - `tests/e2e/portal-scroll.spec.ts`
 - `tests/e2e/portal-sidebar.spec.ts`
 - `tests/e2e/public-pages.spec.ts`

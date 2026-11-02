@@ -3,15 +3,30 @@ import { validateMutation } from "./lib/request-security";
 import { allowedDuringPasswordChange, cacheControl, isPublicPath, loginDestination, PASSWORD_CHANGE_ERROR, passwordChangeDestination } from "./lib/learning-policy";
 import { learningSession } from "./lib/learning-session";
 import { isPublicScript } from "./lib/public-assets";
+import { chosenLanguage, LANGUAGE_COOKIE, LANGUAGE_COOKIE_MAX_AGE } from "./lib/language-choice";
 
-function withHeaders(response: NextResponse, cache = "private, no-store") {
+function headed(response: NextResponse, cache = "private, no-store") {
   response.headers.set("Cache-Control", cache);
   response.headers.set("X-Content-Type-Options", "nosniff");
   return response;
 }
 
+/**
+ * Each page load renews the reader's English/Bangla choice from the server. The page writes the cookie when the choice changes,
+ * and Safari keeps a cookie written that way for 7 days at most; one the server sets lasts its full year.
+ */
+function renewLanguage(request: NextRequest, response: NextResponse, origin: string) {
+  const language = chosenLanguage(request.cookies.get(LANGUAGE_COOKIE)?.value);
+  const page = request.method === "GET"
+    && (request.headers.get("sec-fetch-dest") === "document" || (request.headers.get("accept") ?? "").includes("text/html"));
+  // Never on a response a shared cache may keep (public files), only on private pages.
+  if (language && page && response.headers.get("Cache-Control")?.startsWith("private")) response.cookies.set(LANGUAGE_COOKIE, language, { path: "/", maxAge: LANGUAGE_COOKIE_MAX_AGE, sameSite: "lax", secure: origin.startsWith("https:") });
+  return response;
+}
+
 export async function proxy(request: NextRequest) {
   const origin = process.env.PUBLIC_ORIGIN ?? `${request.nextUrl.protocol}//${request.headers.get("host") ?? request.nextUrl.host}`;
+  const withHeaders = (response: NextResponse, cache?: string) => renewLanguage(request, headed(response, cache), origin);
   const error = validateMutation(request, origin);
   if (error) return withHeaders(NextResponse.json({ error }, { status: 403 }));
   if (["POST", "PUT", "PATCH", "DELETE"].includes(request.method) && request.headers.get("content-type")?.startsWith("application/json")) {

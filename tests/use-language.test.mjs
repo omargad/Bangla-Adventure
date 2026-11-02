@@ -50,3 +50,28 @@ test("a server message is kept in both languages, with the fallback for a langua
   assert.equal(error.message, "Not saved.");
   assert.deepEqual(error.text, ["Not saved.", "সংরক্ষণ হয়নি।"]);
 });
+
+test("the server renders a page in the language chosen in the cookie, so it hydrates without switching", async () => {
+  const { createElement } = await import("react");
+  const { renderToString } = await import("react-dom/server");
+  const { LanguageProvider, useLanguage } = await import("../lib/use-language.ts");
+  const { default: PwaBridge } = await import("../app/components/PwaBridge.tsx");
+  function Heading() {
+    const [language] = useLanguage();
+    return createElement("h1", { lang: language }, language === "bn" ? "আমার শেখা" : "My Learning");
+  }
+  const page = (initialLanguage) => renderToString(createElement(LanguageProvider, { initialLanguage }, createElement(Heading), createElement(PwaBridge, { initialSessionKey: "", release: "test" })));
+  assert.equal(page("bn"), '<h1 lang="bn">আমার শেখা</h1><div class="pwa-announcer" role="status" aria-live="polite" aria-atomic="true"></div>');
+  assert.equal(page("en"), '<h1 lang="en">My Learning</h1><div class="pwa-announcer" role="status" aria-live="polite" aria-atomic="true"></div>');
+  // Outside the root layout (no provider) a part starts in English, as before.
+  assert.equal(renderToString(createElement(Heading)), '<h1 lang="en">My Learning</h1>');
+});
+
+test("only the two languages are read from the cookie, which keeps a choice for a year on the whole site", async () => {
+  const { chosenLanguage, languageCookie, LANGUAGE_COOKIE } = await import("../lib/language-choice.ts");
+  assert.equal(chosenLanguage("bn"), "bn");
+  assert.equal(chosenLanguage("en"), "en");
+  for (const value of [undefined, null, "", "BN", "fr", "bn; Path=/"]) assert.equal(chosenLanguage(value), null);
+  assert.equal(languageCookie("bn", false), `${LANGUAGE_COOKIE}=bn; Path=/; Max-Age=31536000; SameSite=Lax`);
+  assert.equal(languageCookie("en", true), `${LANGUAGE_COOKIE}=en; Path=/; Max-Age=31536000; SameSite=Lax; Secure`);
+});
