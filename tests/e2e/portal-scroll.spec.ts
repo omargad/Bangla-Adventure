@@ -60,7 +60,9 @@ async function signInAdmin(page: Page, baseURL: string) {
 /** Where the page, the main column, the sidebar, the top bar and Sign out sit right now. */
 function layout(page: Page) {
   return page.evaluate(() => {
-    const box = (selector: string) => { const rect = document.querySelector(selector)!.getBoundingClientRect(); return { top: Math.round(rect.top), bottom: Math.round(rect.bottom), height: Math.round(rect.height) }; };
+    // In whole pixels; adding 0 turns the -0 that rounding gives for less than half a pixel above the top into 0.
+    const px = (value: number) => Math.round(value) + 0;
+    const box = (selector: string) => { const rect = document.querySelector(selector)!.getBoundingClientRect(); return { top: px(rect.top), bottom: px(rect.bottom), height: px(rect.height) }; };
     const main = document.querySelector<HTMLElement>(".portal-workspace")!;
     return {
       pageScroll: window.scrollY, pageOverflow: document.documentElement.scrollHeight - document.documentElement.clientHeight,
@@ -437,6 +439,8 @@ test("on an iPad, after Skip to content and then the page's own link, Back from 
   await page.locator(".skip-link").focus();
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(/\/references#portal-main$/);
+  // Skip to content scrolls the column smoothly; the reader scrolls on once it has come to rest.
+  await restingTop(page);
   // The router takes the #part off for this link without popstate or hashchange.
   await nav(page).getByRole("link", { name: "Sources & references" }).click();
   await expect(page).toHaveURL(/\/references$/);
@@ -515,14 +519,15 @@ test("on an iPad, a link to a part of the page opened in a new tab leaves Forwar
     document.addEventListener("click", () => { times.clicked = performance.now(); }, { capture: true, once: true });
     window.addEventListener("popstate", () => { times.moved = performance.now(); }, { once: true });
   });
-  const opened = page.context().waitForEvent("page");
   await page.locator('.portal-content a[href="#review-queue"]').click({ modifiers: ["ControlOrMeta"] });
+  await expect(page).toHaveURL(/\/books$/);
   await page.goForward();
   await expect(page).toHaveURL(/\/books#current-books$/);
   await expect.poll(() => columnTop(page)).toBe(there);
   const { clicked, moved } = await page.evaluate(() => (window as unknown as { linkTimes: { clicked: number; moved: number } }).linkTimes);
   expect(moved - clicked, "Forward came too late after the click to check the column").toBeLessThan(1000);
-  await (await opened).close();
+  // Only this tab is checked here; the new tab is closed if the browser has opened it by now.
+  for (const other of page.context().pages()) if (other !== page) await other.close();
 });
 
 test("on an iPad, Back and Forward after a link to a part of the page put the column back, as the page does on a computer", async ({ page }) => {

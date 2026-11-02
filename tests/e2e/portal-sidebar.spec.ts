@@ -268,6 +268,8 @@ test("at phone width the Menu shows the same groups, and the open class's sectio
     await expect(nav).toBeVisible();
     await expect(nav.getByRole("link", { name: "Users", exact: true })).toBeFocused();
     await expect(main).toHaveAttribute("inert", "");
+    // The menu slides in from the left; the walk below checks each item where it ends up.
+    await page.locator(".portal-sidebar").evaluate((aside) => Promise.all(aside.getAnimations().map((animation) => animation.finished)).then(() => undefined));
     expect((await sidebar(page)).groups).toEqual(["Administration", "Teacher workspace"]);
     // Tab walks the menu, Sign out, Menu and the language button, never into the covered page.
     const walked: string[] = [];
