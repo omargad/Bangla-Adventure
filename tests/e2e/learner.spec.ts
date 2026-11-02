@@ -380,6 +380,11 @@ type Colour = { r: number; g: number; b: number; a: number };
  * the styles, and text over a picture or gradient is measured against the rendered pixels behind it.
  */
 async function smallOrFaintText(root: Locator) {
+  // The lesson dialog and its backdrop fade and slide in: text measured before they settle would be checked at the wrong
+  // opacity and place. Running animations that end finish first; endless ones, such as the recording pulse, keep running.
+  await root.page().evaluate(() => Promise.all(document.getAnimations()
+    .filter((animation) => animation.playState === "running" && animation.effect?.getComputedTiming().endTime !== Infinity)
+    .map((animation) => animation.finished.catch(() => undefined))).then(() => undefined));
   const { found, probes } = await root.evaluate((element) => {
     const rgba = (value: string) => { const parts = value.match(/[\d.]+/g)!.map(Number); return { r: parts[0], g: parts[1], b: parts[2], a: parts[3] ?? 1 }; };
     const over = (top: ReturnType<typeof rgba>, bottom: ReturnType<typeof rgba>) => ({ r: top.r * top.a + bottom.r * (1 - top.a), g: top.g * top.a + bottom.g * (1 - top.a), b: top.b * top.a + bottom.b * (1 - top.a), a: 1 });

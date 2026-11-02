@@ -60,7 +60,7 @@ async function signInAdmin(page: Page, baseURL: string) {
 /** Where the page, the main column, the sidebar, the top bar and Sign out sit right now. */
 function layout(page: Page) {
   return page.evaluate(() => {
-    // In whole pixels; adding 0 turns the -0 that rounding gives for less than half a pixel above the top into 0.
+    // In whole pixels; adding 0 turns the -0 that rounding gives for half a pixel or less above the top into 0.
     const px = (value: number) => Math.round(value) + 0;
     const box = (selector: string) => { const rect = document.querySelector(selector)!.getBoundingClientRect(); return { top: px(rect.top), bottom: px(rect.bottom), height: px(rect.height) }; };
     const main = document.querySelector<HTMLElement>(".portal-workspace")!;
@@ -490,12 +490,22 @@ test("on an iPad, Skip to content pressed again and then Back at once puts the c
   await restingTop(page);
   await scrollColumn(page, 300);
   // Pressed again, the link adds no history entry, so Back straight after it goes to the entry before Skip to content. Chromium
-  // still fires popstate for it, so this checks the link filter and moved() together.
+  // still fires popstate for it, so this checks the link filter and moved() together. The link scrolls the column smoothly back
+  // to the part; Back comes once it is there, within the second in which a link just followed is left where the browser puts it.
+  await page.evaluate(() => {
+    const times = { clicked: 0, moved: 0 };
+    Object.assign(window, { skipTimes: times });
+    document.addEventListener("click", () => { times.clicked = performance.now(); }, { capture: true, once: true });
+    window.addEventListener("popstate", () => { times.moved = performance.now(); });
+  });
   await skip();
+  await expect.poll(() => columnTop(page), { intervals: [50] }).toBe(0);
   await page.goBack();
   await expect(page).toHaveURL(/\/references$/);
   await expect.poll(() => columnTop(page)).toBe(600);
   expect(await page.evaluate(() => sessionStorage.getItem("portal-scroll:/references"))).toBe("600");
+  const { clicked, moved } = await page.evaluate(() => (window as unknown as { skipTimes: { clicked: number; moved: number } }).skipTimes);
+  expect(moved - clicked, "Back came too late after Skip to content to check the column").toBeLessThan(1000);
 });
 
 test("on an iPad, a link to a part of the page opened in a new tab leaves Forward straight after it to put the column back", async ({ page }) => {
@@ -600,6 +610,8 @@ test("on an iPad, Back from the Topics link to the topic the studio opened in pl
   await page.goto("/teach/topics");
   await page.getByRole("button", { name: /^Edit:/ }).first().click();
   await expect(page).toHaveURL(/\/teach\/topics\?edit=/);
+  // The editor loads the topic before the column is tall enough to scroll.
+  await expect(page.locator("form.portal-editor")).toBeVisible();
   await restingTop(page);
   await scrollColumn(page, 250);
   // The link changes only the search params, and the studio keeps showing the topic; Back returns to the topic's own entry.
@@ -622,7 +634,7 @@ test("an administrator's Awaiting approval tile brings the approval queue into v
   const restingTop = () => queue.evaluate((heading) => new Promise<number>((done) => {
     let last = NaN, still = 0;
     const frame = () => {
-      const top = Math.round(heading.getBoundingClientRect().top);
+      const top = Math.round(heading.getBoundingClientRect().top) + 0;
       still = top === last ? still + 1 : 0; last = top;
       if (still >= 10) done(top); else requestAnimationFrame(frame);
     };
