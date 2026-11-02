@@ -777,3 +777,130 @@ test("an administrator's Awaiting approval tile brings the approval queue into v
   expect(now.mainScroll).toBeGreaterThan(0);
   expect(top === 90 || (now.mainScroll >= now.mainOverflow - 1 && top > 90 && top < now.viewport)).toBe(true);
 });
+
+test("My Learning's data arrives without moving anything above it: the loading line stands where the content will be", async ({ page }) => {
+  await signInStudent(page);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  // Every layout shift the page makes on its own while it loads.
+  await page.addInitScript(() => {
+    const shifts: number[] = [];
+    Object.assign(window, { layoutShifts: shifts });
+    new PerformanceObserver((list) => {
+      for (const entry of list.getEntries() as (PerformanceEntry & { value: number; hadRecentInput: boolean })[]) if (!entry.hadRecentInput) shifts.push(entry.value);
+    }).observe({ type: "layout-shift", buffered: true });
+  });
+  let release!: () => void;
+  const held = new Promise<void>((done) => { release = done; });
+  await page.route("**/api/student/feed", async (route) => { await held; await route.continue(); }, { times: 1 });
+  await page.goto("/student");
+  const stats = page.getByRole("region", { name: "Student progress" });
+  const loading = page.getByRole("status").filter({ hasText: "Loading your learning…" });
+  await expect(loading).toBeVisible();
+  const before = (await stats.boundingBox())!;
+  expect((await loading.boundingBox())!.y).toBeGreaterThanOrEqual(before.y + before.height);
+  release();
+  await expect(page.locator(".portal-topic-card").first()).toBeVisible();
+  await expect(loading).toHaveCount(0);
+  expect((await stats.boundingBox())!.y).toBe(before.y);
+  await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
+  const shifted = await page.evaluate(() => (window as unknown as { layoutShifts: number[] }).layoutShifts.reduce((sum, value) => sum + value, 0));
+  console.log(`layout shift while My Learning loads: ${shifted.toFixed(4)}`);
+  expect(shifted).toBeLessThan(0.05);
+});
+
+test("a background refresh that fails while My Learning is on screen moves nothing and says so over the foot of the screen", async ({ page }) => {
+  await signInStudent(page);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/student");
+  await expect(page.locator(".portal-topic-card").first()).toBeVisible();
+  await page.evaluate(() => window.scrollTo({ top: 300, behavior: "instant" }));
+  const stats = page.getByRole("region", { name: "Student progress" });
+  const before = (await stats.boundingBox())!;
+  // My Learning refreshes when the window comes back into focus, and every 30 seconds.
+  await page.route("**/api/student/feed", (route) => route.fulfill({ status: 500, json: { error: "The server is busy.", errorBn: "সার্ভার ব্যস্ত।" } }), { times: 1 });
+  const refresh = () => page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await refresh();
+  const alert = page.getByRole("alert").filter({ hasText: "The server is busy." }), notice = page.locator(".portal-refresh-error");
+  await expect(alert).toBeVisible();
+  expect(await notice.evaluate((element) => getComputedStyle(element).position)).toBe("fixed");
+  expect((await stats.boundingBox())!.y).toBe(before.y);
+  expect(await page.evaluate(() => window.scrollY)).toBe(300);
+  // A refresh that works takes it away, and nothing moves then either.
+  await refresh();
+  await expect(notice).toHaveCount(0);
+  expect((await stats.boundingBox())!.y).toBe(before.y);
+  expect(await page.evaluate(() => window.scrollY)).toBe(300);
+  // The reader can close it to see what lies beneath; it stays closed while refreshes keep failing, until one works.
+  await page.route("**/api/student/feed", (route) => route.fulfill({ status: 500, json: { error: "The server is busy.", errorBn: "সার্ভার ব্যস্ত।" } }), { times: 2 });
+  await refresh();
+  await expect(alert).toBeVisible();
+  await notice.getByRole("button", { name: "Close this notice" }).click();
+  await expect(notice).toHaveCount(0);
+  const failed = page.waitForResponse("**/api/student/feed");
+  await refresh();
+  await failed;
+  await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
+  await expect(notice).toHaveCount(0);
+  expect(await page.evaluate(() => window.scrollY)).toBe(300);
+});
+
+test("in the portal, buttons keep still under the pointer", async ({ page }) => {
+  await signInStudent(page);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/student");
+  for (const button of [page.getByRole("button", { name: "Refresh", exact: true }), page.locator(".portal-topbar .outline-button")]) {
+    await expect(button).toBeVisible();
+    const before = (await button.boundingBox())!;
+    await button.hover();
+    await button.evaluate((element) => Promise.all(element.getAnimations().map((animation) => animation.finished)).then(() => undefined));
+    expect((await button.boundingBox())!.y).toBe(before.y);
+  }
+});
+
+test("choosing another section of My Learning starts it at its top, on a computer and on an iPad", async ({ page }) => {
+  await signInStudent(page);
+  const activities = nav(page).getByRole("button", { name: "My activities", exact: true }), learning = nav(page).getByRole("button", { name: "My Learning", exact: true });
+  const shown = page.getByRole("heading", { name: "My class activities" });
+  // A short screen, so that My activities can scroll too: the reader leaves My Learning scrolled as far as My activities could go.
+  await page.setViewportSize({ width: 1280, height: 500 });
+  await page.goto("/student");
+  await expect(page.locator(".portal-topic-card").first()).toBeVisible();
+  await activities.click();
+  await expect(shown).toBeVisible();
+  const room = await page.evaluate(() => document.documentElement.scrollHeight - innerHeight);
+  expect(room).toBeGreaterThan(100);
+  await learning.click();
+  await page.evaluate((top) => window.scrollTo({ top, behavior: "instant" }), room);
+  await activities.click();
+  await expect(shown).toBeVisible();
+  expect(await page.evaluate(() => window.scrollY)).toBe(0);
+  await page.setViewportSize({ width: 1180, height: 500 });
+  await asAppleDevice(page);
+  await page.goto("/student");
+  await expect(page.locator(".portal-topic-card").first()).toBeVisible();
+  await activities.click();
+  await expect(shown).toBeVisible();
+  const columnRoom = await column(page).evaluate((main) => main.scrollHeight - main.clientHeight);
+  expect(columnRoom).toBeGreaterThan(100);
+  await learning.click();
+  await scrollColumn(page, columnRoom);
+  await activities.click();
+  await expect(shown).toBeVisible();
+  expect(await settledTop(page)).toBe(0);
+});
+
+test("on a phone held sideways, the sidebar's links scroll within it and Sign out stays on screen", async ({ page, baseURL }) => {
+  await signInAdmin(page, baseURL!);
+  await page.setViewportSize({ width: 844, height: 390 });
+  await page.goto("/admin");
+  const signOut = page.locator(".portal-signout"), links = nav(page);
+  await expect(signOut).toBeVisible();
+  const box = (await signOut.boundingBox())!;
+  expect(box.y + box.height).toBeLessThanOrEqual(390);
+  expect(await links.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true);
+  const last = links.getByRole("link", { name: "Account & recovery" });
+  await last.focus();
+  await expect(last).toBeInViewport();
+  expect((await signOut.boundingBox())!.y).toBe(box.y);
+  expect(await page.evaluate(() => window.scrollY)).toBe(0);
+});

@@ -7,6 +7,7 @@ import type { Topic } from "../topics-content";
 import { groupByCategory } from "@/lib/topic-model";
 import type { ClassSource } from "@/lib/class-sources";
 import { approvalNotice, type ApprovalStatus } from "@/lib/roles";
+import { scrollToTop } from "@/lib/scroll-to-top";
 import PortalShell from "../components/PortalShell";
 import ClassSourceList from "../references/ClassSourceList";
 
@@ -39,6 +40,11 @@ export default function StudentPortal({ initialStudent, destination = "/student"
   const shownError = typeof error === "string" ? error : s(...error);
   // Set after a self sign-up: the account cannot sign in until an administrator approves it.
   const [awaitingApproval, setAwaitingApproval] = useState(false);
+  // Loading My Learning failed: in place of the content when nothing has loaded yet, otherwise over the foot of the screen.
+  const [loadError, setLoadError] = useState<string | Message>("");
+  // The reader can close the notice of a failed refresh; it stays closed until a refresh works again.
+  const [refreshNoticeClosed, setRefreshNoticeClosed] = useState(false);
+  const shownLoadError = typeof loadError === "string" ? loadError : s(...loadError);
   const [feed, setFeed] = useState<Feed | null>(null);
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [section, setSection] = useState(["learning", "activities", "results"].includes(initialSection) ? initialSection : "learning");
@@ -48,8 +54,8 @@ export default function StudentPortal({ initialStudent, destination = "/student"
   const load = useCallback(async () => {
     try {
       const [nextFeed, nextCatalog] = await Promise.all([request<Feed>("/api/student/feed"), request<Catalog>("/api/curriculum")]);
-      setFeed(nextFeed); setCatalog(nextCatalog); setError("");
-    } catch (error) { setError(error instanceof MessageError ? error.text : ["Could not load your learning.", "তোমার শেখা লোড করা যায়নি।"]); }
+      setFeed(nextFeed); setCatalog(nextCatalog); setLoadError(""); setRefreshNoticeClosed(false);
+    } catch (error) { setLoadError(error instanceof MessageError ? error.text : ["Could not load your learning.", "তোমার শেখা লোড করা যায়নি।"]); }
   }, []);
   const studentId = student?.id;
   const activeActivityId = activity?.id;
@@ -58,8 +64,10 @@ export default function StudentPortal({ initialStudent, destination = "/student"
     const timer = window.setTimeout(() => void load(), 0);
     const refresh = () => { if (document.visibilityState === "visible") void load(); };
     const interval = window.setInterval(refresh, 30000);
+    // Also when the connection comes back, so a refresh that failed offline is not left reporting it.
     window.addEventListener("focus", refresh);
-    return () => { window.clearTimeout(timer); window.clearInterval(interval); window.removeEventListener("focus", refresh); };
+    window.addEventListener("online", refresh);
+    return () => { window.clearTimeout(timer); window.clearInterval(interval); window.removeEventListener("focus", refresh); window.removeEventListener("online", refresh); };
   }, [studentId, load, activeActivityId]);
   async function signIn(event: React.FormEvent) {
     event.preventDefault();
@@ -113,7 +121,7 @@ export default function StudentPortal({ initialStudent, destination = "/student"
     { id: "learning", label: s("My Learning", "আমার শেখা") },
     { id: "activities", label: s("My activities", "আমার কার্যক্রম") },
     { id: "results", label: s("My results", "আমার ফলাফল") },
-  ].map((item) => ({ ...item, onClick: () => { setSection(item.id); setActivity(null); setError(""); } }));
+  ].map((item) => ({ ...item, onClick: () => { setSection(item.id); setActivity(null); setError(""); scrollToTop("instant"); } }));
   const results = feed?.classes.flatMap((c) => c.activities.filter((a) => a.submission).map((a) => ({ ...a, className: c.name }))) ?? [];
   // Each post names the teacher or administrator who wrote it, or no one once that account is deleted.
   const announcements = (feed?.classes.flatMap((c) => (c.announcements ?? []).map((notice) => ({ ...notice, className: c.name }))) ?? [])
@@ -121,9 +129,13 @@ export default function StudentPortal({ initialStudent, destination = "/student"
   return <PortalShell role="student" name={student.displayName} language={language} toggleLanguage={toggleLanguage} active={section} items={tabs}>
     <main className="student-workspace">
       <div className="portal-heading"><div><p className="adult-eyebrow">{s("A little progress, every day", "প্রতিদিন একটু অগ্রগতি")}</p><h1>{s("My Learning", "আমার শেখা")}</h1></div><button className="outline-button" onClick={() => void load()}>{s("Refresh", "হালনাগাদ")}</button></div>
-      {error && <p className="auth-error" role="alert">{shownError}</p>}
-      {!feed && !error && <p role="status">{s("Loading your learning…", "তোমার বিষয় লোড হচ্ছে…")}</p>}
       {!activity && <section className="workspace-stats student-stats" aria-label={s("Student progress", "শিক্ষার্থীর অগ্রগতি")}><div><small>{s("Topics read", "পড়া বিষয়")}</small><strong>{catalog ? `${number(catalog.readTopicIds.length)} / ${number(catalog.topics.length)}` : "— / —"}</strong></div><div><small>{s("Activities complete", "সম্পন্ন কার্যক্রম")}</small><strong>{feed ? `${number(feed.metrics.completedActivities)} / ${number(feed.metrics.assignedActivities)}` : "— / —"}</strong></div><div><small>{s("Classes I’m in", "আমি যে ক্লাসগুলোতে আছি")}</small><strong>{feed ? number(feed.metrics.enrolledClasses) : "—"}</strong></div><div><small>{s("Average result", "গড় ফলাফল")}</small><strong>{feed && results.length ? `${number(feed.metrics.averagePercent)}%` : "—"}</strong></div><div><small>{s("Classes attended", "উপস্থিত ক্লাস")}</small><strong>{feed?.metrics.recordedSessions ? `${number(feed.metrics.attendedSessions)} / ${number(feed.metrics.recordedSessions)}` : "—"}</strong></div></section>}
+      {/* Nothing above the content moves when it arrives: the loading line, or why loading failed, stands in its place. */}
+      {!feed && (loadError ? <p className="auth-error" role="alert">{shownLoadError}</p> : <p role="status">{s("Loading your learning…", "তোমার বিষয় লোড হচ্ছে…")}</p>)}
+      {feed && loadError && !activity && !refreshNoticeClosed && <div className="portal-refresh-error">
+        <p role="alert">{shownLoadError}</p>
+        <button type="button" aria-label={s("Close this notice", "এই বার্তাটি বন্ধ করো")} onClick={() => setRefreshNoticeClosed(true)}>×</button>
+      </div>}
       {!activity && section !== "results" && feed && <section className="teach-panel" aria-label={s("Class announcements", "ক্লাসের ঘোষণা")}>
         <h2>{s("Class announcements", "ক্লাসের ঘোষণা")}</h2>
         {announcements.length === 0 && <p>{s("No class announcements yet. Notices from your allocated classes will appear here.", "এখনও ক্লাসের ঘোষণা নেই। তোমার বরাদ্দ ক্লাসের ঘোষণা এখানে দেখা যাবে।")}</p>}
@@ -134,13 +146,14 @@ export default function StudentPortal({ initialStudent, destination = "/student"
       {activity ? <section className="teach-panel"><button className="text-button" onClick={() => setActivity(null)}>{s("Back to activities", "কার্যক্রমে ফিরি")}</button><h2>{activity.title}</h2><p>{activity.instructions}</p>{activity.topicId && <Link className="outline-button" href={`/topics?topic=${encodeURIComponent(activity.topicId)}`}>{s("Read the learning topic & references", "বিষয় ও তথ্যসূত্র পড়ো")}</Link>}
         {result ? <div role="status"><h3>{s(`You got ${result.score} out of ${result.total}.`, `তুমি ${number(result.total)}টির মধ্যে ${number(result.score)}টি পেরেছ।`)}</h3><p>{s("Your teacher can now see your saved result.", "শিক্ষক এখন তোমার ফলাফল দেখতে পারবেন।")}</p></div> : <form onSubmit={submit}>
           {activity.questions.map((q, index) => <fieldset className="portal-question" key={index}><legend>{index + 1}. {q.prompt}</legend>{q.options.map((option, optionIndex) => <label key={optionIndex}><input type="radio" name={`question-${index}`} required checked={answers[index] === optionIndex} onChange={() => setAnswers({ ...answers, [index]: optionIndex })} />{option}</label>)}</fieldset>)}
+          {error && <p className="auth-error" role="alert">{shownError}</p>}
           <button className="primary-button" disabled={busy}>{busy ? s("Saving…", "সংরক্ষণ হচ্ছে…") : s("Submit answers", "উত্তর জমা দাও")}</button>
         </form>}
-      </section> : <>
+      </section> : feed && catalog && <>
         {section === "learning" && <section aria-label={s("Learning topics", "শেখার বিষয়")}><h2>{s("Choose a topic", "একটি বিষয় বেছে নাও")}</h2><p>{s("Read, explore and mark your progress. Finishing a topic's quiz also counts as reading it.", "পড়ো, জানো ও অগ্রগতি রাখো। কোনো বিষয়ের কুইজ শেষ করলেও সেটি পড়া হিসেবে গোনা হয়।")}</p>
-          {catalog && groupByCategory(catalog.topics).map(({ category, items }) => <section key={category.id} aria-label={category.title[language]}><h3 className="portal-category-heading"><span aria-hidden="true">{category.icon}</span> {category.title[language]}</h3><div className="portal-topic-grid">{items.map((topic) => { const best = catalog.quizScores?.[topic.id]; return <Link className="portal-topic-card" key={topic.id} href={`/topics?topic=${encodeURIComponent(topic.id)}`}><small>{s(`${topic.minutes} min`, `${number(topic.minutes)} মিনিট`)}{best ? ` · ${s("quiz best", "কুইজে সেরা")} ${number(best.best)}/${number(best.total)}` : ""}</small><h3>{topic.title[language]}</h3><p>{topic.tagline[language]}</p><strong>{catalog.readTopicIds.includes(topic.id) ? s("Read · revisit", "পড়া হয়েছে · আবার পড়ি") : s("Start reading", "পড়া শুরু করি")} →</strong></Link>; })}</div></section>)}
+          {groupByCategory(catalog.topics).map(({ category, items }) => <section key={category.id} aria-label={category.title[language]}><h3 className="portal-category-heading"><span aria-hidden="true">{category.icon}</span> {category.title[language]}</h3><div className="portal-topic-grid">{items.map((topic) => { const best = catalog.quizScores?.[topic.id]; return <Link className="portal-topic-card" key={topic.id} href={`/topics?topic=${encodeURIComponent(topic.id)}`}><small>{s(`${topic.minutes} min`, `${number(topic.minutes)} মিনিট`)}{best ? ` · ${s("quiz best", "কুইজে সেরা")} ${number(best.best)}/${number(best.total)}` : ""}</small><h3>{topic.title[language]}</h3><p>{topic.tagline[language]}</p><strong>{catalog.readTopicIds.includes(topic.id) ? s("Read · revisit", "পড়া হয়েছে · আবার পড়ি") : s("Start reading", "পড়া শুরু করি")} →</strong></Link>; })}</div></section>)}
           <Link className="outline-button" href="/learn">{s("More language activities", "আরও ভাষার কার্যক্রম")}</Link></section>}
-        {section === "activities" && <section><h2>{s("My class activities", "আমার ক্লাসের কার্যক্রম")}</h2>{feed?.classes.length === 0 && <div className="teach-panel"><h3>{s("Your teacher will add your class", "শিক্ষক তোমার ক্লাস যোগ করবেন")}</h3><p>{s("You can explore your learning topics while you wait.", "অপেক্ষার সময় শেখার বিষয়গুলো পড়তে পারো।")}</p></div>}{feed?.classes.map((c) => <section className="teach-panel" key={c.id}><h3>{c.name}</h3><p>{s("Teacher", "শিক্ষক")}: {c.teacherName} · {c.attendance.recorded ? s(`You attended ${c.attendance.attended} of ${c.attendance.recorded} class${c.attendance.recorded === 1 ? "" : "es"}`, `${number(c.attendance.recorded)}টি ক্লাসের মধ্যে ${number(c.attendance.attended)}টিতে তুমি উপস্থিত ছিলে`) : s("No attendance taken yet", "এখনও উপস্থিতি নেওয়া হয়নি")}</p>{c.sources.length > 0 && <section className="class-sources-inline" aria-label={`${c.name}: ${s("Class sources", "ক্লাসের উৎস")}`}><h4>{s("Class sources", "ক্লাসের উৎস")}</h4><ClassSourceList sources={c.sources} language={language} /></section>}{!c.activities.length && <p>{s("Your teacher has not added activities yet.", "শিক্ষক এখনও কার্যক্রম যোগ করেননি।")}</p>}<div className="portal-topic-grid">{c.activities.map((a) => <button className="portal-topic-card" key={a.id} disabled={a.status !== "open"} onClick={() => { setActivity(a); setAnswers({}); setResult(null); setError(""); }}><h3>{a.title}</h3><p>{a.instructions}</p><strong>{a.submission ? `${s("Result", "ফলাফল")}: ${number(a.submission.score)}/${number(a.submission.total)}` : a.status === "open" ? s("Start activity", "কার্যক্রম শুরু") : s("Closed", "বন্ধ")}</strong></button>)}</div></section>)}</section>}
+        {section === "activities" && <section><h2>{s("My class activities", "আমার ক্লাসের কার্যক্রম")}</h2>{feed.classes.length === 0 && <div className="teach-panel"><h3>{s("Your teacher will add your class", "শিক্ষক তোমার ক্লাস যোগ করবেন")}</h3><p>{s("You can explore your learning topics while you wait.", "অপেক্ষার সময় শেখার বিষয়গুলো পড়তে পারো।")}</p></div>}{feed.classes.map((c) => <section className="teach-panel" key={c.id}><h3>{c.name}</h3><p>{s("Teacher", "শিক্ষক")}: {c.teacherName} · {c.attendance.recorded ? s(`You attended ${c.attendance.attended} of ${c.attendance.recorded} class${c.attendance.recorded === 1 ? "" : "es"}`, `${number(c.attendance.recorded)}টি ক্লাসের মধ্যে ${number(c.attendance.attended)}টিতে তুমি উপস্থিত ছিলে`) : s("No attendance taken yet", "এখনও উপস্থিতি নেওয়া হয়নি")}</p>{c.sources.length > 0 && <section className="class-sources-inline" aria-label={`${c.name}: ${s("Class sources", "ক্লাসের উৎস")}`}><h4>{s("Class sources", "ক্লাসের উৎস")}</h4><ClassSourceList sources={c.sources} language={language} /></section>}{!c.activities.length && <p>{s("Your teacher has not added activities yet.", "শিক্ষক এখনও কার্যক্রম যোগ করেননি।")}</p>}<div className="portal-topic-grid">{c.activities.map((a) => <button className="portal-topic-card" key={a.id} disabled={a.status !== "open"} onClick={() => { setActivity(a); setAnswers({}); setResult(null); setError(""); }}><h3>{a.title}</h3><p>{a.instructions}</p><strong>{a.submission ? `${s("Result", "ফলাফল")}: ${number(a.submission.score)}/${number(a.submission.total)}` : a.status === "open" ? s("Start activity", "কার্যক্রম শুরু") : s("Closed", "বন্ধ")}</strong></button>)}</div></section>)}</section>}
         {section === "results" && <section className="teach-panel"><h2>{s("My results", "আমার ফলাফল")}</h2>{!results.length ? <p>{s("Complete a class activity to see your results here.", "এখানে ফলাফল দেখতে ক্লাসের কার্যক্রম সম্পন্ন করো।")}</p> : <div className="portal-table"><table><thead><tr><th>{s("Class", "ক্লাস")}</th><th>{s("Activity", "কার্যক্রম")}</th><th>{s("Result", "ফলাফল")}</th><th>{s("Submitted", "জমার সময়")}</th></tr></thead><tbody>{results.map((a) => <tr key={a.id}><td>{a.className}</td><td>{a.title}</td><td>{number(a.submission!.score)}/{number(a.submission!.total)}</td><td>{localDateTime(a.submission!.submittedAt, language)}</td></tr>)}</tbody></table></div>}</section>}
       </>}
     </main>

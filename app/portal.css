@@ -24,9 +24,27 @@
 /* The yellow ring barely shows on the cream sidebar and the white top bar. */
 :is(.portal-sidebar,.portal-topbar) :is(a,button):focus-visible { outline:3px solid var(--ink); outline-offset:2px; }
 .portal-signout { margin-top:auto; padding:14px 14px 0; font-size:.9rem; font-weight:700; }
+/* Beside the page (a computer, a tablet or a phone on its side) the links scroll within the sidebar when the screen is too
+   short for them, so Sign out stays in view at its foot. The padding leaves room for the links' focus ring. */
+@media(min-width:651px) { .portal-sidebar nav { flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain; margin:-5px; padding:5px; } }
 .portal-workspace { min-width:0; }
 .portal-topbar { display:flex; align-items:center; justify-content:space-between; gap:16px; min-height:78px; padding:16px 32px; background:white; border-bottom:1px solid #dce5e1; }
 .portal-topbar .outline-button { min-height:40px; padding:8px 14px; font-size:.8rem; box-shadow:none; }
+/* Buttons in the portal keep still under the pointer: lifting on hover made them jump as the page scrolled beneath it. */
+:is(.portal-topbar,.portal-content) :is(.primary-button,.outline-button):hover { transform:none; }
+:is(.portal-topbar,.portal-content) .outline-button:hover { background:#e9f5ef; }
+/* A refresh that fails while the last data is on screen shows over the foot of the screen, so nothing on the page moves.
+   It sits above the app's install or new-version notice, and gives way to the offline notice, which already says why. */
+/* The reader can close it to see what lies beneath; keeping room for it would move the page when it goes. */
+.portal-content .portal-refresh-error { position:fixed; z-index:110; right:18px; bottom:18px; display:flex; align-items:flex-start; gap:10px; max-width:min(420px, calc(100vw - 36px)); padding:11px 8px 11px 14px; border:1.5px solid var(--coral); border-radius:14px; background:#fff4f1; color:var(--ink); box-shadow:0 14px 40px rgba(13,43,47,.2); font-size:.9rem; }
+.portal-content .portal-refresh-error p { margin:0; line-height:1.45; }
+.portal-content .portal-refresh-error button { flex:none; width:28px; height:28px; margin:-4px 0; border:0; border-radius:8px; background:transparent; color:var(--ink); font:inherit; font-size:1.2rem; line-height:1; cursor:pointer; }
+.portal-content .portal-refresh-error button:hover { background:#fde3dd; }
+.portal-content .portal-refresh-error button:focus-visible { outline:3px solid var(--ink); outline-offset:1px; }
+body:has(.pwa-status.online) .portal-content .portal-refresh-error { bottom:124px; }
+body:has(.pwa-status.offline) .portal-content .portal-refresh-error { display:none; }
+/* An activity's error shows just above its Submit button. */
+.student-workspace form > .auth-error { margin:0 0 12px; }
 .portal-content { max-width:1450px; margin:0 auto; padding:30px 32px 60px; min-width:0; }
 .portal-content :is(.adult-app,.explore-app) { min-height:0; padding:0; background:transparent; }
 .portal-content :is(.adult-header,.explore-header) { display:none; }
@@ -91,6 +109,8 @@
  /* The new-version, offline and install notice sits over the foot of the screen (up to 133px tall on the narrowest
     phones). The open menu scrolls past it, so its last items and any item that takes focus stay clear to tap and see. */
  body:has(.pwa-status) .portal-sidebar.is-open { padding-bottom:150px; scroll-padding-bottom:150px; }
+ body:has(.pwa-status.online) .portal-content .portal-refresh-error { bottom:160px; }
+ body:has(.portal-sidebar.is-open) .portal-content .portal-refresh-error { display:none; }
  .portal-sidebar nav :is(a,button) { padding:10px 14px; }
  .portal-content .teach-class-head { grid-template-columns:minmax(0,1fr) auto; }
  .portal-content .teach-class-title { grid-column:1 / -1; grid-row:2; }
