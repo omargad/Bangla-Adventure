@@ -28,14 +28,15 @@ COPY --from=builder /app/db ./db
 # Server commands such as admin:grant load the database code, which reads app/ sources.
 COPY --from=builder /app/app ./app
 COPY --from=builder /app/scripts/grant-admin.ts /app/scripts/reset-password.ts ./scripts/
-COPY --from=builder /app/scripts/backup_restore.py /app/scripts/backup.sh /app/scripts/restore.sh ./scripts/
+COPY --from=builder /app/scripts/backup_restore.py /app/scripts/backup.sh /app/scripts/restore.sh /app/scripts/docker-start.sh ./scripts/
 COPY --from=builder /app/tsconfig.json ./tsconfig.json
 
-# Persistent state (SQLite database + uploaded audio) lives in /app/.data —
-# mount a volume there in production.
-RUN mkdir -p .data/media .next/cache && chown -R node:node .data .next/cache
-VOLUME ["/app/.data"]
-USER node
+# Persistent state (SQLite database + uploaded audio) lives in /app/.data: mount a volume
+# there in production. No VOLUME line, so hosts that forbid it (Railway) accept the image.
+# The app always runs as `node`; scripts/docker-start.sh switches to it when a host starts the
+# container as root to hand over a root-owned disk (compose.yaml starts it as `node` directly).
+RUN mkdir -p .data/media .next/cache && chown -R node:node .data .next/cache \
+  && chmod 0755 scripts/docker-start.sh
 
 EXPOSE 3000
 
@@ -43,4 +44,5 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
+ENTRYPOINT ["scripts/docker-start.sh"]
 CMD ["npm", "start"]

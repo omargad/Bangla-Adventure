@@ -7,6 +7,8 @@ services:
       context: .
     image: bangla-adventures:local
     init: true
+    # The app runs as the image's unprivileged user; the named volume already belongs to it.
+    user: node
     restart: unless-stopped
     stop_grace_period: 30s
     environment:

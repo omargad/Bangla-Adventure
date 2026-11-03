@@ -9,6 +9,8 @@ docker info >/dev/null
 scratch="$(mktemp -d -t bangla-container-smoke.XXXXXXXX)"
 volume="$(basename "$scratch")"
 volume_created=0
+root_volume="${volume}-root"
+root_volume_created=0
 container_id=""
 
 cleanup() {
@@ -18,6 +20,7 @@ cleanup() {
     docker rm -f "$container_id" >/dev/null || true
   fi
   if [ "$volume_created" -eq 1 ]; then docker volume rm "$volume" >/dev/null || true; fi
+  if [ "$root_volume_created" -eq 1 ]; then docker volume rm "$root_volume" >/dev/null || true; fi
   rmdir "$scratch" || true
   exit "$status"
 }
@@ -30,13 +33,15 @@ fi
 docker volume create "$volume" >/dev/null
 volume_created=1
 
+# start_container VOLUME [docker run options]: as compose.yaml runs it unless options say otherwise.
 start_container() {
+  data_volume="$1"; shift
+  [ "$#" -gt 0 ] || set -- --user node --security-opt no-new-privileges:true --cap-drop ALL
   container_id="$(docker run --detach \
-    --mount "type=volume,source=$volume,target=/app/.data" \
+    --mount "type=volume,source=$data_volume,target=/app/.data" \
     --env PUBLIC_ORIGIN=https://bangla-container-test.example \
     --env NEXT_TELEMETRY_DISABLED=1 \
-    --security-opt no-new-privileges:true --cap-drop ALL \
-    "$IMAGE")"
+    "$@" "$IMAGE")"
   for attempt in $(seq 1 60); do
     state="$(docker inspect --format '{{.State.Status}}' "$container_id")"
     if [ "$state" != "running" ]; then
@@ -55,8 +60,8 @@ start_container() {
   return 1
 }
 
-start_container
-docker exec -i "$container_id" node - <<'NODE'
+start_container "$volume"
+docker exec --user node -i "$container_id" node - <<'NODE'
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -70,10 +75,10 @@ db.close();
 fs.mkdirSync(process.env.MEDIA_ROOT, { recursive: true });
 fs.writeFileSync(path.join(process.env.MEDIA_ROOT, 'container-smoke.txt'), 'persistent media');
 NODE
-docker exec "$container_id" python3 scripts/backup_restore.py --help >/dev/null
+docker exec --user node "$container_id" python3 scripts/backup_restore.py --help >/dev/null
 # Server commands must run inside the image: an unknown address proves each one loads and reaches the database.
 for server_command in admin:grant admin:reset-password; do
-  server_output="$(docker exec "$container_id" npm run --silent "$server_command" -- missing-owner@example.com 2>&1 || true)"
+  server_output="$(docker exec --user node "$container_id" npm run --silent "$server_command" -- missing-owner@example.com 2>&1 || true)"
   if ! printf '%s' "$server_output" | grep -q "No active account matched"; then
     echo "$server_command could not run in the image:" >&2
     printf '%s\n' "$server_output" >&2
@@ -86,8 +91,8 @@ done
 docker stop --time 30 "$container_id" >/dev/null
 docker rm "$container_id" >/dev/null
 container_id=""
-start_container
-docker exec -i "$container_id" node - <<'NODE'
+start_container "$volume"
+docker exec --user node -i "$container_id" node - <<'NODE'
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -98,4 +103,31 @@ assert.equal(db.pragma('quick_check', { simple: true }), 'ok');
 db.close();
 assert.equal(fs.readFileSync(path.join(process.env.MEDIA_ROOT, 'container-smoke.txt'), 'utf8'), 'persistent media');
 NODE
-echo "Container smoke passed: non-root startup, fresh SQLite schema, backup utility, and database/media persistence."
+
+# Hosts such as Railway and Render attach a disk owned by root and start the container as root.
+# The start script must hand the disk to node and run the app as node.
+docker stop --time 30 "$container_id" >/dev/null
+docker rm "$container_id" >/dev/null
+container_id=""
+if docker volume inspect "$root_volume" >/dev/null 2>&1; then
+  echo "Refusing to reuse an existing volume: $root_volume" >&2
+  exit 1
+fi
+docker volume create "$root_volume" >/dev/null
+root_volume_created=1
+docker run --rm --user root --entrypoint sh --mount "type=volume,source=$root_volume,target=/app/.data" "$IMAGE" \
+  -c 'chown -R root:root /app/.data && chmod 0755 /app/.data'
+start_container "$root_volume" --security-opt no-new-privileges:true
+app_uid="$(docker exec "$container_id" sh -c "awk '/^Uid:/ { print \$2 }' /proc/1/status")"
+node_uid="$(docker exec "$container_id" id -u node)"
+if [ "$app_uid" != "$node_uid" ]; then
+  echo "On a root-owned disk the app runs as uid $app_uid, not node ($node_uid)." >&2
+  exit 1
+fi
+owner="$(docker exec "$container_id" stat -c %U /app/.data /app/.data/bangla-adventures.db | sort -u)"
+if [ "$owner" != "node" ]; then
+  echo "The root-owned disk was not handed to node: $owner" >&2
+  exit 1
+fi
+
+echo "Container smoke passed: non-root startup, fresh SQLite schema, backup utility, database/media persistence, and a root-owned disk handed to node."

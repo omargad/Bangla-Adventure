@@ -112,6 +112,27 @@ Never run `docker compose down -v` during an upgrade. The CI Docker smoke test
 validates a disposable container; record its actual result before accepting a
 release, and separately verify the production host configuration.
 
+## Other container hosts
+
+The same `Dockerfile` runs on any host that builds or runs a Docker image (for example
+Railway, Render or Fly.io), with no changes:
+
+| Setting | Value |
+| --- | --- |
+| Build | The repository's `Dockerfile` |
+| Persistent volume | Mounted at `/app/.data` (database and uploaded media). Without it every redeploy starts empty |
+| Instances | One |
+| Port | The host's `PORT` variable is used automatically; otherwise 3000 |
+| Environment | `PUBLIC_ORIGIN` = the site's public `https://` address |
+| Health check | `/api/health` (200 only when a database query succeeds) |
+
+The app always runs as the unprivileged `node` user. Many hosts attach their disk owned
+by root and start the container as root; `scripts/docker-start.sh` then hands the data
+folders to `node` and starts the app as `node`, so no host-specific image or setting is
+needed. Run server commands as `node` too (for example
+`su node -s /bin/sh -c "npm run admin:grant -- EMAIL"` in a host's shell), so new
+database files stay owned by the app.
+
 ## Caching, security headers and new releases
 
 The app sets these itself wherever it runs; the reverse proxy does not need to add them.

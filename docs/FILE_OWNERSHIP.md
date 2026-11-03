@@ -646,6 +646,7 @@ Review and test: [@omargad](https://github.com/omargad) in [#100](https://github
 - `public/robots.txt`
 - `scripts/backup-offsite.sh`
 - `scripts/backup_restore.py`
+- `scripts/docker-start.sh`
 - `scripts/restore.sh`
 - `scripts/test-container.sh`
 - `scripts/update-manifest.sh`
