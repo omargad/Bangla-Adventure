@@ -26,7 +26,3 @@ under `/var/lib/bangla-adventures` when a release changes.
 These templates do not configure DNS, certificate renewal for a particular IP,
 off-server backups, external monitoring, administrator privileges or content
 approval. Record those actual setup results in the acceptance ledger.
-
-`../current-server/` is historical reference for the existing installation, which
-uses a different mount/release layout. Do not overwrite that live configuration
-with these templates without a separately reviewed migration.

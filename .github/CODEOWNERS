@@ -163,7 +163,6 @@
 /.github/CODEOWNERS @omargad
 /.nvmrc @omargad
 /CONTRIBUTIONS.md @bahaa11-prog
-/Dockerfile.render @omargad
 /app/account/password/ @MAQ022
 /app/admin/FamilyImport.tsx @Tlm0v
 /app/admin/results/ @bahaa11-prog
@@ -255,12 +254,9 @@
 /public/robots.txt @omargad
 /scripts/backup-offsite.sh @omargad
 /scripts/backup_restore.py @omargad
-/scripts/render-run-as-app.sh @omargad
-/scripts/render-start.sh @omargad
 /scripts/reset-password.ts @omargad
 /scripts/restore.sh @omargad
 /scripts/test-container.sh @omargad
-/scripts/test-render-container.sh @omargad
 /scripts/update-manifest.sh @omargad
 /tests/account-approval.test.mjs @omargad
 /tests/announcements.test.mjs @MohammedAlAjmi24
@@ -272,7 +268,6 @@
 /tests/class-management.test.mjs @Tlm0v
 /tests/class-sources.test.mjs @MAQ022
 /tests/csv.test.mjs @bahaa11-prog
-/tests/dockerfile-render.test.mjs @omargad
 /tests/e2e/accounts.spec.ts @omargad
 /tests/e2e/admin-classes.spec.ts @bahaa11-prog
 /tests/e2e/admin-results.spec.ts @bahaa11-prog

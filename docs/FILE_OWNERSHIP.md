@@ -305,14 +305,14 @@ Confidence: **high** — the Jira item clearly describes this file; **medium** �
 | `drizzle/meta/0002_snapshot.json` | [@omargad](https://github.com/omargad) | [SCRUM-52](https://ictprojectb26.atlassian.net/browse/SCRUM-52) | high | [`6cc32cd`](https://github.com/omargad/Bangla-Adventure/commit/6cc32cdc13357d27ca4c4a22df618ff8940c3d7c) | unchanged, [`6d34040`](https://github.com/omargad/Bangla-Adventure/commit/6d340407b017648343a4134e5ef9751a4d278a8e) (3 Aug) |
 | `drizzle/meta/_journal.json` | [@omargad](https://github.com/omargad) | [SCRUM-52](https://ictprojectb26.atlassian.net/browse/SCRUM-52) | high | [`6cc32cd`](https://github.com/omargad/Bangla-Adventure/commit/6cc32cdc13357d27ca4c4a22df618ff8940c3d7c) | unchanged, [`6d34040`](https://github.com/omargad/Bangla-Adventure/commit/6d340407b017648343a4134e5ef9751a4d278a8e) (3 Aug) |
 | `eslint.config.mjs` | [@omargad](https://github.com/omargad) | [SCRUM-25](https://ictprojectb26.atlassian.net/browse/SCRUM-25) | high | [`44b646b`](https://github.com/omargad/Bangla-Adventure/commit/44b646b73d3850224ef7d213fbb8ea3a696c5151) | earlier form, [`6d34040`](https://github.com/omargad/Bangla-Adventure/commit/6d340407b017648343a4134e5ef9751a4d278a8e) (3 Aug) |
-| `infra/current-server/Caddyfile.bangla.example` | [@omargad](https://github.com/omargad) | [SCRUM-54](https://ictprojectb26.atlassian.net/browse/SCRUM-54) | high | [`d187809`](https://github.com/omargad/Bangla-Adventure/commit/d187809ad866c85d00e0cc2bacf77deac427f7f8) | — |
-| `infra/current-server/bangla-adventures.service` | [@omargad](https://github.com/omargad) | [SCRUM-54](https://ictprojectb26.atlassian.net/browse/SCRUM-54) | high | [`d187809`](https://github.com/omargad/Bangla-Adventure/commit/d187809ad866c85d00e0cc2bacf77deac427f7f8) | — |
-| `infra/current-server/bangla-cert-deploy.sh` | [@omargad](https://github.com/omargad) | [SCRUM-54](https://ictprojectb26.atlassian.net/browse/SCRUM-54) | high | [`d187809`](https://github.com/omargad/Bangla-Adventure/commit/d187809ad866c85d00e0cc2bacf77deac427f7f8) | — |
-| `infra/current-server/bangla-cert-renew.service` | [@omargad](https://github.com/omargad) | [SCRUM-54](https://ictprojectb26.atlassian.net/browse/SCRUM-54) | high | [`d187809`](https://github.com/omargad/Bangla-Adventure/commit/d187809ad866c85d00e0cc2bacf77deac427f7f8) | — |
-| `infra/current-server/bangla-cert-renew.timer` | [@omargad](https://github.com/omargad) | [SCRUM-54](https://ictprojectb26.atlassian.net/browse/SCRUM-54) | high | [`d187809`](https://github.com/omargad/Bangla-Adventure/commit/d187809ad866c85d00e0cc2bacf77deac427f7f8) | — |
-| `infra/current-server/bangla-health.service` | [@omargad](https://github.com/omargad) | [SCRUM-54](https://ictprojectb26.atlassian.net/browse/SCRUM-54) | high | [`d187809`](https://github.com/omargad/Bangla-Adventure/commit/d187809ad866c85d00e0cc2bacf77deac427f7f8) | — |
-| `infra/current-server/bangla-health.timer` | [@omargad](https://github.com/omargad) | [SCRUM-54](https://ictprojectb26.atlassian.net/browse/SCRUM-54) | high | [`d187809`](https://github.com/omargad/Bangla-Adventure/commit/d187809ad866c85d00e0cc2bacf77deac427f7f8) | — |
-| `infra/current-server/bangla-recover.service` | [@omargad](https://github.com/omargad) | [SCRUM-54](https://ictprojectb26.atlassian.net/browse/SCRUM-54) | high | [`d187809`](https://github.com/omargad/Bangla-Adventure/commit/d187809ad866c85d00e0cc2bacf77deac427f7f8) | — |
+| `infra/current-server/Caddyfile.bangla.example` (removed 3 November 2026 with the earlier server) | [@omargad](https://github.com/omargad) | [SCRUM-54](https://ictprojectb26.atlassian.net/browse/SCRUM-54) | high | [`d187809`](https://github.com/omargad/Bangla-Adventure/commit/d187809ad866c85d00e0cc2bacf77deac427f7f8) | — |
+| `infra/current-server/bangla-adventures.service` (removed 3 November 2026 with the earlier server) | [@omargad](https://github.com/omargad) | [SCRUM-54](https://ictprojectb26.atlassian.net/browse/SCRUM-54) | high | [`d187809`](https://github.com/omargad/Bangla-Adventure/commit/d187809ad866c85d00e0cc2bacf77deac427f7f8) | — |
+| `infra/current-server/bangla-cert-deploy.sh` (removed 3 November 2026 with the earlier server) | [@omargad](https://github.com/omargad) | [SCRUM-54](https://ictprojectb26.atlassian.net/browse/SCRUM-54) | high | [`d187809`](https://github.com/omargad/Bangla-Adventure/commit/d187809ad866c85d00e0cc2bacf77deac427f7f8) | — |
+| `infra/current-server/bangla-cert-renew.service` (removed 3 November 2026 with the earlier server) | [@omargad](https://github.com/omargad) | [SCRUM-54](https://ictprojectb26.atlassian.net/browse/SCRUM-54) | high | [`d187809`](https://github.com/omargad/Bangla-Adventure/commit/d187809ad866c85d00e0cc2bacf77deac427f7f8) | — |
+| `infra/current-server/bangla-cert-renew.timer` (removed 3 November 2026 with the earlier server) | [@omargad](https://github.com/omargad) | [SCRUM-54](https://ictprojectb26.atlassian.net/browse/SCRUM-54) | high | [`d187809`](https://github.com/omargad/Bangla-Adventure/commit/d187809ad866c85d00e0cc2bacf77deac427f7f8) | — |
+| `infra/current-server/bangla-health.service` (removed 3 November 2026 with the earlier server) | [@omargad](https://github.com/omargad) | [SCRUM-54](https://ictprojectb26.atlassian.net/browse/SCRUM-54) | high | [`d187809`](https://github.com/omargad/Bangla-Adventure/commit/d187809ad866c85d00e0cc2bacf77deac427f7f8) | — |
+| `infra/current-server/bangla-health.timer` (removed 3 November 2026 with the earlier server) | [@omargad](https://github.com/omargad) | [SCRUM-54](https://ictprojectb26.atlassian.net/browse/SCRUM-54) | high | [`d187809`](https://github.com/omargad/Bangla-Adventure/commit/d187809ad866c85d00e0cc2bacf77deac427f7f8) | — |
+| `infra/current-server/bangla-recover.service` (removed 3 November 2026 with the earlier server) | [@omargad](https://github.com/omargad) | [SCRUM-54](https://ictprojectb26.atlassian.net/browse/SCRUM-54) | high | [`d187809`](https://github.com/omargad/Bangla-Adventure/commit/d187809ad866c85d00e0cc2bacf77deac427f7f8) | — |
 | `infra/moodle/README.md` | [@omargad](https://github.com/omargad) | [SCRUM-54](https://ictprojectb26.atlassian.net/browse/SCRUM-54) | medium | [`d187809`](https://github.com/omargad/Bangla-Adventure/commit/d187809ad866c85d00e0cc2bacf77deac427f7f8) | unchanged, [`dc36994`](https://github.com/omargad/Bangla-Adventure/commit/dc36994a8b028ee0e3ea0cb1956f1f33c7945acf) (12 Aug) |
 | `infra/moodle/apache-moodle.conf.example` | [@omargad](https://github.com/omargad) | [SCRUM-54](https://ictprojectb26.atlassian.net/browse/SCRUM-54) | medium | [`d187809`](https://github.com/omargad/Bangla-Adventure/commit/d187809ad866c85d00e0cc2bacf77deac427f7f8) | unchanged, [`547ed9c`](https://github.com/omargad/Bangla-Adventure/commit/547ed9c4b60b30211b71fe9cf1572a7fdb22ea75) (12 Aug) |
 | `infra/moodle/bootstrap-ubuntu.sh` | [@omargad](https://github.com/omargad) | [SCRUM-54](https://ictprojectb26.atlassian.net/browse/SCRUM-54) | medium | [`d187809`](https://github.com/omargad/Bangla-Adventure/commit/d187809ad866c85d00e0cc2bacf77deac427f7f8) | unchanged, [`dc36994`](https://github.com/omargad/Bangla-Adventure/commit/dc36994a8b028ee0e3ea0cb1956f1f33c7945acf) (12 Aug) |
@@ -635,7 +635,6 @@ Review and test: [@omargad](https://github.com/omargad) in [#100](https://github
 
 - `.github/CODEOWNERS`
 - `.nvmrc`
-- `Dockerfile.render`
 - `compose.yaml`
 - `db/content-migration.ts`
 - `docs/BACKUP_RESTORE.md`
@@ -647,14 +646,10 @@ Review and test: [@omargad](https://github.com/omargad) in [#100](https://github
 - `public/robots.txt`
 - `scripts/backup-offsite.sh`
 - `scripts/backup_restore.py`
-- `scripts/render-run-as-app.sh`
-- `scripts/render-start.sh`
 - `scripts/restore.sh`
 - `scripts/test-container.sh`
-- `scripts/test-render-container.sh`
 - `scripts/update-manifest.sh`
 - `tests/backup_restore_test.py`
-- `tests/dockerfile-render.test.mjs`
 - `tests/integration/serving-flow.test.mjs`
 - `tests/node-version.test.mjs`
 - `tests/release.test.mjs`

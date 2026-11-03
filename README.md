@@ -19,10 +19,10 @@ Bangladesh's culture, history and literature for Bangladeshi-heritage children o
 </div>
 
 > [!NOTE]
-> An **ICT Project B capstone** for clients **Dr Tanjila Kanij** and **Faysal Alam**, live at
-> <https://bangla-adventure.onrender.com>. Use the [deployment guide](docs/DEPLOYMENT.md) for
-> the current custom application and the [handover guide](docs/HANDOVER.md) for client setup
-> and release evidence.
+> An **ICT Project B capstone** for clients **Dr Tanjila Kanij** and **Faysal Alam**. It is
+> being deployed on the client's own server. Use the [deployment guide](docs/DEPLOYMENT.md) for
+> the custom application and the [handover guide](docs/HANDOVER.md) for client setup and
+> release evidence.
 
 ## Features
 
@@ -64,7 +64,7 @@ where they stand:
 | Results stay readable with many students | ✅ Gradebook table |
 | Attendance (optional) | ✅ Present by default; parents, students and administrators see "attended X of Y" |
 | Bangla pronunciation | 🟡 Recordings play first; ElevenLabs is the chosen voice provider and the clips are generated once the client's API key is set up |
-| Deploy on the client's server | 🟡 Live on Render at <https://bangla-adventure.onrender.com>; moving to the client's own server waits for access |
+| Deploy on the client's server | 🟡 Docker image and Compose setup ready; deployment to the client's own server waits for its details and access |
 
 ## Screenshots
 
@@ -154,7 +154,7 @@ where they stand:
 | 🟡 Official NCTB catalogue and PDF audit | Source records implemented; a verified PDF is not an approved adaptation |
 | 🟡 Bilingual topics and lessons | Teachers preview and approve content before students see it; the shipped content is approved as a baseline and still needs individual educator and community review |
 | 🟡 Bangla audio | Approved human recordings play first, then provider clips, the device voice and the bundled eSpeak voice; ElevenLabs is the chosen provider and generation waits for the client's key (Azure remains an alternative); native-speaker review and reviewed recordings remain incomplete |
-| 🟡 Application deployment and operations | Live on Render (Singapore, one instance, 1 GB disk with daily snapshots); portable service and Compose setup and backup and restore tools included; hosting ownership, off-site backups and a recovery exercise still need handover |
+| 🟡 Application deployment and operations | Docker image, Compose and native service setups and backup and restore tools included; deployment to the client's server, off-site backups and a recovery exercise still to do |
 | 🟡 Moodle pilot course | Installable hidden-course plugin implemented: 15 bilingual chapters, nine activities and nine questions |
 | 🔒 Optional Moodle publication control | Draft validation passes; pilot release validation intentionally fails while 27 human-review gates are pending |
 | ⬜ YouTube and media verification | Not complete; media excluded from the first pilot |
@@ -279,10 +279,8 @@ npm run fetch:nctb    # controlled NCTB ingestion; PDFs themselves are not lesso
 
 </details>
 
-CI includes application checks, backup/restore fixture tests and disposable container
-smoke checks of both the Compose image and the Render image (`Dockerfile.render`, started on
-an empty root-owned disk as Render does). `npm test` also checks that `Dockerfile.render`
-matches `./Dockerfile` above its Render section. After changing files, stage them and run
+CI includes application checks, backup/restore fixture tests and a disposable container
+smoke check of the production image with Compose. After changing files, stage them and run
 `bash scripts/update-manifest.sh` to refresh `MANIFEST.sha256`; the NCTB ingest workflow does
 this before it commits. CI also validates the optional Moodle draft manifest; any workflow
 publishing that pilot must call `verify:moodle-release`, and pending human gates must not be
@@ -332,13 +330,8 @@ course repeatably; it has no command that can publish it.
 
 ## Current deployment and handover
 
-- **Live website:** <https://bangla-adventure.onrender.com>, on Render (Singapore, Starter plan,
-  1 GB disk), deployed automatically from `main` once CI passes; see the
-  [deployment guide](docs/DEPLOYMENT.md#render-current-hosting). Portals: `/student`, `/teach`,
-  `/admin`, `/family`.
-- **Earlier server:** <https://31.56.120.148>, set up with Devin under a team member's account,
-  still runs the version from before 28 October 2026. Update it with the deployment guide or
-  retire it, and confirm who owns it.
+- **Hosting:** the application runs on the client's own server, as one Docker container
+  behind the client's HTTPS web server. Portals: `/student`, `/teach`, `/admin`, `/family`.
 - **Setting up or taking over:** start with the [deployment guide](docs/DEPLOYMENT.md) and the
   [handover guide](docs/HANDOVER.md), then work through the checklist below.
 
@@ -347,11 +340,7 @@ course repeatably; it has no command that can publish it.
 
 <br>
 
-- **Current host reference:** [`infra/current-server/`](infra/current-server/) records the
-  existing non-root loopback3300 service, Caddy site, health and certificate timers and persistent
-  paths under `/var/lib/bangla-adventures`. It is historical host reference, not a portable
-  installer. Preserve its database and media independently of build directories.
-- **New installations:** use [`compose.yaml`](compose.yaml) or
+- **Installations:** use [`compose.yaml`](compose.yaml) or
   [`infra/custom-app/`](infra/custom-app/) following the [deployment guide](docs/DEPLOYMENT.md).
   Configure HTTPS `PUBLIC_ORIGIN`, persistent `DATABASE_PATH`, absolute `MEDIA_ROOT` and a
   consistent build and runtime `NEXT_DIST_DIR`. Never rebuild a running release; retain the previous one.

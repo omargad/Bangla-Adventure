@@ -5,9 +5,12 @@ Keep **`PLATFORM_MODE=legacy`**. This is the active student, teacher, administra
 and family system. `moodle` selects a separate pilot, redirects custom portals and
 returns `410 Gone` from retired APIs; do not use it for this deployment.
 
-This runbook covers a new installation or an isolated release. Files in
-`infra/current-server/` record the existing host's configuration; they are not a
-portable installation. The live database and media are never part of GitHub.
+This runbook covers a new installation or an isolated release. The live database and
+media are never part of GitHub.
+
+**Hosting.** The application runs on the client's own server, using the container
+option below behind the client's HTTPS web server. Automatic deployment from GitHub
+Actions to that server is added once its details and access are available.
 
 ## Prerequisites
 
@@ -108,79 +111,6 @@ Keep the same Compose project name so recreations reuse the same named volume.
 Never run `docker compose down -v` during an upgrade. The CI Docker smoke test
 validates a disposable container; record its actual result before accepting a
 release, and separately verify the production host configuration.
-
-## Render (current hosting)
-
-Since 30 October 2026 the live site is <https://bangla-adventure.onrender.com>, a Render
-**Web Service** built from this repository's `main` branch. Render was chosen because it
-runs the app unchanged, keeps one persistent disk and needs no server administration.
-Vercel and other serverless hosts cannot keep the SQLite database or uploaded media.
-
-| Setting | Value |
-| --- | --- |
-| Language / runtime | Docker, branch `main`, root directory empty |
-| Region | Singapore (closest to the client in Australia) |
-| Instance | Starter (0.5 CPU, 512 MB); one instance. The free plan has no disk, so every restart would wipe all data |
-| Dockerfile Path | `./Dockerfile.render`; build context `.` |
-| Docker Command / Pre-Deploy Command | Empty: `Dockerfile.render` starts the app, and the database updates itself on start |
-| Health Check Path | `/api/health` (200 only when a database query succeeds) |
-| Environment | `PORT=10000`, `PUBLIC_ORIGIN=https://bangla-adventure.onrender.com` (the database, media and `PLATFORM_MODE` settings come from the image) |
-| Disk | 1 GB mounted at `/app/.data`: the database and uploaded media |
-| Auto-Deploy | **After CI checks pass**, so a commit with failing checks never reaches the live site |
-
-`Dockerfile.render` is the normal image with a different start: Render mounts the disk
-owned by root, so `scripts/render-start.sh` hands `/app/.data` to the unprivileged
-`node` user and then runs the app as `node`. Keep the part above its RENDER section
-identical to `./Dockerfile` when either changes: `npm test` fails when they differ
-(`tests/dockerfile-render.test.mjs`). The CI container job also builds the Render image
-and runs `scripts/test-render-container.sh`, which starts it as Render does (`PORT=10000`,
-an empty root-owned disk at `/app/.data`), checks the server runs as `node`, runs
-`admin:grant`, `admin:reset-password` and a backup through `scripts/render-run-as-app.sh`,
-and restarts on the same disk to check the database and media stayed.
-
-**First administrator.** Register the client's account on the site (it waits for
-approval), then in the service's **Shell** tab run:
-
-```sh
-scripts/render-run-as-app.sh npm run admin:grant -- REGISTERED_EMAIL
-```
-
-**Locked out.** If the only administrator has forgotten the password and lost the
-recovery codes, reset it in the Shell (a student's username works too):
-
-```sh
-scripts/render-run-as-app.sh npm run admin:reset-password -- ADMIN_EMAIL
-```
-
-It prints a temporary password once and signs the account out everywhere. Signing in
-with it leads straight to choosing a new password, and an adult then gets fresh
-recovery codes.
-
-Run every Shell command that touches the database through
-`scripts/render-run-as-app.sh`, never directly as root, so new database files stay
-owned by `node`.
-
-**Upgrades and rollback.** Merge to `main`; once CI passes Render builds and deploys
-the new commit. The single instance restarts, so expect a short interruption. To go
-back, use **Rollback** on an earlier deploy in the Render dashboard, subject to the
-schema caution in *Upgrade and rollback* below.
-
-**Backups.** Render snapshots the disk automatically every 24 hours and keeps
-snapshots for at least seven days; a restore rolls back the whole disk. Render warns
-that a disk snapshot may not be a consistent copy of a database, so also make
-database-consistent backups with the app's tool (CI runs step 2 against the Render
-image on a test disk; it has not yet been run on the live service):
-
-1. Turn on **Maintenance Mode** in the service settings so no one can write.
-2. In the Shell, run
-   `scripts/render-run-as-app.sh bash scripts/backup.sh /app/.data/backups 3 --application-stopped`.
-3. Turn Maintenance Mode off.
-4. Copy the archive to the client's own storage. Archives on the same disk are not an
-   off-site backup, and they use the 1 GB; until a copy off Render is set up and a
-   restore has been rehearsed, off-site backup remains open.
-
-Ownership: the Render account, its billing and the service belong in the client's
-hands at handover (transfer the service or recreate it with these settings).
 
 ## Caching, security headers and new releases
 
@@ -284,11 +214,6 @@ correct ownership. An empty database is appropriate only for a new installation.
    when the previous release understands the current schema. If data rollback is
    necessary, restore a verified backup into a new location and explicitly account
    for writes made after the backup; they would otherwise be lost.
-
-The existing host in `infra/current-server/` has a different mount layout and a
-named `NEXT_DIST_DIR`. Retain it unless a separate migration is planned; update
-both its build-directory setting and cache bind target together. Do not overwrite
-its live service with the new-host example without adapting and reviewing it.
 
 ## Bangla audio (ElevenLabs)
 

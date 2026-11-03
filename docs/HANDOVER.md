@@ -26,21 +26,17 @@ site requires a verified private database/media transfer, not test fixtures.
 
 ## Deployment and ownership
 
-The live site is <https://bangla-adventure.onrender.com> on Render; its settings, first
-administrator, upgrades and backups are in [`DEPLOYMENT.md`](DEPLOYMENT.md#render-current-hosting).
-Follow [`DEPLOYMENT.md`](DEPLOYMENT.md) for native service or container setup elsewhere.
+The application runs on the client's own server. Follow [`DEPLOYMENT.md`](DEPLOYMENT.md)
+for the container (or native service) setup, first administrator, upgrades and backups.
 Production needs HTTPS, the actual `PUBLIC_ORIGIN`, persistent `DATABASE_PATH` and
 an absolute persistent `MEDIA_ROOT`. Run one instance. Uploading source or opening
 a Codespace does not configure production hosting or restore its data.
 
-`infra/custom-app/` contains new-host templates for operator review.
-`infra/current-server/` records the existing host's paths, build directories and
-site blocks. Do not copy historical paths to another host or replace unrelated
-proxy sites. Private keys and unrelated configurations are not included.
+`infra/custom-app/` contains server templates for operator review. Do not replace
+unrelated sites in an existing web server configuration. Private keys are never part of
+the repository.
 
-Agree who owns hosting, domain/TLS, support, backup storage and recovery keys,
-including the Render account and its billing. The earlier host at 31.56.120.148 serves other projects: provide application-scoped access or use
-client-owned hosting instead of transferring shared-server root access.
+Agree who owns hosting, domain/TLS, support, backup storage and recovery keys.
 
 The client also owns the ElevenLabs account and API key used to make the Bangla
 audio clips. The key is only needed on the computer that generates them, never
@@ -56,16 +52,12 @@ has the licence check, dry run, samples, generation and native-speaker review.
 2. On the intended deployment, run `npm run admin:grant -- YOUR_REGISTERED_EMAIL`
    using the **same `DATABASE_PATH`** as the app. The command makes the account an
    administrator **and approves it**. Native/Compose commands are in
-   [`DEPLOYMENT.md`](DEPLOYMENT.md#first-administrator-and-recovery); on Render, run
-   `scripts/render-run-as-app.sh npm run admin:grant -- YOUR_REGISTERED_EMAIL` in the
-   service's Shell (see [`DEPLOYMENT.md`](DEPLOYMENT.md#render-current-hosting)).
+   [`DEPLOYMENT.md`](DEPLOYMENT.md#first-administrator-and-recovery).
 3. Sign in again at `/grown-ups?returnTo=/admin&switchAccount=1`. Promotion revokes
    previous sessions. There are no default admin credentials or public admin signup.
 4. If the only administrator later forgets the password and has lost the recovery
    codes, run `npm run admin:reset-password -- THEIR_EMAIL` the same way, against the
-   same database (on Render, in the service's Shell:
-   `scripts/render-run-as-app.sh npm run admin:reset-password -- THEIR_EMAIL`; see
-   [`DEPLOYMENT.md`](DEPLOYMENT.md#render-current-hosting)). It prints a temporary
+   same database. It prints a temporary
    password once; signing in with it leads to choosing a new password, and fresh
    recovery codes follow.
 
@@ -117,8 +109,8 @@ NEXT_DIST_DIR=.next-test npm run test:integration
 Browser/API tests use temporary databases. Do not run type checking while builds
 replace generated types. Record the commit, runtime, commands, results and any
 unavailable checks; a workflow definition is not a passing run. Container testing
-is a separate CI job that smoke-tests the Compose image (`scripts/test-container.sh`)
-and the Render image (`scripts/test-render-container.sh`); record its actual result
+is a separate CI job that smoke-tests the Compose image (`scripts/test-container.sh`);
+record its actual result
 before Docker acceptance.
 
 Use [`ACCEPTANCE.md`](ACCEPTANCE.md) for role journeys, educational/media reviews,

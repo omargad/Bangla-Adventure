@@ -26,7 +26,6 @@ const nextConfig: NextConfig = {
       { key: "Content-Security-Policy", value: "frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'" },
     ] }];
   },
-  allowedDevOrigins: ["31.56.120.148"],
   serverExternalPackages: ["better-sqlite3"],
   async redirects() {
     if (platformMode !== "moodle") return [];

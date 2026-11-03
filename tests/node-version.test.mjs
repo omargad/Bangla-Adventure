@@ -55,9 +55,9 @@ test("package.json allows only Node 22, from the oldest 22.x every locked depend
   assert.deepEqual(unsupported, [], `Node ${floor} is too old for these locked packages`);
 });
 
-test(".nvmrc, both Dockerfiles and every CI workflow run Node 22", () => {
+test(".nvmrc, the Dockerfile and every CI workflow run Node 22", () => {
   assert.equal(text(".nvmrc").trim(), "22");
-  for (const file of ["Dockerfile", "Dockerfile.render"]) {
+  for (const file of ["Dockerfile"]) {
     const images = [...text(file).matchAll(/^FROM (node:\S+)/gm)].map((match) => match[1]);
     assert.ok(images.length > 0 && images.every((image) => image.startsWith("node:22-")), `${file} uses ${images.join(", ")}`);
   }
