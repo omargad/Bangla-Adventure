@@ -32,7 +32,7 @@ COPY --from=builder /app/scripts/backup_restore.py /app/scripts/backup.sh /app/s
 COPY --from=builder /app/tsconfig.json ./tsconfig.json
 
 # Persistent state (SQLite database + uploaded audio) lives in /app/.data: mount a volume
-# there in production. No VOLUME line, so hosts that forbid it (Railway) accept the image.
+# there in production. The image declares no volume itself, as some hosts (Railway) refuse that.
 # The app always runs as `node`; scripts/docker-start.sh switches to it when a host starts the
 # container as root to hand over a root-owned disk (compose.yaml starts it as `node` directly).
 RUN mkdir -p .data/media .next/cache && chown -R node:node .data .next/cache \
