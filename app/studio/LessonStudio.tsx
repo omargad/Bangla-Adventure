@@ -74,6 +74,8 @@ export default function LessonStudio({ name, role }: { name: string; role: "teac
 
   const rows = (list?.lessons ?? []).flatMap((row) => { const lesson = lessonById.get(row.lessonId); return lesson ? [{ ...row, category: lesson.category, lesson }] : []; });
   const hidden = rows.filter((row) => row.status !== "approved").length;
+  const reviewPending = rows.filter((row) => row.status === "approved" && row.baseline).length;
+  const reviewed = rows.filter((row) => row.status === "approved" && !row.baseline).length;
   const title = (lessonId: string) => { const lesson = lessonById.get(lessonId); return lesson ? (language === "bn" ? lesson.titleBn : lesson.title) : lessonId; };
   const decidedBy = (row: LessonApproval) => {
     if (row.status === "approved" && row.baseline) return s("came with the app", "অ্যাপের সঙ্গে এসেছে");
@@ -105,7 +107,9 @@ export default function LessonStudio({ name, role }: { name: string; role: "teac
           {!list && !error && <p role="status">{s("Loading lessons…", "পাঠ লোড হচ্ছে…")}</p>}
           {list && <>
             <div className="adult-stat-strip lesson-studio-stats">
-              <span><strong>{n(rows.length - hidden)}</strong>{s("approved for students", "শিক্ষার্থীদের জন্য অনুমোদিত")}</span>
+              <span><strong>{n(rows.length - hidden)}</strong>{s("available to students", "শিক্ষার্থীদের জন্য চালু")}</span>
+              <span><strong>{n(reviewed)}</strong>{s("individually reviewed", "আলাদাভাবে পর্যালোচিত")}</span>
+              <span><strong>{n(reviewPending)}</strong>{s("available — review pending", "চালু — পর্যালোচনা বাকি")}</span>
               <span><strong>{n(hidden)}</strong>{s("hidden from students", "শিক্ষার্থীরা দেখে না")}</span>
               <span><strong>{n(list.pendingRecordings.length)}</strong>{s("recordings waiting", "রেকর্ডিং অপেক্ষায়")}</span>
             </div>
@@ -140,10 +144,11 @@ export default function LessonStudio({ name, role }: { name: string; role: "teac
                         <strong>{shown}</strong>
                         <span lang={language === "bn" ? "en" : "bn"} className="lesson-other-title">{language === "bn" ? lesson.title : lesson.titleBn}</span>
                         <small>
-                          <span className={lessonStatusClass(row.status)}>{lessonStatusLabel(row, language)}</span>
+                          <span className={lessonStatusClass(row.status, row.baseline)}>{lessonStatusLabel(row, language)}</span>
                           {" · "}{level?.code}{decidedBy(row) && <> · {decidedBy(row)}</>}
                           {row.pendingAudio > 0 && <> · {s(`${row.pendingAudio} recording${row.pendingAudio === 1 ? "" : "s"} waiting`, `${n(row.pendingAudio)}টি রেকর্ডিং অপেক্ষায়`)}</>}
                           {row.video?.takenDown && <> · {row.video.replaced ? s("video replaced", "ভিডিও বদলানো হয়েছে") : s("video taken down", "ভিডিও সরানো হয়েছে")}</>}
+                          {(!row.video || row.video.status === "pending" || row.video.suitabilityStatus === "unchecked") && <> · {s("video review pending", "ভিডিও পর্যালোচনা বাকি")}</>}
                         </small>
                         {row.status === "withdrawn" && row.note && <small>{s("Reason", "কারণ")}: <q>{row.note}</q></small>}
                       </span>
@@ -156,8 +161,8 @@ export default function LessonStudio({ name, role }: { name: string; role: "teac
               </section>
             ))}
             <p className="teach-note">{s(
-              "“Approved · baseline” marks the lessons that came with the app: students could use them before lesson approval existed, and they have not been individually reviewed. Preview one to review it; withdraw it if something needs fixing.",
-              "“অনুমোদিত · আগে থেকে থাকা” মানে অ্যাপের সঙ্গে আসা পাঠ: পাঠ অনুমোদন চালুর আগেই শিক্ষার্থীরা এগুলো ব্যবহার করত, আলাদা করে পর্যালোচনা হয়নি। পর্যালোচনা করতে একটি খুলুন; কিছু ঠিক করার থাকলে সরিয়ে নিন।",
+              "“Available · review pending” marks existing lessons that students can use but a teacher has not individually reviewed. Preview each lesson in both languages before confirming a review. Video and recording checks are separate; lesson approval does not approve its media.",
+              "“চালু · পর্যালোচনা বাকি” মানে আগে থেকে থাকা পাঠ যা শিক্ষার্থীরা ব্যবহার করতে পারে, কিন্তু কোনো শিক্ষক আলাদাভাবে পর্যালোচনা করেননি। পর্যালোচনা নিশ্চিত করার আগে দুই ভাষায় পুরো পাঠ দেখুন। ভিডিও ও রেকর্ডিং আলাদাভাবে যাচাই করতে হয়; পাঠ অনুমোদন মানে মিডিয়ার অনুমোদন নয়।",
             )} <Link href="/teach/topics">{s("Topics are written and approved in Topics →", "বিষয় লেখা ও অনুমোদন হয় “বিষয়” অংশে →")}</Link></p>
           </>}
         </>}

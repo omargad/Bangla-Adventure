@@ -56,7 +56,7 @@ test("a teacher previews a lesson in Bangla, withdraws it from students and appr
     await teacher.getByRole("navigation", { name: "Portal navigation" }).getByRole("link", { name: "Lessons", exact: true }).click();
     await expect(teacher).toHaveURL(/\/studio$/);
     const category = teacher.getByRole("region", { name: "Places and nature" });
-    await expect(category).toContainText("Approved · baseline");
+    await expect(category).toContainText("Available · review pending");
     await category.getByRole("button", { name: `Preview lesson: ${lessonTitle}`, exact: true }).click();
     await expect(teacher).toHaveURL(/\/studio\?lesson=six-seasons$/);
     await expect(teacher.getByRole("heading", { level: 2, name: lessonTitle, exact: true }).first()).toBeVisible();
