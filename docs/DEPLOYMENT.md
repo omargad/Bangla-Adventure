@@ -128,7 +128,8 @@ next to it, so the host needs:
 - one running copy, stopped before its replacement starts (on Kubernetes,
   `strategy: Recreate`);
 - HTTPS. Sign-in cookies are Secure, so plain `http://` works only at `localhost`.
-  Anywhere else sign-in answers "Signing in needs a secure https:// address".
+  Anywhere else sign-in is refused: "Signing in needs a secure https:// address", or,
+  when `PUBLIC_ORIGIN` names the https address, "The request origin could not be verified".
 
 Heroku, DigitalOcean App Platform, Google Cloud Run and Render instances without a disk
 cannot keep the data, so they are not suitable for real use; on such a host the start
@@ -137,7 +138,7 @@ log warns that `/app/.data` is not on a persistent volume.
 | Setting | Value |
 | --- | --- |
 | Build | The repository's `Dockerfile`. When pushing a prebuilt image, build it for the host's processor, for example `docker buildx build --platform linux/amd64` on an Apple Silicon Mac |
-| Start command | Leave empty, so the image's own one runs. If a host insists on one, use `scripts/docker-start.sh node node_modules/next/dist/bin/next start --keepAliveTimeout 620000`. On Kubernetes and Cloud Run set only `args`, never `command` |
+| Start command | Leave empty, so the image's own one runs. If a host insists on one, use `scripts/docker-start.sh node --import ./scripts/close-idle-on-shutdown.mjs node_modules/next/dist/bin/next start --keepAliveTimeout 620000`. On Kubernetes and Cloud Run set only `args`, never `command` |
 | Disk | Mounted at `/app/.data`. If the host mounts it elsewhere, set `DATABASE_PATH` and `MEDIA_ROOT` to absolute paths on it |
 | Port | A host that sets `PORT` is followed automatically. Where the host asks for the container port instead (Fly.io `internal_port`, CapRover "Container HTTP Port", Kubernetes `targetPort`), enter 3000 |
 | Health check | `/api/health` (200 only when a database query succeeds). Most hosts ignore the Dockerfile's own check, so set it on the host |

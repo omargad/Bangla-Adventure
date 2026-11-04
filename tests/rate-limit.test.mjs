@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-const { checkRateLimit, peekRateLimit, recordRateLimit, resetRateLimits, clientKey, tooManyRequests } = await import("../lib/rate-limit.ts");
+const { checkRateLimit, clearRateLimit, peekRateLimit, recordRateLimit, resetRateLimits, clientKey, tooManyRequests } = await import("../lib/rate-limit.ts");
 
 test("allows up to the limit inside a window, then blocks", () => {
   resetRateLimits();
@@ -54,6 +54,18 @@ test("checkRateLimit shares counts with recorded attempts", () => {
   assert.equal(checkRateLimit("shared", 3, 60_000, start).allowed, true);
   assert.equal(checkRateLimit("shared", 3, 60_000, start).allowed, false);
   assert.equal(peekRateLimit("shared", 3, start).allowed, false);
+});
+
+test("clearing a window forgets its attempts and leaves other keys alone", () => {
+  resetRateLimits();
+  const start = 4_000_000;
+  for (let i = 0; i < 3; i += 1) {
+    recordRateLimit("here", 60_000, start);
+    recordRateLimit("overall", 60_000, start);
+  }
+  clearRateLimit("here");
+  assert.equal(peekRateLimit("here", 3, start).allowed, true);
+  assert.equal(peekRateLimit("overall", 3, start).allowed, false);
 });
 
 test("clientKey prefers first x-forwarded-for hop", () => {

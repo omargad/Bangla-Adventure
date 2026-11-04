@@ -85,6 +85,17 @@ expect_health_ok() {
   fi
 }
 
+# wait_for_health: after a restart, waits until /api/health answers 200 from inside the container.
+wait_for_health() {
+  for attempt in $(seq 1 60); do
+    code="$(docker exec "$container_id" node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/api/health').then(r=>console.log(r.status),()=>console.log('none'))" 2>/dev/null || true)"
+    [ "$code" = 200 ] && return 0
+    sleep 1
+  done
+  echo "The restarted container did not become healthy." >&2
+  exit 1
+}
+
 # expect_start_failure TEXT [docker run options]: the container must stop at once with an error that says TEXT.
 expect_start_failure() {
   expected="$1"; shift
@@ -160,12 +171,37 @@ if [ "$owner" != "node" ]; then
   echo "The root-owned disk was not handed to node: $owner" >&2
   exit 1
 fi
+# The app's user can put links in its own folders; the next start as root must not follow them
+# and hand their targets (here /etc) to node.
+docker exec --user node "$container_id" sh -c 'rm -rf /app/.data/media && ln -s /etc /app/.data/media'
+docker restart --time 30 "$container_id" >/dev/null
+wait_for_health
+system_owner="$(docker exec "$container_id" stat -c %U /etc /etc/passwd /etc/shadow | sort -u)"
+if [ "$system_owner" != "root" ]; then
+  echo "A link in the data folder made the root start hand /etc to $system_owner." >&2
+  exit 1
+fi
 stop_container
 
 # OpenShift runs the container as an arbitrary uid in group 0; here also without a volume.
 start_container "" --user 1000680000:0 --security-opt no-new-privileges:true --cap-drop ALL
 expect_health_ok
+# A stop while a request is in progress on a kept-alive connection (as a proxy's pool holds it)
+# must still end promptly and cleanly, not wait out the grace period and get killed.
+docker exec --detach "$container_id" node -e '
+const socket = require("node:net").connect(Number(process.env.PORT || 3000), "127.0.0.1", () => {
+  socket.write("GET /api/health HTTP/1.1\r\nHost: localhost\r\n");
+  setTimeout(() => socket.write("\r\n"), 1500);
+});
+socket.on("data", () => {}).on("error", () => {});
+setTimeout(() => {}, 120000);'
+sleep 1
+stop_started="$(date +%s)"
 stop_container
+if [ "$(( $(date +%s) - stop_started ))" -gt 15 ]; then
+  echo "Stopping with a kept-alive connection took more than 15 seconds." >&2
+  exit 1
+fi
 
 # Root without the capabilities to switch to node (Kubernetes drop ALL without runAsUser) must
 # stop at once and say what to set. A data folder at the app's own root must be refused.
@@ -198,4 +234,4 @@ db.close();
 NODE
 stop_container
 
-echo "Container smoke passed: non-root startup, fresh SQLite schema, backup utility, database/media persistence, a root-owned disk handed to node, clean SIGTERM shutdown, an arbitrary uid in group 0, a clear error for root without capabilities or a data folder at /app, and a read-only root filesystem."
+echo "Container smoke passed: non-root startup, fresh SQLite schema, backup utility, database/media persistence, a root-owned disk handed to node without following links, clean SIGTERM shutdown (also with a kept-alive connection), an arbitrary uid in group 0, a clear error for root without capabilities or a data folder at /app, and a read-only root filesystem."

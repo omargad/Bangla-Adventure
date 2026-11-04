@@ -1,10 +1,10 @@
 #!/bin/sh
 # Starts the app as the unprivileged `node` user wherever the image runs.
-# Most hosts start the container as `node` (compose.yaml sets `user: node`) or, like OpenShift,
-# as an arbitrary uid in group 0: this then only checks the data folders and starts the app.
-# Hosts that attach the persistent disk owned by root (Railway, Render and similar) start the
-# container as root instead: the data folders are then handed to `node` and the app is started
-# as `node`, so it can write its database and media.
+# The image sets no USER, so most hosts (plain docker run, Railway, Render, Fly.io) start it as
+# root, often on a disk owned by root: the data folders are then handed to `node` and the app is
+# started as `node`, so it can write its database and media. Compose (`user: node`), Kubernetes
+# with runAsUser: 1000 and OpenShift (an arbitrary uid in group 0) start it unprivileged: this
+# then only checks the data folders and starts the app.
 set -eu
 
 warn() { echo "docker-start: $*" >&2; }
@@ -16,9 +16,10 @@ existing() {
   echo "$path"
 }
 
-# An empty setting means the default, as in the app.
-data_dir="$(realpath -m "$(dirname "${DATABASE_PATH:-/app/.data/bangla-adventures.db}")")"
-media_dir="$(realpath -m "${MEDIA_ROOT:-/app/.data/media}")"
+# An empty setting means the default, as in the app. Links are kept as they are (-s): the app's
+# user can create links in its folders, and root must never follow one to hand its target over.
+data_dir="$(realpath -s -m "$(dirname "${DATABASE_PATH:-/app/.data/bangla-adventures.db}")")"
+media_dir="$(realpath -s -m "${MEDIA_ROOT:-/app/.data/media}")"
 
 # A data folder at / or /app would hand the whole app (or system) to node below.
 for dir in "$data_dir" "$media_dir"; do
@@ -62,7 +63,10 @@ if [ "$(id -u)" = 0 ]; then
     [ -d "$dir" ] || as_node mkdir -p "$dir" 2>/dev/null || mkdir -p "$dir"
     # Only what is not node's already, so a large disk is not walked file by file on every start.
     # A disk that refuses chown (NFS with root_squash) is left as it is and does not stop the start.
-    find "$dir" ! -user node -exec chown node:node {} + || warn "could not hand all of $dir to node"
+    # Links are never followed: find does not enter a linked folder, chown -h changes a link and not
+    # its target, and a file with a second hard link (perhaps to a system file) is left alone.
+    find "$dir" ! -user node \( -type d -o -links 1 \) -exec chown -h node:node {} + \
+      || warn "could not hand all of $dir to node"
     as_node test -w "$dir" || warn "node (uid 1000) cannot write to $dir: give uid 1000 write access to that disk"
   done
   # setpriv would keep root's HOME.

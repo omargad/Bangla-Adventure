@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build --webpack",
-    "start": "next start --keepAliveTimeout 620000",
+    "start": "node --import ./scripts/close-idle-on-shutdown.mjs node_modules/next/dist/bin/next start --keepAliveTimeout 620000",
     "lint": "eslint .",
     "test": "node --import tsx --test tests/*.test.mjs",
     "typecheck": "tsc --noEmit",

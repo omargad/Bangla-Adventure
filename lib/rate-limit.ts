@@ -44,6 +44,11 @@ export function recordRateLimit(key: string, windowMs: number, now: number = Dat
   else bucket.count += 1;
 }
 
+/** Forgets a window, for example an address's wrong passwords once the right one is given. */
+export function clearRateLimit(key: string): void {
+  store.delete(key);
+}
+
 /** Best-effort client identifier: first hop of x-forwarded-for, else a shared key. */
 export function clientKey(request: Request): string {
   const forwarded = request.headers.get("x-forwarded-for");

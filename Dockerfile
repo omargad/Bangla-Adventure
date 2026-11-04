@@ -29,7 +29,7 @@ COPY --from=builder /app/db ./db
 # Server commands such as admin:grant load the database code, which reads app/ sources.
 COPY --from=builder /app/app ./app
 COPY --from=builder /app/scripts/grant-admin.ts /app/scripts/reset-password.ts ./scripts/
-COPY --from=builder /app/scripts/backup_restore.py /app/scripts/backup.sh /app/scripts/restore.sh /app/scripts/docker-start.sh ./scripts/
+COPY --from=builder /app/scripts/backup_restore.py /app/scripts/backup.sh /app/scripts/restore.sh /app/scripts/docker-start.sh /app/scripts/close-idle-on-shutdown.mjs ./scripts/
 COPY --from=builder /app/tsconfig.json ./tsconfig.json
 
 # Persistent state (SQLite database + uploaded audio) lives in /app/.data: mount a volume
@@ -50,5 +50,6 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
 ENTRYPOINT ["scripts/docker-start.sh"]
 # Next runs directly, not through npm, so it receives SIGTERM and lets open requests finish.
 # Idle connections are kept open longer than load balancers keep theirs (up to 600 s), so the
-# app never closes a connection that a load balancer is about to reuse (which shows as a 502).
-CMD ["node", "node_modules/next/dist/bin/next", "start", "--keepAliveTimeout", "620000"]
+# app never closes a connection that a load balancer is about to reuse (which shows as a 502);
+# scripts/close-idle-on-shutdown.mjs closes them promptly once a stop begins.
+CMD ["node", "--import", "./scripts/close-idle-on-shutdown.mjs", "node_modules/next/dist/bin/next", "start", "--keepAliveTimeout", "620000"]

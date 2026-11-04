@@ -255,6 +255,7 @@
 /public/robots.txt @omargad
 /scripts/backup-offsite.sh @omargad
 /scripts/backup_restore.py @omargad
+/scripts/close-idle-on-shutdown.mjs @omargad
 /scripts/docker-start.sh @omargad
 /scripts/reset-password.ts @omargad
 /scripts/restore.sh @omargad

@@ -219,3 +219,20 @@ test("only administrators decide approvals", async () => {
   assert.equal((await send(`/api/admin/users/${adult.id}`, "PATCH", { kind: "adult", action: "approve" })).status, 401);
   await expectWaiting(await adultSignIn("another@example.com"));
 });
+
+test("wrong passwords from another network cannot lock the owner out, and changing address does not give unlimited guesses", async () => {
+  assert.equal((await send("/api/auth/sign-up", "POST", { email: "guarded@example.com", displayName: "Guarded", password }, undefined, { "x-forwarded-for": "approval-guarded" })).status, 201);
+  fixture((db) => db.prepare("UPDATE adults SET approval_status = 'approved' WHERE email = ?").run("guarded@example.com"));
+  for (let attempt = 0; attempt < 10; attempt++) assert.equal((await adultSignIn("guarded@example.com", `wrong-${attempt}`, "elsewhere")).status, 401);
+  assert.equal((await adultSignIn("guarded@example.com", "wrong-again", "elsewhere")).status, 429, "ten wrong passwords from one address lock that address out");
+  assert.equal((await adultSignIn("  GUARDED@example.com  ", "wrong-again", "elsewhere")).status, 429, "spacing and capitals name the same account");
+  assert.equal((await adultSignIn("guarded@example.com", password, "home")).status, 200, "the owner on another network still signs in");
+
+  for (let attempt = 0; attempt < 9; attempt++) assert.equal((await adultSignIn("guarded@example.com", `typo-${attempt}`, "home")).status, 401);
+  assert.equal((await adultSignIn("guarded@example.com", password, "home")).status, 200);
+  for (let attempt = 0; attempt < 9; attempt++) assert.equal((await adultSignIn("guarded@example.com", `typo-again-${attempt}`, "home")).status, 401, "signing in forgets the address's earlier typos");
+
+  // 28 wrong passwords so far; 22 more from fresh addresses reach the account's overall cap of 50.
+  for (let attempt = 0; attempt < 22; attempt++) assert.equal((await adultSignIn("guarded@example.com", `spread-${attempt}`, `spread-${attempt % 3}`)).status, 401);
+  assert.equal((await adultSignIn("guarded@example.com", "wrong", "yet-another")).status, 429, "the account's overall cap holds across addresses");
+});
