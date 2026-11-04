@@ -34,6 +34,14 @@ jobs:
           node-version: 22
           cache: npm
       - run: bash scripts/ci/e2e.sh
+      - name: Retain browser screenshots and failure traces
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: browser-evidence
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 7
 
   container:
     runs-on: ubuntu-latest
