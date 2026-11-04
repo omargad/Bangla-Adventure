@@ -64,7 +64,7 @@ where they stand:
 | Results stay readable with many students | ✅ Gradebook table |
 | Attendance (optional) | ✅ Present by default; parents, students and administrators see "attended X of Y" |
 | Bangla pronunciation | 🟡 Recordings play first; ElevenLabs is the chosen voice provider and the clips are generated once the client's API key is set up |
-| Deploy on the client's server | 🟡 Docker image and Compose setup ready; deployment to the client's own server waits for its details and access |
+| Deploy on the client's server | 🟡 Docker image, Compose setup and automatic deployment pipeline ready; the first deployment to the client's own server waits for its details and access |
 
 ## Screenshots
 
@@ -154,7 +154,7 @@ where they stand:
 | 🟡 Official NCTB catalogue and PDF audit | Source records implemented; a verified PDF is not an approved adaptation |
 | 🟡 Bilingual topics and lessons | Teachers preview and approve content before students see it; the shipped content is approved as a baseline and still needs individual educator and community review |
 | 🟡 Bangla audio | Approved human recordings play first, then provider clips, the device voice and the bundled eSpeak voice; ElevenLabs is the chosen provider and generation waits for the client's key (Azure remains an alternative); native-speaker review and reviewed recordings remain incomplete |
-| 🟡 Application deployment and operations | Docker image, Compose and native service setups and backup and restore tools included; deployment to the client's server, off-site backups and a recovery exercise still to do |
+| 🟡 Application deployment and operations | Docker image, Compose and native service setups, an automatic deployment pipeline (GitHub Actions, GitLab or Jenkins) and backup and restore tools included; deployment to the client's server, off-site backups and a recovery exercise still to do |
 | 🟡 Moodle pilot course | Installable hidden-course plugin implemented: 15 bilingual chapters, nine activities and nine questions |
 | 🔒 Optional Moodle publication control | Draft validation passes; pilot release validation intentionally fails while 27 human-review gates are pending |
 | ⬜ YouTube and media verification | Not complete; media excluded from the first pilot |

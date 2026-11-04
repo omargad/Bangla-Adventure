@@ -1,0 +1,82 @@
+# The same pipeline as .github/workflows/ci.yml, for GitLab: each job runs one of the shared scripts
+# in scripts/ci. On the default branch the tested image is published to this project's container
+# registry and, once DEPLOY_HOST is set, deployed (docs/DEPLOYMENT.md "Automatic deployment").
+# The container jobs use Docker-in-Docker, so the runner must allow privileged containers.
+
+stages: [test, build, publish, deploy]
+
+variables:
+  IMAGE: $CI_REGISTRY_IMAGE
+  LOCAL_IMAGE: bangla-adventures:ci
+
+.node:
+  image: node:22-bookworm
+  stage: test
+  cache:
+    key:
+      files: [package-lock.json]
+    paths: [.npm/]
+  before_script:
+    - npm config set cache "$CI_PROJECT_DIR/.npm"
+
+verify:
+  extends: .node
+  script:
+    - bash scripts/ci/verify.sh
+
+e2e:
+  extends: .node
+  script:
+    - bash scripts/ci/e2e.sh
+
+.docker:
+  image: docker:27
+  services:
+    - name: docker:27-dind
+      alias: docker
+  variables:
+    DOCKER_TLS_CERTDIR: /certs
+  before_script:
+    - apk add --no-cache bash coreutils git
+
+container:
+  extends: .docker
+  stage: build
+  timeout: 35 minutes
+  variables:
+    IMAGE_SOURCE: $CI_PROJECT_URL
+  script:
+    - bash scripts/ci/container.sh "$LOCAL_IMAGE"
+    # Each tested image is kept under its commit; it is only marked latest and deployed once every job has passed.
+    - |
+      if [ "$CI_COMMIT_BRANCH" = "$CI_DEFAULT_BRANCH" ]; then
+        REGISTRY_USER="$CI_REGISTRY_USER" REGISTRY_PASSWORD="$CI_REGISTRY_PASSWORD" \
+          bash scripts/ci/publish.sh push "$LOCAL_IMAGE" "$IMAGE:sha-$CI_COMMIT_SHA"
+      fi
+
+publish:
+  extends: .docker
+  stage: publish
+  needs: [verify, e2e, container]
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  script:
+    - REGISTRY_USER="$CI_REGISTRY_USER" REGISTRY_PASSWORD="$CI_REGISTRY_PASSWORD"
+      bash scripts/ci/publish.sh promote "$IMAGE:sha-$CI_COMMIT_SHA" "$IMAGE:latest"
+
+# Set DEPLOY_HOST, DEPLOY_KNOWN_HOSTS and the masked DEPLOY_SSH_KEY (plus DEPLOY_USER, DEPLOY_PORT
+# and DEPLOY_PATH when they differ from the defaults) under Settings > CI/CD > Variables.
+deploy:
+  image: alpine:3.20
+  stage: deploy
+  needs: [publish]
+  resource_group: production
+  environment:
+    name: production
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $DEPLOY_HOST
+  before_script:
+    - apk add --no-cache bash openssh-client
+  script:
+    - REGISTRY_USER="$CI_REGISTRY_USER" REGISTRY_PASSWORD="$CI_REGISTRY_PASSWORD"
+      bash scripts/deploy.sh "$IMAGE:sha-$CI_COMMIT_SHA"

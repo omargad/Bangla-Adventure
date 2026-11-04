@@ -1,11 +1,13 @@
 # Single application instance behind an HTTPS reverse proxy on this host.
 # Set PUBLIC_ORIGIN to the real https:// address before starting.
 # Keep the same Compose project name across upgrades to reuse its data volume.
+# Builds the image here by default; APP_IMAGE runs a published one instead (scripts/deploy-remote.sh
+# sets it, and `docker compose up --no-build` then uses it without the source code).
 services:
   app:
     build:
       context: .
-    image: bangla-adventures:local
+    image: ${APP_IMAGE:-bangla-adventures:local}
     init: true
     # The app runs as the image's unprivileged user; the named volume already belongs to it.
     user: node

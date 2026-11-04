@@ -9,8 +9,9 @@ This runbook covers a new installation or an isolated release. The live database
 media are never part of GitHub.
 
 **Hosting.** The application runs on the client's own server, using the container
-option below behind the client's HTTPS web server. Automatic deployment from GitHub
-Actions to that server is added once its details and access are available.
+option below behind the client's HTTPS web server. Once the server's details are set,
+every change merged to `main` that passes its checks is deployed there automatically
+(see [Automatic deployment](#automatic-deployment)).
 
 ## Prerequisites
 
@@ -200,6 +201,101 @@ Trial plan's 0.5 GB volume is for testing). A deployment's Redeploy button rebui
 deployment's own commit; to build the newest commit, push to the branch or use
 "Deploy Latest Commit" from the command palette (Ctrl+K or Cmd+K).
 
+## Automatic deployment
+
+Every push runs the same checks on GitHub Actions (`.github/workflows/ci.yml`), GitLab
+(`.gitlab-ci.yml`) or Jenkins (`Jenkinsfile`). Each of them only calls the shared scripts in
+`scripts/ci/`, so any other CI system can run them as well:
+
+| Script | Does | Needs |
+| --- | --- | --- |
+| `scripts/ci/verify.sh` | Lint, unit, backup and integration tests, the production build, the type check | Node 22, Python 3 |
+| `scripts/ci/e2e.sh` | The browser tests | Node 22 (and root or sudo for Chromium's libraries, or `PLAYWRIGHT_INSTALL_DEPS=0` when they are installed already) |
+| `scripts/ci/container.sh IMAGE` | Builds the image and runs the container test on it | Docker with Compose |
+| `scripts/ci/publish.sh` | Pushes an image to a registry, or adds a tag to one already there | Docker |
+| `scripts/deploy.sh IMAGE` | Deploys an image to the server | bash, ssh |
+
+On the default branch the pipeline then:
+
+1. Publishes the image once its container test passes, under its commit:
+   `ghcr.io/OWNER/REPOSITORY:sha-COMMIT` on GitHub (lowercase), the project's registry on GitLab.
+2. Tags that same image `latest` once every check has passed. Nothing is rebuilt, so what is
+   deployed is exactly what was tested.
+3. Deploys it, when the server is configured (below). Until then that step is skipped.
+
+**What a deploy does.** `scripts/deploy.sh` connects to the server over SSH and, in the
+deployment folder, runs `scripts/deploy-remote.sh`, which:
+
+- pulls the image, signing in to the registry for that pull only (nothing is stored on the server);
+- if the app is running, stops it and backs up the database and media into `backups/` with the
+  current version (`scripts/backup.sh`, the latest 14 kept). If the backup fails, the app is
+  started again unchanged and the deploy stops;
+- starts the new image with `compose.yaml` and waits up to 3 minutes for `/api/health`. If it
+  does not answer, the previous image is started again and the pipeline fails;
+- records the image in `deployments.log` and removes images older than the previous one.
+
+Each deploy is offline for the backup plus a few seconds of start-up. Only one runs at a time.
+
+**On the server, once.**
+
+1. Install Docker Engine with the Compose plugin. Create a `deploy` user in the `docker` group.
+   That group is equivalent to root on the server, so keep this account for the pipeline alone.
+2. Add the public half of the deploy key to `/home/deploy/.ssh/authorized_keys`.
+3. Create the deployment folder and its settings, readable by `deploy` only:
+
+   ```sh
+   sudo install -d -o deploy -g deploy -m 0750 /opt/bangla-adventures
+   sudo -u deploy sh -c 'umask 077; printf "PUBLIC_ORIGIN=https://learn.example.org\nAPP_PORT=3000\n" > /opt/bangla-adventures/.env'
+   ```
+
+4. Point the HTTPS web server at `127.0.0.1:3000` (the `APP_PORT` above), allowing 13 MB
+   requests for audio uploads (Caddy: `reverse_proxy 127.0.0.1:3000`).
+5. On your own computer, `ssh-keyscan -H SERVER` prints the server's host key lines for
+   `DEPLOY_KNOWN_HOSTS`. Check its fingerprint with the server's administrator, so the pipeline
+   only ever connects to this server.
+
+After the first deploy, register the client's administrator on the site and approve the account
+from the deployment folder: `docker compose exec app npm run admin:grant -- EMAIL`.
+
+**GitHub settings** (Settings > Secrets and variables > Actions):
+
+| Name | Kind | Value |
+| --- | --- | --- |
+| `DEPLOY_HOST` | Variable | The server's name or address. The deploy job is skipped while it is unset |
+| `DEPLOY_KNOWN_HOSTS` | Variable | The `ssh-keyscan -H SERVER` lines |
+| `DEPLOY_USER` | Variable | Optional; default `deploy` |
+| `DEPLOY_PORT` | Variable | Optional; default `22` |
+| `DEPLOY_PATH` | Variable | Optional; default `/opt/bangla-adventures` |
+| `DEPLOY_SSH_KEY` | Secret | The deploy user's private key |
+
+To approve each deploy before it runs, add required reviewers to the `production` environment
+(Settings > Environments). The image stays private; during a deploy the job's own token lets the
+server pull it. In an organisation that limits packages, allow this repository to publish to
+GitHub Packages.
+
+**GitLab** uses the same names under Settings > CI/CD > Variables (mark `DEPLOY_SSH_KEY` masked
+and protected). Its container jobs use Docker-in-Docker, so the runner must allow privileged
+containers. **Jenkins** runs the `Jenkinsfile` as a multibranch pipeline on an agent with Node 22,
+Python 3, Docker with Compose, bash, git and ssh. It publishes when `REGISTRY_IMAGE` is set (for
+example `ghcr.io/OWNER/REPOSITORY`) with the username and password credential `registry`, and
+deploys when `DEPLOY_HOST` and `DEPLOY_KNOWN_HOSTS` are also set, with the SSH key credential
+`deploy-ssh-key`.
+
+**By hand, and going back.** From a Linux or macOS shell (on Windows, Git Bash or WSL) in the
+repository:
+
+```sh
+DEPLOY_HOST=SERVER DEPLOY_KNOWN_HOSTS="$(ssh-keyscan -H SERVER)" DEPLOY_SSH_KEY_FILE=~/.ssh/bangla_deploy \
+  REGISTRY_USER=GITHUB_USER REGISTRY_PASSWORD=TOKEN_WITH_READ_PACKAGES \
+  bash scripts/deploy.sh ghcr.io/OWNER/REPOSITORY:sha-COMMIT
+```
+
+Check the printed host key against the known one first. To go back to an earlier version, deploy
+its `sha-` tag the same way, or run `bash deploy-remote.sh IMAGE` in the deployment folder on the
+server (`deployments.log` lists earlier images). If a newer version has already changed the data
+in a way the earlier one cannot read, restore the backup taken just before it, from `backups/`
+([BACKUP_RESTORE.md](BACKUP_RESTORE.md)).
+
 ## Caching, security headers and new releases
 
 The app sets these itself wherever it runs; the reverse proxy does not need to add them.
@@ -290,6 +386,10 @@ needs its verified database **and matching media**, transferred privately with
 correct ownership. An empty database is appropriate only for a new installation.
 
 ## Upgrade and rollback
+
+With [automatic deployment](#automatic-deployment), the pipeline does the backup, the switch,
+the health check and the switch back on failure for the container option; still check the role
+journeys in [`ACCEPTANCE.md`](ACCEPTANCE.md) after a release. By hand, for the native service:
 
 1. Build/test a new release directory and take a verified pre-upgrade data/media
    backup. Record the previous release path and schema compatibility constraints.

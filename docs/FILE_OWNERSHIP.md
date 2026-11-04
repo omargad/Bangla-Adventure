@@ -634,7 +634,9 @@ All of them are authored by `omargad`. Each one is assigned to a team member to 
 Review and test: [@omargad](https://github.com/omargad) in [#100](https://github.com/omargad/Bangla-Adventure/issues/100).
 
 - `.github/CODEOWNERS`
+- `.gitlab-ci.yml`
 - `.nvmrc`
+- `Jenkinsfile`
 - `app/fonts/Geist-Variable.woff2`
 - `app/fonts/GeistMono-Variable.woff2`
 - `app/fonts/OFL.txt`
@@ -649,7 +651,13 @@ Review and test: [@omargad](https://github.com/omargad) in [#100](https://github
 - `public/robots.txt`
 - `scripts/backup-offsite.sh`
 - `scripts/backup_restore.py`
+- `scripts/ci/container.sh`
+- `scripts/ci/e2e.sh`
+- `scripts/ci/publish.sh`
+- `scripts/ci/verify.sh`
 - `scripts/close-idle-on-shutdown.mjs`
+- `scripts/deploy-remote.sh`
+- `scripts/deploy.sh`
 - `scripts/docker-start.sh`
 - `scripts/restore.sh`
 - `scripts/test-container.sh`

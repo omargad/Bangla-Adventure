@@ -161,8 +161,10 @@
 /tests/topics.test.mjs @MAQ022
 /tests/user-management.test.mjs @Tlm0v
 /.github/CODEOWNERS @omargad
+/.gitlab-ci.yml @omargad
 /.nvmrc @omargad
 /CONTRIBUTIONS.md @bahaa11-prog
+/Jenkinsfile @omargad
 /app/account/password/ @MAQ022
 /app/admin/FamilyImport.tsx @Tlm0v
 /app/admin/results/ @bahaa11-prog
@@ -255,7 +257,10 @@
 /public/robots.txt @omargad
 /scripts/backup-offsite.sh @omargad
 /scripts/backup_restore.py @omargad
+/scripts/ci/ @omargad
 /scripts/close-idle-on-shutdown.mjs @omargad
+/scripts/deploy-remote.sh @omargad
+/scripts/deploy.sh @omargad
 /scripts/docker-start.sh @omargad
 /scripts/reset-password.ts @omargad
 /scripts/restore.sh @omargad
