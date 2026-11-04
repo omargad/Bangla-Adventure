@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import type { Viewport } from "next";
 import { cookies } from "next/headers";
 import "./globals.css";
@@ -11,14 +11,19 @@ import { siteTitle } from "@/lib/site-title";
 import { chosenLanguage, LANGUAGE_COOKIE } from "@/lib/language-choice";
 import { LanguageProvider } from "@/lib/use-language";
 
-const geistSans = Geist({
+// Geist and Geist Mono 1.900, copied from the geist npm package (SIL Open Font License, app/fonts/OFL.txt)
+// so the build downloads no fonts. next/font/local names each font family after its constant, here
+// "Geist" and "GeistMono"; the CSS reaches them only through the two variables.
+const Geist = localFont({
+  src: "./fonts/Geist-Variable.woff2",
   variable: "--font-geist-sans",
-  subsets: ["latin"],
+  weight: "100 900",
 });
 
-const geistMono = Geist_Mono({
+const GeistMono = localFont({
+  src: "./fonts/GeistMono-Variable.woff2",
   variable: "--font-geist-mono",
-  subsets: ["latin"],
+  weight: "100 900",
   preload: false,
 });
 
@@ -50,7 +55,7 @@ export default async function RootLayout({
   // The reader's English/Bangla choice (kept by lib/use-language.ts), so each page is rendered in it from the first paint.
   const language = chosenLanguage(cookieStore.get(LANGUAGE_COOKIE)?.value) ?? "en";
   return (
-    <html lang={language} className={`${geistSans.variable} ${geistMono.variable}`}>
+    <html lang={language} className={`${Geist.variable} ${GeistMono.variable}`}>
       <body className="antialiased">
         <LanguageProvider initialLanguage={language}>
           {children}

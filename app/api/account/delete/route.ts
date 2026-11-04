@@ -16,7 +16,7 @@ import {
   getSessionAdult,
   verifyAdultCredentials,
 } from "../../../../lib/auth";
-import { checkRateLimit, clientKey, tooManyRequests } from "../../../../lib/rate-limit";
+import { checkRateLimit, tooManyRequests } from "../../../../lib/rate-limit";
 import { deleteMediaObject } from "../../../../lib/storage";
 
 export const dynamic = "force-dynamic";
@@ -30,11 +30,13 @@ export const dynamic = "force-dynamic";
  * account would put a video a teacher took down back in front of children.
  */
 export async function POST(request: Request) {
-  const limit = checkRateLimit(`account:${clientKey(request)}`, 10, 15 * 60 * 1000);
-  if (!limit.allowed) return tooManyRequests(limit.retryAfterSeconds);
-
   const adult = await getSessionAdult();
   if (!adult) return NextResponse.json({ error: "Sign in required." }, { status: 401 });
+
+  // Per account, not per address, shared with the other account changes.
+  const limit = checkRateLimit(`account:${adult.id}`, 10, 15 * 60 * 1000);
+  if (!limit.allowed) return tooManyRequests(limit.retryAfterSeconds);
+
   if (adult.role === "admin") return NextResponse.json({ error: "Ask another administrator to change your role before deleting this account." }, { status: 409 });
 
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;

@@ -10,7 +10,12 @@ if (platformMode === "moodle" && !moodleUrl) {
 
 const nextConfig: NextConfig = {
   distDir: process.env.NEXT_DIST_DIR ?? ".next",
-  experimental: { cpus: 2 },
+  experimental: {
+    cpus: 2,
+    // proxy.ts sees every request, so Next buffers each body for it (10 MB by default). Studio audio uploads
+    // may be 12 MB plus the form around them.
+    proxyClientMaxBodySize: "13mb",
+  },
   images: { unoptimized: true },
   poweredByHeader: false,
   // Next also applies these to the responses proxy.ts returns itself (401, 403, 410 and redirects).

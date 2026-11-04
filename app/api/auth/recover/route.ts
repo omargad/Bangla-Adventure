@@ -7,12 +7,16 @@ import {
   sessionCookieOptions,
 } from "../../../../lib/auth";
 import { checkRateLimit, clientKey, tooManyRequests } from "../../../../lib/rate-limit";
+import { INSECURE_SIGN_IN, insecureSignIn } from "../../../../lib/request-security";
 import { approvalNotice } from "../../../../lib/roles";
 
 export const dynamic = "force-dynamic";
 
 /** Reset a forgotten password with a one-time recovery code. */
 export async function POST(request: Request) {
+  // Checked first: on a plain http:// address the code would be used up and the new session cookie dropped.
+  if (insecureSignIn(request)) return NextResponse.json(INSECURE_SIGN_IN, { status: 400 });
+
   const limit = checkRateLimit(`recover:${clientKey(request)}`, 5, 15 * 60 * 1000);
   if (!limit.allowed) return tooManyRequests(limit.retryAfterSeconds);
 

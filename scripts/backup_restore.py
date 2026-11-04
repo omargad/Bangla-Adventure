@@ -116,8 +116,9 @@ def add_member(archive: tarfile.TarFile, source: Path, name: str) -> None:
 def backup(args: argparse.Namespace) -> dict:
     if not args.application_stopped:
         raise BackupError("Stop all application/media writers, then pass --application-stopped")
-    db = Path(os.environ.get("DATABASE_PATH", ".data/bangla-adventures.db")).expanduser().absolute()
-    media = Path(os.environ.get("MEDIA_ROOT", ".data/media")).expanduser().absolute()
+    # An empty setting means the default, as in the app.
+    db = Path(os.environ.get("DATABASE_PATH") or ".data/bangla-adventures.db").expanduser().absolute()
+    media = Path(os.environ.get("MEDIA_ROOT") or ".data/media").expanduser().absolute()
     output = Path(args.directory).expanduser().absolute()
     regular_file(db)
     if media.is_symlink() or (media.exists() and not media.is_dir()):
@@ -255,7 +256,10 @@ def unpack_checked(archive_path: Path, stage: Path, max_bytes: int) -> dict:
 
 
 def verify_archive(archive: Path, max_bytes: int) -> dict:
-    with tempfile.TemporaryDirectory(prefix="bangla-verify-") as temporary:
+    # Unpack next to the archive when that folder is writable, so verifying works on a
+    # read-only root filesystem and does not fill a small /tmp; otherwise use the system temp.
+    folder = archive.parent if os.access(archive.parent, os.W_OK | os.X_OK) else None
+    with tempfile.TemporaryDirectory(prefix=".bangla-verify-", dir=folder) as temporary:
         manifest = unpack_checked(archive, Path(temporary), max_bytes)
     return {"verified": True, "files": len(manifest["files"]), "created_at": manifest.get("created_at")}
 

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-const { checkRateLimit, resetRateLimits, clientKey, tooManyRequests } = await import("../lib/rate-limit.ts");
+const { checkRateLimit, peekRateLimit, recordRateLimit, resetRateLimits, clientKey, tooManyRequests } = await import("../lib/rate-limit.ts");
 
 test("allows up to the limit inside a window, then blocks", () => {
   resetRateLimits();
@@ -28,6 +28,32 @@ test("keys are independent", () => {
   for (let i = 0; i < 5; i += 1) checkRateLimit("a", 5, 60_000, start);
   assert.equal(checkRateLimit("a", 5, 60_000, start).allowed, false);
   assert.equal(checkRateLimit("b", 5, 60_000, start).allowed, true);
+});
+
+test("peeking counts nothing; only recorded attempts use up the limit", () => {
+  resetRateLimits();
+  const start = 4_000_000;
+  for (let i = 0; i < 50; i += 1) assert.equal(peekRateLimit("guess", 3, start + i).allowed, true, "successful sign-ins only peek");
+  for (let i = 0; i < 3; i += 1) {
+    assert.equal(peekRateLimit("guess", 3, start + 100).allowed, true, `failure ${i + 1}`);
+    recordRateLimit("guess", 60_000, start + 100);
+  }
+  const blocked = peekRateLimit("guess", 3, start + 200);
+  assert.equal(blocked.allowed, false);
+  assert.equal(blocked.retryAfterSeconds, 60);
+  assert.equal(peekRateLimit("guess", 3, start + 60_100).allowed, true, "the window starts at the first failure");
+  recordRateLimit("guess", 60_000, start + 60_100);
+  assert.equal(peekRateLimit("guess", 3, start + 60_100).allowed, true, "and a new one starts after it ends");
+});
+
+test("checkRateLimit shares counts with recorded attempts", () => {
+  resetRateLimits();
+  const start = 5_000_000;
+  recordRateLimit("shared", 60_000, start);
+  recordRateLimit("shared", 60_000, start);
+  assert.equal(checkRateLimit("shared", 3, 60_000, start).allowed, true);
+  assert.equal(checkRateLimit("shared", 3, 60_000, start).allowed, false);
+  assert.equal(peekRateLimit("shared", 3, start).allowed, false);
 });
 
 test("clientKey prefers first x-forwarded-for hop", () => {

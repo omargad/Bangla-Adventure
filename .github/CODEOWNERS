@@ -191,6 +191,7 @@
 /app/components/StudentImport.tsx @MohammedAlAjmi24
 /app/components/VoiceNote.tsx @104985376
 /app/components/leave-guard.ts @MohammedAlAjmi24
+/app/fonts/ @omargad
 /app/references/ClassSourceList.tsx @MAQ022
 /app/references/ReferenceNote.tsx @bahaa11-prog
 /app/references/ReferencesView.tsx @MAQ022
@@ -269,6 +270,7 @@
 /tests/class-management.test.mjs @Tlm0v
 /tests/class-sources.test.mjs @MAQ022
 /tests/csv.test.mjs @bahaa11-prog
+/tests/data-paths.test.mjs @omargad
 /tests/e2e/accounts.spec.ts @omargad
 /tests/e2e/admin-classes.spec.ts @bahaa11-prog
 /tests/e2e/admin-results.spec.ts @bahaa11-prog
@@ -298,6 +300,7 @@
 /tests/integration/family-import-flow.test.mjs @Tlm0v
 /tests/integration/lesson-approval-flow.test.mjs @Tlm0v
 /tests/integration/password-change-flow.test.mjs @MAQ022
+/tests/integration/public-origin-flow.test.mjs @omargad
 /tests/integration/serving-flow.test.mjs @omargad
 /tests/integration/sources-flow.test.mjs @MAQ022
 /tests/integration/student-import-flow.test.mjs @MohammedAlAjmi24

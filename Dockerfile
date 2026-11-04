@@ -6,7 +6,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends python3 make g+
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
-RUN npm run build
+# The webpack cache only speeds up the next build here, so it stays out of the image.
+RUN npm run build && rm -rf .next/cache
 
 FROM node:22-slim
 WORKDIR /app
@@ -33,10 +34,12 @@ COPY --from=builder /app/tsconfig.json ./tsconfig.json
 
 # Persistent state (SQLite database + uploaded audio) lives in /app/.data: mount a volume
 # there in production. The image declares no volume itself, as some hosts (Railway) refuse that.
-# The app always runs as `node`; scripts/docker-start.sh switches to it when a host starts the
+# The app runs as `node`; scripts/docker-start.sh switches to it when a host starts the
 # container as root to hand over a root-owned disk (compose.yaml starts it as `node` directly).
-RUN mkdir -p .data/media .next/cache && chown -R node:node .data .next/cache \
-  && chmod 0755 scripts/docker-start.sh
+# The writable folders also belong to group 0 with the owner's rights, so hosts that run the
+# container under an arbitrary uid in group 0 (OpenShift) can write them too.
+RUN mkdir -p .data/media .next/cache && chown -R node:0 .data .next/cache \
+  && chmod -R g=u .data .next/cache && chmod 0755 scripts/docker-start.sh
 
 EXPOSE 3000
 
@@ -45,4 +48,7 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
 ENTRYPOINT ["scripts/docker-start.sh"]
-CMD ["npm", "start"]
+# Next runs directly, not through npm, so it receives SIGTERM and lets open requests finish.
+# Idle connections are kept open longer than load balancers keep theirs (up to 600 s), so the
+# app never closes a connection that a load balancer is about to reuse (which shows as a 502).
+CMD ["node", "node_modules/next/dist/bin/next", "start", "--keepAliveTimeout", "620000"]

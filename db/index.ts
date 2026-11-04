@@ -15,8 +15,9 @@ const globalState = globalThis as typeof globalThis & { __banglaAdventuresDb?: D
 export async function getDb(): Promise<Db> {
   if (globalState.__banglaAdventuresDb) return globalState.__banglaAdventuresDb;
 
+  // An empty DATABASE_PATH would open SQLite's temporary database and lose everything on restart.
   const file =
-    process.env.DATABASE_PATH ?? path.join(process.cwd(), ".data", "bangla-adventures.db");
+    process.env.DATABASE_PATH || path.join(process.cwd(), ".data", "bangla-adventures.db");
   fs.mkdirSync(path.dirname(file), { recursive: true });
 
   const sqlite = new Database(file);

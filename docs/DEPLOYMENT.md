@@ -114,24 +114,90 @@ release, and separately verify the production host configuration.
 
 ## Other container hosts
 
-The same `Dockerfile` runs on any host that builds or runs a Docker image (for example
-Railway, Render or Fly.io), with no changes:
+The same `Dockerfile` runs unchanged on any host that runs a Docker image and can keep a
+disk for one running copy of the app: for example Railway, Render, Fly.io, Kubernetes,
+OpenShift, Coolify, Dokku, CapRover, or plain Docker or Podman. Nothing in the repository
+is specific to one host.
+
+**What the host must offer.** The database is one SQLite file and the uploaded audio sits
+next to it, so the host needs:
+
+- a persistent disk mounted at `/app/.data`. Without one, every redeploy starts empty;
+- a local (block) disk, not a network share. SQLite is not safe on NFS, SMB/Azure Files,
+  EFS or Cloud Storage FUSE;
+- one running copy, stopped before its replacement starts (on Kubernetes,
+  `strategy: Recreate`);
+- HTTPS. Sign-in cookies are Secure, so plain `http://` works only at `localhost`.
+  Anywhere else sign-in answers "Signing in needs a secure https:// address".
+
+Heroku, DigitalOcean App Platform, Google Cloud Run and Render instances without a disk
+cannot keep the data, so they are not suitable for real use; on such a host the start
+log warns that `/app/.data` is not on a persistent volume.
 
 | Setting | Value |
 | --- | --- |
-| Build | The repository's `Dockerfile` |
-| Persistent volume | Mounted at `/app/.data` (database and uploaded media). Without it every redeploy starts empty |
-| Instances | One |
-| Port | The host's `PORT` variable is used automatically; otherwise 3000 |
-| Environment | `PUBLIC_ORIGIN` = the site's public `https://` address |
-| Health check | `/api/health` (200 only when a database query succeeds) |
+| Build | The repository's `Dockerfile`. When pushing a prebuilt image, build it for the host's processor, for example `docker buildx build --platform linux/amd64` on an Apple Silicon Mac |
+| Start command | Leave empty, so the image's own one runs. If a host insists on one, use `scripts/docker-start.sh node node_modules/next/dist/bin/next start --keepAliveTimeout 620000`. On Kubernetes and Cloud Run set only `args`, never `command` |
+| Disk | Mounted at `/app/.data`. If the host mounts it elsewhere, set `DATABASE_PATH` and `MEDIA_ROOT` to absolute paths on it |
+| Port | A host that sets `PORT` is followed automatically. Where the host asks for the container port instead (Fly.io `internal_port`, CapRover "Container HTTP Port", Kubernetes `targetPort`), enter 3000 |
+| Health check | `/api/health` (200 only when a database query succeeds). Most hosts ignore the Dockerfile's own check, so set it on the host |
+| Upload size | Lesson audio can be 12 MB. Let requests of 13 MB through any proxy in front: ingress-nginx `nginx.ingress.kubernetes.io/proxy-body-size: 13m`, Dokku `dokku nginx:set APP client-max-body-size 13m`, nginx `client_max_body_size 13m;` |
+| `PUBLIC_ORIGIN` | Optional, and recommended once the address is final. Set it to the one address people use, scheme and host only (`https://learn.example.org`), and only requests from that address can sign in or save. Unset, the app accepts the address each request arrives on, for example both a platform address and a custom domain |
 
-The app always runs as the unprivileged `node` user. Many hosts attach their disk owned
-by root and start the container as root; `scripts/docker-start.sh` then hands the data
-folders to `node` and starts the app as `node`, so no host-specific image or setting is
-needed. Run server commands as `node` too (for example
-`su node -s /bin/sh -c "npm run admin:grant -- EMAIL"` in a host's shell), so new
-database files stay owned by the app.
+The image already sets `NODE_ENV`, `PORT`, `PLATFORM_MODE`, `DATABASE_PATH` and
+`MEDIA_ROOT`; leave them unless the disk is mounted elsewhere. Do not set `NEXT_DIST_DIR`.
+The ElevenLabs settings are only for generating audio on a developer's computer and never
+go on the host.
+
+**Users and permissions.** The app always runs as the unprivileged `node` user (uid 1000).
+`scripts/docker-start.sh` adapts to how the host starts the container:
+
+- *As root* (Railway, Render, Fly.io and others that attach their disk owned by root): it
+  hands the data folders to `node`, then starts the app as `node`. If the container is
+  root but may not switch users (all capabilities dropped), it stops with a message to
+  run it as uid 1000.
+- *As `node` or uid 1000* (Compose, Kubernetes with `runAsUser: 1000`): it starts the
+  app. The disk must be writable by uid 1000; on Kubernetes set `fsGroup: 1000`.
+- *As another uid in group 0* (OpenShift): the image's folders are group-writable, so
+  this works too. Attach the volume at `/app/.data`, which OpenShift makes writable.
+
+The start log names anything it finds wrong with the data folder: not on a persistent
+volume, on a network filesystem, or not writable. It refuses to start with `/` or `/app`
+as the data folder. On a stop the app finishes open requests before exiting.
+
+A Kubernetes outline (OpenShift: leave out the four user and group settings, which the
+platform assigns):
+
+```yaml
+spec:
+  replicas: 1
+  strategy: { type: Recreate }
+  template:
+    spec:
+      securityContext: { runAsUser: 1000, runAsGroup: 1000, fsGroup: 1000, fsGroupChangePolicy: OnRootMismatch, runAsNonRoot: true }
+      containers:
+        - name: app
+          image: REGISTRY/bangla-adventures:TAG
+          ports: [{ containerPort: 3000 }]
+          readinessProbe: { httpGet: { path: /api/health, port: 3000 } }
+          securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: { drop: [ALL] } }
+          volumeMounts: [{ name: data, mountPath: /app/.data }, { name: tmp, mountPath: /tmp }]
+      volumes:
+        - { name: data, persistentVolumeClaim: { claimName: bangla-data } } # ReadWriteOnce
+        - { name: tmp, emptyDir: {} }
+```
+
+With a read-only root filesystem, keep a writable `/tmp` as above: the server commands
+below need it.
+
+**Server commands.** Run them as the app's user so new files stay owned by it: in a
+root shell on the host, `su node -s /bin/sh -c "npm run admin:grant -- EMAIL"`; where
+the shell already runs as uid 1000 (Kubernetes `kubectl exec`), `npm run admin:grant -- EMAIL`.
+
+**Railway.** Add a Volume with mount path `/app/.data` before storing real data (the
+Trial plan's 0.5 GB volume is for testing). A deployment's Redeploy button rebuilds that
+deployment's own commit; to build the newest commit, push to the branch or use
+"Deploy Latest Commit" from the command palette (Ctrl+K or Cmd+K).
 
 ## Caching, security headers and new releases
 

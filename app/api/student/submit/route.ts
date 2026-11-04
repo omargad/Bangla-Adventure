@@ -3,17 +3,18 @@ import { getDb } from "@/db";
 import { activitySubmissions, classActivities, studentClassEnrollments } from "@/db/schema";
 import type { QuizQuestion } from "@/lib/classroom";
 import { gradeAnswers } from "@/lib/classroom";
-import { checkRateLimit, clientKey, tooManyRequests } from "@/lib/rate-limit";
+import { checkRateLimit, tooManyRequests } from "@/lib/rate-limit";
 import { getStudentAccess } from "@/lib/student-auth";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
-  const limit = checkRateLimit(`student-submit:${clientKey(request)}`, 60, 10 * 60 * 1000);
-  if (!limit.allowed) return tooManyRequests(limit.retryAfterSeconds);
-
   const student = await getStudentAccess();
   if (student instanceof Response) return student;
+
+  // Per student, not per address: a whole class may submit from one school network.
+  const limit = checkRateLimit(`student-submit:${student.id}`, 60, 10 * 60 * 1000);
+  if (!limit.allowed) return tooManyRequests(limit.retryAfterSeconds);
 
   try {
     const body = (await request.json().catch(() => ({}))) as { activityId?: unknown; answers?: unknown };

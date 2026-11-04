@@ -8,8 +8,9 @@ import path from "node:path";
  * object storage; the database only records the object key.
  */
 
+// Resolved so a relative MEDIA_ROOT, or one ending in a slash, still passes the check in resolveKey.
 function mediaRoot() {
-  return process.env.MEDIA_ROOT ?? path.join(process.cwd(), ".data", "media");
+  return path.resolve(process.env.MEDIA_ROOT || path.join(process.cwd(), ".data", "media"));
 }
 
 function resolveKey(key: string) {

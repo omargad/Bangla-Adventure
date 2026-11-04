@@ -5,18 +5,19 @@ import {
   getSignedInAdult,
   verifyAdultCredentials,
 } from "../../../../lib/auth";
-import { checkRateLimit, clientKey, tooManyRequests } from "../../../../lib/rate-limit";
+import { checkRateLimit, tooManyRequests } from "../../../../lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
 // Uses getSignedInAdult, not getSessionAdult: this is how an adult replaces an administrator-issued password.
 export async function POST(request: Request) {
-  const limit = checkRateLimit(`account:${clientKey(request)}`, 10, 15 * 60 * 1000);
-  if (!limit.allowed) return tooManyRequests(limit.retryAfterSeconds);
-
   const adult = await getSignedInAdult();
   const token = await getSessionToken();
   if (!adult || !token) return NextResponse.json({ error: "Sign in required.", errorBn: "আবার সাইন ইন করুন।" }, { status: 401 });
+
+  // Per account, not per address, shared with the other account changes.
+  const limit = checkRateLimit(`account:${adult.id}`, 10, 15 * 60 * 1000);
+  if (!limit.allowed) return tooManyRequests(limit.retryAfterSeconds);
 
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const currentPassword = typeof body.currentPassword === "string" ? body.currentPassword : "";

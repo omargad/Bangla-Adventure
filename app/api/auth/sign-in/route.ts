@@ -5,14 +5,21 @@ import {
   sessionCookieOptions,
   verifyAdultCredentials,
 } from "../../../../lib/auth";
-import { checkRateLimit, clientKey, tooManyRequests } from "../../../../lib/rate-limit";
+import { checkRateLimit, clientKey, peekRateLimit, recordRateLimit, tooManyRequests } from "../../../../lib/rate-limit";
+import { INSECURE_SIGN_IN, insecureSignIn } from "../../../../lib/request-security";
 import { approvalNotice, canManageUsers } from "@/lib/roles";
 
 export const dynamic = "force-dynamic";
 
+const WINDOW_MS = 15 * 60 * 1000;
+
 export async function POST(request: Request) {
-  const limit = checkRateLimit(`sign-in:${clientKey(request)}`, 10, 15 * 60 * 1000);
-  if (!limit.allowed) return tooManyRequests(limit.retryAfterSeconds);
+  if (insecureSignIn(request)) return NextResponse.json(INSECURE_SIGN_IN, { status: 400 });
+
+  // A staff room shares one address and this counts every sign-in, so the per-address cap is coarse;
+  // guessing one account's password is limited per email, on wrong passwords only.
+  const address = checkRateLimit(`sign-in:${clientKey(request)}`, 100, WINDOW_MS);
+  if (!address.allowed) return tooManyRequests(address.retryAfterSeconds);
 
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const email = typeof body.email === "string" ? body.email.trim().slice(0, 120) : "";
@@ -21,8 +28,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Enter your email and password.", errorBn: "ইমেইল ও পাসওয়ার্ড লিখুন।" }, { status: 400 });
   }
 
+  const accountKey = `sign-in-account:${email.toLowerCase()}`;
+  const account = peekRateLimit(accountKey, 10);
+  if (!account.allowed) return tooManyRequests(account.retryAfterSeconds);
+
   const adult = await verifyAdultCredentials(email, password);
   if (!adult) {
+    recordRateLimit(accountKey, WINDOW_MS);
     return NextResponse.json({ error: "That email and password do not match.", errorBn: "এই ইমেইল ও পাসওয়ার্ড মেলেনি।" }, { status: 401 });
   }
   // Only someone who knows the password learns that the account is still waiting for approval.

@@ -100,6 +100,37 @@ class BackupRestoreTests(unittest.TestCase):
         self.run_cli("restore", result["archive"], restored)
         self.assertEqual(list((restored / "media").iterdir()), [])
 
+    def test_empty_settings_use_the_default_paths(self):
+        default_media = self.root / ".data" / "media"
+        default_media.mkdir(parents=True)
+        (default_media / "default.wav").write_bytes(b"default media")
+        with contextlib.closing(sqlite3.connect(self.root / ".data" / "bangla-adventures.db")) as db:
+            db.execute("CREATE TABLE samples (text TEXT)")
+            db.execute("INSERT INTO samples VALUES ('default database')")
+            db.commit()
+        result = self.run_cli("backup", self.output, "--application-stopped",
+                              env={**self.env, "DATABASE_PATH": "", "MEDIA_ROOT": ""})
+        restored = self.root / "default-restore"
+        self.run_cli("restore", result["archive"], restored)
+        self.assertEqual((restored / "media/default.wav").read_bytes(), b"default media")
+        with contextlib.closing(sqlite3.connect(restored / "bangla-adventures.db")) as db:
+            self.assertEqual(db.execute("SELECT text FROM samples").fetchall(), [("default database",)])
+
+    def test_verify_unpacks_next_to_the_archive_when_that_folder_is_writable(self):
+        archive = self.make_backup()
+        folders = []
+        real = tempfile.TemporaryDirectory
+        def record(*args, **kwargs):
+            folders.append(kwargs.get("dir"))
+            return real(*args, **kwargs)
+        with mock.patch.object(backup_module.tempfile, "TemporaryDirectory", side_effect=record):
+            self.assertTrue(backup_module.verify_archive(archive, backup_module.MAX_BYTES)["verified"])
+            # A read-only archive folder falls back to the system temporary folder.
+            with mock.patch.object(backup_module.os, "access", return_value=False):
+                self.assertTrue(backup_module.verify_archive(archive, backup_module.MAX_BYTES)["verified"])
+        self.assertEqual(folders, [archive.parent, None])
+        self.assertEqual([p.name for p in self.output.iterdir() if p.name.startswith(".bangla-verify-")], [])
+
     def test_rejects_source_symlinks_and_backup_inside_media(self):
         link = self.media / "external-link"
         link.symlink_to(self.database)

@@ -138,3 +138,19 @@ test("word and pattern audio from /api/audio is the approved human recording, ah
   assert.equal((await send("/api/audio/my-day", "GET", undefined, studentCookie)).status, 404);
   assert.equal((await send("/api/audio/my-day", "GET", undefined, teacherCookie)).status, 200);
 });
+
+test("a recording up to the 12 MB limit uploads through the proxy; a larger one gets the size message", async () => {
+  // Next buffers each request body for proxy.ts, only 10 MB of it unless next.config.ts allows more.
+  const upload = (bytes) => {
+    const form = new FormData();
+    form.set("file", new Blob([Buffer.alloc(bytes, 1)], { type: "audio/ogg" }), "reading.ogg");
+    form.set("lessonId", "hello-me"); form.set("slot", "reading"); form.set("speakerName", "Nadia"); form.set("dialect", "Dhaka"); form.set("consentConfirmed", "true");
+    return fetch(`${BASE}/api/studio/media`, { method: "POST", body: form, headers: { cookie: teacherCookie, origin: BASE } });
+  };
+  const largest = await upload(12 * 1024 * 1024);
+  assert.equal(largest.status, 201);
+  assert.equal((await largest.json()).asset.byteSize, 12 * 1024 * 1024);
+  const tooLarge = await upload(12 * 1024 * 1024 + 1);
+  assert.equal(tooLarge.status, 400);
+  assert.equal((await tooLarge.json()).error, "Upload an audio file no larger than 12 MB.");
+});

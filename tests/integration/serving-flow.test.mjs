@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { once } from "node:events";
+import http from "node:http";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test, { after, before } from "node:test";
@@ -26,6 +27,14 @@ const send = (route, cookie, init = {}) => fetch(`${BASE}${route}`, { redirect: 
 const json = (route, body, headers = {}) => send(route, undefined, { method: "POST", headers: { "Content-Type": "application/json", "x-forwarded-for": "serving-student", ...headers }, body: JSON.stringify(body) });
 const assets = (html, pattern) => [...html.matchAll(/(?:src|href)="(\/_next\/static\/[^"]+)"/g)].map((match) => match[1]).filter((src) => pattern.test(src));
 const renderedRelease = (html) => /\\"release\\":\\"([^"\\]+)\\"/.exec(html)?.[1];
+/** A request as a reverse proxy passes it on, with the Host header it chose (fetch always sends the real one). */
+const proxied = (route, headers, body) => new Promise((resolve, reject) => {
+  const request = http.request(`${BASE}${route}`, { method: body === undefined ? "GET" : "POST", headers: { ...(body === undefined ? {} : { "content-type": "application/json" }), ...headers } }, (response) => {
+    let text = "";
+    response.setEncoding("utf8").on("data", (chunk) => { text += chunk; }).on("end", () => resolve({ status: response.statusCode, headers: response.headers, text }));
+  });
+  request.on("error", reject).end(body === undefined ? undefined : JSON.stringify(body));
+});
 
 before(async () => {
   server = spawn(process.execPath, ["node_modules/next/dist/bin/next", "start", "-H", "127.0.0.1", "-p", String(PORT)], {
@@ -182,4 +191,52 @@ test("the release is the build id, the same in /api/auth/session and in every pa
   assert.equal((await (await send("/api/auth/session", studentCookie)).json()).release, buildId);
   assert.equal(renderedRelease(await (await send("/welcome")).text()), buildId);
   assert.equal(renderedRelease(await (await send("/adventure", studentCookie)).text()), buildId);
+});
+
+test("behind a proxy that keeps no Host or protocol, redirects stay on the address the browser used", async () => {
+  const proxies = [
+    { host: "learn.example.org" },
+    { host: "app-svc:3000", "x-forwarded-host": "learn.example.org" },
+    { host: "app-svc:3000", "x-forwarded-host": "learn.example.org", "x-forwarded-proto": "https" },
+  ];
+  for (const headers of proxies) {
+    for (const [route, expected] of [["/", "/welcome"], ["/learn", "/welcome?returnTo=%2Flearn"], ["/teach/classes?tab=1", "/grown-ups?returnTo=%2Fteach%2Fclasses%3Ftab%3D1"], ["/classroom", "/student"]]) {
+      const { status, headers: answer } = await proxied(route, headers);
+      const where = `${route} via ${JSON.stringify(headers)}`;
+      assert.equal(status, 307, where);
+      assert.equal(answer.location, expected, where);
+      assert.doesNotMatch(answer.location, /127\.0\.0\.1|localhost|app-svc|:\d/, where);
+    }
+  }
+});
+
+test("without PUBLIC_ORIGIN, a browser's same-origin answer gets through a proxy that rewrote Host", async () => {
+  const signIn = { email: "nobody@example.com", password: "not-the-password" };
+  const behindProxy = { host: "app-svc:3000", origin: "https://learn.example.org", "x-forwarded-for": "serving-proxy" };
+  const accepted = await proxied("/api/auth/sign-in", { ...behindProxy, "sec-fetch-site": "same-origin" }, signIn);
+  assert.equal(accepted.status, 401, "the sign-in route answered, not the origin check");
+  const unverified = await proxied("/api/auth/sign-in", behindProxy, signIn);
+  assert.equal(unverified.status, 403, "a browser without Sec-Fetch-Site is checked on Origin alone");
+  assert.equal(JSON.parse(unverified.text).error, "The request origin could not be verified.");
+  for (const site of ["same-site", "cross-site"]) {
+    const refused = await proxied("/api/auth/sign-in", { ...behindProxy, "sec-fetch-site": site }, signIn);
+    assert.equal(refused.status, 403, site);
+    assert.equal(JSON.parse(refused.text).error, "Cross-site requests are not allowed.", site);
+  }
+});
+
+test("signing in from a plain http:// address on another computer says why instead of dropping the cookie", async () => {
+  const lan = { host: "192.168.1.20:3000", origin: "http://192.168.1.20:3000", "sec-fetch-site": "same-origin", "x-forwarded-for": "serving-lan" };
+  for (const [route, body] of [
+    ["/api/auth/sign-in", { email: "nobody@example.com", password: "not-the-password" }],
+    ["/api/auth/recover", { email: "nobody@example.com", recoveryCode: "AAAA-BBBB", newPassword: "a-long-new-password" }],
+    ["/api/student/sign-in", { username: "serving-mina", password }],
+  ]) {
+    const response = await proxied(route, lan, body);
+    assert.equal(response.status, 400, route);
+    assert.deepEqual(JSON.parse(response.text), { error: "Signing in needs a secure https:// address.", errorBn: "সাইন ইন করতে নিরাপদ https:// ঠিকানা প্রয়োজন।" }, route);
+    assert.equal(response.headers["set-cookie"], undefined, route);
+  }
+  const local = await proxied("/api/student/sign-in", { ...lan, host: `localhost:${PORT}`, origin: `http://localhost:${PORT}` }, { username: "serving-mina", password });
+  assert.equal(local.status, 200, "this computer's own address still signs in");
 });

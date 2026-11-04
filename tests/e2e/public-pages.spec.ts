@@ -167,7 +167,7 @@ test("pages use the Geist stack with the Bengali fonts after it", async ({ page 
   await page.goto("/safety", { waitUntil: "networkidle" });
   expect(await page.evaluate(async () => {
     await document.fonts.ready;
-    return Array.from(document.fonts).some((font) => font.family.includes("Geist Mono") && font.status === "loaded");
+    return Array.from(document.fonts).some((font) => font.family.includes("GeistMono") && font.status === "loaded");
   })).toBe(true);
 });
 

@@ -635,6 +635,9 @@ Review and test: [@omargad](https://github.com/omargad) in [#100](https://github
 
 - `.github/CODEOWNERS`
 - `.nvmrc`
+- `app/fonts/Geist-Variable.woff2`
+- `app/fonts/GeistMono-Variable.woff2`
+- `app/fonts/OFL.txt`
 - `compose.yaml`
 - `db/content-migration.ts`
 - `docs/BACKUP_RESTORE.md`
@@ -651,6 +654,8 @@ Review and test: [@omargad](https://github.com/omargad) in [#100](https://github
 - `scripts/test-container.sh`
 - `scripts/update-manifest.sh`
 - `tests/backup_restore_test.py`
+- `tests/data-paths.test.mjs`
+- `tests/integration/public-origin-flow.test.mjs`
 - `tests/integration/serving-flow.test.mjs`
 - `tests/node-version.test.mjs`
 - `tests/release.test.mjs`
