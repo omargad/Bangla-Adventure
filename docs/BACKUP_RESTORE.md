@@ -166,7 +166,89 @@ Record the backup/snapshot ID, date, tested app commit, checks, result and revie
 Actual disaster recovery is a separate maintenance action: stop writers, preserve
 the current state, restore into a new location, arrange the app user's ownership,
 verify it, then switch the service's paths. Keep the previous state for rollback.
-This utility intentionally does not automate a destructive in-place restore.
+This utility intentionally does not automate a destructive in-place restore. For the
+Compose deployment that automatic deployment sets up, the next section gives the steps.
+
+## Restore into the Compose deployment
+
+This puts a backup from `backups/` back into the deployment that
+[automatic deployment](DEPLOYMENT.md#automatic-deployment) sets up. There,
+`/opt/bangla-adventures` holds `compose.yaml`, `.env` and `backups/` (owned by uid 1000,
+the app's user, mode `0700`), and the data is in the named volume
+`bangla-adventures_bangla-data` (the `COMPOSE_PROJECT_NAME` from `.env`, then
+`_bangla-data`), mounted at `/app/.data` in the container. The server has no copy of
+`scripts/`, so every step uses the tools inside the image, run as the app's user through
+Compose.
+
+The site is offline from step 1 to step 5. The current data is kept, not deleted, so the
+volume needs room for a second copy. Make sure no deploy starts meanwhile: merge nothing to
+the default branch, or approve no deploy, until step 5. Run the commands in Bash, as the
+`deploy` user:
+
+1. Stop the app:
+
+   ```sh
+   cd /opt/bangla-adventures
+   docker compose stop app
+   ```
+
+2. List the archives (through the container, as `backups/` belongs to the app's user) and
+   choose one. Each name holds the backup's date and time in UTC; the version that was running
+   then is the last one `deployments.log` lists before it.
+
+   ```sh
+   docker compose run --rm --no-deps -v "$PWD/backups:/backups:ro" --entrypoint ls app -l /backups
+   name=bangla-data-20261104T051500123456Z-0123456789ab   # the chosen archive, without .tar.gz
+   ```
+
+3. Restore it into a new folder inside the volume. `restore.sh` checks every file's checksum
+   and the database's integrity, and refuses a folder that already exists. If anything fails,
+   it removes the folder it made and the live data is untouched.
+
+   ```sh
+   docker compose run --rm --no-deps -v "$PWD/backups:/backups:ro" --entrypoint bash app \
+     scripts/restore.sh "/backups/$name.tar.gz" "/app/.data/restore-$name"
+   ```
+
+   It prints JSON with `"verified": true`. The folder holds `bangla-adventures.db`, `media/`
+   and `restore-receipt.json` (the archive's SHA-256 and when the backup was made).
+
+4. In one throwaway container, move the current database and media aside into
+   `/app/.data/replaced-DATE`, then the restored ones into place. The database's `-wal` and
+   `-shm` files go aside with it: left next to the restored database, SQLite would apply them
+   to it. Nothing is moved unless the restored files are there.
+
+   ```sh
+   docker compose run --rm --no-deps -e name="$name" --entrypoint bash app -c '
+     set -euo pipefail
+     cd /app/.data
+     ls -d "restore-$name/bangla-adventures.db" "restore-$name/media"
+     aside="replaced-$(date -u +%Y%m%dT%H%M%SZ)"
+     mkdir -m 0700 "$aside"
+     for item in bangla-adventures.db bangla-adventures.db-wal bangla-adventures.db-shm media; do
+       if [ -e "$item" ]; then mv "$item" "$aside/"; fi
+     done
+     mv "restore-$name/bangla-adventures.db" "restore-$name/media" .
+     echo "The data from before the restore is in /app/.data/$aside"'
+   ```
+
+5. Start the image that should run on this data, usually the one that was running when the
+   backup was taken. As on every deploy, `deploy-remote.sh` first backs up the restored data,
+   and goes back if the image does not become healthy:
+
+   ```sh
+   bash deploy-remote.sh IMAGE                                     # an image still on the server
+   printf '%s' TOKEN | bash deploy-remote.sh IMAGE REGISTRY_USER   # one to pull from a private registry
+   ```
+
+   Or start it without a deploy: set `APP_IMAGE=IMAGE` in `.env`, then run
+   `docker compose up -d --no-build`.
+
+6. Check that `docker compose ps` shows the app `healthy`, and look for the expected accounts,
+   classes and media on the site. `restore-NAME` keeps its `restore-receipt.json` as the record
+   of what was restored. To undo the restore, stop the app and move the files in
+   `replaced-DATE` back the same way. Once the restore is accepted, delete that folder, naming
+   it in full: `docker compose run --rm --no-deps --entrypoint rm app -r /app/.data/replaced-DATE`.
 
 ## Encrypted off-server copies
 

@@ -1,7 +1,9 @@
 # The same pipeline as .github/workflows/ci.yml, for GitLab: each job runs one of the shared scripts
 # in scripts/ci. On the default branch the tested image is published to this project's container
 # registry and, once DEPLOY_HOST is set, deployed (docs/DEPLOYMENT.md "Automatic deployment").
-# The container jobs use Docker-in-Docker, so the runner must allow privileged containers.
+# The container jobs use Docker-in-Docker over TLS: a self-managed runner must be privileged and share
+# /certs/client (config.toml: privileged = true, volumes = ["/certs/client", "/cache"]); GitLab.com
+# hosted runners already are.
 
 stages: [test, build, publish, deploy]
 
@@ -35,7 +37,10 @@ e2e:
     - name: docker:27-dind
       alias: docker
   variables:
+    DOCKER_HOST: tcp://docker:2376
     DOCKER_TLS_CERTDIR: /certs
+    DOCKER_TLS_VERIFY: "1"
+    DOCKER_CERT_PATH: "$DOCKER_TLS_CERTDIR/client"
   before_script:
     - apk add --no-cache bash coreutils git
 
@@ -64,8 +69,10 @@ publish:
     - REGISTRY_USER="$CI_REGISTRY_USER" REGISTRY_PASSWORD="$CI_REGISTRY_PASSWORD"
       bash scripts/ci/publish.sh promote "$IMAGE:sha-$CI_COMMIT_SHA" "$IMAGE:latest"
 
-# Set DEPLOY_HOST, DEPLOY_KNOWN_HOSTS and the masked DEPLOY_SSH_KEY (plus DEPLOY_USER, DEPLOY_PORT
-# and DEPLOY_PATH when they differ from the defaults) under Settings > CI/CD > Variables.
+# Set DEPLOY_HOST, DEPLOY_KNOWN_HOSTS and DEPLOY_SSH_KEY (plus DEPLOY_USER, DEPLOY_PORT and DEPLOY_PATH
+# when they differ from the defaults) under Settings > CI/CD > Variables. Make DEPLOY_SSH_KEY a protected
+# variable of type Variable with visibility Visible (GitLab cannot mask a multi-line key), or a File-type
+# variable; DEPLOY_KNOWN_HOSTS likewise.
 deploy:
   image: alpine:3.20
   stage: deploy

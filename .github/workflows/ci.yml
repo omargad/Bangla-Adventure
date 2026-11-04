@@ -69,15 +69,31 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v5
+      # Runs on the default branch can finish in any order, and re-running an old run's failed jobs
+      # would publish its older commit again, so only the branch's newest commit goes on.
+      - id: current
+        name: Check this is the newest commit on the default branch
+        env:
+          BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          newest="$(git ls-remote origin "refs/heads/$BRANCH" | cut -f1)"
+          if [ "$newest" = "$GITHUB_SHA" ]; then
+            echo "newest=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::$BRANCH is now at ${newest:-an unknown commit}, so $GITHUB_SHA is not marked latest."
+            echo "newest=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Mark the tested image as latest
+        if: steps.current.outputs.newest == 'true'
         env:
           REGISTRY_USER: ${{ github.actor }}
           REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
           IMAGE: ${{ needs.container.outputs.image }}
         run: bash scripts/ci/publish.sh promote "$IMAGE:sha-${GITHUB_SHA}" "$IMAGE:latest"
 
-  # Skipped until the repository variable DEPLOY_HOST is set; the other settings are listed in
-  # docs/DEPLOYMENT.md. Add required reviewers to the "production" environment to approve each deploy.
+  # Skipped until the repository variable DEPLOY_HOST is set (not an environment variable: this is
+  # checked before the environment loads); the other settings are listed in docs/DEPLOYMENT.md.
+  # Add required reviewers to the "production" environment to approve each deploy.
   deploy:
     needs: [container, publish]
     if: vars.DEPLOY_HOST != ''
@@ -91,7 +107,21 @@ jobs:
       packages: read
     steps:
       - uses: actions/checkout@v5
+      # As in publish: an older commit is never deployed over a newer one.
+      - id: current
+        name: Check this is the newest commit on the default branch
+        env:
+          BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          newest="$(git ls-remote origin "refs/heads/$BRANCH" | cut -f1)"
+          if [ "$newest" = "$GITHUB_SHA" ]; then
+            echo "newest=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::$BRANCH is now at ${newest:-an unknown commit}, so $GITHUB_SHA is not deployed."
+            echo "newest=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Deploy to the server
+        if: steps.current.outputs.newest == 'true'
         env:
           DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
           DEPLOY_USER: ${{ vars.DEPLOY_USER }}

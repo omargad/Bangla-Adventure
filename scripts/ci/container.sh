@@ -11,5 +11,8 @@ step env PUBLIC_ORIGIN=https://bangla-container-test.example docker compose conf
 labels=(--label "org.opencontainers.image.revision=$(git rev-parse HEAD 2>/dev/null || echo unknown)"
   --label "org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ)")
 [ -z "${IMAGE_SOURCE:-}" ] || labels+=(--label "org.opencontainers.image.source=$IMAGE_SOURCE")
-step docker build --tag "$image" "${labels[@]}" .
+# Without the default provenance attestation, which Docker's containerd image store would push as
+# an image index that GitHub's registry refuses: one manifest, carrying the labels, is pushed.
+# The classic builder ignores the setting.
+step env BUILDX_NO_DEFAULT_ATTESTATIONS=1 docker build --tag "$image" "${labels[@]}" .
 step bash scripts/test-container.sh "$image"

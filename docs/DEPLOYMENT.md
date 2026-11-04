@@ -223,23 +223,34 @@ On the default branch the pipeline then:
    deployed is exactly what was tested.
 3. Deploys it, when the server is configured (below). Until then that step is skipped.
 
-**What a deploy does.** `scripts/deploy.sh` connects to the server over SSH and, in the
-deployment folder, runs `scripts/deploy-remote.sh`, which:
+**What a deploy does.** `scripts/deploy.sh` connects to the server over SSH, uploads
+`compose.yaml` and `scripts/deploy-remote.sh` into the deployment folder (each file is replaced
+whole, never left half written) and runs `deploy-remote.sh` there. That run carries on if the SSH
+connection drops, so a dropped connection does not stop a deploy halfway, and it writes its output
+to `deploy.log` in the deployment folder. `deploy-remote.sh`:
 
-- pulls the image, signing in to the registry for that pull only (nothing is stored on the server);
-- if the app is running, stops it and backs up the database and media into `backups/` with the
-  current version (`scripts/backup.sh`, the latest 14 kept). If the backup fails, the app is
-  started again unchanged and the deploy stops;
+- checks that Compose is 2.17 or newer and that the health timeout is a number, before it stops
+  anything;
+- pulls the image, signing in to the registry with a temporary configuration for that pull only
+  (nothing is stored on the server). Without a registry user, an image already on the server is
+  used as it is;
+- if the app's container exists and there is a database, stops the app and backs up the database
+  and media into `backups/` with the current version (`scripts/backup.sh`, the latest 14 kept).
+  When it takes no backup, for example on the first deploy, it says why. If the backup fails, the
+  app is started again unchanged and the deploy stops;
 - starts the new image with `compose.yaml` and waits up to 3 minutes for `/api/health`. If it
-  does not answer, the previous image is started again and the pipeline fails;
+  does not answer, the previous image is started again and the pipeline fails. If that fails too,
+  it says the site is down: start an earlier image by hand (below);
 - records the image in `deployments.log` and removes images older than the previous one.
 
 Each deploy is offline for the backup plus a few seconds of start-up. Only one runs at a time.
 
 **On the server, once.**
 
-1. Install Docker Engine with the Compose plugin. Create a `deploy` user in the `docker` group.
-   That group is equivalent to root on the server, so keep this account for the pipeline alone.
+1. Use an x86-64 (amd64) server: the pipeline publishes `linux/amd64` images. Install Docker
+   Engine with the Compose plugin, version 2.17 or newer (`docker compose version`). Create a
+   `deploy` user in the `docker` group. That group is equivalent to root on the server, so keep
+   this account for the pipeline alone.
 2. Add the public half of the deploy key to `/home/deploy/.ssh/authorized_keys`.
 3. Create the deployment folder and its settings, readable by `deploy` only:
 
@@ -250,9 +261,17 @@ Each deploy is offline for the backup plus a few seconds of start-up. Only one r
 
 4. Point the HTTPS web server at `127.0.0.1:3000` (the `APP_PORT` above), allowing 13 MB
    requests for audio uploads (Caddy: `reverse_proxy 127.0.0.1:3000`).
-5. On your own computer, `ssh-keyscan -H SERVER` prints the server's host key lines for
-   `DEPLOY_KNOWN_HOSTS`. Check its fingerprint with the server's administrator, so the pipeline
-   only ever connects to this server.
+5. On your own computer, record the server's host key, so the pipeline only ever connects to this
+   server. Use the server's SSH port (`DEPLOY_PORT`, usually 22):
+
+   ```sh
+   ssh-keyscan -p PORT -H SERVER > server.keys
+   ssh-keygen -lf server.keys
+   ```
+
+   Compare the SHA256 fingerprints it prints with the server's administrator, who can list them
+   on the server with `for key in /etc/ssh/ssh_host_*_key.pub; do ssh-keygen -lf "$key"; done`.
+   When they match, the contents of `server.keys` are the value of `DEPLOY_KNOWN_HOSTS`.
 
 After the first deploy, register the client's administrator on the site and approve the account
 from the deployment folder: `docker compose exec app npm run admin:grant -- EMAIL`.
@@ -261,40 +280,70 @@ from the deployment folder: `docker compose exec app npm run admin:grant -- EMAI
 
 | Name | Kind | Value |
 | --- | --- | --- |
-| `DEPLOY_HOST` | Variable | The server's name or address. The deploy job is skipped while it is unset |
-| `DEPLOY_KNOWN_HOSTS` | Variable | The `ssh-keyscan -H SERVER` lines |
+| `DEPLOY_HOST` | Repository variable | The server's name or address. The deploy job is skipped while it is unset. It must be a repository variable, not an environment one: the job checks it before the environment loads |
+| `DEPLOY_KNOWN_HOSTS` | Variable | The contents of `server.keys` (step 5 above) |
 | `DEPLOY_USER` | Variable | Optional; default `deploy` |
 | `DEPLOY_PORT` | Variable | Optional; default `22` |
 | `DEPLOY_PATH` | Variable | Optional; default `/opt/bangla-adventures` |
 | `DEPLOY_SSH_KEY` | Secret | The deploy user's private key |
 
-To approve each deploy before it runs, add required reviewers to the `production` environment
-(Settings > Environments). The image stays private; during a deploy the job's own token lets the
-server pull it. In an organisation that limits packages, allow this repository to publish to
-GitHub Packages.
+The variables other than `DEPLOY_HOST`, and the `DEPLOY_SSH_KEY` secret, may be set on the
+`production` environment instead (Settings > Environments). To approve each deploy before it runs,
+add required reviewers to that environment. Only the newest commit on the default branch is marked
+`latest` and deployed: a run whose commit is no longer the newest, such as an old run started
+again, skips those steps with a notice.
 
-**GitLab** uses the same names under Settings > CI/CD > Variables (mark `DEPLOY_SSH_KEY` masked
-and protected). Its container jobs use Docker-in-Docker, so the runner must allow privileged
-containers. **Jenkins** runs the `Jenkinsfile` as a multibranch pipeline on an agent with Node 22,
-Python 3, Docker with Compose, bash, git and ssh. It publishes when `REGISTRY_IMAGE` is set (for
+The image is a package of the repository's owner. It takes the repository's visibility when the
+workflow first creates it, so it is public while the repository is public; to change that, open
+the package's Package settings > Danger Zone > Change visibility. The deploy job's token lets the
+server pull it either way. If publishing is denied, open the package's settings and, under Manage
+Actions access, give this repository the Write role, or delete a stale package of that name so the
+workflow creates it again, linked to this repository. After the repository is transferred, the
+image is `ghcr.io/NEWOWNER/REPOSITORY`.
+
+**GitLab** uses the same names under Settings > CI/CD > Variables. GitLab cannot mask a multi-line
+key, so make `DEPLOY_SSH_KEY` a protected variable of type Variable with visibility Visible, or a
+File variable; `DEPLOY_KNOWN_HOSTS` can be either type too. Protected variables reach only protected
+branches, such as the default branch. The container jobs use Docker-in-Docker over TLS: a
+self-managed runner must be privileged and share `/certs/client` (in its `config.toml`,
+`privileged = true` and `volumes = ["/certs/client", "/cache"]`); GitLab.com's hosted runners
+already are.
+
+**Jenkins** runs the `Jenkinsfile` as a multibranch pipeline on an agent with Node 22, Python 3,
+Docker with Compose, bash, git and ssh. The browser tests install Chromium's system libraries, so
+the agent must run as root or have passwordless sudo, or have them installed once
+(`sudo npx playwright install-deps chromium` in a checkout of the repository) with
+`PLAYWRIGHT_INSTALL_DEPS=0` set on the agent. It publishes when `REGISTRY_IMAGE` is set (for
 example `ghcr.io/OWNER/REPOSITORY`) with the username and password credential `registry`, and
 deploys when `DEPLOY_HOST` and `DEPLOY_KNOWN_HOSTS` are also set, with the SSH key credential
 `deploy-ssh-key`.
 
 **By hand, and going back.** From a Linux or macOS shell (on Windows, Git Bash or WSL) in the
-repository:
+repository, with `server.keys` from step 5 above:
 
 ```sh
-DEPLOY_HOST=SERVER DEPLOY_KNOWN_HOSTS="$(ssh-keyscan -H SERVER)" DEPLOY_SSH_KEY_FILE=~/.ssh/bangla_deploy \
+DEPLOY_HOST=SERVER DEPLOY_KNOWN_HOSTS="$(cat server.keys)" DEPLOY_SSH_KEY=~/.ssh/bangla_deploy \
   REGISTRY_USER=GITHUB_USER REGISTRY_PASSWORD=TOKEN_WITH_READ_PACKAGES \
   bash scripts/deploy.sh ghcr.io/OWNER/REPOSITORY:sha-COMMIT
 ```
 
-Check the printed host key against the known one first. To go back to an earlier version, deploy
-its `sha-` tag the same way, or run `bash deploy-remote.sh IMAGE` in the deployment folder on the
-server (`deployments.log` lists earlier images). If a newer version has already changed the data
-in a way the earlier one cannot read, restore the backup taken just before it, from `backups/`
-([BACKUP_RESTORE.md](BACKUP_RESTORE.md)).
+`DEPLOY_KNOWN_HOSTS` and `DEPLOY_SSH_KEY` each take either the text itself or the path of a file
+holding it. The registry settings are needed only for a private image. If the connection drops, the
+deploy still finishes on the server; `deploy.log` in the deployment folder shows how it went.
+
+To go back to an earlier version, deploy its `sha-` tag the same way, or run `deploy-remote.sh` in
+the deployment folder on the server (`deployments.log` lists earlier images):
+
+```sh
+bash deploy-remote.sh IMAGE                                     # an image still on the server
+printf '%s' TOKEN | bash deploy-remote.sh IMAGE REGISTRY_USER   # one to pull from a private registry
+```
+
+The server keeps the running image and the one before it, so going back one version needs no
+token. If the site is down because the current version cannot start at all, add `'' 0` after
+`IMAGE` to skip the backup, which would otherwise need that version to run. If a newer version has already changed the data in a way the earlier one cannot read,
+restore the backup taken just before it, from `backups/`
+([Restore into the Compose deployment](BACKUP_RESTORE.md#restore-into-the-compose-deployment)).
 
 ## Caching, security headers and new releases
 
