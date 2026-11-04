@@ -1,0 +1,123 @@
+# The same pipeline as .github/workflows/ci.yml, for Google Cloud Build: each step runs one of the
+# shared scripts in scripts/ci. On the default branch the tested image is published to Artifact
+# Registry once _REGISTRY_IMAGE is set and, once _DEPLOY_HOST is set too, deployed
+# (docs/DEPLOYMENT.md "Automatic deployment").
+# Set the substitutions below on the trigger for pushes to the default branch, not on a pull request
+# trigger: _REGISTRY_IMAGE (REGION-docker.pkg.dev/PROJECT/REPOSITORY/bangla-adventures), _DEPLOY_HOST,
+# and _DEPLOY_USER, _DEPLOY_PORT and _DEPLOY_PATH when they differ from the defaults. The deploy key
+# and the server's host keys are read from the Secret Manager secrets deploy-ssh-key and
+# deploy-known-hosts (or those named by _DEPLOY_SSH_KEY_SECRET and _DEPLOY_KNOWN_HOSTS_SECRET).
+# The build's service account needs Artifact Registry Writer on the repository and Secret Manager
+# Secret Accessor on the two secrets.
+# Scripts are not substituted: they read the substitutions through the environment set below.
+
+steps:
+  - id: verify
+    name: node:22-bookworm
+    entrypoint: bash
+    args: [scripts/ci/verify.sh]
+
+  # Build steps run as root, so the browser tests can install Chromium's libraries.
+  - id: e2e
+    name: node:22-bookworm
+    entrypoint: bash
+    args: [scripts/ci/e2e.sh]
+
+  # Docker here is the build machine's own, reached through its socket.
+  - id: container
+    name: docker:27-cli
+    script: |
+      #!/bin/sh
+      set -e
+      apk add --no-cache bash coreutils git
+      bash scripts/ci/container.sh "$LOCAL_IMAGE"
+
+  # An access token of the build's service account signs in to Artifact Registry; it lasts an hour.
+  - id: registry-token
+    name: gcr.io/google.com/cloudsdktool/google-cloud-cli:slim
+    volumes:
+      - name: registry
+        path: /registry
+    script: |
+      #!/usr/bin/env bash
+      set -euo pipefail
+      if [ "$BRANCH" = "$DEFAULT_BRANCH" ] && [ -n "$REGISTRY_IMAGE" ]; then
+        (umask 077; gcloud auth print-access-token > /registry/token)
+      fi
+
+  # The image is published under its commit, and marked latest only while this is the newest commit
+  # of the branch: builds can finish in any order, and an old one run again would otherwise put its
+  # older commit back.
+  - id: publish
+    name: docker:27-cli
+    volumes:
+      - name: registry
+        path: /registry
+    script: |
+      #!/bin/sh
+      set -e
+      if [ "$BRANCH" != "$DEFAULT_BRANCH" ] || [ -z "$REGISTRY_IMAGE" ]; then
+        echo "Not published: only $DEFAULT_BRANCH is, once _REGISTRY_IMAGE is set."
+        exit 0
+      fi
+      : "${COMMIT:?The commit is unknown (COMMIT_SHA), so the image cannot be published under it.}"
+      apk add --no-cache bash coreutils git
+      REGISTRY_USER=oauth2accesstoken
+      REGISTRY_PASSWORD="$(cat /registry/token)"
+      export REGISTRY_USER REGISTRY_PASSWORD
+      if bash scripts/ci/newest.sh "$BRANCH"; then
+        bash scripts/ci/publish.sh push "$LOCAL_IMAGE" "$REGISTRY_IMAGE:sha-$COMMIT" "$REGISTRY_IMAGE:latest"
+      else
+        bash scripts/ci/publish.sh push "$LOCAL_IMAGE" "$REGISTRY_IMAGE:sha-$COMMIT"
+      fi
+
+  # The secrets are read only when deploying, so builds run before they exist. The server pulls the
+  # image with a new access token.
+  - id: deploy
+    name: gcr.io/google.com/cloudsdktool/google-cloud-cli:slim
+    env:
+      - DEPLOY_HOST=$_DEPLOY_HOST
+      - DEPLOY_USER=$_DEPLOY_USER
+      - DEPLOY_PORT=$_DEPLOY_PORT
+      - DEPLOY_PATH=$_DEPLOY_PATH
+      - DEPLOY_SSH_KEY_SECRET=$_DEPLOY_SSH_KEY_SECRET
+      - DEPLOY_KNOWN_HOSTS_SECRET=$_DEPLOY_KNOWN_HOSTS_SECRET
+    script: |
+      #!/usr/bin/env bash
+      set -euo pipefail
+      if [ "$BRANCH" != "$DEFAULT_BRANCH" ] || [ -z "$REGISTRY_IMAGE" ] || [ -z "$DEPLOY_HOST" ]; then
+        echo "Not deployed: only $DEFAULT_BRANCH is, once _REGISTRY_IMAGE and _DEPLOY_HOST are set."
+        exit 0
+      fi
+      if bash scripts/ci/newest.sh "$BRANCH"; then
+        secret() { gcloud secrets versions access latest --project "$PROJECT_ID" --secret "$1"; }
+        DEPLOY_SSH_KEY="$(secret "$DEPLOY_SSH_KEY_SECRET")"
+        DEPLOY_KNOWN_HOSTS="$(secret "$DEPLOY_KNOWN_HOSTS_SECRET")"
+        REGISTRY_USER=oauth2accesstoken
+        REGISTRY_PASSWORD="$(gcloud auth print-access-token)"
+        export DEPLOY_SSH_KEY DEPLOY_KNOWN_HOSTS REGISTRY_USER REGISTRY_PASSWORD
+        bash scripts/deploy.sh "$REGISTRY_IMAGE:sha-$COMMIT"
+      fi
+
+substitutions:
+  _DEFAULT_BRANCH: main
+  _REGISTRY_IMAGE: ""
+  _DEPLOY_HOST: ""
+  _DEPLOY_USER: ""
+  _DEPLOY_PORT: ""
+  _DEPLOY_PATH: ""
+  _DEPLOY_SSH_KEY_SECRET: deploy-ssh-key
+  _DEPLOY_KNOWN_HOSTS_SECRET: deploy-known-hosts
+
+options:
+  env:
+    - BRANCH=$BRANCH_NAME
+    - COMMIT=$COMMIT_SHA
+    - PROJECT_ID=$PROJECT_ID
+    - DEFAULT_BRANCH=$_DEFAULT_BRANCH
+    - REGISTRY_IMAGE=$_REGISTRY_IMAGE
+    - LOCAL_IMAGE=bangla-adventures:ci
+  logging: CLOUD_LOGGING_ONLY
+  substitutionOption: ALLOW_LOOSE
+
+timeout: 5400s

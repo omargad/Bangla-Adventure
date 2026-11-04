@@ -1,0 +1,93 @@
+# The same pipeline as .github/workflows/ci.yml, for Travis CI (travis-ci.com): each job runs one of
+# the shared scripts in scripts/ci (docs/DEPLOYMENT.md "Automatic deployment"), on an Ubuntu 24.04
+# virtual machine with Docker and passwordless sudo, so the container test runs in full.
+# Travis has no container registry, so on main the tested image is published to the one named by
+# REGISTRY_IMAGE (for example ghcr.io/OWNER/REPOSITORY), signing in with REGISTRY_USER and
+# REGISTRY_PASSWORD, and deployed once DEPLOY_HOST is set as well. Set them in the repository's
+# More options > Settings > Environment Variables, with "Display value in build log" off for the
+# secret ones. Those variables hold one line each, so the deploy key and the server's host keys go
+# in as DEPLOY_SSH_KEY_BASE64 and DEPLOY_KNOWN_HOSTS_BASE64 (`base64 -w0 FILE`); DEPLOY_USER,
+# DEPLOY_PORT and DEPLOY_PATH only when they differ from the defaults.
+
+os: linux
+dist: noble
+language: node_js
+node_js: "22"
+
+# The scripts install the dependencies themselves; npm's download cache is kept between builds.
+install: skip
+cache:
+  npm: false
+  directories:
+    - $HOME/.npm
+
+stages:
+  - name: test
+  - name: container
+  - name: publish
+    if: branch = main AND type IN (push, api) AND env(REGISTRY_IMAGE) IS present
+  - name: deploy
+    if: branch = main AND type IN (push, api) AND env(REGISTRY_IMAGE) IS present AND env(DEPLOY_HOST) IS present
+
+jobs:
+  include:
+    # These jobs run the dependencies' own install scripts, so the publishing and deploy secrets
+    # are taken out of their environment first. CACHE_NAME gives each its own npm cache, which
+    # Travis would otherwise share between jobs whose settings are the same.
+    - stage: test
+      name: Verify
+      env: CACHE_NAME=verify
+      before_install: &without-secrets unset REGISTRY_PASSWORD DEPLOY_SSH_KEY_BASE64 DOCKERHUB_TOKEN
+      script: bash scripts/ci/verify.sh
+    - name: Browser tests
+      env: CACHE_NAME=e2e
+      before_install: *without-secrets
+      script: bash scripts/ci/e2e.sh
+
+    - stage: container
+      name: Container
+      language: shell
+      services: docker
+      cache: false
+      env: LOCAL_IMAGE=bangla-adventures:ci
+      before_install:
+        # Travis's Ubuntu 24.04 image has Docker's Compose plugin; it is installed from Docker's
+        # package repository should an image lack it.
+        - docker compose version || { sudo apt-get update -qq && sudo apt-get install -y -qq docker-compose-plugin && docker compose version; }
+        # Docker Hub limits pulls by address, and Travis's addresses are shared: with DOCKERHUB_USER
+        # and DOCKERHUB_TOKEN set, the base image is pulled signed in.
+        - if [ -n "${DOCKERHUB_TOKEN:-}" ]; then printf '%s\n' "$DOCKERHUB_TOKEN" | docker login --username "$DOCKERHUB_USER" --password-stdin; fi
+      # Each tested image is kept under its commit; it is only marked latest and deployed once every
+      # job has passed. Travis runs every script line even after one fails, so the push is chained.
+      script:
+        - |
+          bash scripts/ci/container.sh "$LOCAL_IMAGE" &&
+          if [ "$TRAVIS_BRANCH" = main ] && [ -n "${REGISTRY_IMAGE:-}" ] &&
+            { [ "$TRAVIS_EVENT_TYPE" = push ] || [ "$TRAVIS_EVENT_TYPE" = api ]; }; then
+            bash scripts/ci/publish.sh push "$LOCAL_IMAGE" "$REGISTRY_IMAGE:sha-$TRAVIS_COMMIT"
+          fi
+
+    # Builds can finish in any order, and an old build restarted would put its older commit back,
+    # so only the newest commit of main is marked latest and deployed.
+    - stage: publish
+      name: Mark the tested image latest
+      language: shell
+      services: docker
+      cache: false
+      script:
+        - |
+          if bash scripts/ci/newest.sh main; then
+            bash scripts/ci/publish.sh promote "$REGISTRY_IMAGE:sha-$TRAVIS_COMMIT" "$REGISTRY_IMAGE:latest"
+          fi
+
+    # Travis cannot hold a deploy back while another runs; the server refuses a second deploy that
+    # overlaps one in progress (deploy-remote.sh), and that job can be restarted afterwards.
+    - stage: deploy
+      name: Deploy
+      language: shell
+      cache: false
+      script:
+        - |
+          if bash scripts/ci/newest.sh main; then
+            bash scripts/deploy.sh "$REGISTRY_IMAGE:sha-$TRAVIS_COMMIT"
+          fi

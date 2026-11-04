@@ -154,7 +154,7 @@ where they stand:
 | 🟡 Official NCTB catalogue and PDF audit | Source records implemented; a verified PDF is not an approved adaptation |
 | 🟡 Bilingual topics and lessons | Teachers preview and approve content before students see it; the shipped content is approved as a baseline and still needs individual educator and community review |
 | 🟡 Bangla audio | Approved human recordings play first, then provider clips, the device voice and the bundled eSpeak voice; ElevenLabs is the chosen provider and generation waits for the client's key (Azure remains an alternative); native-speaker review and reviewed recordings remain incomplete |
-| 🟡 Application deployment and operations | Docker image, Compose and native service setups, an automatic deployment pipeline (GitHub Actions, GitLab or Jenkins) and backup and restore tools included; deployment to the client's server, off-site backups and a recovery exercise still to do |
+| 🟡 Application deployment and operations | Docker image, Compose and native service setups, an automatic deployment pipeline for the ten most used CI/CD systems and backup and restore tools included; deployment to the client's server, off-site backups and a recovery exercise still to do |
 | 🟡 Moodle pilot course | Installable hidden-course plugin implemented: 15 bilingual chapters, nine activities and nine questions |
 | 🔒 Optional Moodle publication control | Draft validation passes; pilot release validation intentionally fails while 27 human-review gates are pending |
 | ⬜ YouTube and media verification | Not complete; media excluded from the first pilot |
@@ -404,6 +404,7 @@ The [contribution register](CONTRIBUTIONS.md) links every assigned item to its i
 | Document | What it covers |
 | --- | --- |
 | [Deployment guide](docs/DEPLOYMENT.md) | Current custom application setup, upgrades and rollback |
+| [CI/CD systems](docs/CI_CD.md) | The pipeline on GitHub Actions, GitLab, Jenkins, Bitbucket, CircleCI, Azure, TeamCity, AWS, Google Cloud Build or Travis CI |
 | [Backup and restore](docs/BACKUP_RESTORE.md) | Database and media backup, verification and recovery drill |
 | [Acceptance record](docs/ACCEPTANCE.md) | Reviewer ownership, evidence and client acceptance record |
 | [Handover guide](docs/HANDOVER.md) | Release and account handover |

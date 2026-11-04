@@ -76,11 +76,9 @@ jobs:
         env:
           BRANCH: ${{ github.event.repository.default_branch }}
         run: |
-          newest="$(git ls-remote origin "refs/heads/$BRANCH" | cut -f1)"
-          if [ "$newest" = "$GITHUB_SHA" ]; then
+          if bash scripts/ci/newest.sh "$BRANCH"; then
             echo "newest=true" >> "$GITHUB_OUTPUT"
           else
-            echo "::notice::$BRANCH is now at ${newest:-an unknown commit}, so $GITHUB_SHA is not marked latest."
             echo "newest=false" >> "$GITHUB_OUTPUT"
           fi
       - name: Mark the tested image as latest
@@ -113,11 +111,9 @@ jobs:
         env:
           BRANCH: ${{ github.event.repository.default_branch }}
         run: |
-          newest="$(git ls-remote origin "refs/heads/$BRANCH" | cut -f1)"
-          if [ "$newest" = "$GITHUB_SHA" ]; then
+          if bash scripts/ci/newest.sh "$BRANCH"; then
             echo "newest=true" >> "$GITHUB_OUTPUT"
           else
-            echo "::notice::$BRANCH is now at ${newest:-an unknown commit}, so $GITHUB_SHA is not deployed."
             echo "newest=false" >> "$GITHUB_OUTPUT"
           fi
       - name: Deploy to the server

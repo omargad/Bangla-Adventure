@@ -1,0 +1,107 @@
+# The same pipeline as .github/workflows/ci.yml, for Bitbucket Pipelines: each step runs one of the
+# shared scripts in scripts/ci (docs/DEPLOYMENT.md "Automatic deployment"). Turn Pipelines on under
+# Repository settings > Pipelines > Settings.
+# Bitbucket has no container registry, so on main the tested image is published to the one named by
+# the repository variable REGISTRY_IMAGE (for example docker.io/OWNER/bangla-adventures), signing in
+# with REGISTRY_USER and REGISTRY_PASSWORD (Secured), and deployed once DEPLOY_HOST is set as well.
+# REGISTRY_IMAGE and DEPLOY_HOST must be repository variables that are not Secured: the step
+# conditions below read them, and conditions cannot read secured variables.
+# The container step runs on Runtime v3, whose Docker service has none of the older runtime's
+# restrictions on docker run options, so the container test runs in full there. Should Bitbucket's
+# Docker still refuse one, CONTAINER_TEST_ALLOW_SKIP=1 skips that part with a message.
+
+image: node:22-bookworm
+
+definitions:
+  caches:
+    npm:
+      key:
+        files:
+          - package-lock.json
+      path: ~/.npm
+  services:
+    # The container step's Docker daemon. npm ci and the production build run inside it during
+    # docker build, so it gets 6 GB of that 2x step's 8 GB.
+    docker:
+      image: docker:29-dind
+      memory: 6144
+  steps:
+    - step: &verify
+        name: Verify
+        caches:
+          - npm
+        script:
+          - bash scripts/ci/verify.sh
+    - step: &e2e
+        name: Browser tests
+        caches:
+          - npm
+        script:
+          - bash scripts/ci/e2e.sh
+    - step: &container
+        name: Container
+        image: docker:29-cli
+        runtime:
+          cloud:
+            version: "3"
+        size: 2x
+        max-time: 35
+        services:
+          - docker
+        script:
+          - apk add --no-cache bash coreutils
+          - CONTAINER_TEST_ALLOW_SKIP=1 IMAGE_SOURCE="https://bitbucket.org/$BITBUCKET_REPO_FULL_NAME"
+            bash scripts/ci/container.sh bangla-adventures:ci
+          # Each tested image is kept under its commit; it is only marked latest and deployed once
+          # every step has passed.
+          - |
+            if [ "$BITBUCKET_BRANCH" = main ] && [ -n "${REGISTRY_IMAGE:-}" ]; then
+              bash scripts/ci/publish.sh push bangla-adventures:ci "$REGISTRY_IMAGE:sha-$BITBUCKET_COMMIT"
+            fi
+    # Pipelines on main can finish in any order, and re-running an old one would publish its older
+    # commit again, so only the newest commit on main is marked latest and deployed.
+    - step: &promote
+        name: Mark the tested image as latest
+        image: docker:29-cli
+        condition:
+          state: REGISTRY_IMAGE != ""
+        script:
+          - apk add --no-cache bash coreutils
+          - |
+            if bash scripts/ci/newest.sh "$BITBUCKET_BRANCH"; then
+              bash scripts/ci/publish.sh promote "$REGISTRY_IMAGE:sha-$BITBUCKET_COMMIT" "$REGISTRY_IMAGE:latest"
+            fi
+    # Set DEPLOY_SSH_KEY_BASE64 (Secured) and DEPLOY_KNOWN_HOSTS_BASE64, plus DEPLOY_USER, DEPLOY_PORT
+    # and DEPLOY_PATH when they differ from the defaults, on the Production environment (Repository
+    # settings > Deployments). Variables are one line, so the key and the host key lines are given
+    # base64-encoded: base64 -w0 < FILE (on macOS, base64 -i FILE). Only one deploy runs at a time.
+    - step: &deploy
+        name: Deploy
+        image: alpine:3.24
+        deployment: production
+        concurrency-group: production
+        condition:
+          state: REGISTRY_IMAGE != "" && DEPLOY_HOST != ""
+        script:
+          - apk add --no-cache bash git openssh-client
+          - |
+            if bash scripts/ci/newest.sh "$BITBUCKET_BRANCH"; then
+              bash scripts/deploy.sh "$REGISTRY_IMAGE:sha-$BITBUCKET_COMMIT"
+            fi
+
+pipelines:
+  default:
+    - parallel:
+        steps:
+          - step: *verify
+          - step: *e2e
+          - step: *container
+  branches:
+    main:
+      - parallel:
+          steps:
+            - step: *verify
+            - step: *e2e
+            - step: *container
+      - step: *promote
+      - step: *deploy

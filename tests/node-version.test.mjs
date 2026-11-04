@@ -64,6 +64,19 @@ test(".nvmrc, the Dockerfile and every CI pipeline run Node 22", () => {
   for (const file of readdirSync(new URL("../.github/workflows/", import.meta.url))) {
     for (const [, version] of text(`.github/workflows/${file}`).matchAll(/node-version: *(\S+)/g)) assert.equal(version, "22", `${file} sets node-version ${version}`);
   }
-  const gitlab = [...text(".gitlab-ci.yml").matchAll(/image: *(node:\S+)/g)].map((match) => match[1]);
-  assert.ok(gitlab.length > 0 && gitlab.every((image) => image.startsWith("node:22-")), `.gitlab-ci.yml uses ${gitlab.join(", ")}`);
+  // Every other CI system's file, by how it names its Node image or version.
+  const pins = {
+    ".gitlab-ci.yml": /image: *node:(\S+)/g,
+    "bitbucket-pipelines.yml": /image: *node:(\S+)/g,
+    "cloudbuild.yaml": /name: *node:(\S+)/g,
+    ".teamcity/settings.kts": /dockerImage = "node:([^"]+)"/g,
+    ".circleci/config.yml": /image: *cimg\/node:(\S+)/g,
+    "buildspec.yml": /nodejs: *(\S+)/g,
+    ".travis.yml": /node_js: *"?([^"\s]+)/g,
+    "azure-pipelines.yml": /version: *["']?([0-9][^"'\s]*)/g,
+  };
+  for (const [file, pattern] of Object.entries(pins)) {
+    const versions = [...text(file).matchAll(pattern)].map((match) => match[1]);
+    assert.ok(versions.length > 0 && versions.every((version) => /^22(\b|[.-])/.test(version)), `${file} uses Node ${versions.join(", ") || "(none found)"}`);
+  }
 });

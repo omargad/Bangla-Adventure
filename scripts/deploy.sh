@@ -11,6 +11,10 @@
 #   DEPLOY_SSH_KEY       the deploy user's private key, or DEPLOY_SSH_KEY_FILE pointing to it
 #                        (each of these two may also be the path of a file holding the text, as
 #                        GitLab's File-type variables are)
+#   DEPLOY_SSH_KEY_BASE64, DEPLOY_KNOWN_HOSTS_BASE64   instead, the same texts as one line of base64
+#                        (`base64 -w0 FILE`; on macOS `base64 -i FILE`), for CI systems whose
+#                        secrets cannot hold several lines. When more than one form is set, the
+#                        _FILE one is used first, then the text or path, then the _BASE64 one
 #   DEPLOY_USER          default deploy;  DEPLOY_PORT default 22
 #   DEPLOY_PATH          the deployment folder on the server, default /opt/bangla-adventures
 #   REGISTRY_USER, REGISTRY_PASSWORD   for a private image; used once on the server, not stored
@@ -19,7 +23,14 @@
 set -euo pipefail
 image="${1:?usage: scripts/deploy.sh IMAGE}"
 : "${DEPLOY_HOST:?Set DEPLOY_HOST to the server to deploy to.}"
-: "${DEPLOY_KNOWN_HOSTS:?Set DEPLOY_KNOWN_HOSTS to the server host key line(s), from ssh-keyscan -p PORT -H HOST.}"
+if [ -z "${DEPLOY_KNOWN_HOSTS:-}${DEPLOY_KNOWN_HOSTS_BASE64:-}" ]; then
+  echo "Set DEPLOY_KNOWN_HOSTS (or DEPLOY_KNOWN_HOSTS_BASE64) to the server host key line(s), from ssh-keyscan -p PORT -H HOST." >&2
+  exit 1
+fi
+if [ -z "${DEPLOY_SSH_KEY_FILE:-}${DEPLOY_SSH_KEY:-}${DEPLOY_SSH_KEY_BASE64:-}" ]; then
+  echo "Set DEPLOY_SSH_KEY, DEPLOY_SSH_KEY_FILE or DEPLOY_SSH_KEY_BASE64 to the deploy user's private key." >&2
+  exit 1
+fi
 user="${DEPLOY_USER:-deploy}"
 port="${DEPLOY_PORT:-22}"
 folder="${DEPLOY_PATH:-/opt/bangla-adventures}"
@@ -34,10 +45,32 @@ text_of() {
   if [ -f "$text" ]; then text="$(cat -- "$text")"; fi
   printf '%s\n' "$text" | tr -d '\r'
 }
+# The text of a _BASE64 setting (named by $1). Spaces and line breaks in the encoded value are
+# ignored; the decoded text is never printed.
+decoded() {
+  local text
+  if ! text="$(printf '%s' "${!1:-}" | tr -d ' \t\r\n' | base64 -d 2>/dev/null)" || [ -z "$text" ]; then
+    echo "$1 is not valid base64 (make it with: base64 -w0 FILE)." >&2
+    return 1
+  fi
+  printf '%s\n' "$text" | tr -d '\r'
+}
+# The text of a setting given in any of its forms: $1 is the name of the _FILE or text-or-path
+# setting to try first (empty to skip), $2 the text-or-path one, $3 the _BASE64 one.
+setting() {
+  if [ -n "$1" ] && [ -n "${!1:-}" ]; then text_of "${!1}"
+  elif [ -n "${!2:-}" ]; then text_of "${!2}"
+  else decoded "$3"
+  fi
+}
 # Always a private copy: ssh refuses a key file others can read, as a CI system's file may be.
 key="$work/key"
-(umask 077; text_of "${DEPLOY_SSH_KEY_FILE:-${DEPLOY_SSH_KEY:?Set DEPLOY_SSH_KEY or DEPLOY_SSH_KEY_FILE.}}" > "$key")
-text_of "$DEPLOY_KNOWN_HOSTS" > "$work/known_hosts"
+(umask 077; setting DEPLOY_SSH_KEY_FILE DEPLOY_SSH_KEY DEPLOY_SSH_KEY_BASE64 > "$key")
+if ! grep -q 'PRIVATE KEY-----' "$key"; then
+  echo "The deploy key is not an SSH private key: its text should start with a -----BEGIN ... PRIVATE KEY----- line." >&2
+  exit 1
+fi
+setting '' DEPLOY_KNOWN_HOSTS DEPLOY_KNOWN_HOSTS_BASE64 > "$work/known_hosts"
 ssh_options=(-i "$key" -p "$port" -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes
   -o "UserKnownHostsFile=$work/known_hosts" -o ConnectTimeout=20)
 # The remote commands are built here on purpose, with every value quoted for the server's shell.

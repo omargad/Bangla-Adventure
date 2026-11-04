@@ -633,16 +633,25 @@ All of them are authored by `omargad`. Each one is assigned to a team member to 
 
 Review and test: [@omargad](https://github.com/omargad) in [#100](https://github.com/omargad/Bangla-Adventure/issues/100).
 
+- `.circleci/config.yml`
 - `.github/CODEOWNERS`
 - `.gitlab-ci.yml`
 - `.nvmrc`
+- `.teamcity/pom.xml`
+- `.teamcity/settings.kts`
+- `.travis.yml`
 - `Jenkinsfile`
 - `app/fonts/Geist-Variable.woff2`
 - `app/fonts/GeistMono-Variable.woff2`
 - `app/fonts/OFL.txt`
+- `azure-pipelines.yml`
+- `bitbucket-pipelines.yml`
+- `buildspec.yml`
+- `cloudbuild.yaml`
 - `compose.yaml`
 - `db/content-migration.ts`
 - `docs/BACKUP_RESTORE.md`
+- `docs/CI_CD.md`
 - `infra/custom-app/Caddyfile.example`
 - `infra/custom-app/README.md`
 - `infra/custom-app/app.env.example`
@@ -653,6 +662,7 @@ Review and test: [@omargad](https://github.com/omargad) in [#100](https://github
 - `scripts/backup_restore.py`
 - `scripts/ci/container.sh`
 - `scripts/ci/e2e.sh`
+- `scripts/ci/newest.sh`
 - `scripts/ci/publish.sh`
 - `scripts/ci/verify.sh`
 - `scripts/close-idle-on-shutdown.mjs`

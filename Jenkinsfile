@@ -30,11 +30,19 @@ pipeline {
     stage('Container') {
       steps { sh 'bash scripts/ci/container.sh "$LOCAL_IMAGE"' }
     }
+    // A build of an older commit, such as one replayed, publishes its image under its commit only:
+    // just the newest commit of the branch is marked latest and deployed.
     stage('Publish') {
       when { allOf { branch 'main'; expression { return env.REGISTRY_IMAGE?.trim() as boolean } } }
       steps {
         withCredentials([usernamePassword(credentialsId: 'registry', usernameVariable: 'REGISTRY_USER', passwordVariable: 'REGISTRY_PASSWORD')]) {
-          sh 'bash scripts/ci/publish.sh push "$LOCAL_IMAGE" "$REGISTRY_IMAGE:sha-$GIT_COMMIT" "$REGISTRY_IMAGE:latest"'
+          sh '''
+            if bash scripts/ci/newest.sh "$BRANCH_NAME"; then
+              bash scripts/ci/publish.sh push "$LOCAL_IMAGE" "$REGISTRY_IMAGE:sha-$GIT_COMMIT" "$REGISTRY_IMAGE:latest"
+            else
+              bash scripts/ci/publish.sh push "$LOCAL_IMAGE" "$REGISTRY_IMAGE:sha-$GIT_COMMIT"
+            fi
+          '''
         }
       }
     }
@@ -45,7 +53,11 @@ pipeline {
           sshUserPrivateKey(credentialsId: 'deploy-ssh-key', keyFileVariable: 'DEPLOY_SSH_KEY'),
           usernamePassword(credentialsId: 'registry', usernameVariable: 'REGISTRY_USER', passwordVariable: 'REGISTRY_PASSWORD')
         ]) {
-          sh 'bash scripts/deploy.sh "$REGISTRY_IMAGE:sha-$GIT_COMMIT"'
+          sh '''
+            if bash scripts/ci/newest.sh "$BRANCH_NAME"; then
+              bash scripts/deploy.sh "$REGISTRY_IMAGE:sha-$GIT_COMMIT"
+            fi
+          '''
         }
       }
     }

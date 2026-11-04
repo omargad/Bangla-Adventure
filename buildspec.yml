@@ -1,0 +1,74 @@
+# The same pipeline as .github/workflows/ci.yml, for AWS CodeBuild (on its own or as the build action
+# of CodePipeline): each command runs one of the shared scripts in scripts/ci. On the default branch
+# the tested image is published once REGISTRY_IMAGE is set and, once DEPLOY_HOST is set too, deployed
+# (docs/DEPLOYMENT.md "Automatic deployment").
+# Build project: image aws/codebuild/standard:8.0 (Ubuntu 24.04), Privileged on (Docker needs it),
+# compute with 8 GB of memory or more (BUILD_GENERAL1_MEDIUM), timeout 90 minutes.
+# The settings are environment variables of the project, or of the CodePipeline build action:
+# REGISTRY_IMAGE (ACCOUNT.dkr.ecr.REGION.amazonaws.com/REPOSITORY; the build signs in to Amazon ECR
+# with its service role), DEPLOY_HOST, DEPLOY_KNOWN_HOSTS (type Parameter), DEPLOY_SSH_KEY (type
+# Secrets Manager; several lines are fine), and DEPLOY_USER, DEPLOY_PORT and DEPLOY_PATH when they
+# differ from the defaults. Under CodePipeline also set BRANCH to #{SourceVariables.BranchName}.
+version: 0.2
+
+env:
+  shell: bash
+  variables:
+    DEFAULT_BRANCH: main
+    LOCAL_IMAGE: bangla-adventures:ci
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 22
+      python: 3.13
+  build:
+    commands:
+      - bash scripts/ci/verify.sh
+      - bash scripts/ci/e2e.sh
+      - bash scripts/ci/container.sh "$LOCAL_IMAGE"
+      # The branch is BRANCH when set, else the branch of a webhook push or of a build started by
+      # hand. Pull requests and tags have none, so they publish nothing.
+      - |
+        BRANCH="${BRANCH:-}"
+        if [ -z "$BRANCH" ]; then
+          case "${CODEBUILD_WEBHOOK_TRIGGER:-}" in
+            branch/*) BRANCH="${CODEBUILD_WEBHOOK_TRIGGER#branch/}" ;;
+            "") BRANCH="${CODEBUILD_SOURCE_VERSION:-}"; BRANCH="${BRANCH#refs/heads/}" ;;
+          esac
+        fi
+        COMMIT="$(git rev-parse HEAD 2>/dev/null || printf '%s' "${CODEBUILD_RESOLVED_SOURCE_VERSION:-}")"
+        echo "Branch: ${BRANCH:-none}; commit: ${COMMIT:-unknown}"
+        if [ -z "$COMMIT" ] && [ "$BRANCH" = "$DEFAULT_BRANCH" ] && [ -n "${REGISTRY_IMAGE:-}" ]; then
+          echo "This build's commit is unknown, so its image cannot be published under it." >&2
+          false
+        fi
+      # The image is published under its commit, and marked latest only while this is the newest
+      # commit of the branch: builds can finish in any order, and an old one run again would otherwise
+      # put its older commit back. The Amazon ECR sign-in lasts 12 hours, also for the server's pull.
+      - |
+        if [ "$BRANCH" = "$DEFAULT_BRANCH" ] && [ -n "${REGISTRY_IMAGE:-}" ]; then
+          registry="${REGISTRY_IMAGE%%/*}"
+          case "$registry" in
+            *.dkr.ecr.*.amazonaws.com|*.dkr.ecr.*.amazonaws.com.cn)
+              region="${registry#*.dkr.ecr.}"
+              REGISTRY_USER=AWS
+              REGISTRY_PASSWORD="$(aws ecr get-login-password --region "${region%%.*}")" ;;
+          esac &&
+            export REGISTRY_USER REGISTRY_PASSWORD &&
+            if bash scripts/ci/newest.sh "$BRANCH"; then
+              bash scripts/ci/publish.sh push "$LOCAL_IMAGE" "$REGISTRY_IMAGE:sha-$COMMIT" "$REGISTRY_IMAGE:latest"
+            else
+              bash scripts/ci/publish.sh push "$LOCAL_IMAGE" "$REGISTRY_IMAGE:sha-$COMMIT"
+            fi
+        fi
+      - |
+        if [ "$BRANCH" = "$DEFAULT_BRANCH" ] && [ -n "${REGISTRY_IMAGE:-}" ] && [ -n "${DEPLOY_HOST:-}" ]; then
+          if bash scripts/ci/newest.sh "$BRANCH"; then
+            bash scripts/deploy.sh "$REGISTRY_IMAGE:sha-$COMMIT"
+          fi
+        fi
+
+cache:
+  paths:
+    - /root/.npm/**/*

@@ -203,9 +203,11 @@ deployment's own commit; to build the newest commit, push to the branch or use
 
 ## Automatic deployment
 
-Every push runs the same checks on GitHub Actions (`.github/workflows/ci.yml`), GitLab
-(`.gitlab-ci.yml`) or Jenkins (`Jenkinsfile`). Each of them only calls the shared scripts in
-`scripts/ci/`, so any other CI system can run them as well:
+Every push runs the same checks on whichever CI/CD system the repository uses: GitHub Actions,
+GitLab, Jenkins, Bitbucket Pipelines, CircleCI, Azure Pipelines, TeamCity, AWS CodeBuild and
+CodePipeline, Google Cloud Build or Travis CI. Each has a small file in the repository that only
+calls the shared scripts in `scripts/ci/`; [CI_CD.md](CI_CD.md) lists the files and what to set on
+each system. The scripts:
 
 | Script | Does | Needs |
 | --- | --- | --- |
@@ -214,6 +216,7 @@ Every push runs the same checks on GitHub Actions (`.github/workflows/ci.yml`), 
 | `scripts/ci/container.sh IMAGE` | Builds the image and runs the container test on it | Docker with Compose |
 | `scripts/ci/publish.sh` | Pushes an image to a registry, or adds a tag to one already there | Docker |
 | `scripts/deploy.sh IMAGE` | Deploys an image to the server | bash, ssh |
+| `scripts/ci/newest.sh BRANCH` | Says whether this commit is still the newest one of BRANCH on the remote; the pipelines mark an image `latest` and deploy it only then | git |
 
 On the default branch the pipeline then:
 
@@ -301,22 +304,9 @@ Actions access, give this repository the Write role, or delete a stale package o
 workflow creates it again, linked to this repository. After the repository is transferred, the
 image is `ghcr.io/NEWOWNER/REPOSITORY`.
 
-**GitLab** uses the same names under Settings > CI/CD > Variables. GitLab cannot mask a multi-line
-key, so make `DEPLOY_SSH_KEY` a protected variable of type Variable with visibility Visible, or a
-File variable; `DEPLOY_KNOWN_HOSTS` can be either type too. Protected variables reach only protected
-branches, such as the default branch. The container jobs use Docker-in-Docker over TLS: a
-self-managed runner must be privileged and share `/certs/client` (in its `config.toml`,
-`privileged = true` and `volumes = ["/certs/client", "/cache"]`); GitLab.com's hosted runners
-already are.
-
-**Jenkins** runs the `Jenkinsfile` as a multibranch pipeline on an agent with Node 22, Python 3,
-Docker with Compose, bash, git and ssh. The browser tests install Chromium's system libraries, so
-the agent must run as root or have passwordless sudo, or have them installed once
-(`sudo npx playwright install-deps chromium` in a checkout of the repository) with
-`PLAYWRIGHT_INSTALL_DEPS=0` set on the agent. It publishes when `REGISTRY_IMAGE` is set (for
-example `ghcr.io/OWNER/REPOSITORY`) with the username and password credential `registry`, and
-deploys when `DEPLOY_HOST` and `DEPLOY_KNOWN_HOSTS` are also set, with the SSH key credential
-`deploy-ssh-key`.
+**Other CI/CD systems** use the same settings under their own names and places; see
+[CI_CD.md](CI_CD.md). Where a system's secrets hold a single line, `DEPLOY_SSH_KEY_BASE64` and
+`DEPLOY_KNOWN_HOSTS_BASE64` take the key and the host keys as one line of base64.
 
 **By hand, and going back.** From a Linux or macOS shell (on Windows, Git Bash or WSL) in the
 repository, with `server.keys` from step 5 above:

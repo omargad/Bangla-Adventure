@@ -1,0 +1,136 @@
+# The same pipeline as .github/workflows/ci.yml, for Azure Pipelines: each job runs one of the shared
+# scripts in scripts/ci (docs/DEPLOYMENT.md "Automatic deployment"). Microsoft-hosted Ubuntu agents
+# have everything it needs; a self-hosted agent needs Python 3, Docker with the Compose plugin, bash,
+# git, ssh and passwordless sudo (or PLAYWRIGHT_INSTALL_DEPS=0 with Chromium's libraries installed).
+# The settings are variables of this pipeline (Edit > Variables). On main the tested image is
+# published when REGISTRY_IMAGE is set (for example ghcr.io/OWNER/REPOSITORY), signing in with
+# REGISTRY_USER and the secret variable REGISTRY_PASSWORD, and deployed when DEPLOY_HOST is also set,
+# with DEPLOY_KNOWN_HOSTS_BASE64 (`base64 -w0 server.keys`), DEPLOY_USER, DEPLOY_PORT and DEPLOY_PATH
+# when they differ from the defaults, and the private key uploaded as the secure file deploy-ssh-key
+# (Pipelines > Library > Secure files). REGISTRY_IMAGE, REGISTRY_USER, DEPLOY_HOST and the other
+# DEPLOY_ settings must not be secret: scripts only see secret variables mapped into their env.
+# Deploys go to the environment "production" (Pipelines > Environments): add an Exclusive lock check
+# to it, and Approvals to approve each deploy.
+
+trigger:
+  branches:
+    include: ["*"]
+
+# Pull requests from GitHub or Bitbucket; for Azure Repos, add this pipeline as a build validation
+# branch policy instead.
+pr:
+  branches:
+    include: ["*"]
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  # npm's download cache, kept between runs by the Cache task.
+  npm_config_cache: $(Pipeline.Workspace)/.npm
+  # Unique to this run, as the jobs of a self-hosted agent may share one Docker daemon.
+  LOCAL_IMAGE: bangla-adventures:ci-$(Build.BuildId)
+
+stages:
+  - stage: Test
+    jobs:
+      - job: verify
+        steps:
+          - task: UseNode@1
+            inputs:
+              version: "22.x"
+          - task: Cache@2
+            displayName: Cache npm downloads
+            inputs:
+              key: 'npm | "$(Agent.OS)" | package-lock.json'
+              restoreKeys: |
+                npm | "$(Agent.OS)"
+              path: $(npm_config_cache)
+          - bash: bash scripts/ci/verify.sh
+            displayName: scripts/ci/verify.sh
+
+      - job: e2e
+        steps:
+          - task: UseNode@1
+            inputs:
+              version: "22.x"
+          - task: Cache@2
+            displayName: Cache npm downloads
+            inputs:
+              key: 'npm | "$(Agent.OS)" | package-lock.json'
+              restoreKeys: |
+                npm | "$(Agent.OS)"
+              path: $(npm_config_cache)
+          - bash: bash scripts/ci/e2e.sh
+            displayName: scripts/ci/e2e.sh
+
+  - stage: Container
+    dependsOn: []
+    jobs:
+      - job: container
+        timeoutInMinutes: "35"
+        steps:
+          - bash: bash scripts/ci/container.sh "$LOCAL_IMAGE"
+            displayName: Build the production image and run the container smoke test
+            env:
+              IMAGE_SOURCE: $(Build.Repository.Uri)
+          # Each tested image is kept under its commit; it is only marked latest and deployed once
+          # every job has passed.
+          - bash: bash scripts/ci/publish.sh push "$LOCAL_IMAGE" "$REGISTRY_IMAGE:sha-$BUILD_SOURCEVERSION"
+            displayName: Publish this commit's image
+            condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'), ne(variables['REGISTRY_IMAGE'], ''))
+            env:
+              REGISTRY_PASSWORD: $(REGISTRY_PASSWORD)
+          - bash: docker image rm "$LOCAL_IMAGE" >/dev/null 2>&1 || true
+            displayName: Remove the local image
+            condition: always()
+
+  # Runs on main can finish in any order, and an old run started again would put its older commit
+  # back, so only the newest commit of the branch is marked latest and deployed. The token left in
+  # the checkout lets scripts/ci/newest.sh ask the repository for that.
+  - stage: Publish
+    dependsOn: [Test, Container]
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'), ne(variables['REGISTRY_IMAGE'], ''))
+    jobs:
+      - job: publish
+        steps:
+          - checkout: self
+            persistCredentials: "true"
+          - bash: |
+              if bash scripts/ci/newest.sh "${BUILD_SOURCEBRANCH#refs/heads/}"; then
+                bash scripts/ci/publish.sh promote "$REGISTRY_IMAGE:sha-$BUILD_SOURCEVERSION" "$REGISTRY_IMAGE:latest"
+              fi
+            displayName: Mark the tested image as latest
+            env:
+              REGISTRY_PASSWORD: $(REGISTRY_PASSWORD)
+
+  # Skipped until the pipeline variable DEPLOY_HOST is set. With the Exclusive lock check on the
+  # environment, one deploy runs at a time and a newer run's deploy replaces one still waiting.
+  - stage: Deploy
+    dependsOn: Publish
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'), ne(variables['REGISTRY_IMAGE'], ''), ne(variables['DEPLOY_HOST'], ''))
+    lockBehavior: runLatest
+    jobs:
+      - deployment: server
+        displayName: Deploy to the server
+        environment: production
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - download: none
+                - checkout: self
+                  persistCredentials: "true"
+                - task: DownloadSecureFile@1
+                  name: deployKey
+                  displayName: Download the deploy key
+                  inputs:
+                    secureFile: deploy-ssh-key
+                - bash: |
+                    if bash scripts/ci/newest.sh "${BUILD_SOURCEBRANCH#refs/heads/}"; then
+                      bash scripts/deploy.sh "$REGISTRY_IMAGE:sha-$BUILD_SOURCEVERSION"
+                    fi
+                  displayName: Deploy to the server
+                  env:
+                    DEPLOY_SSH_KEY_FILE: $(deployKey.secureFilePath)
+                    REGISTRY_PASSWORD: $(REGISTRY_PASSWORD)
