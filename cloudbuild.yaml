@@ -7,8 +7,9 @@
 # and _DEPLOY_USER, _DEPLOY_PORT and _DEPLOY_PATH when they differ from the defaults. The deploy key
 # and the server's host keys are read from the Secret Manager secrets deploy-ssh-key and
 # deploy-known-hosts (or those named by _DEPLOY_SSH_KEY_SECRET and _DEPLOY_KNOWN_HOSTS_SECRET).
-# The build's service account needs Artifact Registry Writer on the repository and Secret Manager
-# Secret Accessor on the two secrets.
+# The push trigger's service account needs Artifact Registry Writer on the repository and Secret
+# Manager Secret Accessor on the two secrets. Give the pull request trigger its own service account
+# with neither (Logs Writer only), so code in a pull request cannot read the deploy key or publish.
 # Scripts are not substituted: they read the substitutions through the environment set below.
 
 steps:

@@ -2,7 +2,7 @@
 # the shared scripts in scripts/ci (docs/DEPLOYMENT.md "Automatic deployment"), on an Ubuntu 24.04
 # virtual machine with Docker and passwordless sudo, so the container test runs in full.
 # Travis has no container registry, so on main the tested image is published to the one named by
-# REGISTRY_IMAGE (for example ghcr.io/OWNER/REPOSITORY), signing in with REGISTRY_USER and
+# REGISTRY_IMAGE (lowercase, for example ghcr.io/OWNER/REPOSITORY), signing in with REGISTRY_USER and
 # REGISTRY_PASSWORD, and deployed once DEPLOY_HOST is set as well. Set them in the repository's
 # More options > Settings > Environment Variables, with "Display value in build log" off for the
 # secret ones. Those variables hold one line each, so the deploy key and the server's host keys go
@@ -62,9 +62,13 @@ jobs:
       script:
         - |
           bash scripts/ci/container.sh "$LOCAL_IMAGE" &&
-          if [ "$TRAVIS_BRANCH" = main ] && [ -n "${REGISTRY_IMAGE:-}" ] &&
-            { [ "$TRAVIS_EVENT_TYPE" = push ] || [ "$TRAVIS_EVENT_TYPE" = api ]; }; then
-            bash scripts/ci/publish.sh push "$LOCAL_IMAGE" "$REGISTRY_IMAGE:sha-$TRAVIS_COMMIT"
+          if [ "$TRAVIS_BRANCH" = main ] && { [ "$TRAVIS_EVENT_TYPE" = push ] || [ "$TRAVIS_EVENT_TYPE" = api ]; }; then
+            if [ -z "${REGISTRY_IMAGE:-}" ]; then
+              echo "REGISTRY_IMAGE is not set, so the image is not published or deployed."
+            else
+              bash scripts/ci/publish.sh push "$LOCAL_IMAGE" "$REGISTRY_IMAGE:sha-$TRAVIS_COMMIT" &&
+                { [ -n "${DEPLOY_HOST:-}" ] || echo "DEPLOY_HOST is not set, so the image is not deployed."; }
+            fi
           fi
 
     # Builds can finish in any order, and an old build restarted would put its older commit back,

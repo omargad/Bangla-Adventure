@@ -1,9 +1,10 @@
 # The same pipeline as .github/workflows/ci.yml, for Bitbucket Pipelines: each step runs one of the
 # shared scripts in scripts/ci (docs/DEPLOYMENT.md "Automatic deployment"). Turn Pipelines on under
 # Repository settings > Pipelines > Settings.
-# Bitbucket has no container registry, so on main the tested image is published to the one named by
-# the repository variable REGISTRY_IMAGE (for example docker.io/OWNER/bangla-adventures), signing in
-# with REGISTRY_USER and REGISTRY_PASSWORD (Secured), and deployed once DEPLOY_HOST is set as well.
+# On main the tested image is published to the registry named by the repository variable
+# REGISTRY_IMAGE (lowercase): Bitbucket's own, crg.apkg.io/WORKSPACE/bangla-adventures, with the
+# pipeline's own sign-in, or another such as docker.io/OWNER/bangla-adventures with REGISTRY_USER and
+# REGISTRY_PASSWORD (Secured). It is deployed once DEPLOY_HOST is set as well.
 # REGISTRY_IMAGE and DEPLOY_HOST must be repository variables that are not Secured: the step
 # conditions below read them, and conditions cannot read secured variables.
 # The container step runs on Runtime v3, whose Docker service has none of the older runtime's
@@ -52,6 +53,12 @@ definitions:
           - apk add --no-cache bash coreutils
           - CONTAINER_TEST_ALLOW_SKIP=1 IMAGE_SOURCE="https://bitbucket.org/$BITBUCKET_REPO_FULL_NAME"
             bash scripts/ci/container.sh bangla-adventures:ci
+          # Bitbucket's own registry needs no stored password: the pipeline's own sign-in is used.
+          - |
+            case "${REGISTRY_IMAGE:-}" in crg.apkg.io/*)
+              export REGISTRY_USER="${REGISTRY_USER:-$BITBUCKET_PACKAGES_USERNAME}"
+              export REGISTRY_PASSWORD="${REGISTRY_PASSWORD:-$BITBUCKET_PACKAGES_TOKEN}" ;;
+            esac
           # Each tested image is kept under its commit; it is only marked latest and deployed once
           # every step has passed.
           - |
@@ -67,6 +74,12 @@ definitions:
           state: REGISTRY_IMAGE != ""
         script:
           - apk add --no-cache bash coreutils
+          # Bitbucket's own registry needs no stored password: the pipeline's own sign-in is used.
+          - |
+            case "${REGISTRY_IMAGE:-}" in crg.apkg.io/*)
+              export REGISTRY_USER="${REGISTRY_USER:-$BITBUCKET_PACKAGES_USERNAME}"
+              export REGISTRY_PASSWORD="${REGISTRY_PASSWORD:-$BITBUCKET_PACKAGES_TOKEN}" ;;
+            esac
           - |
             if bash scripts/ci/newest.sh "$BITBUCKET_BRANCH"; then
               bash scripts/ci/publish.sh promote "$REGISTRY_IMAGE:sha-$BITBUCKET_COMMIT" "$REGISTRY_IMAGE:latest"
@@ -84,6 +97,12 @@ definitions:
           state: REGISTRY_IMAGE != "" && DEPLOY_HOST != ""
         script:
           - apk add --no-cache bash git openssh-client
+          # Bitbucket's own registry needs no stored password: the pipeline's own sign-in is used.
+          - |
+            case "${REGISTRY_IMAGE:-}" in crg.apkg.io/*)
+              export REGISTRY_USER="${REGISTRY_USER:-$BITBUCKET_PACKAGES_USERNAME}"
+              export REGISTRY_PASSWORD="${REGISTRY_PASSWORD:-$BITBUCKET_PACKAGES_TOKEN}" ;;
+            esac
           - |
             if bash scripts/ci/newest.sh "$BITBUCKET_BRANCH"; then
               bash scripts/deploy.sh "$REGISTRY_IMAGE:sha-$BITBUCKET_COMMIT"

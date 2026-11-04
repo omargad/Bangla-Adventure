@@ -21,7 +21,7 @@ read_only_volume="${volume}-read-only"
 created_volumes=""
 container_id=""
 ran=""
-skipped=""
+skipped="${CONTAINER_TEST_SKIPPED:-}"
 
 cleanup() {
   status=$?

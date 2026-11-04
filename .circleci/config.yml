@@ -1,9 +1,12 @@
 # The same pipeline as .github/workflows/ci.yml, for CircleCI: each job runs one of the shared scripts
 # in scripts/ci (docs/DEPLOYMENT.md "Automatic deployment").
 # CircleCI has no container registry, so on the default branch the tested image is published to the
-# one named by REGISTRY_IMAGE (for example docker.io/OWNER/bangla-adventures), signing in with
-# REGISTRY_USER and REGISTRY_PASSWORD, and deployed once DEPLOY_HOST is set as well. Set them under
-# Project Settings > Environment Variables; the deploy settings are listed above the deploy job.
+# one named by REGISTRY_IMAGE (lowercase, for example docker.io/OWNER/bangla-adventures), signing in
+# with REGISTRY_USER and REGISTRY_PASSWORD, and deployed once DEPLOY_HOST is set as well. Set them in
+# the context bangla-release (Organization Settings > Contexts), restricted to the default branch:
+# only the default branch's container, promote and deploy jobs use it, so no other job or branch
+# receives them. Create that context, even empty, before the default branch's first build. The
+# deploy settings are listed above the deploy job.
 # The container job runs on a Linux VM with its own Docker, so the container test runs in full.
 
 version: 2.1
@@ -105,12 +108,20 @@ workflows:
     jobs:
       - verify
       - e2e
-      - container
+      - container:
+          filters: not pipeline.git.branch.is_default
+      # The same job on the default branch, with the settings to publish its image.
+      - container:
+          name: container-release
+          context: bangla-release
+          filters: pipeline.git.branch.is_default
       - promote:
-          requires: [verify, e2e, container]
+          context: bangla-release
+          requires: [verify, e2e, container-release]
           filters: pipeline.git.branch.is_default
       # One deploy at a time; a newer pipeline's deploy makes an older one waiting for it skip.
       - deploy:
+          context: bangla-release
           requires: [promote]
           filters: pipeline.git.branch.is_default
           serial-group: << pipeline.project.slug >>/production

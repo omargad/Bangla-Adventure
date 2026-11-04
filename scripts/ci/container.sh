@@ -13,6 +13,8 @@ if docker compose version >/dev/null 2>&1; then
   step env PUBLIC_ORIGIN=https://bangla-container-test.example docker compose config --quiet
 elif [ "${CONTAINER_TEST_ALLOW_SKIP:-0}" = 1 ]; then
   echo "Skipped: checking compose.yaml (Docker Compose is not installed: docker compose version failed)"
+  # Listed again in the container test's summary.
+  export CONTAINER_TEST_SKIPPED=$'\n  checking compose.yaml (Docker Compose is not installed)'
 else
   echo "Docker Compose is needed to check compose.yaml, and docker compose version failed. Install the" \
     "Compose plugin, or on a CI system whose Docker has none set CONTAINER_TEST_ALLOW_SKIP=1 to skip this check." >&2

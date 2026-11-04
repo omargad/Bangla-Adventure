@@ -6,6 +6,9 @@ set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/../.."
 export CI="${CI:-true}"
 step() { printf '\n==> %s\n' "$*"; "$@"; }
+# The dependencies' install scripts and the tests need no secrets: on a CI system that gives every
+# job the publishing and deploying settings, they are dropped here.
+unset REGISTRY_PASSWORD DEPLOY_SSH_KEY DEPLOY_SSH_KEY_FILE DEPLOY_SSH_KEY_BASE64 DOCKERHUB_TOKEN
 
 step npm ci
 if [ "${PLAYWRIGHT_INSTALL_DEPS:-1}" = 1 ]; then

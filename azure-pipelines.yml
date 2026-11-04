@@ -6,9 +6,9 @@
 # published when REGISTRY_IMAGE is set (for example ghcr.io/OWNER/REPOSITORY), signing in with
 # REGISTRY_USER and the secret variable REGISTRY_PASSWORD, and deployed when DEPLOY_HOST is also set,
 # with DEPLOY_KNOWN_HOSTS_BASE64 (`base64 -w0 server.keys`), DEPLOY_USER, DEPLOY_PORT and DEPLOY_PATH
-# when they differ from the defaults, and the private key uploaded as the secure file deploy-ssh-key
-# (Pipelines > Library > Secure files). REGISTRY_IMAGE, REGISTRY_USER, DEPLOY_HOST and the other
-# DEPLOY_ settings must not be secret: scripts only see secret variables mapped into their env.
+# when they differ from the defaults, and the secret variable DEPLOY_SSH_KEY_BASE64 (`base64 -w0` of
+# the private key). REGISTRY_IMAGE (lowercase), REGISTRY_USER, DEPLOY_HOST and the other DEPLOY_
+# settings must not be secret: scripts only see secret variables mapped into their env.
 # Deploys go to the environment "production" (Pipelines > Environments): add an Exclusive lock check
 # to it, and Approvals to approve each deploy.
 
@@ -121,16 +121,11 @@ stages:
                 - download: none
                 - checkout: self
                   persistCredentials: "true"
-                - task: DownloadSecureFile@1
-                  name: deployKey
-                  displayName: Download the deploy key
-                  inputs:
-                    secureFile: deploy-ssh-key
                 - bash: |
                     if bash scripts/ci/newest.sh "${BUILD_SOURCEBRANCH#refs/heads/}"; then
                       bash scripts/deploy.sh "$REGISTRY_IMAGE:sha-$BUILD_SOURCEVERSION"
                     fi
                   displayName: Deploy to the server
                   env:
-                    DEPLOY_SSH_KEY_FILE: $(deployKey.secureFilePath)
+                    DEPLOY_SSH_KEY_BASE64: $(DEPLOY_SSH_KEY_BASE64)
                     REGISTRY_PASSWORD: $(REGISTRY_PASSWORD)

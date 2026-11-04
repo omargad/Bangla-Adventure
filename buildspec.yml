@@ -5,8 +5,9 @@
 # Build project: image aws/codebuild/standard:8.0 (Ubuntu 24.04), Privileged on (Docker needs it),
 # compute with 8 GB of memory or more (BUILD_GENERAL1_MEDIUM), timeout 90 minutes.
 # The settings are environment variables of the project, or of the CodePipeline build action:
-# REGISTRY_IMAGE (ACCOUNT.dkr.ecr.REGION.amazonaws.com/REPOSITORY; the build signs in to Amazon ECR
-# with its service role), DEPLOY_HOST, DEPLOY_KNOWN_HOSTS (type Parameter), DEPLOY_SSH_KEY (type
+# REGISTRY_IMAGE (lowercase, ACCOUNT.dkr.ecr.REGION.amazonaws.com/REPOSITORY; the build signs in to
+# Amazon ECR with its service role, which needs push and pull rights there, as the server pulls with
+# the same sign-in), DEPLOY_HOST, DEPLOY_KNOWN_HOSTS (type Parameter), DEPLOY_SSH_KEY (type
 # Secrets Manager; several lines are fine), and DEPLOY_USER, DEPLOY_PORT and DEPLOY_PATH when they
 # differ from the defaults. Under CodePipeline also set BRANCH to #{SourceVariables.BranchName}.
 version: 0.2
@@ -61,12 +62,16 @@ phases:
             else
               bash scripts/ci/publish.sh push "$LOCAL_IMAGE" "$REGISTRY_IMAGE:sha-$COMMIT"
             fi
+        else
+          echo "Not published: only $DEFAULT_BRANCH is, once REGISTRY_IMAGE is set."
         fi
       - |
         if [ "$BRANCH" = "$DEFAULT_BRANCH" ] && [ -n "${REGISTRY_IMAGE:-}" ] && [ -n "${DEPLOY_HOST:-}" ]; then
           if bash scripts/ci/newest.sh "$BRANCH"; then
             bash scripts/deploy.sh "$REGISTRY_IMAGE:sha-$COMMIT"
           fi
+        else
+          echo "Not deployed: only $DEFAULT_BRANCH is, once REGISTRY_IMAGE and DEPLOY_HOST are set."
         fi
 
 cache:

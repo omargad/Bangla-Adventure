@@ -4,7 +4,7 @@
 // tests install Chromium's system libraries, so the agent must run as root or have passwordless sudo,
 // or have them installed once (`sudo npx playwright install-deps chromium` in a checkout of this
 // repository) with PLAYWRIGHT_INSTALL_DEPS=0 set on the agent.
-// Publishing runs on main when REGISTRY_IMAGE is set (for example ghcr.io/OWNER/REPOSITORY), with
+// Publishing runs on main when REGISTRY_IMAGE is set (lowercase, for example ghcr.io/OWNER/REPOSITORY), with
 // the username/password credential "registry". Deploying also needs DEPLOY_HOST and DEPLOY_KNOWN_HOSTS
 // (the server's host key lines, or the path of a file holding them; plus DEPLOY_USER, DEPLOY_PORT and
 // DEPLOY_PATH when they differ from the defaults) as environment variables, and the SSH private key
