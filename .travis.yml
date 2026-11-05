@@ -3,7 +3,7 @@
 # virtual machine with Docker and passwordless sudo, so the container test runs in full.
 # Travis has no container registry, so on main the tested image is published to the one named by
 # REGISTRY_IMAGE (lowercase, for example ghcr.io/OWNER/REPOSITORY), signing in with REGISTRY_USER and
-# REGISTRY_PASSWORD, and deployed once DEPLOY_HOST is set as well. Set them in the repository's
+# REGISTRY_PASSWORD, and deployed once DEPLOY_ENABLED=true and DEPLOY_HOST are set. Set them in the repository's
 # More options > Settings > Environment Variables, with "Display value in build log" off for the
 # secret ones. Those variables hold one line each, so the deploy key and the server's host keys go
 # in as DEPLOY_SSH_KEY_BASE64 and DEPLOY_KNOWN_HOSTS_BASE64 (`base64 -w0 FILE`); DEPLOY_USER,
@@ -27,7 +27,7 @@ stages:
   - name: publish
     if: branch = main AND type IN (push, api) AND env(REGISTRY_IMAGE) IS present
   - name: deploy
-    if: branch = main AND type IN (push, api) AND env(REGISTRY_IMAGE) IS present AND env(DEPLOY_HOST) IS present
+    if: branch = main AND type IN (push, api) AND env(REGISTRY_IMAGE) IS present AND env(DEPLOY_ENABLED) = "true" AND env(DEPLOY_HOST) IS present
 
 jobs:
   include:
@@ -67,7 +67,7 @@ jobs:
               echo "REGISTRY_IMAGE is not set, so the image is not published or deployed."
             else
               bash scripts/ci/publish.sh push "$LOCAL_IMAGE" "$REGISTRY_IMAGE:sha-$TRAVIS_COMMIT" &&
-                { [ -n "${DEPLOY_HOST:-}" ] || echo "DEPLOY_HOST is not set, so the image is not deployed."; }
+                { { [ "${DEPLOY_ENABLED:-false}" = true ] && [ -n "${DEPLOY_HOST:-}" ]; } || echo "DEPLOY_ENABLED=true and DEPLOY_HOST are required, so the image is not deployed."; }
             fi
           fi
 
@@ -82,6 +82,9 @@ jobs:
         - |
           if bash scripts/ci/newest.sh main; then
             bash scripts/ci/publish.sh promote "$REGISTRY_IMAGE:sha-$TRAVIS_COMMIT" "$REGISTRY_IMAGE:latest"
+          else
+            status=$?
+            [ "$status" -eq 1 ] || exit "$status"
           fi
 
     # Travis cannot hold a deploy back while another runs; the server refuses a second deploy that
@@ -94,4 +97,7 @@ jobs:
         - |
           if bash scripts/ci/newest.sh main; then
             bash scripts/deploy.sh "$REGISTRY_IMAGE:sha-$TRAVIS_COMMIT"
+          else
+            status=$?
+            [ "$status" -eq 1 ] || exit "$status"
           fi

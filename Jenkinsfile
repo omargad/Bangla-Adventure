@@ -5,7 +5,7 @@
 // or have them installed once (`sudo npx playwright install-deps chromium` in a checkout of this
 // repository) with PLAYWRIGHT_INSTALL_DEPS=0 set on the agent.
 // Publishing runs on main when REGISTRY_IMAGE is set (lowercase, for example ghcr.io/OWNER/REPOSITORY), with
-// the username/password credential "registry". Deploying also needs DEPLOY_HOST and DEPLOY_KNOWN_HOSTS
+// the username/password credential "registry". Deploying also needs DEPLOY_ENABLED=true, DEPLOY_HOST and DEPLOY_KNOWN_HOSTS
 // (the server's host key lines, or the path of a file holding them; plus DEPLOY_USER, DEPLOY_PORT and
 // DEPLOY_PATH when they differ from the defaults) as environment variables, and the SSH private key
 // credential "deploy-ssh-key".
@@ -40,6 +40,8 @@ pipeline {
             if bash scripts/ci/newest.sh "$BRANCH_NAME"; then
               bash scripts/ci/publish.sh push "$LOCAL_IMAGE" "$REGISTRY_IMAGE:sha-$GIT_COMMIT" "$REGISTRY_IMAGE:latest"
             else
+              status=$?
+              [ "$status" -eq 1 ] || exit "$status"
               bash scripts/ci/publish.sh push "$LOCAL_IMAGE" "$REGISTRY_IMAGE:sha-$GIT_COMMIT"
             fi
           '''
@@ -47,7 +49,7 @@ pipeline {
       }
     }
     stage('Deploy') {
-      when { allOf { branch 'main'; expression { return (env.REGISTRY_IMAGE?.trim() && env.DEPLOY_HOST?.trim()) as boolean } } }
+      when { allOf { branch 'main'; expression { return (env.REGISTRY_IMAGE?.trim() && env.DEPLOY_ENABLED == 'true' && env.DEPLOY_HOST?.trim()) as boolean } } }
       steps {
         withCredentials([
           sshUserPrivateKey(credentialsId: 'deploy-ssh-key', keyFileVariable: 'DEPLOY_SSH_KEY'),
@@ -56,6 +58,9 @@ pipeline {
           sh '''
             if bash scripts/ci/newest.sh "$BRANCH_NAME"; then
               bash scripts/deploy.sh "$REGISTRY_IMAGE:sha-$GIT_COMMIT"
+            else
+              status=$?
+              [ "$status" -eq 1 ] || exit "$status"
             fi
           '''
         }
