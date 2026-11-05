@@ -1,0 +1,179 @@
+"""Run the real controller with fake transports; never contacts a VPS or registry."""
+import json
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import tempfile
+import unittest
+
+ROOT = Path(__file__).resolve().parents[1]
+IMAGE = "ghcr.io/omargad/bangla-adventure@sha256:fc6f52720d3ecf55998e56a2432ffd5a782d3db231323874daf0b6d0357efca2"
+REVISION = "95b6308ac7ad3d5b6bb2d951df9d65a23ff77107"
+
+
+class PrivateStagingControllerTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory(prefix="bangla-private-controller-test-")
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name)
+        (self.root / "scripts").mkdir()
+        (self.root / "deploy").mkdir()
+        shutil.copy(ROOT / "scripts/private-staging.sh", self.root / "scripts/private-staging.sh")
+        (self.root / "deploy/private-staging.compose.yaml").write_text("name: isolated-fixture\n")
+        for name in ["proxy.mjs", "remote.sh", "verify.mjs", "drill.sh", "qa.sh"]:
+            (self.root / f"scripts/private-staging-{name}").write_text("isolated fixture payload\n")
+        self.bin = self.root / "bin"
+        self.bin.mkdir()
+        transport = self.bin / "transport"
+        transport.write_text(r'''#!/usr/bin/env python3
+import json,os,subprocess,sys,time
+from pathlib import Path
+tool=Path(sys.argv[0]).name
+args=sys.argv[1:]
+log=Path(os.environ["FIXTURE_LOG"])
+def record(kind,**extra):
+ with log.open("a") as f: f.write(json.dumps({"kind":kind,"args":args,**extra})+"\n")
+if tool=="ssh-keygen":
+ if "-y" in args: print("ssh-ed25519 RklYVFVSRQ== fixture")
+ elif "-F" in args: sys.exit(0)
+ elif "-l" in args:
+  public=Path(args[args.index("-f")+1]).name=="public_key"
+  pin="SHA256:y1+C6cvcfpJFmO8pfjyMSFERpd5BtcQyDf5SptZXVlQ" if public else "SHA256:79xe+ubCodL2ACAHPNloo7I/K6mvngU88vEiFoEeWL8"
+  if os.environ.get("FIXTURE_BAD_PIN"): pin="SHA256:wrong"
+  print("256",pin,"fixture (ED25519)")
+elif tool=="curl":
+ record("http")
+ url=args[-1]
+ print("403" if "sign-up" in url else os.environ.get("FIXTURE_PROTECTED_STATUS","401") if "profiles" in url else "200",end="")
+elif tool=="node":
+ record("qa_browser")
+ hook=os.environ["PRIVATE_QA_CONTROLLER"];qid=os.environ["PRIVATE_QA_ID"]
+ for action in ["verify","approve-fixtures","cleanup"]:
+  p=subprocess.run([hook,action,qid],capture_output=True,text=True)
+  if p.returncode: sys.exit(1)
+ out=Path(os.environ["PRIVATE_QA_ARTIFACTS"])/f"qa-browser-{qid}"
+ out.mkdir();(out/"result.json").write_text('{"fixtureBrowser":true}')
+elif tool=="ssh":
+ command=args[-1]
+ if "-L" in args:
+  record("tunnel")
+  while True: time.sleep(1)
+ data=sys.stdin.read()
+ if command=="bash -s":
+  record("inventory")
+  if os.environ.get("FIXTURE_INVENTORY_REFUSE"):
+   print("REGISTRY_TOKEN_MUST_NOT_LEAK",file=sys.stderr); sys.exit(7)
+  print(json.dumps({"scope":"private-staging","inventory":"passed","uid":1002,"rootless":True,"hostPortsPublished":0,"productionConflict":False,"productionFilesPresent":2,"occupiedReservedTcpPorts":2,"unrelatedContainers":1,"unrelatedVolumes":1,"unrelatedNetworks":3,"availableDiskKiB":9000000,"availableMemoryKiB":2000000}))
+ elif "mktemp -d" in command:
+  record("incoming"); print("/opt/bangla-adventures/.private-stage-payload.Fixture123ABC")
+ elif "tar --extract" in command: record("upload",hasToken="REGISTRY_TOKEN_MUST_NOT_LEAK" in data)
+ elif "private-staging-qa.sh" in command:
+  action,qid=command.split()[-2:];record("qa_"+action)
+  clean={"users":0,"pendingTopics":15,"pendingLessons":18}
+  if action in ["prepare","verify"]:
+   digest=os.environ["FIXTURE_IMAGE"].split("@")[1]
+   if os.environ.get("FIXTURE_QA_BAD_IMAGE"): digest="sha256:"+"0"*64
+   print(json.dumps({"verified":True,"kind":"bangla-private-qa","qaId":qid,"imageDigest":digest,"baseURL":"http://127.0.0.1:3001","isolated":True,"actualStage":clean,"qa":clean,"socket":f"/opt/bangla-adventures/private-staging/qa/{qid}/runtime/http.sock","prepared":action=="prepare"}))
+  elif action=="approve-fixtures": print(json.dumps({"verified":True,"qaId":qid,"approvedAdults":1,"approvedStudents":1,"noContentApprovals":True}))
+  else: print(json.dumps({"verified":True,"qaId":qid,"removed":True,"actualStage":clean}))
+ elif "private-staging-remote.sh" in command:
+  record("prepare",tokenViaStdin=data.strip()=="REGISTRY_TOKEN_MUST_NOT_LEAK")
+  def verifier(restarted):
+   return {"verified":True,"stateDigest":"a"*64,"counts":{"pendingTopics":15,"pendingLessons":18,"shippedStates":33,"users":0,"approvals":0,"baselines":0,"businessRows":0,"mediaFiles":0},"checks":{"integrity":True,"foreignKeys":True,"unpublished":True,"cleanIdentities":True,"expectedStateMatched":True if restarted else None,"databaseWriteRolledBack":None if restarted else True,"mediaWriteRemoved":None if restarted else True}}
+  result={"scope":"private-staging","status":"healthy","image":os.environ["FIXTURE_IMAGE"],"revision":"95b6308ac7ad3d5b6bb2d951df9d65a23ff77107","project":"bangla-adventures-staging","origin":"http://127.0.0.1:3001","socket":"/opt/bangla-adventures/private-staging/runtime/http.sock","publishedPorts":0,
+   "cleanVerifier":verifier(False),"restartVerifier":verifier(True),
+   "restoreDrill":{"verified":True,"checks":{k:True for k in ["sourceUnchanged","cleanSnapshotVerified","probeSnapshotVerified","probeDatabaseRestored","probeMediaRestored","cleanOriginalRestored","integrity","foreignKeys","archivesUnchanged"]},"counts":{"pendingTopics":15,"pendingLessons":18,"sourceUsers":0,"probeRecords":3,"probeMediaFiles":2},"artifactsRetained":False,"scope":"disposable clone only"},
+   "containerReplacement":{"appReplaced":True,"beforeAppId":"b"*64,"afterAppId":"c"*64,"stateDigestUnchanged":True}}
+  if os.environ.get("FIXTURE_UNKNOWN_PROOF_KEY"): result["cleanVerifier"]["unexpected"]="REGISTRY_TOKEN_MUST_NOT_LEAK"
+  print(json.dumps(result))
+ else: record("cleanup")
+''')
+        transport.chmod(0o700)
+        for name in ["ssh", "ssh-keygen", "curl", "node"]:
+            (self.bin / name).symlink_to(transport)
+        self.env = {
+            **os.environ, "PATH": f"{self.bin}:{os.environ['PATH']}",
+            "DEPLOY_ENABLED": "false", "REPOSITORY_GATE_CONFIRMED": "disabled",
+            "GITHUB_REPOSITORY": "omargad/Bangla-Adventure", "GITHUB_REF": "refs/heads/main",
+            "DEPLOY_SSH_KEY": "PRIVATE_KEY_MUST_NOT_LEAK",
+            "DEPLOY_KNOWN_HOSTS": "203.0.113.10 ssh-ed25519 RklYVFVSRQ== fixture public key",
+            "REGISTRY_USER": "fixture", "REGISTRY_PASSWORD": "REGISTRY_TOKEN_MUST_NOT_LEAK",
+            "PRIVATE_STAGING_EVIDENCE_DIR": str(self.root / "evidence"),
+            "FIXTURE_LOG": str(self.root / "calls.jsonl"), "FIXTURE_IMAGE": IMAGE,
+        }
+
+    def run_controller(self, **overrides):
+        result = subprocess.run(["bash", str(self.root / "scripts/private-staging.sh")], env={**self.env, **overrides}, text=True, capture_output=True, timeout=15)
+        self.assertNotIn("PRIVATE_KEY_MUST_NOT_LEAK", result.stdout + result.stderr)
+        self.assertNotIn("REGISTRY_TOKEN_MUST_NOT_LEAK", result.stdout + result.stderr)
+        return result
+
+    def calls(self):
+        log = self.root / "calls.jsonl"
+        return [json.loads(line) for line in log.read_text().splitlines()] if log.exists() else []
+
+    def test_success_proves_real_tunnel_contract_and_exports_only_public_evidence(self):
+        result = self.run_controller()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        calls = self.calls()
+        kinds = [call["kind"] for call in calls]
+        self.assertLess(kinds.index("inventory"), kinds.index("incoming"))
+        self.assertLess(kinds.index("incoming"), kinds.index("upload"))
+        self.assertTrue(next(call for call in calls if call["kind"] == "prepare")["tokenViaStdin"])
+        self.assertFalse(next(call for call in calls if call["kind"] == "upload")["hasToken"])
+        tunnel = next(call for call in calls if call["kind"] == "tunnel")["args"]
+        self.assertIn("127.0.0.1:3001:/opt/bangla-adventures/private-staging/runtime/http.sock", tunnel)
+        self.assertIn("ExitOnForwardFailure=yes", tunnel)
+        self.assertIn("ClearAllForwardings=no", tunnel)
+        self.assertIn("StrictHostKeyChecking=yes", tunnel)
+        evidence = self.root / "evidence"
+        self.assertEqual(set(path.name for path in evidence.iterdir()), {"inventory.json", "staging-result.json", "staging_known_hosts", "tunnel-probes.json", "qa-cleanup.json", "qa-browser"})
+        self.assertEqual(json.loads((evidence / "tunnel-probes.json").read_text())["stageAccountsCreated"], 0)
+        self.assertTrue(json.loads((evidence / "tunnel-probes.json").read_text())["qaBrowserLoginVerified"])
+        proof=json.loads((evidence / "staging-result.json").read_text())
+        self.assertEqual(proof["cleanVerifier"]["stateDigest"], proof["restartVerifier"]["stateDigest"])
+        self.assertNotEqual(proof["containerReplacement"]["beforeAppId"],proof["containerReplacement"]["afterAppId"])
+        all_evidence = "".join(path.read_text() for path in evidence.rglob("*") if path.is_file())
+        self.assertNotIn("PRIVATE_KEY_MUST_NOT_LEAK", all_evidence)
+        self.assertNotIn("REGISTRY_TOKEN_MUST_NOT_LEAK", all_evidence)
+        self.assertNotIn("fixture public key", (evidence / "staging_known_hosts").read_text())
+
+    def test_inventory_refusal_precedes_every_remote_write(self):
+        result = self.run_controller(FIXTURE_INVENTORY_REFUSE="1")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual([call["kind"] for call in self.calls()], ["inventory"])
+        self.assertFalse((self.root / "evidence").exists())
+
+    def test_wrong_key_pin_prevents_all_remote_contact(self):
+        result = self.run_controller(FIXTURE_BAD_PIN="1")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(self.calls(), [])
+
+    def test_enabled_production_gate_prevents_all_remote_contact(self):
+        result = self.run_controller(DEPLOY_ENABLED="true")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(self.calls(), [])
+
+    def test_protected_endpoint_failure_never_publishes_success_evidence(self):
+        result = self.run_controller(FIXTURE_PROTECTED_STATUS="200")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertFalse((self.root / "evidence").exists())
+
+    def test_unattested_qa_clone_never_reaches_browser_and_is_cleaned(self):
+        result = self.run_controller(FIXTURE_QA_BAD_IMAGE="1")
+        self.assertNotEqual(result.returncode, 0)
+        kinds = [call["kind"] for call in self.calls()]
+        self.assertNotIn("qa_browser", kinds)
+        self.assertIn("qa_cleanup", kinds)
+        self.assertFalse((self.root / "evidence").exists())
+
+    def test_unknown_aggregate_proof_keys_are_refused_without_export(self):
+        result = self.run_controller(FIXTURE_UNKNOWN_PROOF_KEY="1")
+        self.assertNotEqual(result.returncode,0)
+        self.assertNotIn("tunnel",[call["kind"] for call in self.calls()])
+        self.assertFalse((self.root / "evidence").exists())
+
+
+if __name__ == "__main__":
+    unittest.main()

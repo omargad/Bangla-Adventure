@@ -1,0 +1,143 @@
+name: VPS private staging
+
+on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/vps-private-staging.yml]
+  workflow_dispatch:
+    inputs:
+      confirm_private_staging:
+        description: Start only the pinned clean private stage without publishing VPS ports
+        type: boolean
+        required: true
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vps-private-staging
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    if: >-
+      github.repository == 'omargad/Bangla-Adventure' && github.ref == 'refs/heads/main' &&
+      ((github.event_name == 'workflow_dispatch' && inputs.confirm_private_staging == true) ||
+       (github.event_name == 'push' && contains(github.event.head_commit.message, '[private-staging-start]')))
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Validate shell and workflow syntax
+        run: |
+          set -euo pipefail
+          for script in scripts/private-staging*.sh; do bash -n "$script"; done
+          node -e 'const fs=require("node:fs");const yaml=require("js-yaml");const x=yaml.load(fs.readFileSync(".github/workflows/vps-private-staging.yml","utf8"));if(!x.jobs.validate||!x.jobs["private-staging"].needs.includes("validate"))throw Error("Missing pre-SSH validation gate");'
+      - name: Test isolated controller, clean-state, backup, QA lifecycle and real Unix proxy behavior
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s tests -p 'private_staging_controller_test.py' -v
+          node --import tsx --test tests/private-staging*.test.mjs
+      - name: Validate the actual normalized Compose candidate without pulling or starting containers
+        env:
+          STAGING_IMAGE: ghcr.io/omargad/bangla-adventure@sha256:fc6f52720d3ecf55998e56a2432ffd5a782d3db231323874daf0b6d0357efca2
+        run: |
+          set -euo pipefail
+          candidate="$GITHUB_WORKSPACE/deploy"
+          rendered="$RUNNER_TEMP/private-staging-compose.json"
+          docker compose --env-file /dev/null --project-name bangla-adventures-staging --project-directory "$candidate" --file "$candidate/private-staging.compose.yaml" config --format json > "$rendered"
+          python3 - "$rendered" "$candidate" "$STAGING_IMAGE" <<'PY'
+          import json,sys
+          with open(sys.argv[1]) as source: value=json.load(source)
+          root,image=sys.argv[2:]
+          assert value.get('name')=='bangla-adventures-staging' and set(value['services'])=={'app','proxy'}
+          assert set(value.get('volumes',{}))=={'bangla-data'}
+          volume=value['volumes']['bangla-data']
+          assert volume['name']=='bangla-adventures-staging_bangla-data' and not volume.get('external') and not volume.get('driver_opts')
+          assert volume.get('labels',{}).get('io.bangla.scope')=='private-staging'
+          assert set(value.get('networks',{}))=={'default'} and value['networks']['default'].get('internal') is True and not value['networks']['default'].get('external')
+          for name,service in value['services'].items():
+              assert service.get('image')==image and service.get('user')=='node' and not service.get('ports') and not service.get('network_mode')
+              assert not any(service.get(key) for key in ('privileged','container_name','pid','ipc','devices','cap_add','env_file','secrets','configs'))
+              assert 'ALL' in service.get('cap_drop',[]) and 'no-new-privileges:true' in service.get('security_opt',[])
+              mounts=service['volumes'];assert len(mounts)==2
+              if name=='app':
+                  env=service['environment']
+                  assert env['PUBLIC_ORIGIN']=='http://127.0.0.1:3001' and env['NODE_ENV']=='production'
+                  assert env['DATABASE_PATH']=='/app/.data/bangla-adventures.db' and env['MEDIA_ROOT']=='/app/.data/media'
+                  assert set(env)=={'NODE_ENV','PORT','PLATFORM_MODE','DATABASE_PATH','MEDIA_ROOT','PUBLIC_ORIGIN','NEXT_TELEMETRY_DISABLED'}
+                  assert any(m['type']=='volume' and m['source']=='bangla-data' and m['target']=='/app/.data' for m in mounts)
+                  assert any(m['type']=='bind' and m['source']==root+'/tools/private-staging-verify.mjs' and m['target']=='/app/staging-tools/private-staging-verify.mjs' and m.get('read_only') for m in mounts)
+              else:
+                  assert service.get('read_only') and service.get('entrypoint')==['node','/app/staging-tools/private-staging-proxy.mjs'] and not service.get('environment')
+                  assert any(m['type']=='bind' and m['source']==root+'/runtime' and m['target']=='/runtime' for m in mounts)
+                  assert any(m['type']=='bind' and m['source']==root+'/tools/private-staging-proxy.mjs' and m['target']=='/app/staging-tools/private-staging-proxy.mjs' and m.get('read_only') for m in mounts)
+          print('Actual Docker Compose normalization satisfies private staging isolation; no image pull or container start was performed.')
+          PY
+
+  repository-settings:
+    if: >-
+      github.repository == 'omargad/Bangla-Adventure' && github.ref == 'refs/heads/main' &&
+      ((github.event_name == 'workflow_dispatch' && inputs.confirm_private_staging == true) ||
+       (github.event_name == 'push' && contains(github.event.head_commit.message, '[private-staging-start]')))
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: Require repository production deployment to remain disabled before loading its environment
+        env:
+          REPOSITORY_DEPLOY_ENABLED_STATE: ${{ (vars.DEPLOY_ENABLED == '' || vars.DEPLOY_ENABLED == 'false') && 'disabled' || 'refused' }}
+        run: |
+          set -euo pipefail
+          [ "$REPOSITORY_DEPLOY_ENABLED_STATE" = disabled ] || { printf '::error::Repository DEPLOY_ENABLED must be unset or exactly false.\n'; exit 1; }
+          printf 'Repository gate passed without loading production credentials.\n'
+
+  private-staging:
+    needs: [repository-settings, validate]
+    if: ${{ needs.repository-settings.result == 'success' && needs.validate.result == 'success' }}
+    environment: production
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - name: Prepare the runner-only browser dependencies
+        run: |
+          set -euo pipefail
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Check controller shell syntax
+        run: bash -n scripts/private-staging.sh
+      - name: Start and verify only the isolated private staging project
+        env:
+          REPOSITORY_GATE_CONFIRMED: disabled
+          DEPLOY_ENABLED: ${{ vars.DEPLOY_ENABLED }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ vars.DEPLOY_KNOWN_HOSTS }}
+          REGISTRY_USER: ${{ github.actor }}
+          REGISTRY_PASSWORD: ${{ github.token }}
+          PRIVATE_STAGING_EVIDENCE_DIR: ${{ runner.temp }}/private-staging-evidence
+        run: bash scripts/private-staging.sh
+      - name: Retain sanitized private staging access evidence
+        if: ${{ success() }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: private-staging-access
+          path: ${{ runner.temp }}/private-staging-evidence/
+          if-no-files-found: error
+          retention-days: 7

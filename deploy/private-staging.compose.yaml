@@ -1,0 +1,55 @@
+# Private staging has no published TCP port. SSH forwards to runtime/http.sock.
+# Always use the fixed project bangla-adventures-staging, never the production project.
+name: bangla-adventures-staging
+services:
+  app:
+    image: ${STAGING_IMAGE:?An explicitly verified immutable staging image is required}
+    user: node
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 30s
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      PLATFORM_MODE: legacy
+      DATABASE_PATH: /app/.data/bangla-adventures.db
+      MEDIA_ROOT: /app/.data/media
+      PUBLIC_ORIGIN: http://127.0.0.1:3001
+      NEXT_TELEMETRY_DISABLED: "1"
+    volumes:
+      - bangla-data:/app/.data
+      - ./tools/private-staging-verify.mjs:/app/staging-tools/private-staging-verify.mjs:ro
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+  proxy:
+    image: ${STAGING_IMAGE:?An explicitly verified immutable staging image is required}
+    user: node
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 10s
+    read_only: true
+    entrypoint: [node, /app/staging-tools/private-staging-proxy.mjs]
+    command: []
+    depends_on:
+      app:
+        condition: service_healthy
+    volumes:
+      - ./runtime:/runtime
+      - ./tools/private-staging-proxy.mjs:/app/staging-tools/private-staging-proxy.mjs:ro
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    # Replace the image's localhost:3000 probe: the proxy listens only on a Unix socket.
+    healthcheck:
+      test: [CMD, node, -e, "require('node:http').get({socketPath:'/runtime/http.sock',path:'/api/health'},r=>{r.resume();process.exit(r.statusCode===200?0:1)}).on('error',()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      start_period: 10s
+      retries: 6
+volumes:
+  bangla-data:
+    name: bangla-adventures-staging_bangla-data
+    labels:
+      io.bangla.scope: private-staging
+networks:
+  default:
+    internal: true
