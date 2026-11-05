@@ -15,6 +15,8 @@ import ClassAttendance, { confirmDiscardAttendance } from "../components/ClassAt
 import Gradebook from "../components/Gradebook";
 import { confirmDiscardPasswords } from "../components/StudentImport";
 import ClassSources from "./ClassSources";
+import ContentNarration from "../components/ContentNarration";
+import { activityNarrationText, detectNarrationLanguage } from "@/lib/narration-model";
 
 type ClassSummary = {
   id: string;
@@ -729,7 +731,9 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
               ) : (
                 <>
                   <p className="teach-note">{s("Scores for each student are in Results.", "প্রত্যেক শিক্ষার্থীর স্কোর ফলাফল অংশে আছে।")}</p>
-                  {detail.activities.map((activity) => (
+                  {detail.activities.map((activity) => {
+                    const narration = activityNarrationText(activity, "instructions") ?? "";
+                    return (
                     <article className="teach-activity" key={activity.id}>
                       <header>
                         <div>
@@ -756,8 +760,10 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
                           </button>
                         </div>
                       </header>
+                      {section === "activities" && activity.status === "open" && <ContentNarration source={{ kind: "activity", id: activity.id, slot: "instructions", language: detectNarrationLanguage(narration) }} text={narration} language={language} label={s("Listen to instructions", "নির্দেশনা শুনি")} />}
                     </article>
-                  ))}
+                    );
+                  })}
                 </>
               )}
             </section>

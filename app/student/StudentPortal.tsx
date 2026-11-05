@@ -12,6 +12,8 @@ import { presentQuizOptions } from "@/lib/quiz-option-order";
 import { isStudentPageTitle, studentPageTitle } from "@/lib/student-page-title";
 import PortalShell from "../components/PortalShell";
 import ClassSourceList from "../references/ClassSourceList";
+import ContentNarration from "../components/ContentNarration";
+import { activityNarrationText, detectNarrationLanguage } from "@/lib/narration-model";
 
 type Activity = { id: string; title: string; instructions: string; topicId: string | null; status: string; questions: { prompt: string; options: string[] }[]; submission: { score: number; total: number; submittedAt: string } | null };
 type Attendance = { attended: number; recorded: number };
@@ -71,6 +73,7 @@ export default function StudentPortal({ initialStudent, destination = "/student"
   }, []);
   const studentId = student?.id;
   const activeActivityId = activity?.id;
+  const instructionsNarration = activity ? activityNarrationText(activity, "instructions") ?? "" : "";
   useEffect(() => {
     if (!studentId || activeActivityId) return;
     const timer = window.setTimeout(() => void load(), 0);
@@ -156,8 +159,9 @@ export default function StudentPortal({ initialStudent, destination = "/student"
         </li>)}</ul>
       </section>}
       {activity ? <section className="teach-panel"><button className="text-button" onClick={() => setActivity(null)}>{s("Back to activities", "কার্যক্রমে ফিরি")}</button><h2>{activity.title}</h2><p>{activity.instructions}</p>{activity.topicId && <Link className="outline-button" href={`/topics?topic=${encodeURIComponent(activity.topicId)}`}>{s("Read the learning topic & references", "বিষয় ও তথ্যসূত্র পড়ো")}</Link>}
+        <ContentNarration source={{ kind: "activity", id: activity.id, slot: "instructions", language: detectNarrationLanguage(instructionsNarration) }} text={instructionsNarration} language={language} label={s("Listen to instructions", "নির্দেশনা শুনি")} disabled={activity.status !== "open"} />
         {result ? <div role="status"><h3>{s(`You got ${result.score} out of ${result.total}.`, `তুমি ${number(result.total)}টির মধ্যে ${number(result.score)}টি পেরেছ।`)}</h3><p>{s("Your teacher can now see your saved result.", "শিক্ষক এখন তোমার ফলাফল দেখতে পারবেন।")}</p></div> : <form onSubmit={submit}>
-          {activity.questions.map((q, index) => <fieldset className="portal-question" key={index}><legend>{index + 1}. {q.prompt}</legend>{presentQuizOptions(q.options, `${student.id}:${activity.id}`, index).map(({ text, originalIndex }) => <label key={originalIndex}><input type="radio" name={`question-${index}`} required checked={answers[index] === originalIndex} onChange={() => setAnswers({ ...answers, [index]: originalIndex })} />{text}</label>)}</fieldset>)}
+          {activity.questions.map((q, index) => <fieldset className="portal-question" key={index}><legend>{index + 1}. {q.prompt}</legend><ContentNarration source={{ kind: "activity", id: activity.id, slot: `question:${index}`, language: detectNarrationLanguage(q.prompt) }} text={q.prompt} language={language} label={s("Listen to question", "প্রশ্ন শুনি")} disabled={activity.status !== "open"} />{presentQuizOptions(q.options, `${student.id}:${activity.id}`, index).map(({ text, originalIndex }) => <label key={originalIndex}><input type="radio" name={`question-${index}`} required checked={answers[index] === originalIndex} onChange={() => setAnswers({ ...answers, [index]: originalIndex })} />{text}</label>)}</fieldset>)}
           {error && <p className="auth-error" role="alert">{shownError}</p>}
           <button className="primary-button" disabled={busy}>{busy ? s("Saving…", "সংরক্ষণ হচ্ছে…") : s("Submit answers", "উত্তর জমা দাও")}</button>
         </form>}

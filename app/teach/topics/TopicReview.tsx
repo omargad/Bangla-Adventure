@@ -105,7 +105,7 @@ export default function TopicReview({ topicId, version, language, onOpenVersion,
   const topic = { ...current.content, id: topicId, references: detail.references };
   const reader = (lang: Language, titleLevel: 1 | 2) => (
     <article className="topic-reader" lang={lang} key={lang}>
-      <TopicReader topic={topic} language={lang} titleLevel={titleLevel} />
+      <TopicReader topic={topic} language={lang} titleLevel={titleLevel} narrationEnabled={false} />
     </article>
   );
   const who = (name: string | null) => name ?? s("a former staff member", "একজন সাবেক কর্মী");
