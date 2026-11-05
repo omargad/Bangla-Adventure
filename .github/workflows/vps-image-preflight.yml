@@ -1,0 +1,213 @@
+name: VPS image preflight
+
+on:
+  push:
+    branches:
+      - codex/vps-ssh-preflight-20261105
+    paths:
+      - .github/workflows/vps-image-preflight.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  repository-settings:
+    if: >-
+      github.repository == 'omargad/Bangla-Adventure' &&
+      (github.ref == 'refs/heads/main' ||
+       github.ref == 'refs/heads/codex/vps-ssh-preflight-20261105')
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    permissions:
+      contents: read
+    steps:
+      - name: Report deployment gates outside the production environment
+        shell: bash
+        env:
+          REPOSITORY_DEPLOY_ENABLED_STATE: ${{ (vars.DEPLOY_ENABLED == '' || vars.DEPLOY_ENABLED == 'false') && 'disabled' || vars.DEPLOY_ENABLED == 'true' && 'enabled' || 'unexpected' }}
+          REPOSITORY_DEPLOY_HOST_STATE: ${{ vars.DEPLOY_HOST == '' && 'unset' || vars.DEPLOY_HOST == '203.0.113.10' && 'matches expected VPS' || 'unexpected' }}
+        run: |
+          set -euo pipefail
+          printf 'repository gate scope (production environment not loaded): DEPLOY_ENABLED=%s; DEPLOY_HOST=%s.\n' "$REPOSITORY_DEPLOY_ENABLED_STATE" "$REPOSITORY_DEPLOY_HOST_STATE"
+
+  image-preflight:
+    if: >-
+      github.repository == 'omargad/Bangla-Adventure' &&
+      (github.ref == 'refs/heads/main' ||
+       github.ref == 'refs/heads/codex/vps-ssh-preflight-20261105')
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    environment: production
+    steps:
+      - name: Reject misplaced private credentials
+        if: ${{ contains(vars.DEPLOY_KNOWN_HOSTS, 'PRIVATE KEY') || contains(vars.DEPLOY_KNOWN_HOSTS, '-----BEGIN') }}
+        shell: bash
+        run: |
+          printf '::error::DEPLOY_KNOWN_HOSTS must contain only verified server public host-key lines. Store the private deployment key only in DEPLOY_SSH_KEY.\n'
+          exit 1
+      - name: Report effective production settings without exposing values
+        if: ${{ success() }}
+        shell: bash
+        env:
+          EFFECTIVE_USER_STATE: ${{ vars.DEPLOY_USER == '' && 'default deployer' || vars.DEPLOY_USER == 'deployer' && 'matches deployer' || 'unexpected' }}
+          EFFECTIVE_PORT_STATE: ${{ vars.DEPLOY_PORT == '' && 'default 22' || vars.DEPLOY_PORT == '22' && 'matches 22' || 'unexpected' }}
+          EFFECTIVE_PATH_STATE: ${{ vars.DEPLOY_PATH == '' && 'default deployment directory' || vars.DEPLOY_PATH == '/opt/bangla-adventures' && 'matches deployment directory' || 'unexpected' }}
+          EFFECTIVE_DOCKER_HOST_STATE: ${{ vars.DEPLOY_DOCKER_HOST == '' && (vars.DEPLOY_DOCKER_CONTEXT == '' && 'default rootless socket' || 'unset; context selected') || vars.DEPLOY_DOCKER_HOST == 'unix:///run/user/1002/docker.sock' && 'matches rootless socket' || 'unexpected' }}
+          EFFECTIVE_DOCKER_CONTEXT_STATE: ${{ vars.DEPLOY_DOCKER_CONTEXT == '' && 'unset' || vars.DEPLOY_DOCKER_CONTEXT == 'rootless' && 'rootless' || 'unexpected' }}
+          EFFECTIVE_HEALTH_URL_STATE: ${{ vars.PUBLIC_HEALTH_URL == '' && 'unset' || 'provided; needs domain review' }}
+          MISPLACED_PRIVATE_VARIABLE_STATE: ${{ vars.DEPLOY_SSH_KEY == '' && 'absent' || 'present; remove misplaced entry' }}
+          UNUSED_HOST_SECRET_STATE: ${{ secrets.DEPLOY_KNOWN_HOSTS == '' && 'absent' || 'present; unused secret entry' }}
+        run: |
+          set -euo pipefail
+          printf 'effective production settings: user=%s; port=%s; path=%s.\n' "$EFFECTIVE_USER_STATE" "$EFFECTIVE_PORT_STATE" "$EFFECTIVE_PATH_STATE"
+          printf 'effective production settings: Docker host=%s; context=%s; public health URL=%s.\n' "$EFFECTIVE_DOCKER_HOST_STATE" "$EFFECTIVE_DOCKER_CONTEXT_STATE" "$EFFECTIVE_HEALTH_URL_STATE"
+          printf 'production section placement: DEPLOY_SSH_KEY variable=%s; DEPLOY_KNOWN_HOSTS secret=%s.\n' "$MISPLACED_PRIVATE_VARIABLE_STATE" "$UNUSED_HOST_SECRET_STATE"
+      - name: Verify the pinned production image on the rootless VPS
+        if: ${{ success() }}
+        shell: bash
+        env:
+          DEPLOY_ENABLED: ${{ vars.DEPLOY_ENABLED }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ vars.DEPLOY_KNOWN_HOSTS }}
+          REGISTRY_USER: ${{ github.actor }}
+          REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          umask 077
+          fail() { printf 'image preflight: %s\n' "$*" >&2; exit 1; }
+          [ "${DEPLOY_ENABLED:-false}" != true ] || fail 'DEPLOY_ENABLED must remain false during image verification.'
+          [ -n "${DEPLOY_SSH_KEY:-}" ] || fail 'production secret DEPLOY_SSH_KEY is missing.'
+          [ -n "${DEPLOY_KNOWN_HOSTS:-}" ] || fail 'production variable DEPLOY_KNOWN_HOSTS is missing.'
+          [ -n "${REGISTRY_PASSWORD:-}" ] || fail 'The temporary GitHub registry token is missing.'
+          [[ "${REGISTRY_USER:-}" =~ ^[a-zA-Z0-9][a-zA-Z0-9_-]*(\[bot\])?$ ]] || fail 'The GitHub registry user is invalid.'
+
+          readonly host='203.0.113.10'
+          readonly user='deployer'
+          readonly port='22'
+          readonly key_pin='SHA256:y1+C6cvcfpJFmO8pfjyMSFERpd5BtcQyDf5SptZXVlQ'
+          readonly host_pin='SHA256:79xe+ubCodL2ACAHPNloo7I/K6mvngU88vEiFoEeWL8'
+          work="$(mktemp -d)"
+          chmod 700 "$work"
+          trap 'rm -rf -- "$work"' EXIT
+          trap 'exit 129' HUP
+          trap 'exit 130' INT
+          trap 'exit 143' TERM
+          printf '%s\n' "$DEPLOY_SSH_KEY" | tr -d '\r' > "$work/key"
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" | tr -d '\r' > "$work/provided_hosts"
+          unset DEPLOY_SSH_KEY DEPLOY_KNOWN_HOSTS
+          chmod 600 "$work/key" "$work/provided_hosts"
+
+          ssh-keygen -y -P '' -f "$work/key" > "$work/public_key" 2>/dev/null || fail 'DEPLOY_SSH_KEY must be a readable, unencrypted CI deployment key.'
+          actual="$(ssh-keygen -l -E sha256 -f "$work/public_key" 2>/dev/null | awk '{print $2}')" || fail 'Could not fingerprint the deployment key.'
+          [ "$actual" = "$key_pin" ] || fail 'The deployment key does not match the supplied public-key fingerprint.'
+          : > "$work/known_hosts"
+          while IFS= read -r line || [ -n "$line" ]; do
+            [[ "$line" =~ ^[[:space:]]*(#|$) ]] && continue
+            [[ "$line" =~ ^[[:space:]]*@ ]] && fail 'known_hosts markers are not permitted; supply the pinned server public key directly.'
+            IFS=$' \t' read -r hostnames key_type key_data comment <<< "$line"
+            [ -n "$hostnames" ] || fail 'DEPLOY_KNOWN_HOSTS is not in known_hosts format.'
+            case "$key_type" in
+              ssh-ed25519|ssh-rsa|ecdsa-sha2-nistp256|ecdsa-sha2-nistp384|ecdsa-sha2-nistp521) ;;
+              *) fail 'DEPLOY_KNOWN_HOSTS is not in known_hosts format.' ;;
+            esac
+            [[ "$key_data" =~ ^[a-zA-Z0-9+/]+={0,2}$ ]] || fail 'DEPLOY_KNOWN_HOSTS has invalid public-key encoding.'
+            printf '%s\n' "$line" > "$work/host_line"
+            actual="$(ssh-keygen -l -E sha256 -f "$work/host_line" 2>/dev/null | awk '{print $2}')" || fail 'DEPLOY_KNOWN_HOSTS contains an invalid host-key line.'
+            [ "$actual" = "$host_pin" ] || fail 'DEPLOY_KNOWN_HOSTS contains a host key that does not match the supplied server fingerprint.'
+            printf '%s\n' "$line" >> "$work/known_hosts"
+          done < "$work/provided_hosts"
+          [ -s "$work/known_hosts" ] || fail 'DEPLOY_KNOWN_HOSTS has no pinned server key.'
+          ssh-keygen -F "$host" -f "$work/known_hosts" >/dev/null 2>&1 || fail 'The pinned known_hosts entry does not cover the deployment server on port 22.'
+          chmod 600 "$work/known_hosts" "$work/public_key" "$work/host_line"
+          printf 'image preflight: deployment key and server host-key fingerprints verified.\n'
+
+          remote_script="$(cat <<'REMOTE'
+          set -euo pipefail
+          umask 077
+          fail() { printf 'image preflight: %s\n' "$*" >&2; exit 1; }
+          [ "$(id -un)" = deployer ] || fail 'SSH connected as an unexpected user.'
+          [ "$(id -u)" = 1002 ] || fail 'deployer does not have the expected UID 1002.'
+          readonly registry_user="${1:?Registry user is required.}"
+          readonly docker_socket='unix:///run/user/1002/docker.sock'
+          readonly image='ghcr.io/omargad/bangla-adventure@sha256:b86b438eceef512f2505ddd0817629b52f5e4466231ef4f638df049342b0cee5'
+          docker_config="$(mktemp -d /tmp/bangla-ghcr-preflight.XXXXXXXXXX)"
+          chmod 700 "$docker_config"
+          cleanup() {
+            local status=$?
+            trap - EXIT
+            if ! rm -rf -- "$docker_config"; then
+              printf 'image preflight: temporary Docker credential cleanup failed.\n' >&2
+              exit 1
+            fi
+            exit "$status"
+          }
+          trap cleanup EXIT
+          trap 'exit 129' HUP
+          trap 'exit 130' INT
+          trap 'exit 143' TERM
+          # A registry entry prevents Docker from auto-detecting a system credential helper.
+          printf '{"auths":{"ghcr.io":{}}}\n' > "$docker_config/config.json"
+          chmod 600 "$docker_config/config.json"
+          security_options="$(docker --config "$docker_config" --host "$docker_socket" info --format '{{json .SecurityOptions}}' 2>/dev/null)" || fail 'The prepared Docker daemon is not accessible.'
+          case "$security_options" in
+            *'"name=rootless"'*) ;;
+            *) fail 'The prepared Docker daemon does not report rootless mode.' ;;
+          esac
+          docker --config "$docker_config" --host "$docker_socket" login ghcr.io --username "$registry_user" --password-stdin >/dev/null 2>&1 || fail 'Temporary GHCR authentication failed.'
+          docker --config "$docker_config" --host "$docker_socket" pull "$image" >/dev/null 2>&1 || fail 'Pull of the pinned production image failed.'
+          repo_digests="$(docker --config "$docker_config" --host "$docker_socket" image inspect "$image" --format '{{range .RepoDigests}}{{println .}}{{end}}' 2>/dev/null)" || fail 'The pulled image digest could not be inspected.'
+          case $'\n'"$repo_digests"$'\n' in
+            *$'\n'"$image"$'\n'*) ;;
+            *) fail 'The pulled image does not contain the exact pinned production digest.' ;;
+          esac
+          platform="$(docker --config "$docker_config" --host "$docker_socket" image inspect "$image" --format '{{.Os}}/{{.Architecture}}' 2>/dev/null)" || fail 'The pulled image platform could not be inspected.'
+          [ "$platform" = linux/amd64 ] || fail 'The pinned production image is not linux/amd64.'
+          printf 'image preflight: verified exact production digest and linux/amd64 image in the rootless Docker image cache.\n'
+          printf 'VPS metadata: deployer UID matches 1002.\n'
+          if command -v ss >/dev/null 2>&1 && listeners="$(ss -H -ltn 'sport = :3001' 2>/dev/null)"; then
+            if [ -z "$listeners" ]; then port_state=unused; else port_state=occupied; fi
+          else port_state=unavailable; fi
+          printf 'VPS metadata: TCP port 3001=%s.\n' "$port_state"
+          for settings_file in /opt/bangla-adventures/.env /opt/bangla-adventures/app.env; do
+            if [ -e "$settings_file" ] || [ -L "$settings_file" ]; then
+              settings_mode="$(stat -c '%a' -- "$settings_file" 2>/dev/null)" || settings_mode=unavailable
+              printf 'VPS metadata: %s exists; mode=%s; contents were not read.\n' "$settings_file" "$settings_mode"
+            else
+              printf 'VPS metadata: %s is absent.\n' "$settings_file"
+            fi
+          done
+          linger_state=unavailable
+          if command -v loginctl >/dev/null 2>&1; then
+            linger_state="$(loginctl show-user deployer -p Linger --value 2>/dev/null || true)"
+            case "$linger_state" in yes|no) ;; *) linger_state=unavailable ;; esac
+          fi
+          enabled_state=unavailable
+          active_state=unavailable
+          if command -v systemctl >/dev/null 2>&1; then
+            enabled_state="$(systemctl --user is-enabled docker 2>/dev/null || true)"
+            active_state="$(systemctl --user is-active docker 2>/dev/null || true)"
+            case "$enabled_state" in enabled|enabled-runtime|disabled|static|indirect|linked|linked-runtime|masked|masked-runtime|not-found) ;; *) enabled_state=unavailable ;; esac
+            case "$active_state" in active|inactive|failed|activating|deactivating|reloading|maintenance|unknown) ;; *) active_state=unavailable ;; esac
+          fi
+          printf 'VPS metadata: linger=%s; user Docker service enabled=%s; active=%s.\n' "$linger_state" "$enabled_state" "$active_state"
+          REMOTE
+          )"
+          quoted() { printf "'%s'" "${1//\'/\'\\\'\'}"; }
+          remote_command="bash -c $(quoted "$remote_script") image-preflight $(quoted "$REGISTRY_USER")"
+          registry_token="$REGISTRY_PASSWORD"
+          unset REGISTRY_PASSWORD
+          printf '%s' "$registry_token" | ssh -F /dev/null -T -i "$work/key" -p "$port" \
+            -o BatchMode=yes -o IdentitiesOnly=yes \
+            -o PreferredAuthentications=publickey -o PasswordAuthentication=no \
+            -o KbdInteractiveAuthentication=no -o StrictHostKeyChecking=yes \
+            -o UpdateHostKeys=no -o GlobalKnownHostsFile=/dev/null \
+            -o "UserKnownHostsFile=$work/known_hosts" \
+            -o ForwardAgent=no -o ClearAllForwardings=yes \
+            -o PermitLocalCommand=no -o ControlMaster=no -o ControlPath=none \
+            -o ConnectTimeout=15 -o ConnectionAttempts=1 \
+            -o ServerAliveInterval=15 -o ServerAliveCountMax=2 \
+            "$user@$host" "$remote_command"
+          unset registry_token
+          printf 'image preflight: pinned image pull verified and temporary Docker credentials removed; no application containers were started.\n'
