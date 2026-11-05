@@ -45,10 +45,11 @@ export async function GET() {
     // The links each class's teacher added for that class (also on Sources & references).
     const sources = await sourcesOf(classIds);
     const activities = classIds.length
-      ? await db.select().from(classActivities).where(inArray(classActivities.classId, classIds)).orderBy(desc(classActivities.createdAt))
+      ? await db.select().from(classActivities).where(and(inArray(classActivities.classId, classIds), eq(classActivities.approvalStatus, "approved"))).orderBy(desc(classActivities.createdAt))
       : [];
-    const submissions = classStudentIds.length
-      ? await db.select().from(activitySubmissions).where(inArray(activitySubmissions.studentId, classStudentIds))
+    const activityIds = activities.map((activity) => activity.id);
+    const submissions = classStudentIds.length && activityIds.length
+      ? await db.select().from(activitySubmissions).where(and(inArray(activitySubmissions.studentId, classStudentIds), inArray(activitySubmissions.activityId, activityIds)))
       : [];
 
     const attendance = studentAttendance(db, [student.id]);

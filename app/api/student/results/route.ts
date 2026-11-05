@@ -22,9 +22,9 @@ export async function GET() {
       ? await db.select().from(activitySubmissions).where(inArray(activitySubmissions.studentId, classStudentIds)).orderBy(desc(activitySubmissions.submittedAt))
       : [];
     const activityIds = submissions.map((submission) => submission.activityId);
-    const activities = activityIds.length ? await db.select().from(classActivities).where(inArray(classActivities.id, activityIds)) : [];
+    const activities = activityIds.length ? await db.select().from(classActivities).where(and(inArray(classActivities.id, activityIds), eq(classActivities.approvalStatus, "approved"))) : [];
 
-    const results = submissions.map((submission) => {
+    const results = submissions.filter((submission) => activities.some((activity) => activity.id === submission.activityId)).map((submission) => {
       const activity = activities.find((item) => item.id === submission.activityId);
       const enrollment = enrollments.find((item) => item.classStudentId === submission.studentId);
       return {

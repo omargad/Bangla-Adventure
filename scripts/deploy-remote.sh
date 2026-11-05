@@ -3,7 +3,7 @@
 #
 #   bash deploy-remote.sh IMAGE [REGISTRY_USER] [BACKUP=1] [HEALTH_TIMEOUT=180]
 #     [DOCKER_HOST] [DOCKER_CONTEXT] [REQUIRE_ROOTLESS=true] [PUBLIC_HEALTH_URL]
-#     [REQUIRE_PUBLIC_HEALTH=false]
+#     [REQUIRE_PUBLIC_HEALTH=false] [DEPLOYMENT_DIRECTORY] [STAGING_DIRECTORY]
 #
 # With REGISTRY_USER, the registry password is read from standard input. The folder holds
 # compose.yaml and an operator-managed .env (PUBLIC_ORIGIN, optionally APP_PORT); this script
@@ -25,12 +25,36 @@ docker_context="${6-${DEPLOY_DOCKER_CONTEXT:-${DOCKER_CONTEXT:-}}}"
 require_rootless="${7:-${DEPLOY_REQUIRE_ROOTLESS:-true}}"
 health_url="${8-${PUBLIC_HEALTH_URL:-}}"
 require_public_health="${9:-${DEPLOY_REQUIRE_PUBLIC_HEALTH:-false}}"
-cd "$(dirname "${BASH_SOURCE[0]}")"
+script_directory="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+deployment_directory="${10:-$script_directory}"
+staging_directory="${11:-}"
+cd "$deployment_directory"
+deployment_directory="$PWD"
 # Only .env decides these: a value left in the operator's shell must not override it.
 unset APP_IMAGE COMPOSE_PROJECT_NAME
 
 say() { printf 'deploy: %s\n' "$*"; }
 fail() { printf 'deploy: %s\n' "$*" >&2; exit 1; }
+transaction=""
+snapshot=""
+login=""
+committed=false
+previous=""
+original_image=""
+had_compose=false
+had_script=false
+# Staging belongs only to this invocation. Never clean a caller-selected unrelated directory.
+if [ -n "$staging_directory" ]; then
+  [ ! -L "$staging_directory" ] && [ -d "$staging_directory" ] || fail 'invalid staging directory.'
+  staging_directory="$(cd "$staging_directory" && pwd -P)"
+  [ "${staging_directory%/*}" = "$deployment_directory" ] && \
+    [[ "${staging_directory##*/}" =~ ^\.deploy-stage\.[a-zA-Z0-9]+$ ]] && \
+    [ "$script_directory" = "$staging_directory" ] || fail 'staging directory must be this release inside the deployment directory.'
+  trap 'rm -rf -- "$staging_directory"' EXIT
+  for artifact in compose.yaml deploy-remote.sh; do
+    [ -f "$staging_directory/$artifact" ] && [ ! -L "$staging_directory/$artifact" ] || fail 'staged release files must be regular files.'
+  done
+fi
 setting() { sed -n "s/^$1=//p" .env | tail -n 1; }
 # Adds NAME=VALUE to .env on a line of its own, also when the file's last line has no newline.
 add_setting() {
@@ -56,6 +80,55 @@ public_healthy() {
 start() {
   docker compose up --detach --no-build --wait --wait-timeout "$timeout" app && healthy && public_healthy
 }
+restore_configuration() {
+  local artifact existed
+  for artifact in compose.yaml deploy-remote.sh; do
+    if [ "$artifact" = compose.yaml ]; then existed="$had_compose"; else existed="$had_script"; fi
+    if [ "$existed" = true ]; then
+      cp -p "$transaction/$artifact" "$artifact.restore" && mv -f "$artifact.restore" "$artifact" || return 1
+    else
+      rm -f "$artifact" || return 1
+    fi
+  done
+}
+rollback_release() {
+  if [ -n "$previous" ]; then
+    say "restoring previous image $previous and its deployment configuration (database and media are not restored)"
+    restore_configuration && set_setting APP_IMAGE "$previous" && start || {
+      say 'the previous release could not be restored to health; operator intervention is required.' >&2
+      return 1
+    }
+  else
+    # A failed first release has no known-good image/configuration to restart.
+    if [ -f compose.yaml ]; then docker compose stop app || return 1; fi
+    restore_configuration || return 1
+    if [ -n "$original_image" ]; then set_setting APP_IMAGE "$original_image"; else sed -i '/^APP_IMAGE=/d' .env; fi || {
+      say 'could not restore APP_IMAGE in the server settings; operator intervention is required.' >&2
+      return 1
+    }
+    say 'the first release failed; no previous release exists. Staged deployment configuration was removed.' >&2
+  fi
+}
+finish() {
+  local result=$?
+  local keep_snapshot=false
+  trap - EXIT
+  if [ -n "$transaction" ] && [ "$committed" != true ]; then
+    if ! rollback_release; then
+      result=1
+      keep_snapshot=true
+      say "saved deployment configuration remains in $transaction for recovery." >&2
+    fi
+  fi
+  [ -z "$transaction" ] || rm -f -- compose.yaml.incoming deploy-remote.sh.incoming
+  [ -z "$login" ] || rm -rf -- "$login"
+  [ -z "$snapshot" ] || [ "$keep_snapshot" = true ] || rm -rf -- "$snapshot"
+  [ -z "$staging_directory" ] || rm -rf -- "$staging_directory"
+  exit "$result"
+}
+trap finish EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 # Everything is checked before anything is stopped.
 [[ "$image" =~ ^[a-zA-Z0-9][a-zA-Z0-9._/@:-]*$ ]] || fail 'invalid image reference.'
@@ -67,6 +140,10 @@ start() {
 [ -z "$docker_host" ] || [[ "$docker_host" =~ ^unix:///[-a-zA-Z0-9_./]+$ ]] || fail 'Docker host must be an explicit local Unix socket.'
 [ -z "$docker_context" ] || [[ "$docker_context" =~ ^[a-zA-Z0-9][a-zA-Z0-9_.-]*$ ]] || fail 'invalid Docker context.'
 [ "$require_rootless" != true ] || [ -n "$docker_host$docker_context" ] || fail 'select a rootless Docker socket or context explicitly.'
+# The same lock protects all live-file reads, promotion, backup, start and rollback. Uploads are
+# isolated in a unique staging directory, so a rejected attempt cannot alter the active release.
+exec 9> .deploy.lock
+flock -n 9 || fail "another deployment is running in $PWD."
 # Pin the endpoint BEFORE the first Docker invocation. A context overrides DOCKER_HOST, so clear
 # its ambient value when a socket was selected. Never discover/fall back to a different daemon.
 if [ -n "$docker_host" ]; then
@@ -100,10 +177,6 @@ if [ -n "$health_url" ]; then
 fi
 password=""
 [ -z "$registry_user" ] || password="$(cat)"
-
-# One deployment at a time.
-exec 9> .deploy.lock
-flock -n 9 || fail "another deployment is running in $PWD."
 # From here the deployment carries on if the SSH session drops (a cancelled job, a lost runner,
 # Ctrl-C): hang-ups are ignored, and all output goes through tee, which keeps writing deploy.log
 # once the session is gone, so no command dies of a broken pipe. It finishes or goes back here.
@@ -112,8 +185,18 @@ if tee -p </dev/null >/dev/null 2>&1; then exec > >(tee -p -a deploy.log) 2>&1; 
 say "$(date -u +%Y-%m-%dT%H:%M:%SZ) deploying $image"
 # The project name keeps the data volume's name, whatever this folder is called.
 grep -q '^COMPOSE_PROJECT_NAME=' .env || add_setting COMPOSE_PROJECT_NAME bangla-adventures
-container="$(docker compose ps --all --quiet app)"
+candidate_compose="${staging_directory:-$PWD}/compose.yaml"
+docker compose --project-directory "$PWD" -f "$candidate_compose" config --quiet || fail 'the incoming Compose configuration is invalid.'
+if [ -f compose.yaml ]; then
+  container="$(docker compose ps --all --quiet app)"
+else
+  # First release: use the same project directory/.env without installing candidate files yet.
+  container="$(docker compose --project-directory "$PWD" -f "$candidate_compose" ps --all --quiet app)"
+  [ -z "$container" ] || fail 'an existing app has no saved Compose configuration; recover it before deploying.'
+fi
 previous="$(setting APP_IMAGE)"
+original_image="$previous"
+[ -f compose.yaml ] || [ -z "$previous" ] || fail 'APP_IMAGE exists without saved Compose configuration; recover that configuration before deploying.'
 # An app first started by hand (docker compose up) has no APP_IMAGE yet: go back to its container's.
 if [ -z "$previous" ] && [ -n "$container" ]; then
   previous="$(docker inspect --format '{{.Config.Image}}' "$container")"
@@ -133,7 +216,6 @@ if [ -n "$registry_user" ]; then
   # A private credentials folder for this pull only, so the sign-in is not kept on the server. The
   # file is written here directly: docker login could hand the password to a credential helper.
   login="$(mktemp -d)"
-  trap 'rm -rf "$login"' EXIT
   for part in cli-plugins contexts; do
     [ ! -d "$config/$part" ] || ln -s "$config/$part" "$login/$part"
   done
@@ -148,6 +230,13 @@ else
   say "pulling $image"
   docker pull "$image"
 fi
+
+# Save configuration only after preflight/pull succeed. The trap restores it on every later
+# failure, including a stopped app, promotion error or failed health check.
+snapshot="$(mktemp -d "$PWD/.deploy-transaction.XXXXXXXXXX")"
+if [ -f compose.yaml ]; then cp -p compose.yaml "$snapshot/compose.yaml"; had_compose=true; fi
+if [ -f deploy-remote.sh ]; then cp -p deploy-remote.sh "$snapshot/deploy-remote.sh"; had_script=true; fi
+transaction="$snapshot"
 
 # The backup needs the app's database; a throwaway container checks for it. Both run the current
 # image (the one found above, also when .env does not name it).
@@ -167,15 +256,20 @@ else
   docker compose stop app
   if ! APP_IMAGE="$previous" docker compose run --rm --no-deps --volume "$PWD/backups:/backups" app \
     bash scripts/backup.sh /backups 14 --application-stopped; then
-    docker compose start app || true
-    fail "the backup failed, so the app was started again on its current version and nothing changed."
+    fail "the backup failed; restoring the current release without promoting the candidate."
   fi
 fi
 
+if [ -n "$staging_directory" ]; then
+  for artifact in compose.yaml deploy-remote.sh; do
+    cp -p "$staging_directory/$artifact" "$artifact.incoming" && mv -f "$artifact.incoming" "$artifact" || fail "could not install $artifact; restoring the previous release."
+  done
+fi
 set_setting APP_IMAGE "$image"
 say "starting $image"
 if start; then
   printf '%s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$image" >> deployments.log
+  committed=true
   # Keep this image and the previous one; remove older ones of the same name to save disk space.
   # Only for a tagged name (NAME:TAG, not a digest); the tag is in the last part, after any port.
   last="${image##*/}"
@@ -190,11 +284,4 @@ if start; then
 fi
 
 docker compose logs --tail 80 app >&2 || true
-if [ -n "$previous" ] && [ "$previous" != "$image" ]; then
-  set_setting APP_IMAGE "$previous"
-  say "restoring previous image $previous (database and media are not restored)"
-  start || fail "$image failed its health checks; the previous image was selected but also failed health checks." \
-    "Check docker compose ps, logs and the HTTPS proxy in $PWD; database and media were not restored."
-  fail "$image failed its health checks; $previous is running again. Database and media were not restored."
-fi
-fail "$image did not become healthy, and there is no earlier version to go back to."
+fail "$image failed its health checks; rolling back the image and deployment configuration. Database and media are not restored."

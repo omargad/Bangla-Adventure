@@ -84,11 +84,12 @@ test("an administrator updates a textbook's yearly link and students' Sources & 
   }
 });
 
-test("a teacher adds a class source that the class's student sees", async ({ browser, baseURL }) => {
+test("a teacher submits a class source and only Admin approval makes it visible to the class", async ({ browser, baseURL }) => {
   test.setTimeout(90000);
   const suffix = randomUUID().slice(0, 8);
   const className = `Sunday sources ${suffix}`;
   const teacherContext = await adult(browser, baseURL, "teacher", suffix);
+  const adminContext = await adult(browser, baseURL, "admin", suffix);
   const studentContext = await signedInStudent(browser, baseURL, `class-${suffix}`);
   const outsiderContext = await signedInStudent(browser, baseURL, `outside-${suffix}`);
   try {
@@ -109,9 +110,23 @@ test("a teacher adds a class source that the class's student sees", async ({ bro
     await form.getByLabel("Title (Bangla)", { exact: true }).fill("বৈশাখের গান");
     await form.getByLabel("Link", { exact: true }).fill("https://example.org/boishakh-songs");
     await form.getByLabel("Note for students (optional)", { exact: true }).fill("Listen before Sunday.");
-    await form.getByRole("button", { name: "Add source", exact: true }).click();
-    await expect(panel.getByRole("status")).toContainText("Source added");
+    await form.getByRole("button", { name: "Submit source for Admin approval", exact: true }).click();
+    await expect(panel.getByRole("status")).toContainText("Source submitted for Admin approval");
     await expect(panel.getByRole("link", { name: "Boishakh songs", exact: true })).toHaveAttribute("href", "https://example.org/boishakh-songs");
+    await expect(panel.getByRole("button", { name: "Approve and publish", exact: true })).toHaveCount(0);
+
+    await student.goto("/references");
+    await expect(student.getByRole("link", { name: "Boishakh songs", exact: true })).toHaveCount(0);
+    const admin = await adminContext.newPage();
+    await admin.goto("/teach");
+    await admin.getByLabel("Find a class").fill(suffix);
+    await admin.getByRole("button", { name: new RegExp(className) }).click();
+    await admin.getByRole("navigation", { name: "Portal navigation" }).getByRole("button", { name: "Class sources", exact: true }).click();
+    const review = admin.getByRole("region", { name: "Class sources" }).getByRole("listitem").filter({ hasText: "Boishakh songs" });
+    await expect(review).toContainText("Awaiting Admin approval");
+    await review.getByRole("checkbox", { name: "I have reviewed all the content above.", exact: true }).check();
+    await review.getByRole("button", { name: "Approve and publish", exact: true }).click();
+    await expect(review).toContainText("Approved by Admin · published");
 
     await student.goto("/references");
     const mine = student.getByRole("region", { name: "My class sources" });
@@ -130,6 +145,7 @@ test("a teacher adds a class source that the class's student sees", async ({ bro
     await expect(outsider.getByRole("link", { name: "Boishakh songs", exact: true })).toHaveCount(0);
   } finally {
     await teacherContext.close();
+    await adminContext.close();
     await studentContext.close();
     await outsiderContext.close();
   }

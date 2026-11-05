@@ -32,11 +32,10 @@ function viewAt(params: URLSearchParams): View {
 }
 
 /**
- * Topics: teachers and administrators write topics, edit them, preview
- * them as students will see them and approve them. Only approved versions reach
- * students.
+ * Teachers and administrators write, edit and preview topics. Administrators
+ * review submitted versions before they reach students.
  */
-export default function TopicStudio({ name, role }: { name: string; role: "teacher" | "admin" }) {
+export default function TopicStudio({ name, role, canApprove }: { name: string; role: "teacher" | "admin"; canApprove: boolean }) {
   const [language, toggleLanguage] = useLanguage({ title: ["Topics | Bangla Adventures", "বিষয় | Bangla Adventures"] });
   const s = (en: string, bn: string) => (language === "bn" ? bn : en);
   const n = (value: number) => formatNumber(value, language);
@@ -100,7 +99,7 @@ export default function TopicStudio({ name, role }: { name: string; role: "teach
       </span>
       <span className="topic-admin-actions">
         {waiting
-          ? <button type="button" className="primary-button" aria-label={`${s("Preview & review", "দেখে পর্যালোচনা করুন")}: ${topic.title[language]}`} onClick={() => go({ kind: "review", topicId: topic.id, version: topic.pendingVersions.at(-1) ?? null })}>{s("Preview & review", "দেখে পর্যালোচনা করুন")}</button>
+          ? <button type="button" className="primary-button" aria-label={`${canApprove ? s("Preview & review", "দেখে পর্যালোচনা করুন") : s("Preview submission", "জমা দেওয়া বিষয় দেখুন")}: ${topic.title[language]}`} onClick={() => go({ kind: "review", topicId: topic.id, version: topic.pendingVersions.at(-1) ?? null })}>{canApprove ? s("Preview & review", "দেখে পর্যালোচনা করুন") : s("Preview submission", "জমা দেওয়া বিষয় দেখুন")}</button>
           : <button type="button" className="outline-button" aria-label={`${s("Preview & history", "প্রিভিউ ও ইতিহাস")}: ${topic.title[language]}`} onClick={() => go({ kind: "review", topicId: topic.id, version: null })}>{s("Preview & history", "প্রিভিউ ও ইতিহাস")}</button>}
         <button type="button" className="outline-button" aria-label={`${s("Edit", "সম্পাদনা")}: ${topic.title[language]}`} onClick={() => go({ kind: "edit", topicId: topic.id })}>{s("Edit", "সম্পাদনা")}</button>
       </span>
@@ -112,7 +111,7 @@ export default function TopicStudio({ name, role }: { name: string; role: "teach
       <main className="topic-studio" lang={language}>
         <div className="portal-heading">
           <div>
-            <p className="adult-eyebrow">{s("Create · preview · approve", "তৈরি · প্রিভিউ · অনুমোদন")}</p>
+            <p className="adult-eyebrow">{canApprove ? s("Create · review · approve", "তৈরি · পর্যালোচনা · অনুমোদন") : s("Create · preview · submit", "তৈরি · প্রিভিউ · জমা")}</p>
             <h1>{s("Topics", "বিষয়")}</h1>
           </div>
           {view.kind === "list"
@@ -124,23 +123,23 @@ export default function TopicStudio({ name, role }: { name: string; role: "teach
 
         {view.kind === "edit" && <TopicEditor key={view.topicId ?? "new"} topicId={view.topicId} language={language} onCancel={() => go({ kind: "list" })}
           onSaved={(topicId, version) => go({ kind: "review", topicId, version }, {
-            en: `Saved as ${versionLabel(version, "en").toLowerCase()}. Students will not see it until a teacher or administrator approves it.`,
-            bn: `${versionLabel(version, "bn")} হিসেবে সংরক্ষিত। একজন শিক্ষক বা প্রশাসক অনুমোদন না দেওয়া পর্যন্ত শিক্ষার্থীরা এটি দেখবে না।`,
+            en: `Submitted as ${versionLabel(version, "en").toLowerCase()} for administrator review. Students will not see this version until an administrator approves it.`,
+            bn: `${versionLabel(version, "bn")} হিসেবে প্রশাসকের পর্যালোচনার জন্য জমা দেওয়া হয়েছে। প্রশাসক অনুমোদন না দেওয়া পর্যন্ত শিক্ষার্থীরা এই সংস্করণটি দেখবে না।`,
           })} />}
-        {view.kind === "review" && <TopicReview key={`${view.topicId}:${view.version}`} topicId={view.topicId} version={view.version} language={language}
+        {view.kind === "review" && <TopicReview key={`${view.topicId}:${view.version}`} topicId={view.topicId} version={view.version} language={language} canApprove={canApprove}
           onOpenVersion={(version) => go({ kind: "review", topicId: view.topicId, version })} onEdit={() => go({ kind: "edit", topicId: view.topicId })}
           onDecided={() => void loadTopics().catch(() => undefined)} />}
 
         {view.kind === "list" && <>
           <p>{s(
-            "A topic is a short reading lesson with an optional quiz. Write a new one or edit an existing one in English and Bangla. Students see a topic only after a teacher or administrator has previewed the whole topic and approved it.",
-            "বিষয় হলো ছোট একটি পড়ার পাঠ, সঙ্গে ঐচ্ছিক কুইজ। ইংরেজি ও বাংলায় নতুন বিষয় লিখুন বা আগেরটি সম্পাদনা করুন। একজন শিক্ষক বা প্রশাসক পুরো বিষয়টি দেখে অনুমোদন দিলে তবেই শিক্ষার্থীরা তা দেখবে।",
+            "A topic is a short reading lesson with an optional quiz. Teachers write or edit it in English and Bangla, then submit it for administrator review. New topics and changes reach students only after an administrator approves them.",
+            "বিষয় হলো ছোট একটি পড়ার পাঠ, সঙ্গে ঐচ্ছিক কুইজ। শিক্ষকেরা ইংরেজি ও বাংলায় বিষয় লিখে বা সম্পাদনা করে প্রশাসকের পর্যালোচনার জন্য জমা দেন। প্রশাসক অনুমোদন দিলেই নতুন বিষয় ও পরিবর্তন শিক্ষার্থীদের কাছে প্রকাশিত হয়।",
           )}</p>
           {!topics && !error && <p role="status">{s("Loading topics…", "বিষয় লোড হচ্ছে…")}</p>}
           {topics && <>
             <section className="teach-panel" aria-label={s("Waiting for approval", "অনুমোদনের অপেক্ষায়")}>
               <h2>{s("Waiting for approval", "অনুমোদনের অপেক্ষায়")} ({n(pending.length)})</h2>
-              {pending.length ? <ul className="topic-admin-list">{pending.map((topic) => row(topic, true))}</ul> : <p>{s("Nothing is waiting. New and edited topics appear here until someone approves them.", "কিছু অপেক্ষায় নেই। নতুন ও সম্পাদিত বিষয় অনুমোদন না হওয়া পর্যন্ত এখানে থাকবে।")}</p>}
+              {pending.length ? <ul className="topic-admin-list">{pending.map((topic) => row(topic, true))}</ul> : <p>{s("Nothing is waiting. New and edited topics appear here until an administrator reviews them.", "কিছু অপেক্ষায় নেই। প্রশাসকের পর্যালোচনা না হওয়া পর্যন্ত নতুন ও সম্পাদিত বিষয় এখানে থাকবে।")}</p>}
             </section>
             {groupByCategory(topics).map(({ category, items }) => (
               <section className="teach-panel" key={category.id} aria-label={category.title[language]}>
@@ -148,7 +147,7 @@ export default function TopicStudio({ name, role }: { name: string; role: "teach
                 <ul className="topic-admin-list">{items.map((topic) => row(topic))}</ul>
               </section>
             ))}
-            <p className="teach-note">{s("“Approved · baseline” marks the topics that came with the app: students could read them before approval existed, and they have not been individually reviewed. Open one to review it, confirm your review, edit it or withdraw it from students.", "“অনুমোদিত · আগে থেকে থাকা” মানে অ্যাপের সঙ্গে আসা বিষয়: অনুমোদন চালুর আগেই শিক্ষার্থীরা এগুলো পড়তে পারত, আলাদা করে পর্যালোচনা হয়নি। পর্যালোচনা করতে, পর্যালোচনা নিশ্চিত করতে, সম্পাদনা করতে বা শিক্ষার্থীদের কাছ থেকে সরিয়ে নিতে একটি খুলুন।")} <Link href="/topics">{s("See the student topics page →", "শিক্ষার্থীর বিষয়ের পাতা দেখুন →")}</Link></p>
+            <p className="teach-note">{s("“Approved · baseline” marks topics students could read before approval existed. They have not been individually reviewed. Teachers can preview them and submit edits; administrators confirm reviews and control publication.", "“অনুমোদিত · আগে থেকে থাকা” মানে অনুমোদন চালুর আগেই শিক্ষার্থীরা বিষয়গুলো পড়তে পারত। আলাদা করে পর্যালোচনা হয়নি। শিক্ষকেরা প্রিভিউ দেখে সম্পাদনা জমা দিতে পারেন; প্রশাসকেরা পর্যালোচনা নিশ্চিত করেন ও প্রকাশ নিয়ন্ত্রণ করেন।")} <Link href="/topics">{s("See the student topics page →", "শিক্ষার্থীর বিষয়ের পাতা দেখুন →")}</Link></p>
           </>}
         </>}
       </main>

@@ -48,7 +48,23 @@ fi
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
 work="$(mktemp -d)"
-trap 'rm -rf "$work"' EXIT
+stage=""
+stage_dispatched=false
+cleanup() {
+  local status=$?
+  trap - EXIT
+  # Before dispatch, this process owns only its unique staging folder. After
+  # dispatch the remote script owns it and may still be running after SSH drops.
+  if [ -n "$stage" ] && [ "$stage_dispatched" = false ]; then
+    on_server "rm -rf -- $(quoted "$stage")" >/dev/null 2>&1 || true
+  fi
+  rm -rf "$work"
+  exit "$status"
+}
+trap cleanup EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
 text_of() {
   local text="$1"
   if [ -f "$text" ]; then text="$(cat -- "$text")"; fi
@@ -97,14 +113,21 @@ ssh_options=(-F /dev/null -i "$key" -p "$port" -o BatchMode=yes -o IdentitiesOnl
 on_server() { ssh "${ssh_options[@]}" "$user@$DEPLOY_HOST" "$@"; }
 quoted() { printf '%q' "$1"; }
 echo "deploy: $image to $user@$DEPLOY_HOST:$folder"
-on_server "mkdir -p $(quoted "$folder")"
+# Uploads never replace live deployment files. Each attempt gets an isolated
+# directory; the remote script promotes it only while holding the deploy lock.
+candidate="$(on_server "umask 077; mkdir -p $(quoted "$folder") && mktemp -d $(quoted "$folder/.deploy-stage.XXXXXXXXXX")")" || fail 'could not create the remote staging directory.'
+stage_name="${candidate##*/}"
+[[ "$candidate" = "$folder/$stage_name" ]] && [[ "$stage_name" =~ ^\.deploy-stage\.[a-zA-Z0-9]+$ ]] || fail 'the server returned an invalid staging directory.'
+stage="$candidate"
 upload() {
-  on_server "cat > $(quoted "$folder/$1.new") && mv -f $(quoted "$folder/$1.new") $(quoted "$folder/$1")" < "$2"
+  on_server "cat > $(quoted "$stage/$1.new") && mv -f $(quoted "$stage/$1.new") $(quoted "$stage/$1")" < "$2"
 }
 upload compose.yaml compose.yaml
 upload deploy-remote.sh scripts/deploy-remote.sh
 # The registry password reaches the server on standard input, never on a command line.
-printf '%s' "${REGISTRY_PASSWORD:-}" | on_server "bash $(quoted "$folder/deploy-remote.sh") $(quoted "$image") \
+# The remote script must now clean its stage, including on a refused deployment.
+stage_dispatched=true
+printf '%s' "${REGISTRY_PASSWORD:-}" | on_server "bash $(quoted "$stage/deploy-remote.sh") $(quoted "$image") \
 $(quoted "${REGISTRY_USER:-}") $(quoted "$backup") $(quoted "$health_timeout") \
 $(quoted "$docker_host") $(quoted "$docker_context") $(quoted "$require_rootless") \
-$(quoted "$health_url") $(quoted "$require_public_health")"
+$(quoted "$health_url") $(quoted "$require_public_health") $(quoted "$folder") $(quoted "$stage")"

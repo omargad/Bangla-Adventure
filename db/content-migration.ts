@@ -20,6 +20,125 @@ export function migrateContent(sqlite: Database.Database): void {
   migrateLessons(sqlite);
   migrateClassSources(sqlite);
   migrateLibraryLinks(sqlite);
+  migrateAdminContentApproval(sqlite);
+}
+
+/** Apply the administrator publication boundary once, without deleting authored work or results. */
+export function migrateAdminContentApproval(sqlite: Database.Database): void {
+  sqlite.transaction(() => {
+    const hasTable = (name: string) => Boolean(sqlite.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?").get(name));
+    const addColumns = (table: string, definitions: Array<[string, string]>) => {
+      if (!hasTable(table)) return;
+      const present = new Set((sqlite.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>).map((column) => column.name));
+      for (const [name, definition] of definitions) if (!present.has(name)) sqlite.exec(`ALTER TABLE ${table} ADD COLUMN ${name} ${definition}`);
+    };
+    const reviewColumns: Array<[string, string]> = [
+      ["approval_status", "text NOT NULL DEFAULT 'pending' CHECK (approval_status IN ('pending','approved','rejected'))"],
+      ["revision", "integer NOT NULL DEFAULT 1"],
+      ["reviewed_by", "text REFERENCES adults(id) ON DELETE SET NULL"],
+      ["reviewed_at", "text"],
+      ["review_note", "text NOT NULL DEFAULT ''"],
+    ];
+    addColumns("class_activities", [...reviewColumns, ["created_by", "text REFERENCES adults(id) ON DELETE SET NULL"]]);
+    // SQLite cannot add a column with CURRENT_TIMESTAMP as a nonconstant default.
+    addColumns("class_sources", [...reviewColumns, ["updated_at", "text NOT NULL DEFAULT ''"]]);
+    addColumns("video_reviews", [["admin_decided_at", "text"]]);
+    addColumns("media_assets", [["reviewed_by", "text REFERENCES adults(id) ON DELETE SET NULL"], ["reviewed_at", "text"]]);
+    sqlite.exec("CREATE TABLE IF NOT EXISTS content_migration_versions (id text PRIMARY KEY NOT NULL, applied_at text NOT NULL)");
+    const migration = "admin_content_approval_v1";
+    if (sqlite.prepare("SELECT 1 FROM content_migration_versions WHERE id = ?").get(migration)) return;
+
+    const now = new Date().toISOString();
+    const note = "Held for administrator review after the publication approval policy changed.";
+    const roleHistory = hasTable("user_audit_events") ? sqlite.prepare("SELECT action, details_json, created_at, rowid AS sequence FROM user_audit_events WHERE target_type = 'adult' AND target_id = ? ORDER BY rowid") : null;
+    const timestamp = (value: string) => Date.parse(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(value) ? `${value.replace(" ", "T")}Z` : value);
+    // A current role never proves a past role. Require a prior audited grant or
+    // role snapshot; coarse timestamps within the decision's second are uncertain.
+    const wasAdminAt = (id: unknown, decisionAt: unknown) => {
+      if (typeof id !== "string" || typeof decisionAt !== "string" || !roleHistory) return false;
+      const at = timestamp(decisionAt);
+      if (!Number.isFinite(at)) return false;
+      const history = roleHistory.all(id) as Array<{ action: string; details_json: string; created_at: string; sequence: number }>;
+      const roles: Array<{ role: string | null; at: number; sequence: number }> = [];
+      for (const event of history) {
+        let role: string | null | undefined;
+        if (event.action === "administrator-granted-by-server-operator") role = "admin";
+        else {
+          try {
+            const details = JSON.parse(event.details_json);
+            if (details && ["parent", "teacher", "admin"].includes(details.role)) role = details.role;
+          } catch { /* Malformed account-management evidence cannot prove a role. */ }
+          if (role === undefined && ["update", "approve", "reject", "account-approved", "account-declined", "revoke-sessions"].includes(event.action)) role = null;
+        }
+        if (role === undefined) continue;
+        const time = timestamp(event.created_at);
+        if (!Number.isFinite(time)) return false;
+        if (time <= at) roles.push({ role, at: time, sequence: event.sequence });
+      }
+      roles.sort((left, right) => left.at - right.at || left.sequence - right.sequence);
+      const latest = roles.at(-1);
+      return Boolean(latest && at - latest.at >= 1000 && latest.role === "admin");
+    };
+    const audit = hasTable("user_audit_events") ? sqlite.prepare("INSERT INTO user_audit_events (id, actor_id, target_id, target_type, action, details_json) VALUES (?, NULL, ?, ?, 'admin-approval-required', ?)") : null;
+    const recordHold = (id: string, type: string, previous: unknown) => audit?.run(crypto.randomUUID(), id, type, JSON.stringify({ reason: note, previous }));
+
+    // No historical class approval existed. Creator role is not an approval decision.
+    for (const table of ["class_activities", "class_sources"]) {
+      if (!hasTable(table)) continue;
+      const rows = sqlite.prepare(`SELECT id, reviewed_by, reviewed_at, review_note, approval_status FROM ${table}`).all() as Array<{ id: string }>;
+      for (const row of rows) recordHold(row.id, table === "class_activities" ? "class-activity" : "class-source", row);
+      sqlite.exec(`UPDATE ${table} SET approval_status = 'pending', reviewed_by = NULL, reviewed_at = NULL, review_note = ''`);
+    }
+    if (hasTable("class_sources")) sqlite.exec("UPDATE class_sources SET updated_at = created_at WHERE updated_at = ''");
+
+    if (hasTable("topic_versions")) {
+      const rows = sqlite.prepare("SELECT id, topic_id, version, baseline, reviewed_by, reviewed_at, review_note FROM topic_versions WHERE status = 'approved'").all() as Array<{ id: string; reviewed_by: string | null; reviewed_at: string | null }>;
+      for (const row of rows) if (!wasAdminAt(row.reviewed_by, row.reviewed_at)) {
+        // The shipped version zero lives in source code. Stored custom versions stay intact.
+        recordHold(row.id, "topic-version", row);
+        sqlite.prepare("UPDATE topic_versions SET status = 'pending' WHERE id = ?").run(row.id);
+      }
+    }
+    if (hasTable("media_assets")) {
+      const rows = sqlite.prepare("SELECT id, reviewed_by, reviewed_at, review_status FROM media_assets WHERE review_status = 'approved'").all() as Array<{ id: string; reviewed_by: string | null; reviewed_at: string | null }>;
+      for (const row of rows) if (!wasAdminAt(row.reviewed_by, row.reviewed_at)) {
+        recordHold(row.id, "media", row);
+        sqlite.prepare("UPDATE media_assets SET review_status = 'pending' WHERE id = ?").run(row.id);
+      }
+    }
+    if (hasTable("content_approvals")) {
+      const rows = sqlite.prepare("SELECT * FROM content_approvals WHERE content_type = 'lesson' AND rowid IN (SELECT MAX(rowid) FROM content_approvals GROUP BY content_type, content_id)").all() as Array<{ id: string; content_id: string; status: string; baseline: number; changed_by: string | null; changed_at: string }>;
+      const hold = sqlite.prepare("INSERT INTO content_approvals (id, content_type, content_id, status, baseline, changed_by, changed_at, note) VALUES (?, 'lesson', ?, 'withdrawn', 0, NULL, ?, ?)");
+      for (const row of rows) if (row.status === "approved" && !row.baseline && !wasAdminAt(row.changed_by, row.changed_at)) {
+        recordHold(row.content_id, "lesson", row);
+        hold.run(crypto.randomUUID(), row.content_id, now, note);
+      }
+      // A teacher's restoration must not override an earlier topic withdrawal.
+      const topicDecisions = sqlite.prepare("SELECT * FROM content_approvals WHERE content_type = 'topic' AND rowid IN (SELECT MAX(rowid) FROM content_approvals GROUP BY content_type, content_id)").all() as Array<{ content_id: string; status: string; changed_by: string | null; changed_at: string }>;
+      const wasWithdrawn = sqlite.prepare("SELECT 1 FROM content_approvals WHERE content_type = 'topic' AND content_id = ? AND status = 'withdrawn' LIMIT 1");
+      const holdTopic = sqlite.prepare("INSERT INTO content_approvals (id, content_type, content_id, status, baseline, changed_by, changed_at, note) VALUES (?, 'topic', ?, 'withdrawn', 0, NULL, ?, ?)");
+      for (const row of topicDecisions) if (row.status === "approved" && !wasAdminAt(row.changed_by, row.changed_at) && wasWithdrawn.get(row.content_id)) {
+        recordHold(row.content_id, "topic", row);
+        holdTopic.run(crypto.randomUUID(), row.content_id, now, note);
+      }
+    }
+    if (hasTable("video_reviews")) {
+      const rows = sqlite.prepare("SELECT * FROM video_reviews").all() as Array<{ id: string; owner_email: string; lesson_id: string; status: string; suitability_status: string; replacement_url: string; checked_at: string | null; updated_at: string }>;
+      // Retain a prior administrator's actual audited video decision, never infer one from a teacher check.
+      const evidence = hasTable("adults") && hasTable("user_audit_events") ? sqlite.prepare("SELECT e.actor_id, e.details_json FROM user_audit_events e JOIN adults a ON a.id = e.actor_id WHERE a.email = ? AND e.target_id = ? AND e.action = 'lesson-video-checked' ORDER BY e.created_at DESC, e.rowid DESC LIMIT 1") : null;
+      for (const row of rows) {
+        const event = evidence?.get(row.owner_email, row.lesson_id) as { actor_id: string; details_json: string } | undefined;
+        let matches = false;
+        try {
+          const details = event ? JSON.parse(event.details_json) : null;
+          matches = Boolean(details && details.status === row.status && details.suitabilityStatus === row.suitability_status && (details.replacementUrl ?? "") === row.replacement_url);
+        } catch { /* No reliable prior administrator decision. */ }
+        if (matches && row.checked_at && wasAdminAt(event?.actor_id, row.checked_at)) sqlite.prepare("UPDATE video_reviews SET admin_decided_at = ? WHERE id = ?").run(row.checked_at, row.id);
+        else recordHold(row.id, "video-review", row);
+      }
+    }
+    sqlite.prepare("INSERT INTO content_migration_versions (id, applied_at) VALUES (?, ?)").run(migration, now);
+  })();
 }
 
 /**

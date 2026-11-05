@@ -47,9 +47,9 @@ export async function POST(request: Request) {
   return Response.json({ asset }, { status: 201 });
 }
 
-/** Any teacher or administrator reviews any staff member's recording; see reviewRecording. */
+/** Only an administrator may approve, send back or retire a shared recording. */
 export async function PATCH(request: Request) {
-  const actor = await getStaffAccess("teach");
+  const actor = await getStaffAccess("admin");
   if (actor instanceof Response) return actor;
   const body = await readLessonBody(request);
   if (body instanceof Response) return body;

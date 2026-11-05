@@ -149,8 +149,10 @@ log warns that `/app/.data` is not on a persistent volume.
 
 The image already sets `NODE_ENV`, `PORT`, `PLATFORM_MODE`, `DATABASE_PATH` and
 `MEDIA_ROOT`; leave them unless the disk is mounted elsewhere. Do not set `NEXT_DIST_DIR`.
-The ElevenLabs settings are only for generating audio on a developer's computer and never
-go on the host.
+Bundled audio in `public/audio` plays without a runtime voice key. Optional automatic
+narration for newly approved topics and class activities needs the client's
+`ELEVENLABS_API_KEY` in the server's private runtime environment. Never use a
+`NEXT_PUBLIC_` key or commit credentials; see the Bangla audio section below.
 
 **Users and permissions.** The app always runs as the unprivileged `node` user (uid 1000).
 `scripts/docker-start.sh` adapts to how the host starts the container:
@@ -233,8 +235,10 @@ the existing rootless daemon, and Nginx; the generic rootful setup below does no
 apply to it.
 
 **What a deploy does.** `scripts/deploy.sh` connects to the server over SSH, uploads
-`compose.yaml` and `scripts/deploy-remote.sh` into the deployment folder (each file is replaced
-whole, never left half written) and runs `deploy-remote.sh` there. That run carries on if the SSH
+`compose.yaml` and `scripts/deploy-remote.sh` into a unique staging directory beneath the
+deployment folder and runs that staged script. It acquires the deployment lock before touching
+live release files and validates Compose against the existing project directory and `.env`.
+That run carries on if the SSH
 connection drops, so a dropped connection does not stop a deploy halfway, and it writes its output
 to `deploy.log` in the deployment folder. `deploy-remote.sh`:
 
@@ -247,13 +251,20 @@ to `deploy.log` in the deployment folder. `deploy-remote.sh`:
   and media into `backups/` with the current version (`scripts/backup.sh`, the latest 14 kept).
   When it takes no backup, for example on the first deploy, it says why. If the backup fails, the
   app is started again unchanged and the deploy stops;
+- saves the previous Compose file and deploy script, then installs both candidate files under
+  the lock. Upload and validation failures leave the working files alone;
 - starts the new image with `compose.yaml`, waits up to 3 minutes for container readiness,
   then checks `/api/health` inside the container and through public HTTPS (required on GitHub).
-  If a check fails, the previous image is started again and the pipeline fails. If that fails too,
+  If a check or file installation fails, the previous Compose file, deployment script and image
+  are restored together and the pipeline fails. If that fails too,
   it says the site is down: start an earlier image by hand (below);
 - records the image in `deployments.log` and removes images older than the previous one.
 
 Each deploy is offline for the backup plus a few seconds of start-up. Only one runs at a time.
+Failed first releases stop the candidate and remove their installed release files without
+removing operator settings. Successful rollback removes temporary release files; failed
+rollback retains the saved configuration in the directory named in the log for recovery.
+Image/configuration rollback never restores database or media contents.
 
 **On the server, once.**
 
@@ -470,20 +481,30 @@ journeys in [`ACCEPTANCE.md`](ACCEPTANCE.md) after a release. By hand, for the n
 
 ## Bangla audio (ElevenLabs)
 
-The Bangla pronunciation clips are files in `public/audio`, built into each
-release; the running app never calls a text-to-speech service and needs no
-voice key. The client chose ElevenLabs to make better clips. Its account, plan
-and API key belong to the **client**, not the hosting operator or the student
-team. Do not put `ELEVENLABS_API_KEY` (or `ELEVENLABS_VOICE_ID_BN` /
-`ELEVENLABS_VOICE_ID_EN`) in `app.env`, `.env` or Compose: they are set only in
-the shell of the person who generates the clips, on their own computer.
+The bundled Bangla pronunciation clips are files in `public/audio`, built into each
+release and playable without a runtime voice key. Offline generation uses a private
+operator environment; its `ELEVENLABS_VOICE_ID_BN` and `ELEVENLABS_VOICE_ID_EN`
+overrides are specific to the generation script.
+
+Automatic narration of newly approved topic text and class activity instructions
+or question prompts is optional. It calls ElevenLabs from the server on first use
+and saves audio on the persistent media volume. Enabling it requires the client's
+`ELEVENLABS_API_KEY` in the private server environment, with optional
+`ELEVENLABS_VOICE_ID`, `ELEVENLABS_MODEL_ID` and `ELEVENLABS_DAILY_CHARACTER_LIMIT`.
+For Compose, the operator-managed server `.env` supplies these values to the app
+container. Keep that file private; never commit it or expose a key through a
+`NEXT_PUBLIC_` variable. Without a key, bundled clips and authorized saved narration
+still play, while new narration reports that it is not configured.
+
+The ElevenLabs account, plan and API key belong to the **client**, not the hosting
+operator or student team. The client controls provider spending and key rotation.
 
 Follow [`MEDIA_REVIEW.md`](MEDIA_REVIEW.md#a-better-bangla-computer-voice-elevenlabs):
 confirm the plan's licence covers audio in a schools app, run the dry run, make
 and compare the samples, generate every clip, have a native Bangla speaker review
 them, then commit `public/audio` with its `voice-manifest.json`. Deploy that
-commit as a normal release (build, verify, switch `current`); nothing else on the
-server changes.
+commit as a normal release (build, verify, switch `current`). Runtime narration has
+its own [configuration and access rules](MEDIA_REVIEW.md#automatic-narration-of-teacher-content).
 
 ## Acceptance and optional Moodle
 

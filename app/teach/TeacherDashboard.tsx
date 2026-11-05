@@ -15,6 +15,9 @@ import ClassAttendance, { confirmDiscardAttendance } from "../components/ClassAt
 import Gradebook from "../components/Gradebook";
 import { confirmDiscardPasswords } from "../components/StudentImport";
 import ClassSources from "./ClassSources";
+import ContentApproval, { type ApprovalState } from "./ContentApproval";
+import ContentNarration from "../components/ContentNarration";
+import { activityNarrationText, detectNarrationLanguage } from "@/lib/narration-model";
 
 type ClassSummary = {
   id: string;
@@ -47,6 +50,9 @@ type ActivityDetail = {
   instructions: string;
   topicId: string | null;
   status: string;
+  approvalStatus: ApprovalState;
+  revision: number;
+  reviewNote: string;
   createdAt: string;
   questions: Question[];
   submissions: SubmissionRow[];
@@ -110,7 +116,7 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
   // The open class's sections, each with its own heading and a line on what it is for.
   const sections: Array<[id: string, label: string, intro: string]> = [
     ["students", s("Students", "শিক্ষার্থী"), s("Who is in this class: add registered students, upload a list or remove someone.", "এই ক্লাসে কারা আছে: নিবন্ধিত শিক্ষার্থী যোগ করুন, তালিকা আপলোড করুন বা কাউকে সরিয়ে দিন।")],
-    ["activities", s("Activities & quizzes", "কার্যক্রম ও কুইজ"), s("Set a quiz for this class, then close, reopen or delete it.", "এই ক্লাসের জন্য কুইজ দিন, পরে সেটি বন্ধ করুন, আবার খুলুন বা মুছে ফেলুন।")],
+    ["activities", s("Activities & quizzes", "কার্যক্রম ও কুইজ"), s("Teachers submit activities for Admin approval. Students and parents see only approved activities.", "শিক্ষকেরা প্রশাসকের অনুমোদনের জন্য কার্যক্রম জমা দেন। শিক্ষার্থী ও অভিভাবকেরা শুধু অনুমোদিত কার্যক্রম দেখেন।")],
     ["results", s("Results", "ফলাফল"), s("Each student's scores, the submissions for each activity and the topics each student has read.", "প্রত্যেক শিক্ষার্থীর স্কোর, প্রতিটি কার্যক্রমের জমা আর কে কোন বিষয় পড়েছে।")],
     ["attendance", s("Attendance", "উপস্থিতি"), s("Mark who was present at each class session.", "প্রতিটি ক্লাসে কে উপস্থিত ছিল তা চিহ্নিত করুন।")],
     ["announcements", s("Announcements", "ঘোষণা"), s("Post a note for this class's students, their parents or both.", "এই ক্লাসের শিক্ষার্থী, অভিভাবক বা সবার জন্য ঘোষণা দিন।")],
@@ -317,7 +323,7 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
       setActivityInstructions("");
       setActivityTopic("");
       setQuestions([emptyQuestion()]);
-      setMessage(s("Activity published to the class.", "কার্যক্রমটি ক্লাসে প্রকাশিত হয়েছে।"));
+      setMessage(isAdmin ? s("Activity approved and published to the class.", "কার্যক্রম অনুমোদিত হয়ে ক্লাসে প্রকাশিত হয়েছে।") : s("Activity submitted for Admin approval. Students and parents cannot see it yet.", "কার্যক্রম প্রশাসকের অনুমোদনের জন্য জমা হয়েছে। শিক্ষার্থী ও অভিভাবকেরা এখনও এটি দেখতে পাবেন না।"));
       await refreshClass(detail.class.id);
     } else setMessage(data.error ?? "Could not create the activity.");
   };
@@ -330,6 +336,25 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
       body: JSON.stringify({ activityId, status }),
     });
     await refreshClass(detail.class.id);
+  };
+
+  const reviewActivity = async (activity: ActivityDetail, approvalStatus: "approved" | "rejected", reviewNote: string) => {
+    if (!detail) return;
+    const classId = detail.class.id;
+    await requestJson(`/api/classes/${classId}/activities`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ activityId: activity.id, approvalStatus, revision: activity.revision, reviewNote }),
+    });
+    await refreshClass(classId);
+  };
+
+  const reviseActivity = (activity: ActivityDetail) => {
+    setActivityTitle(activity.title);
+    setActivityInstructions(activity.instructions);
+    setActivityTopic(activity.topicId ?? "");
+    setQuestions(activity.questions.map((question) => ({ ...question, options: [...question.options] })));
+    setMessage(s("A copy is ready in the form below. Edit it and submit it for a new Admin review; the original and its results are retained.", "নিচের ফর্মে একটি কপি প্রস্তুত। সম্পাদনা করে নতুন প্রশাসনিক পর্যালোচনার জন্য জমা দিন; মূল কার্যক্রম ও তার ফলাফল থাকবে।"));
+    scrollToTop("instant");
   };
 
   const removeActivity = async (activityId: string) => {
@@ -607,6 +632,7 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
 
             <section hidden={section !== "activities"} className="teach-panel" aria-label={s("New activity", "নতুন কার্যক্রম")}>
               <h3>{s("Set a quiz or activity", "কুইজ বা কার্যক্রম দিন")}</h3>
+              <p className="teach-note">{isAdmin ? s("Publishing records your Admin approval of this activity.", "প্রকাশ করলে এই কার্যক্রমে আপনার প্রশাসনিক অনুমোদন নথিভুক্ত হবে।") : s("Submit your activity for Admin review. It stays hidden from students and parents until approved.", "কার্যক্রম প্রশাসকের পর্যালোচনার জন্য জমা দিন। অনুমোদনের আগে শিক্ষার্থী ও অভিভাবকদের কাছে এটি লুকানো থাকবে।")}</p>
               <form className="teach-activity-form" onSubmit={createActivity}>
                 <input
                   value={activityTitle}
@@ -716,7 +742,7 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
                     </button>
                   )}
                   <button className="primary-button" type="submit" disabled={busy}>
-                    {s("Publish to the class", "ক্লাসে প্রকাশ করুন")}
+                    {isAdmin ? s("Approve and publish to the class", "অনুমোদন দিয়ে ক্লাসে প্রকাশ করুন") : s("Submit for Admin approval", "প্রশাসকের অনুমোদনের জন্য জমা দিন")}
                   </button>
                 </div>
               </form>
@@ -729,7 +755,9 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
               ) : (
                 <>
                   <p className="teach-note">{s("Scores for each student are in Results.", "প্রত্যেক শিক্ষার্থীর স্কোর ফলাফল অংশে আছে।")}</p>
-                  {detail.activities.map((activity) => (
+                  {detail.activities.map((activity) => {
+                    const narration = activityNarrationText(activity, "instructions") ?? "";
+                    return (
                     <article className="teach-activity" key={activity.id}>
                       <header>
                         <div>
@@ -756,8 +784,21 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
                           </button>
                         </div>
                       </header>
+                      <details>
+                        <summary>{s("Preview instructions and questions", "নির্দেশনা ও প্রশ্ন দেখুন")}</summary>
+                        {activity.instructions && <p>{activity.instructions}</p>}
+                        <ol>{activity.questions.map((question, index) => <li key={index}>
+                          <p><strong>{question.prompt}</strong></p>
+                          <ul>{question.options.map((option, optionIndex) => <li key={optionIndex}>{option}{optionIndex === question.answer && <strong> — {s("Correct answer", "সঠিক উত্তর")}</strong>}</li>)}</ul>
+                        </li>)}</ol>
+                      </details>
+                      <ContentApproval key={`${activity.id}:${activity.revision}:${activity.approvalStatus}`} language={language} status={activity.approvalStatus} reviewNote={activity.reviewNote} isAdmin={isAdmin}
+                        onDecision={(status, note) => reviewActivity(activity, status, note)} />
+                      {activity.approvalStatus === "rejected" && <button type="button" className="text-button" onClick={() => reviseActivity(activity)}>{s("Revise as a new activity", "সংশোধন করে নতুন কার্যক্রম তৈরি করুন")}</button>}
+                      {section === "activities" && activity.status === "open" && <ContentNarration source={{ kind: "activity", id: activity.id, slot: "instructions", language: detectNarrationLanguage(narration) }} text={narration} language={language} label={s("Listen to instructions", "নির্দেশনা শুনি")} />}
                     </article>
-                  ))}
+                    );
+                  })}
                 </>
               )}
             </section>

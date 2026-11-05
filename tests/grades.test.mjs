@@ -38,9 +38,9 @@ db.insert(studentClassEnrollments).values([
   { id: "enrollment-b", studentId: "child-b", classId: "class-b", classStudentId: "roster-b" },
 ]).run();
 db.insert(classActivities).values([
-  { id: "quiz-1", classId: "class-a", title: "Festival quiz" },
-  { id: "quiz-2", classId: "class-a", title: "Numbers quiz" },
-  { id: "quiz-b", classId: "class-b", title: "Alphabet quiz" },
+  { id: "quiz-1", approvalStatus: "approved", classId: "class-a", title: "Festival quiz" },
+  { id: "quiz-2", approvalStatus: "approved", classId: "class-a", title: "Numbers quiz" },
+  { id: "quiz-b", approvalStatus: "approved", classId: "class-b", title: "Alphabet quiz" },
 ]).run();
 db.insert(activitySubmissions).values([
   { id: "s1", activityId: "quiz-1", studentId: "roster-a", score: 1, total: 2 },

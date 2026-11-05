@@ -21,41 +21,43 @@ export async function POST(request: Request) {
     if (!activityId) return Response.json({ error: "Choose an activity." }, { status: 400 });
 
     const db = await getDb();
-    const [activity] = await db
-      .select()
-      .from(classActivities)
-      .where(and(eq(classActivities.id, activityId), eq(classActivities.classId, student.classId)))
-      .limit(1);
-    if (!activity) return Response.json({ error: "Activity not found." }, { status: 404 });
-    if (activity.status !== "open") return Response.json({ error: "This activity is closed." }, { status: 409 });
+    return db.transaction((tx) => {
+      const activity = tx
+        .select()
+        .from(classActivities)
+        .where(and(eq(classActivities.id, activityId), eq(classActivities.classId, student.classId), eq(classActivities.approvalStatus, "approved")))
+        .get();
+      if (!activity) return Response.json({ error: "Activity not found." }, { status: 404 });
+      if (activity.status !== "open") return Response.json({ error: "This activity is closed." }, { status: 409 });
 
-    const questions = parseQuestions(activity.questionsJson);
-    const { score, total, picked } = gradeAnswers(questions, body.answers);
+      const questions = parseQuestions(activity.questionsJson);
+      const { score, total, picked } = gradeAnswers(questions, body.answers);
 
-    // One row per student per activity: resubmitting replaces the previous try.
-    await db
-      .delete(activitySubmissions)
-      .where(and(eq(activitySubmissions.activityId, activityId), eq(activitySubmissions.studentId, student.id)));
-    await db.insert(activitySubmissions).values({
-      id: crypto.randomUUID(),
-      activityId,
-      studentId: student.id,
-      answersJson: JSON.stringify(picked),
-      score,
-      total,
-      submittedAt: new Date().toISOString(),
-    });
+      // One row per student per activity: resubmitting replaces the previous try.
+      tx
+        .delete(activitySubmissions)
+        .where(and(eq(activitySubmissions.activityId, activityId), eq(activitySubmissions.studentId, student.id))).run();
+      tx.insert(activitySubmissions).values({
+        id: crypto.randomUUID(),
+        activityId,
+        studentId: student.id,
+        answersJson: JSON.stringify(picked),
+        score,
+        total,
+        submittedAt: new Date().toISOString(),
+      }).run();
 
-    return Response.json({
-      score,
-      total,
-      // Reveal correctness (and the right answers) only after submitting.
-      review: questions.map((question, index) => ({
-        prompt: question.prompt,
-        picked: picked[index],
-        answer: question.answer,
-        correct: picked[index] === question.answer,
-      })),
+      return Response.json({
+        score,
+        total,
+        // Reveal correctness (and the right answers) only after submitting.
+        review: questions.map((question, index) => ({
+          prompt: question.prompt,
+          picked: picked[index],
+          answer: question.answer,
+          correct: picked[index] === question.answer,
+        })),
+      });
     });
   } catch (error) {
     return databaseError(error);

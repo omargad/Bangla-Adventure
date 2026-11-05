@@ -55,6 +55,22 @@ back to the system daemon. A context may be used instead through
 `DEPLOY_DOCKER_CONTEXT`; configure only one selector. Registry credentials are
 temporary and use the same selected daemon.
 
+Each upload goes into its own staging directory. The server acquires one deployment
+lock before reading or changing live release files, then validates the incoming
+Compose configuration against the existing server `.env` and project directory.
+It saves the current Compose file and deployment script before promotion. A failed
+backup, file installation or health check restores those files and the previous
+image together. A failed first release stops its container and removes its candidate
+files; the operator-managed `.env` remains in place. If rollback itself fails, the
+log identifies the private `.deploy-transaction.*` directory retained for recovery.
+
+Runtime narration is optional. If the release includes it, put the client's
+`ELEVENLABS_API_KEY` only in the private server `.env`; Compose also forwards optional
+`ELEVENLABS_VOICE_ID`, `ELEVENLABS_MODEL_ID` and
+`ELEVENLABS_DAILY_CHARACTER_LIMIT`. Leaving the key unset permits bundled audio and
+already cached narration, while new provider generation is unavailable. No provider
+credential belongs in repository variables, source files or screenshots.
+
 The GitHub workflow enforces `DEPLOY_REQUIRE_ROOTLESS=true` and
 `DEPLOY_REQUIRE_PUBLIC_HEALTH=true`; repository variables cannot turn these off.
 Those names are environment settings for portable/manual script use. The server

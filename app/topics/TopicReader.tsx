@@ -6,6 +6,8 @@ import type { Topic } from "../topics-content";
 import { formatNumber, type Language } from "@/lib/topic-model";
 import { topicSourceLinks, type TopicReference } from "@/lib/library-links";
 import SourceLinks from "../references/SourceLinks";
+import ContentNarration from "../components/ContentNarration";
+import { topicNarrationText } from "@/lib/narration-model";
 
 /**
  * One topic as students read it: heading, sections, facts, sources and the quiz.
@@ -15,7 +17,7 @@ import SourceLinks from "../references/SourceLinks";
  * links) from /api/curriculum or, for the staff preview, the topic version API; a
  * topic without them falls back to the official NCTB pages.
  */
-export default function TopicReader({ topic, language, titleLevel = 1, best, onQuizChecked, beforeQuiz, quizNote, onPickAnother }: {
+export default function TopicReader({ topic, language, titleLevel = 1, best, onQuizChecked, beforeQuiz, quizNote, onPickAnother, narrationEnabled = true }: {
   topic: Topic & { references?: TopicReference[] };
   language: Language;
   /** 2 when several readers share a page (the side-by-side preview). */
@@ -28,6 +30,8 @@ export default function TopicReader({ topic, language, titleLevel = 1, best, onQ
   /** Replaces the default note under the quiz result. */
   quizNote?: ReactNode;
   onPickAnother?: () => void;
+  /** Draft/staff previews cannot request narration of unpublished text. */
+  narrationEnabled?: boolean;
 }) {
   const s = (en: string, bn: string) => (language === "bn" ? bn : en);
   const n = (value: number) => formatNumber(value, language);
@@ -45,19 +49,21 @@ export default function TopicReader({ topic, language, titleLevel = 1, best, onQ
         <Title>{topic.title[language]}</Title>
         <p>{topic.tagline[language]}</p>
         <small>{s(`About ${topic.minutes} minutes of reading`, `পড়তে লাগবে প্রায় ${n(topic.minutes)} মিনিট`)}</small>
+        {narrationEnabled && <ContentNarration source={{ kind: "topic", id: topic.id, slot: "intro", language: "bn" }} text={topicNarrationText(topic, "intro", "bn") ?? ""} language={language} label={s("Listen in Bangla", "বাংলায় শুনি")} />}
       </header>
 
       {topic.sections.map((section, index) => (
         <section className="topic-section" key={index}>
           <h2>{section.heading[language]}</h2>
           <p>{section.body[language]}</p>
+          {narrationEnabled && <ContentNarration source={{ kind: "topic", id: topic.id, slot: `section:${index}`, language: "bn" }} text={topicNarrationText(topic, `section:${index}`, "bn") ?? ""} language={language} label={s("Listen in Bangla", "বাংলায় শুনি")} />}
         </section>
       ))}
 
       {topic.funFacts.length > 0 && (
         <section className="topic-facts" aria-label={s("Fun facts", "মজার তথ্য")}>
           <h2>✨ {s("Did you know?", "জানো কি?")}</h2>
-          <ul>{topic.funFacts.map((fact, index) => <li key={index}>{fact[language]}</li>)}</ul>
+          <ul>{topic.funFacts.map((fact, index) => <li key={index}>{fact[language]}{narrationEnabled && <ContentNarration source={{ kind: "topic", id: topic.id, slot: `fact:${index}`, language: "bn" }} text={topicNarrationText(topic, `fact:${index}`, "bn") ?? ""} language={language} label={s("Listen in Bangla", "বাংলায় শুনি")} />}</li>)}</ul>
         </section>
       )}
 

@@ -72,7 +72,7 @@ export async function getParentOverview(parentId: string) {
     const classIds = [...new Set(enrollments.map((enrollment) => enrollment.classId))];
     const rosterIds = enrollments.map((enrollment) => enrollment.classStudentId);
     const activities = classIds.length ? tx.select({ id: classActivities.id, classId: classActivities.classId, title: classActivities.title, instructions: classActivities.instructions, status: classActivities.status, createdAt: classActivities.createdAt })
-      .from(classActivities).where(inArray(classActivities.classId, classIds)).orderBy(desc(classActivities.createdAt)).all() : [];
+      .from(classActivities).where(and(inArray(classActivities.classId, classIds), eq(classActivities.approvalStatus, "approved"))).orderBy(desc(classActivities.createdAt)).all() : [];
     const submissions = rosterIds.length ? tx.select({ activityId: activitySubmissions.activityId, studentId: activitySubmissions.studentId, score: activitySubmissions.score, total: activitySubmissions.total, submittedAt: activitySubmissions.submittedAt })
       .from(activitySubmissions).where(inArray(activitySubmissions.studentId, rosterIds)).all() : [];
     const attendance = studentAttendance(tx, ids);

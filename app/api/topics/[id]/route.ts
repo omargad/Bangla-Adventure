@@ -33,7 +33,7 @@ export async function PUT(request: Request, context: RouteContext) {
  * again, or confirm a review of a baseline topic. Approving and confirming need the read tick.
  */
 export async function POST(request: Request, context: RouteContext) {
-  const actor = await getStaffAccess("teach");
+  const actor = await getStaffAccess("admin");
   if (actor instanceof Response) return actor;
   const { id } = await context.params;
   if (!TOPIC_ID_PATTERN.test(id)) return notFound();

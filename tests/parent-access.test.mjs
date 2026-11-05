@@ -27,8 +27,8 @@ for (const suffix of ["a", "b"]) {
   db.insert(studentClassEnrollments).values({ id: `enrollment-${suffix}`, studentId: `child-${suffix}`, classId: "class", classStudentId: `roster-${suffix}` }).run();
 }
 db.insert(classActivities).values([
-  { id: "quiz", classId: "class", title: "Festival quiz", questionsJson: '[{"answer":1}]' },
-  { id: "pending", classId: "class", title: "Reading task" },
+  { id: "quiz", approvalStatus: "approved", classId: "class", title: "Festival quiz", questionsJson: '[{"answer":1}]' },
+  { id: "pending", approvalStatus: "approved", classId: "class", title: "Reading task" },
 ]).run();
 db.insert(activitySubmissions).values([
   { id: "result-a", activityId: "quiz", studentId: "roster-a", answersJson: "[1,0]", score: 1, total: 2 },

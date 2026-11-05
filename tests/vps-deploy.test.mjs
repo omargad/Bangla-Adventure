@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
+import { once } from "node:events";
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -23,6 +24,8 @@ const env = process.env;
 const dotenv = fs.existsSync('.env') ? fs.readFileSync('.env', 'utf8') : '';
 const appImage = /^APP_IMAGE=(.*)$/m.exec(dotenv)?.[1] || '';
 const entry = { command, args, dockerHost: env.DOCKER_HOST || '', dockerContext: env.DOCKER_CONTEXT || '', dockerConfig: env.DOCKER_CONFIG || '', appImage };
+entry.compose = fs.existsSync('compose.yaml') ? fs.readFileSync('compose.yaml', 'utf8') : '';
+entry.project = /^COMPOSE_PROJECT_NAME=(.*)$/m.exec(dotenv)?.[1] || '';
 if (command === 'docker' && env.DOCKER_CONFIG && fs.existsSync(path.join(env.DOCKER_CONFIG, 'config.json'))) {
   entry.hasPrivateRegistryConfig = true;
   entry.hasContextMetadata = fs.existsSync(path.join(env.DOCKER_CONFIG, 'contexts', 'fixture-context'));
@@ -31,7 +34,21 @@ if (command === 'docker' && env.DOCKER_CONFIG && fs.existsSync(path.join(env.DOC
 fs.appendFileSync(env.MOCK_LOG, JSON.stringify(entry) + '\n');
 const out = value => process.stdout.write(value + '\n');
 const done = (code = 0) => process.exit(code);
-if (command === 'ssh') { fs.readFileSync(0); done(Number(env.MOCK_SSH_EXIT || 0)); }
+if (command === 'ssh') {
+  fs.readFileSync(0);
+  if (!env.MOCK_SSH_EXIT || env.MOCK_SSH_EXIT === '0') {
+    if (args.at(-1).includes('mktemp -d')) out('/opt/bangla-adventures/.deploy-stage.Fixture123');
+  }
+  done(Number(env.MOCK_SSH_EXIT || 0));
+}
+if (command === 'cp') {
+  const [source, destination] = args.slice(-2);
+  if ((env.MOCK_COPY_FAIL === 'snapshot' && destination.includes('/.deploy-transaction.')) ||
+      (env.MOCK_COPY_FAIL === 'promotion' && destination === 'deploy-remote.sh.incoming')) done(1);
+  fs.copyFileSync(source, destination);
+  fs.chmodSync(destination, fs.statSync(source).mode);
+  done();
+}
 if (command === 'ssh-keygen') {
   if (args.includes('-F')) {
     const lookup = args[args.indexOf('-F') + 1];
@@ -73,12 +90,20 @@ if (command === 'docker') {
   if (args[0] === 'context' && args[1] === 'inspect') { out(env.MOCK_CONTEXT_HOST || 'unix:///run/user/1007/docker.sock'); done(); }
   if (args[0] === 'context' && args[1] === 'show') { out('unexpected-default-context'); done(); }
   if (args[0] === 'compose') {
+    if (args.includes('config')) done(Number(env.MOCK_INVALID_COMPOSE || 0));
+    if (args.includes('ps')) { if (!env.MOCK_NO_CONTAINER) out('existing-app-container'); done(); }
+    if (args[1] === 'run') {
+      if (args.includes('scripts/backup.sh')) done(Number(env.MOCK_BACKUP_FAIL || 0));
+      if (env.MOCK_NO_DATABASE) out('none');
+      done();
+    }
     if (args[1] === 'version') { out('Docker Compose version v2.30.0'); done(); }
     if (args[1] === 'up' && args.includes('--help')) { out('--wait --wait-timeout'); done(); }
     if (args[1] === 'ps') { out('existing-app-container'); done(); }
     if (args[1] === 'up' || args[1] === 'exec' || args[1] === 'logs' || args[1] === 'stop' || args[1] === 'start') done();
   }
   if (args[0] === 'inspect') { out(env.MOCK_PREVIOUS_IMAGE); done(); }
+  if (args[0] === 'run') done();
   if (args[0] === 'image' && args[1] === 'inspect') done();
   if (args[0] === 'image' && args[1] === 'ls') done();
   if (args[0] === 'image' && args[1] === 'rm') done();
@@ -100,7 +125,7 @@ function fixture(t) {
   writeFileSync(path.join(root, "docker-config", "keep.txt"), "existing operator configuration");
   writeFileSync(path.join(root, "docker-config", "contexts", "fixture-context"), "rootless context fixture");
   writeFileSync(path.join(root, "docker-config", "cli-plugins", "fixture-compose"), "Compose plugin fixture");
-  for (const command of ["docker", "ssh", "ssh-keygen", "curl", "git", "id", "sleep"]) {
+  for (const command of ["docker", "ssh", "ssh-keygen", "curl", "git", "id", "sleep", "cp"]) {
     writeFileSync(path.join(root, "bin", command), `#!${process.execPath}\nconst command = ${JSON.stringify(command)};\n${stub}`, { mode: 0o755 });
   }
   const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^(DEPLOY_|REGISTRY_|DOCKER_|MOCK_|PUBLIC_HEALTH_URL$)/.test(key)));
@@ -125,8 +150,14 @@ function fixture(t) {
     DEPLOY_DOCKER_HOST: rootlessHost, DEPLOY_REQUIRE_ROOTLESS: "true", DEPLOY_REQUIRE_PUBLIC_HEALTH: "true",
   };
   const frontend = (changes = {}, args = [image]) => run("scripts/deploy.sh", args, { ...frontEnv, ...changes });
-  const remote = ({ host = rootlessHost, context = "", rootless = "true", health = "https://demo.example.invalid/api/health", requireHealth = "true", registryUser = "", env: changes = {} } = {}) => run("remote/deploy-remote.sh", [image, registryUser, "0", "1", host, context, rootless, health, requireHealth], changes, registryUser ? "fixture-registry-password" : "");
-  return { root, env, calls, run, frontend, remote, temporary: () => readdirSync(path.join(root, "temporary")), currentImage: () => /^APP_IMAGE=(.*)$/m.exec(readFileSync(path.join(root, "remote", ".env"), "utf8"))?.[1] };
+  const remote = ({ host = rootlessHost, context = "", rootless = "true", health = "https://demo.example.invalid/api/health", requireHealth = "true", registryUser = "", backup = "0", stage = "", env: changes = {} } = {}) => run(stage ? path.relative(root, path.join(stage, "deploy-remote.sh")) : "remote/deploy-remote.sh", [image, registryUser, backup, "1", host, context, rootless, health, requireHealth, ...(stage ? [path.join(root, "remote"), stage] : [])], changes, registryUser ? "fixture-registry-password" : "");
+  const stage = (label = "candidate") => {
+    const directory = mkdtempSync(path.join(root, "remote", ".deploy-stage."));
+    copyFileSync(new URL("scripts/deploy-remote.sh", repository), path.join(directory, "deploy-remote.sh"));
+    writeFileSync(path.join(directory, "compose.yaml"), `# ${label}\nservices:\n  app:\n    ports: ["127.0.0.1:3001:3000"]\n    volumes: ["bangla-data:/app/.data"]\nvolumes:\n  bangla-data:\n`);
+    return directory;
+  };
+  return { root, env, calls, run, frontend, remote, stage, temporary: () => readdirSync(path.join(root, "temporary")), currentImage: () => /^APP_IMAGE=(.*)$/m.exec(readFileSync(path.join(root, "remote", ".env"), "utf8"))?.[1] };
 }
 
 const successful = result => assert.equal(result.status, 0, result.stderr + result.stdout);
@@ -268,6 +299,145 @@ test("registry credentials use a temporary Docker config without changing the se
   }
 });
 
+test("a competing staged release is refused under the real file lock without touching live files", async t => {
+  const f = fixture(t);
+  const directory = path.join(f.root, "remote");
+  const saved = ["compose.yaml", "deploy-remote.sh"].map(file => readFileSync(path.join(directory, file), "utf8"));
+  const stage = f.stage("competing release");
+  const holder = spawn("flock", ["-x", path.join(directory, ".deploy.lock"), "sh", "-c", "printf locked; read release"], { stdio: ["pipe", "pipe", "pipe"] });
+  t.after(() => holder.kill());
+  await once(holder.stdout, "data");
+  const result = f.remote({ stage });
+  failed(result);
+  assert.match(result.stderr, /another deployment is running/);
+  assert.deepEqual(["compose.yaml", "deploy-remote.sh"].map(file => readFileSync(path.join(directory, file), "utf8")), saved);
+  assert.deepEqual(f.calls(), [], "the rejected attempt does not even contact Docker");
+  assert.equal(existsSync(stage), false, "only the rejected attempt's staging is removed");
+  const exited = once(holder, "exit");
+  holder.stdin.end("release\n");
+  await exited;
+});
+
+test("an incomplete owned stage is cleaned before live files or Docker are touched", t => {
+  const f = fixture(t);
+  const directory = path.join(f.root, "remote");
+  const saved = readFileSync(path.join(directory, "compose.yaml"), "utf8");
+  const stage = f.stage();
+  rmSync(path.join(stage, "compose.yaml"));
+  failed(f.remote({ stage }));
+  assert.equal(existsSync(stage), false);
+  assert.equal(readFileSync(path.join(directory, "compose.yaml"), "utf8"), saved);
+  assert.deepEqual(f.calls(), []);
+});
+
+test("failed staged health restores the previous Compose binding, script and image", t => {
+  const f = fixture(t);
+  const directory = path.join(f.root, "remote");
+  const oldCompose = '# last-good\nservices:\n  app:\n    ports: ["127.0.0.1:3000:3000"]\n';
+  const oldScript = "#!/bin/bash\n# last-good deployment tool\n";
+  writeFileSync(path.join(directory, "compose.yaml"), oldCompose);
+  writeFileSync(path.join(directory, "deploy-remote.sh"), oldScript);
+  writeFileSync(path.join(directory, ".env"), `PUBLIC_ORIGIN=https://demo.example.invalid\nAPP_IMAGE=${previous}\nAPP_PORT=3001\nCOMPOSE_PROJECT_NAME=existing-client-project\n`);
+  const stage = f.stage();
+  const result = f.remote({ stage, env: { MOCK_PUBLIC_HEALTH_FAIL: image } });
+  failed(result);
+  assert.equal(f.currentImage(), previous);
+  assert.equal(readFileSync(path.join(directory, "compose.yaml"), "utf8"), oldCompose);
+  assert.equal(readFileSync(path.join(directory, "deploy-remote.sh"), "utf8"), oldScript);
+  const starts = dockerCalls(f).filter(call => call.args[0] === "compose" && call.args[1] === "up" && !call.args.includes("--help"));
+  assert.deepEqual(starts.map(call => call.appImage), [image, previous]);
+  assert.match(starts[0].compose, /127\.0\.0\.1:3001:3000/);
+  assert.equal(starts[1].compose, oldCompose, "rollback restarts with the previous release's settings");
+  assert.ok(starts.every(call => call.project === "existing-client-project"));
+  assert.match(readFileSync(path.join(directory, ".env"), "utf8"), /^APP_PORT=3001$/m, "operator settings are preserved");
+  assert.equal(existsSync(stage), false);
+  assert.equal(readdirSync(directory).some(file => file.startsWith(".deploy-transaction.")), false);
+});
+
+test("successful staged releases install their configuration under the existing project, including bootstrap", t => {
+  for (const bootstrap of [false, true]) {
+    const f = fixture(t);
+    const directory = path.join(f.root, "remote");
+    const stage = f.stage();
+    const candidate = readFileSync(path.join(stage, "compose.yaml"), "utf8");
+    if (bootstrap) {
+      rmSync(path.join(directory, "compose.yaml"));
+      rmSync(path.join(directory, "deploy-remote.sh"));
+      writeFileSync(path.join(directory, ".env"), "PUBLIC_ORIGIN=https://demo.example.invalid\nAPP_PORT=3001\nCOMPOSE_PROJECT_NAME=existing-client-project\n");
+    }
+    successful(f.remote({ stage, env: bootstrap ? { MOCK_NO_CONTAINER: "1" } : {} }));
+    assert.equal(f.currentImage(), image);
+    assert.equal(readFileSync(path.join(directory, "compose.yaml"), "utf8"), candidate);
+    assert.equal(readFileSync(path.join(directory, "deploy-remote.sh"), "utf8"), readFileSync(new URL("scripts/deploy-remote.sh", repository), "utf8"));
+    assert.equal(existsSync(stage), false);
+    const validation = dockerCalls(f).find(call => call.args.includes("config"));
+    assert.equal(validation.args[validation.args.indexOf("--project-directory") + 1], directory);
+    if (bootstrap) assert.ok(dockerCalls(f).every(call => call.project === "existing-client-project" || call.args[0] === "info" || call.args[1] === "version" || call.args.includes("--help")));
+  }
+});
+
+test("invalid configuration and snapshot or partial-promotion failures preserve the working release", t => {
+  for (const changes of [{ MOCK_INVALID_COMPOSE: "1" }, { MOCK_COPY_FAIL: "snapshot" }, { MOCK_COPY_FAIL: "promotion" }]) {
+    const f = fixture(t);
+    const directory = path.join(f.root, "remote");
+    const saved = ["compose.yaml", "deploy-remote.sh"].map(file => readFileSync(path.join(directory, file), "utf8"));
+    const stage = f.stage();
+    failed(f.remote({ stage, env: changes }));
+    assert.equal(f.currentImage(), previous);
+    assert.deepEqual(["compose.yaml", "deploy-remote.sh"].map(file => readFileSync(path.join(directory, file), "utf8")), saved);
+    assert.equal(dockerCalls(f).some(call => call.args[1] === "up" && !call.args.includes("--help") && call.appImage === image), false);
+    assert.equal(existsSync(stage), false);
+    assert.equal(readdirSync(directory).some(file => file.startsWith(".deploy-transaction.")), false);
+  }
+});
+
+test("a failed rootless backup resumes the original release without promoting candidate configuration", t => {
+  const f = fixture(t);
+  const directory = path.join(f.root, "remote");
+  const oldCompose = readFileSync(path.join(directory, "compose.yaml"), "utf8");
+  const stage = f.stage();
+  failed(f.remote({ stage, backup: "1", env: { MOCK_BACKUP_FAIL: "1" } }));
+  assert.equal(f.currentImage(), previous);
+  assert.equal(readFileSync(path.join(directory, "compose.yaml"), "utf8"), oldCompose);
+  assert.ok(dockerCalls(f).some(call => call.args.includes("scripts/backup.sh")), "a real backup invocation was attempted through Compose");
+  assert.ok(dockerCalls(f).every(call => call.dockerHost === rootlessHost && call.dockerContext === ""));
+  const starts = dockerCalls(f).filter(call => call.args[1] === "up" && !call.args.includes("--help"));
+  assert.deepEqual(starts.map(call => call.appImage), [previous]);
+  assert.equal(existsSync(stage), false);
+});
+
+test("a failed first release removes only its candidate files and preserves operator settings", t => {
+  const f = fixture(t);
+  const directory = path.join(f.root, "remote");
+  const stage = f.stage();
+  rmSync(path.join(directory, "compose.yaml"));
+  rmSync(path.join(directory, "deploy-remote.sh"));
+  const settings = "PUBLIC_ORIGIN=https://demo.example.invalid\nAPP_PORT=3001\nCOMPOSE_PROJECT_NAME=existing-client-project\n";
+  writeFileSync(path.join(directory, ".env"), settings);
+  failed(f.remote({ stage, env: { MOCK_NO_CONTAINER: "1", MOCK_PUBLIC_HEALTH_FAIL: image } }));
+  assert.equal(readFileSync(path.join(directory, ".env"), "utf8"), settings);
+  assert.equal(existsSync(path.join(directory, "compose.yaml")), false);
+  assert.equal(existsSync(path.join(directory, "deploy-remote.sh")), false);
+  assert.equal(existsSync(stage), false);
+  assert.ok(dockerCalls(f).some(call => call.args[1] === "stop" && call.appImage === image));
+});
+
+test("failed first-release settings restoration is reported and retains the recovery snapshot", t => {
+  const f = fixture(t);
+  const directory = path.join(f.root, "remote");
+  const stage = f.stage();
+  rmSync(path.join(directory, "compose.yaml"));
+  rmSync(path.join(directory, "deploy-remote.sh"));
+  writeFileSync(path.join(directory, ".env"), "PUBLIC_ORIGIN=https://demo.example.invalid\nCOMPOSE_PROJECT_NAME=existing-client-project\n");
+  writeFileSync(path.join(f.root, "bin", "sed"), '#!/bin/bash\nif [[ "$1" = -i && "$2" = "/^APP_IMAGE=/d" ]]; then exit 1; fi\nexec /bin/sed "$@"\n', { mode: 0o755 });
+  const result = f.remote({ stage, env: { MOCK_NO_CONTAINER: "1", MOCK_PUBLIC_HEALTH_FAIL: image } });
+  failed(result);
+  assert.match(result.stdout + result.stderr, /could not restore APP_IMAGE.*operator intervention/);
+  assert.equal(f.currentImage(), image, "the failure to restore settings is observable, not reported as success");
+  assert.equal(readdirSync(directory).filter(file => file.startsWith(".deploy-transaction.")).length, 1);
+  assert.equal(existsSync(stage), false);
+});
+
 test("newest-commit check distinguishes current, stale and unverifiable commits", t => {
   const cases = [
     [{}, 0], [{ MOCK_GIT_TIP: later }, 1], [{ MOCK_GIT_REMOTE_FAIL: "1" }, 2],
@@ -336,6 +506,10 @@ test("VPS templates stay disabled and choose loopback 3001 without changing the 
     assert.equal(result.stdout.trim(), expected);
   }
   assert.match(compose, /^      PORT: "3000"$/m);
+  for (const name of ["ELEVENLABS_API_KEY", "ELEVENLABS_VOICE_ID", "ELEVENLABS_MODEL_ID", "ELEVENLABS_DAILY_CHARACTER_LIMIT"]) {
+    assert.ok(compose.includes(`${name}: \${${name}:-}`), `${name} is optional and forwarded from the private server environment`);
+    assert.equal(application[name], undefined, "the template does not enable a provider or contain a credential");
+  }
   assert.doesNotMatch(compose, /8001/);
   assert.doesNotMatch(compose, /(?:0\.0\.0\.0|\[::\]):/);
 });
