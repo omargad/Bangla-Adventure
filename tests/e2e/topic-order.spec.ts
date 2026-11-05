@@ -52,7 +52,7 @@ test("topic choices vary, retain selection when language changes, and save canon
   expect(retryOrder).not.toEqual(initialOrder);
   for (let question = 0; question < 3; question += 1) await fieldsets.nth(question).getByRole("button", { name: `Correct ${["A", "B", "C"][question]}`, exact: true }).click();
   const selectedPositions = await fieldsets.evaluateAll((sets) => sets.map((set) => Array.from(set.querySelectorAll(".topic-option")).findIndex((option) => option.getAttribute("aria-pressed") === "true")));
-  await page.getByRole("button", { name: "বাংলায় দেখুন", exact: true }).click();
+  await page.locator(".portal-topbar").getByRole("button", { name: "বাংলা", exact: true }).click();
   for (let question = 0; question < 3; question += 1) await expect(fieldsets.nth(question).getByRole("button", { name: `সঠিক ${["A", "B", "C"][question]}`, exact: true })).toHaveAttribute("aria-pressed", "true");
   expect(await fieldsets.evaluateAll((sets) => sets.map((set) => Array.from(set.querySelectorAll(".topic-option")).findIndex((option) => option.getAttribute("aria-pressed") === "true")))).toEqual(selectedPositions);
   const secondSubmission = page.waitForRequest((request) => request.url().endsWith("/api/student/topic-progress") && request.method() === "POST");
