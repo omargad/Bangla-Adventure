@@ -27,7 +27,7 @@ function approveStudent(username: string) {
 
 /**
  * A teacher's recording of one lesson part, approved straight in the database
- * (as if a teacher approved it in the Studio while the learner's page was open).
+ * (as if an administrator approved it while the learner's page was open).
  * The bundled clip stands in for the recorded sound.
  */
 function approveRecordingNow(lessonId: string, slot: string) {
@@ -39,8 +39,10 @@ function approveRecordingNow(lessonId: string, slot: string) {
   copyFileSync(path.join(process.cwd(), "public", "audio", `lesson-${lessonId}-${slot}.ogg`), file);
   const db = new Database(process.env.BANGLA_E2E_DB);
   try {
-    db.prepare(`INSERT INTO media_assets (id, owner_email, lesson_id, slot, object_key, original_name, content_type, byte_size, speaker_name, dialect, consent_confirmed, review_status)
-      VALUES (?, 'voice-teacher@example.com', ?, ?, ?, 'recording.ogg', 'audio/ogg', ?, 'Nadia', 'Dhaka', 1, 'approved')`).run(id, lessonId, slot, objectKey, statSync(file).size);
+    const reviewerId = `voice-reviewer-${randomUUID()}`;
+    db.prepare("INSERT INTO adults (id, email, display_name, password_hash, role, approval_status) VALUES (?, ?, 'Demo audio administrator', 'test-fixture-only', 'admin', 'approved')").run(reviewerId, `${reviewerId}@example.com`);
+    db.prepare(`INSERT INTO media_assets (id, owner_email, lesson_id, slot, object_key, original_name, content_type, byte_size, speaker_name, dialect, consent_confirmed, review_status, reviewed_by, reviewed_at)
+      VALUES (?, 'voice-teacher@example.com', ?, ?, ?, 'recording.ogg', 'audio/ogg', ?, 'Nadia', 'Dhaka', 1, 'approved', ?, CURRENT_TIMESTAMP)`).run(id, lessonId, slot, objectKey, statSync(file).size, reviewerId);
   } finally { db.close(); }
   return id;
 }

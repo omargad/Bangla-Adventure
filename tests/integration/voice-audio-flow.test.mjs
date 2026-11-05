@@ -9,9 +9,9 @@ import Database from "better-sqlite3";
 
 /**
  * Lesson word and sentence-pattern audio against the production server:
- * /api/audio serves a teacher-approved human recording before the bundled
+ * /api/audio serves an administrator-approved human recording before the bundled
  * computer voice, learner pages are told which parts have one, and a recording
- * a teacher stops using is no longer served (nor kept in the browser cache).
+ * an administrator retires is no longer served (nor kept in the browser cache).
  */
 
 const PORT = 3263;
@@ -24,16 +24,16 @@ const cookieFrom = (response, name = "ba_adult_session") => response.headers.get
 const send = (route, method = "GET", body, cookie, headers = {}) => fetch(`${BASE}${route}`, { method, redirect: "manual", headers: { ...(body !== undefined ? { "Content-Type": "application/json" } : {}), ...(cookie ? { cookie } : {}), ...headers }, ...(body !== undefined ? { body: JSON.stringify(body) } : {}) });
 const fixture = (callback) => { const db = new Database(path.join(stateDir, "test.db")); try { return callback(db); } finally { db.close(); } };
 
-async function teacher(email) {
+async function teacher(email, role = "teacher") {
   assert.equal((await send("/api/auth/sign-up", "POST", { email, displayName: email.split("@")[0], password }, undefined, { "x-forwarded-for": email })).status, 201);
   // Self sign-ups wait for an administrator: approve directly, then sign in.
-  fixture((db) => db.prepare("UPDATE adults SET role = 'teacher', teacher_status = 'approved', approval_status = 'approved' WHERE email = ?").run(email));
+  fixture((db) => db.prepare("UPDATE adults SET role = ?, teacher_status = 'approved', approval_status = 'approved' WHERE email = ?").run(role, email));
   const signedIn = await send("/api/auth/sign-in", "POST", { email, password }, undefined, { "x-forwarded-for": email });
   assert.equal(signedIn.status, 200, email);
   return cookieFrom(signedIn);
 }
 
-/** A teacher uploads a recording for one lesson part and a colleague approves it after listening. */
+/** A teacher uploads a recording for one lesson part and an administrator approves it after listening. */
 async function approvedRecording(lessonId, slot, bytes) {
   const form = new FormData();
   form.set("file", new Blob([bytes], { type: "audio/ogg" }), `${slot}.ogg`);
@@ -56,7 +56,7 @@ before(async () => {
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
   teacherCookie = await teacher("voice-teacher@example.com");
-  colleagueCookie = await teacher("voice-colleague@example.com");
+  colleagueCookie = await teacher("voice-colleague@example.com", "admin");
   assert.equal((await send("/api/student/sign-up", "POST", { username: "voice-maya", displayName: "Maya", password }, undefined, { "x-forwarded-for": "voice-student" })).status, 201);
   fixture((db) => db.prepare("UPDATE students SET approval_status = 'approved' WHERE username = ?").run("voice-maya"));
   const signedIn = await send("/api/student/sign-in", "POST", { username: "voice-maya", password }, undefined, { "x-forwarded-for": "voice-student" });
@@ -125,16 +125,16 @@ test("word and pattern audio from /api/audio is the approved human recording, ah
   assert.equal((await fetch(`${BASE}/api/studio/media`, { method: "POST", body: waitingForm, headers: { cookie: teacherCookie, origin: BASE } })).status, 201);
   assert.equal((await send("/api/audio/hello-me/word-3", "GET", undefined, studentCookie)).status, 307);
 
-  // Once a teacher stops using it, learners get the bundled clip again; a page still asking for it by id
+  // Once an administrator retires it, learners get the bundled clip again; a page still asking for it by id
   // gets 404 and moves on to the next voice.
-  assert.equal((await send("/api/studio/media", "PATCH", { id: wordId, reviewStatus: "retired" }, teacherCookie)).status, 200);
+  assert.equal((await send("/api/studio/media", "PATCH", { id: wordId, reviewStatus: "retired" }, colleagueCookie)).status, 200);
   assert.equal((await send("/api/audio/hello-me/word-1", "GET", undefined, studentCookie)).status, 307);
   assert.equal((await send(`/api/audio/hello-me/word-1?v=${wordId}`, "GET", undefined, studentCookie)).status, 404);
   assert.ok(!(await (await send("/adventure", "GET", undefined, studentCookie)).text()).includes(wordId));
   assert.deepEqual((await (await send("/api/audio/hello-me", "GET", undefined, studentCookie)).json()).recordings, { "hello-me/pattern-2": patternId });
 
   // A withdrawn lesson's recordings are for staff previewing it, not for learners.
-  assert.equal((await send("/api/studio/lessons/my-day", "POST", { decision: "withdraw", note: "Checking the audio" }, teacherCookie)).status, 200);
+  assert.equal((await send("/api/studio/lessons/my-day", "POST", { decision: "withdraw", note: "Checking the audio" }, colleagueCookie)).status, 200);
   assert.equal((await send("/api/audio/my-day", "GET", undefined, studentCookie)).status, 404);
   assert.equal((await send("/api/audio/my-day", "GET", undefined, teacherCookie)).status, 200);
 });

@@ -35,13 +35,15 @@ export async function proxy(request: NextRequest) {
   const withHeaders = (response: NextResponse, cache?: string) => renewLanguage(request, headed(response, cache), origin);
   const error = validateMutation(request, origin, { configured: configuredOrigin !== undefined });
   if (error) return withHeaders(NextResponse.json({ error }, { status: 403 }));
-  if (["POST", "PUT", "PATCH", "DELETE"].includes(request.method) && request.headers.get("content-type")?.startsWith("application/json")) {
+  const pathname = request.nextUrl.pathname;
+  // Narration reads its small request with a byte limit in the route. Do not buffer it here first.
+  const boundedNarration = pathname.replace(/\/$/, "") === "/api/narration";
+  if (!boundedNarration && ["POST", "PUT", "PATCH", "DELETE"].includes(request.method) && request.headers.get("content-type")?.startsWith("application/json")) {
     try {
       const body = await request.clone().json();
       if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("Invalid body");
     } catch { return withHeaders(NextResponse.json({ error: "Send a valid JSON object with the required fields." }, { status: 400 })); }
   }
-  const pathname = request.nextUrl.pathname;
   if (pathname === "/api/student/join" || pathname.startsWith("/api/classroom/")) return withHeaders(NextResponse.json({ error: "Staff allocate classes. Use your student account; class-code access is retired." }, { status: 410 }));
   if (pathname === "/classroom") return withHeaders(redirect(request, "/student"));
   if (isPublicPath(request.nextUrl) || isPublicScript(pathname)) return withHeaders(NextResponse.next(), cacheControl(pathname, "public"));

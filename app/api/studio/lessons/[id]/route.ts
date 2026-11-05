@@ -18,7 +18,7 @@ export async function GET(_request: Request, context: RouteContext) {
 
 /** Approve a lesson for students, or withdraw it so students and parents no longer see it. */
 export async function POST(request: Request, context: RouteContext) {
-  const actor = await getStaffAccess("teach");
+  const actor = await getStaffAccess("admin");
   if (actor instanceof Response) return actor;
   const { id } = await context.params;
   if (!isLessonId(id)) return notFound();

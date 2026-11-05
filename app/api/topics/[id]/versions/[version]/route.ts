@@ -29,7 +29,7 @@ export async function GET(_request: Request, context: RouteContext) {
 
 /** Approve (publish to students) or send back a pending version. */
 export async function POST(request: Request, context: RouteContext) {
-  const actor = await getStaffAccess("teach");
+  const actor = await getStaffAccess("admin");
   if (actor instanceof Response) return actor;
   const found = await target(context);
   if (!found) return notFound();

@@ -39,7 +39,10 @@ test("an administrator reviews another teacher's class results and resets a subm
       { prompt: "What do shops open on Pohela Boishakh?", options: ["Halkhata", "Umbrellas"], answer: 0 },
     ] } });
     expect(activity.status()).toBe(201);
-    const activityId = (await activity.json()).activity.id;
+    const item = (await activity.json()).activity;
+    const activityId = item.id;
+    const adminCookie = { cookie: await signUp(teacher, "auth", { email: adminEmail, displayName: "Results Admin", password }, "admin") };
+    expect((await teacher.patch(`/api/classes/${classId}/activities`, { headers: adminCookie, data: { activityId, approvalStatus: "approved", revision: item.revision } })).status()).toBe(200);
     const studentCookie = { cookie: await signUp(student, "student", { username: `results-${suffix}`, displayName: "Maya Results", password }, "student") };
     expect((await teacher.post(`/api/classes/${classId}/students`, { headers: teacherCookie, data: { username: `results-${suffix}` } })).status()).toBe(200);
     expect((await student.post("/api/student/submit", { headers: studentCookie, data: { activityId, answers: [0, 1] } })).status()).toBe(200);
@@ -49,8 +52,6 @@ test("an administrator reviews another teacher's class results and resets a subm
   }
 
   await page.context().setExtraHTTPHeaders({ "x-forwarded-for": `results-admin-${suffix}` });
-  expect((await page.request.post("/api/auth/sign-up", { data: { email: adminEmail, displayName: "Results Admin", password } })).status()).toBe(201);
-  grant(adminEmail, "admin");
   expect((await page.request.post("/api/auth/sign-in", { data: { email: adminEmail, password } })).status()).toBe(200);
 
   await page.goto("/admin");

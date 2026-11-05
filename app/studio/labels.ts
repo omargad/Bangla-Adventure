@@ -72,6 +72,6 @@ export const specialistStatuses: Record<string, Bilingual> = {
   "not-started": pair("Not started", "শুরু হয়নি"),
   "in-review": pair("In review", "পর্যালোচনা চলছে"),
   "changes-requested": pair("Changes requested", "পরিবর্তন চাওয়া হয়েছে"),
-  approved: pair("Approved", "অনুমোদিত"),
+  approved: pair("Check complete", "যাচাই সম্পন্ন"),
 };
 export const gateLabel = (id: string, language: Language) => specialistGates.find((gate) => gate.id === id)?.label[language] ?? id;

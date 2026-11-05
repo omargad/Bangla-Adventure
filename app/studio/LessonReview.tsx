@@ -28,7 +28,7 @@ export type LessonDetail = {
  * preview that saves nothing), the shared approve / withdraw decision, its
  * history, human audio, the video check and the optional specialist checks.
  */
-export default function LessonReview({ lessonId, language, onChanged }: { lessonId: string; language: Language; onChanged: () => void }) {
+export default function LessonReview({ lessonId, language, canApprove, onChanged }: { lessonId: string; language: Language; canApprove: boolean; onChanged: () => void }) {
   const s = (en: string, bn: string) => (language === "bn" ? bn : en);
   const lesson = lessons.find((item) => item.id === lessonId)!;
   const level = levelBands.find((band) => band.id === lesson.level)!;
@@ -54,7 +54,7 @@ export default function LessonReview({ lessonId, language, onChanged }: { lesson
   const allViewed = lessonSteps.every((step) => viewed.includes(step));
 
   async function decide(decision: "approve" | "withdraw") {
-    if (busy || !detail) return;
+    if (!canApprove || busy || !detail) return;
     const wasVisible = detail.approval.status === "approved";
     setBusy(true); setError(null); setMessage(null);
     try {
@@ -107,12 +107,13 @@ export default function LessonReview({ lessonId, language, onChanged }: { lesson
         {approval.status === "approved" && !approval.baseline && approval.changedAt && <p className="teach-note">{s(`Approved by ${who(approval.changedByName)}, ${formatWhen(approval.changedAt, language)}.`, `${who(approval.changedByName)} অনুমোদন করেছেন, ${formatWhen(approval.changedAt, language)}।`)}</p>}
         {approval.status === "withdrawn" && approval.changedAt && <p className="teach-note">{s(`Withdrawn by ${who(approval.changedByName)}, ${formatWhen(approval.changedAt, language)}: `, `${who(approval.changedByName)} সরিয়ে নিয়েছেন, ${formatWhen(approval.changedAt, language)}: `)}<q>{approval.note}</q></p>}
         {approval.status === "waiting" && <p className="teach-note">{s("Nobody has approved this lesson yet, so students cannot see it.", "এই পাঠ এখনো কেউ অনুমোদন করেননি, তাই শিক্ষার্থীরা এটি দেখতে পায় না।")}</p>}
+        {!canApprove && <p className="teach-note">{s("You can preview the lesson and submit recordings. Only administrators can approve, withdraw or restore lessons and choose the media students receive.", "আপনি পাঠের প্রিভিউ দেখতে ও রেকর্ডিং জমা দিতে পারেন। শুধু প্রশাসকেরা পাঠ অনুমোদন, সরিয়ে নেওয়া বা আবার চালু করতে এবং শিক্ষার্থীদের জন্য মিডিয়া বেছে নিতে পারেন।")}</p>}
         {message && <p className="teach-message" role="status">{message[language]}</p>}
       </section>
 
       <section className="topic-preview lesson-preview" aria-label={s("Student view preview", "শিক্ষার্থীর দৃশ্যের প্রিভিউ")}>
         <div className="topic-preview-bar">
-          <strong>{s("Students will see this:", "শিক্ষার্থীরা এটি দেখবে:")}</strong>
+          <strong>{s("Student view preview", "শিক্ষার্থীর দৃশ্যের প্রিভিউ")}</strong>
           <div role="group" aria-label={s("Preview language", "প্রিভিউয়ের ভাষা")} className="topic-preview-modes">
             {([["en", "English"], ["bn", "বাংলা"]] as const).map(([value, label]) => (
               <button type="button" key={value} aria-pressed={previewLanguage === value} onClick={() => setPreviewLanguage(value)}>{label}</button>
@@ -126,7 +127,7 @@ export default function LessonReview({ lessonId, language, onChanged }: { lesson
         <PreviewPlayer lessonId={lessonId} language={previewLanguage} video={detail.learnerVideo} recordings={detail.learnerRecordings} level={level} onStepView={markViewed} />
       </section>
 
-      <section className="teach-panel topic-decision" aria-label={s("Your decision", "আপনার সিদ্ধান্ত")}>
+      {canApprove && <section className="teach-panel topic-decision" aria-label={s("Your decision", "আপনার সিদ্ধান্ত")}>
         <h3>{s("Your decision", "আপনার সিদ্ধান্ত")}</h3>
         {approval.status === "approved" ? <>
           {baselineOnly && <>
@@ -156,7 +157,7 @@ export default function LessonReview({ lessonId, language, onChanged }: { lesson
           {reviewForm}
         </>}
         {error && <p className="auth-error" role="alert">{error[language]}</p>}
-      </section>
+      </section>}
 
       <section className="teach-panel" aria-label={s("Approval history", "অনুমোদনের ইতিহাস")}>
         <h3>{s("Approval history", "অনুমোদনের ইতিহাস")}</h3>
@@ -173,8 +174,8 @@ export default function LessonReview({ lessonId, language, onChanged }: { lesson
         </table></div>}
       </section>
 
-      <LessonRecordings lessonId={lessonId} language={language} recordings={detail.recordings} onChanged={() => { void load(); onChanged(); }} />
-      <VideoCheck lessonId={lessonId} language={language} check={detail.video} learnerVideo={detail.learnerVideo} onChanged={() => { void load(); onChanged(); }} />
+      <LessonRecordings lessonId={lessonId} language={language} recordings={detail.recordings} canApprove={canApprove} onChanged={() => { void load(); onChanged(); }} />
+      <VideoCheck lessonId={lessonId} language={language} check={detail.video} learnerVideo={detail.learnerVideo} canApprove={canApprove} onChanged={() => { void load(); onChanged(); }} />
       <SpecialistChecks lessonId={lessonId} language={language} checks={detail.specialistChecks} onChanged={() => void load()} />
     </>
   );

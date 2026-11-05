@@ -61,6 +61,13 @@ test("an administrator opens and manages another teacher's class from the teache
   const nav = page.getByRole("navigation", { name: "Portal navigation" });
   await nav.getByRole("button", { name: "Activities & quizzes", exact: true }).click();
   await expect(page.getByRole("region", { name: "Activities and submissions" })).toContainText("Festivals check-in");
+  const activity = page.getByRole("region", { name: "Activities and submissions" }).getByRole("article").filter({ hasText: "Festivals check-in" });
+  await expect(activity).toContainText("Awaiting Admin approval");
+  await activity.getByText("Preview instructions and questions", { exact: true }).click();
+  await expect(activity).toContainText("Which month starts the Bengali year?");
+  await activity.getByRole("checkbox", { name: "I have reviewed all the content above.", exact: true }).check();
+  await activity.getByRole("button", { name: "Approve and publish", exact: true }).click();
+  await expect(activity).toContainText("Approved by Admin · published");
 
   await nav.getByRole("button", { name: "Announcements", exact: true }).click();
   const announcements = page.getByRole("region", { name: "Announcements" });

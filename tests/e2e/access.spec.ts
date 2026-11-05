@@ -194,7 +194,7 @@ test("administrator links a parent who can monitor only their child and cannot e
   fixture.prepare("INSERT INTO classes (id, teacher_id, name, join_code) VALUES (?, ?, ?, ?)").run(classId, ownerId, "Family Reading Class", randomUUID());
   fixture.prepare("INSERT INTO class_students (id, class_id, display_name, token_hash) VALUES (?, ?, ?, ?)").run(rosterId, classId, "Family Test Learner", randomUUID());
   fixture.prepare("INSERT INTO student_class_enrollments (id, student_id, class_id, class_student_id) VALUES (?, ?, ?, ?)").run(randomUUID(), childId, classId, rosterId);
-  fixture.prepare("INSERT INTO class_activities (id, class_id, title) VALUES (?, ?, ?)").run(activityId, classId, "Family reading quiz");
+  fixture.prepare("INSERT INTO class_activities (id, class_id, title, approval_status, reviewed_by, reviewed_at) VALUES (?, ?, ?, 'approved', ?, CURRENT_TIMESTAMP)").run(activityId, classId, "Family reading quiz", ownerId);
   fixture.prepare("INSERT INTO activity_submissions (id, activity_id, student_id, score, total) VALUES (?, ?, ?, 1, 2)").run(randomUUID(), activityId, rosterId);
   fixture.close();
   await page.goto("/admin");
