@@ -1,10 +1,11 @@
 # The same pipeline as .github/workflows/ci.yml, for Google Cloud Build: each step runs one of the
 # shared scripts in scripts/ci. On the default branch the tested image is published to Artifact
-# Registry once _REGISTRY_IMAGE is set and, once _DEPLOY_HOST is set too, deployed
+# Registry once _REGISTRY_IMAGE is set and, once _DEPLOY_ENABLED=true and _DEPLOY_HOST are set, deployed
 # (docs/DEPLOYMENT.md "Automatic deployment").
 # Set the substitutions below on the trigger for pushes to the default branch, not on a pull request
 # trigger: _REGISTRY_IMAGE (REGION-docker.pkg.dev/PROJECT/REPOSITORY/bangla-adventures), _DEPLOY_HOST,
-# and _DEPLOY_USER, _DEPLOY_PORT and _DEPLOY_PATH when they differ from the defaults. The deploy key
+# _DEPLOY_ENABLED=true only when ready, and the explicit rootless endpoint and fingerprint pins.
+# Set _DEPLOY_USER, _DEPLOY_PORT and _DEPLOY_PATH when they differ from the defaults. The deploy key
 # and the server's host keys are read from the Secret Manager secrets deploy-ssh-key and
 # deploy-known-hosts (or those named by _DEPLOY_SSH_KEY_SECRET and _DEPLOY_KNOWN_HOSTS_SECRET).
 # The push trigger's service account needs Artifact Registry Writer on the repository and Secret
@@ -69,6 +70,8 @@ steps:
       if bash scripts/ci/newest.sh "$BRANCH"; then
         bash scripts/ci/publish.sh push "$LOCAL_IMAGE" "$REGISTRY_IMAGE:sha-$COMMIT" "$REGISTRY_IMAGE:latest"
       else
+        status=$?
+        [ "$status" -eq 1 ] || exit "$status"
         bash scripts/ci/publish.sh push "$LOCAL_IMAGE" "$REGISTRY_IMAGE:sha-$COMMIT"
       fi
 
@@ -77,17 +80,25 @@ steps:
   - id: deploy
     name: gcr.io/google.com/cloudsdktool/google-cloud-cli:slim
     env:
+      - DEPLOY_ENABLED=$_DEPLOY_ENABLED
       - DEPLOY_HOST=$_DEPLOY_HOST
       - DEPLOY_USER=$_DEPLOY_USER
       - DEPLOY_PORT=$_DEPLOY_PORT
       - DEPLOY_PATH=$_DEPLOY_PATH
+      - DEPLOY_HOST_FINGERPRINT=$_DEPLOY_HOST_FINGERPRINT
+      - DEPLOY_KEY_FINGERPRINT=$_DEPLOY_KEY_FINGERPRINT
+      - DEPLOY_DOCKER_HOST=$_DEPLOY_DOCKER_HOST
+      - DEPLOY_DOCKER_CONTEXT=$_DEPLOY_DOCKER_CONTEXT
+      - DEPLOY_REQUIRE_ROOTLESS=$_DEPLOY_REQUIRE_ROOTLESS
+      - DEPLOY_REQUIRE_PUBLIC_HEALTH=$_DEPLOY_REQUIRE_PUBLIC_HEALTH
+      - PUBLIC_HEALTH_URL=$_PUBLIC_HEALTH_URL
       - DEPLOY_SSH_KEY_SECRET=$_DEPLOY_SSH_KEY_SECRET
       - DEPLOY_KNOWN_HOSTS_SECRET=$_DEPLOY_KNOWN_HOSTS_SECRET
     script: |
       #!/usr/bin/env bash
       set -euo pipefail
-      if [ "$BRANCH" != "$DEFAULT_BRANCH" ] || [ -z "$REGISTRY_IMAGE" ] || [ -z "$DEPLOY_HOST" ]; then
-        echo "Not deployed: only $DEFAULT_BRANCH is, once _REGISTRY_IMAGE and _DEPLOY_HOST are set."
+      if [ "$BRANCH" != "$DEFAULT_BRANCH" ] || [ -z "$REGISTRY_IMAGE" ] || [ "$DEPLOY_ENABLED" != true ] || [ -z "$DEPLOY_HOST" ]; then
+        echo "Not deployed: only $DEFAULT_BRANCH is, once _DEPLOY_ENABLED=true, _REGISTRY_IMAGE and _DEPLOY_HOST are set."
         exit 0
       fi
       if bash scripts/ci/newest.sh "$BRANCH"; then
@@ -98,15 +109,26 @@ steps:
         REGISTRY_PASSWORD="$(gcloud auth print-access-token)"
         export DEPLOY_SSH_KEY DEPLOY_KNOWN_HOSTS REGISTRY_USER REGISTRY_PASSWORD
         bash scripts/deploy.sh "$REGISTRY_IMAGE:sha-$COMMIT"
+      else
+        status=$?
+        [ "$status" -eq 1 ] || exit "$status"
       fi
 
 substitutions:
   _DEFAULT_BRANCH: main
   _REGISTRY_IMAGE: ""
+  _DEPLOY_ENABLED: "false"
   _DEPLOY_HOST: ""
   _DEPLOY_USER: ""
   _DEPLOY_PORT: ""
   _DEPLOY_PATH: ""
+  _DEPLOY_HOST_FINGERPRINT: ""
+  _DEPLOY_KEY_FINGERPRINT: ""
+  _DEPLOY_DOCKER_HOST: ""
+  _DEPLOY_DOCKER_CONTEXT: ""
+  _DEPLOY_REQUIRE_ROOTLESS: "true"
+  _DEPLOY_REQUIRE_PUBLIC_HEALTH: "true"
+  _PUBLIC_HEALTH_URL: ""
   _DEPLOY_SSH_KEY_SECRET: deploy-ssh-key
   _DEPLOY_KNOWN_HOSTS_SECRET: deploy-known-hosts
 

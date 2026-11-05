@@ -87,6 +87,8 @@ jobs:
           if bash scripts/ci/newest.sh "$BRANCH"; then
             echo "newest=true" >> "$GITHUB_OUTPUT"
           else
+            status=$?
+            if [ "$status" -ne 1 ]; then exit "$status"; fi
             echo "newest=false" >> "$GITHUB_OUTPUT"
           fi
       - name: Mark the tested image as latest
@@ -97,12 +99,12 @@ jobs:
           IMAGE: ${{ needs.container.outputs.image }}
         run: bash scripts/ci/publish.sh promote "$IMAGE:sha-${GITHUB_SHA}" "$IMAGE:latest"
 
-  # Skipped until the repository variable DEPLOY_HOST is set (not an environment variable: this is
-  # checked before the environment loads); the other settings are listed in docs/DEPLOYMENT.md.
+  # Disabled until repository variables DEPLOY_ENABLED=true AND DEPLOY_HOST are set. This gate
+  # runs before the production environment loads; public defaults below never enable deployment.
   # Add required reviewers to the "production" environment to approve each deploy.
   deploy:
     needs: [container, publish]
-    if: vars.DEPLOY_HOST != ''
+    if: vars.DEPLOY_ENABLED == 'true' && vars.DEPLOY_HOST != ''
     runs-on: ubuntu-latest
     environment: production
     concurrency:
@@ -122,15 +124,25 @@ jobs:
           if bash scripts/ci/newest.sh "$BRANCH"; then
             echo "newest=true" >> "$GITHUB_OUTPUT"
           else
+            status=$?
+            if [ "$status" -ne 1 ]; then exit "$status"; fi
             echo "newest=false" >> "$GITHUB_OUTPUT"
           fi
       - name: Deploy to the server
         if: steps.current.outputs.newest == 'true'
         env:
+          DEPLOY_ENABLED: ${{ vars.DEPLOY_ENABLED }}
           DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
-          DEPLOY_USER: ${{ vars.DEPLOY_USER }}
-          DEPLOY_PORT: ${{ vars.DEPLOY_PORT }}
-          DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+          DEPLOY_USER: ${{ vars.DEPLOY_USER || 'deployer' }}
+          DEPLOY_PORT: ${{ vars.DEPLOY_PORT || '22' }}
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH || '/opt/bangla-adventures' }}
+          DEPLOY_HOST_FINGERPRINT: ${{ vars.DEPLOY_HOST_FINGERPRINT || 'SHA256:79xe+ubCodL2ACAHPNloo7I/K6mvngU88vEiFoEeWL8' }}
+          DEPLOY_KEY_FINGERPRINT: ${{ vars.DEPLOY_KEY_FINGERPRINT || 'SHA256:y1+C6cvcfpJFmO8pfjyMSFERpd5BtcQyDf5SptZXVlQ' }}
+          DEPLOY_DOCKER_HOST: ${{ vars.DEPLOY_DOCKER_HOST || (vars.DEPLOY_DOCKER_CONTEXT == '' && 'unix:///run/user/1002/docker.sock') || '' }}
+          DEPLOY_DOCKER_CONTEXT: ${{ vars.DEPLOY_DOCKER_CONTEXT }}
+          DEPLOY_REQUIRE_ROOTLESS: 'true'
+          DEPLOY_REQUIRE_PUBLIC_HEALTH: 'true'
+          PUBLIC_HEALTH_URL: ${{ vars.PUBLIC_HEALTH_URL }}
           DEPLOY_KNOWN_HOSTS: ${{ vars.DEPLOY_KNOWN_HOSTS }}
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           REGISTRY_USER: ${{ github.actor }}

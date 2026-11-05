@@ -4,8 +4,8 @@
 # On main the tested image is published to the registry named by the repository variable
 # REGISTRY_IMAGE (lowercase): Bitbucket's own, crg.apkg.io/WORKSPACE/bangla-adventures, with the
 # pipeline's own sign-in, or another such as docker.io/OWNER/bangla-adventures with REGISTRY_USER and
-# REGISTRY_PASSWORD (Secured). It is deployed once DEPLOY_HOST is set as well.
-# REGISTRY_IMAGE and DEPLOY_HOST must be repository variables that are not Secured: the step
+# REGISTRY_PASSWORD (Secured). It is deployed once DEPLOY_ENABLED=true and DEPLOY_HOST are set.
+# REGISTRY_IMAGE, DEPLOY_ENABLED and DEPLOY_HOST must be repository variables that are not Secured: the step
 # conditions below read them, and conditions cannot read secured variables.
 # The container step runs on Runtime v3, whose Docker service has none of the older runtime's
 # restrictions on docker run options, so the container test runs in full there. Should Bitbucket's
@@ -83,6 +83,9 @@ definitions:
           - |
             if bash scripts/ci/newest.sh "$BITBUCKET_BRANCH"; then
               bash scripts/ci/publish.sh promote "$REGISTRY_IMAGE:sha-$BITBUCKET_COMMIT" "$REGISTRY_IMAGE:latest"
+            else
+              status=$?
+              [ "$status" -eq 1 ] || exit "$status"
             fi
     # Set DEPLOY_SSH_KEY_BASE64 (Secured) and DEPLOY_KNOWN_HOSTS_BASE64, plus DEPLOY_USER, DEPLOY_PORT
     # and DEPLOY_PATH when they differ from the defaults, on the Production environment (Repository
@@ -94,7 +97,7 @@ definitions:
         deployment: production
         concurrency-group: production
         condition:
-          state: REGISTRY_IMAGE != "" && DEPLOY_HOST != ""
+          state: REGISTRY_IMAGE != "" && DEPLOY_ENABLED == "true" && DEPLOY_HOST != ""
         script:
           - apk add --no-cache bash git openssh-client
           # Bitbucket's own registry needs no stored password: the pipeline's own sign-in is used.
@@ -106,6 +109,9 @@ definitions:
           - |
             if bash scripts/ci/newest.sh "$BITBUCKET_BRANCH"; then
               bash scripts/deploy.sh "$REGISTRY_IMAGE:sha-$BITBUCKET_COMMIT"
+            else
+              status=$?
+              [ "$status" -eq 1 ] || exit "$status"
             fi
 
 pipelines:

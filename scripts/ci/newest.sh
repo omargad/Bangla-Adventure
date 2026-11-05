@@ -3,11 +3,11 @@
 # is marked latest and deployed: pipelines can finish out of order, and an old run started again
 # would otherwise put its older commit back.
 #
-#   if bash scripts/ci/newest.sh BRANCH; then ...; fi
+#   if bash scripts/ci/newest.sh BRANCH; then ...; else status=$?; [ "$status" = 1 ] || exit "$status"; fi
 #
 # Exits 0 when HEAD is the tip of BRANCH on the remote origin, and 1, with a notice, when the
-# branch has moved on. When that cannot be checked (no origin, no credentials, no network) it
-# warns and exits 0, so a pipeline is never stopped by this check alone.
+# branch has moved on. Exit 2 means the check failed (no origin, credentials, network, or valid
+# branch response). Callers must fail on 2, never publish/deploy or report a green skipped check.
 set -uo pipefail
 branch="${1:-}"
 if [ "$#" -ne 1 ] || [ -z "$branch" ]; then echo "usage: scripts/ci/newest.sh BRANCH" >&2; exit 2; fi
@@ -18,8 +18,8 @@ say() {
   if [ "${GITHUB_ACTIONS:-}" = true ]; then printf '::%s::%s\n' "$1" "$2"; else printf '%s: %s\n' "$1" "$2"; fi
 }
 cannot_check() {
-  say warning "Could not check that this is the newest commit of $branch: $1. Carrying on as if it is."
-  exit 0
+  say error "Could not check that this is the newest commit of $branch: $1. Publishing and deployment are blocked."
+  exit 2
 }
 # Never waits for a password or a host key prompt (nobody is there to answer), nor for long.
 ls_remote() {
@@ -31,10 +31,12 @@ ls_remote() {
 }
 
 head="$(git rev-parse --verify --quiet HEAD 2>/dev/null)" || cannot_check "git cannot read this checkout's commit"
+[[ "$head" =~ ^([a-fA-F0-9]{40}|[a-fA-F0-9]{64})$ ]] || cannot_check "the checkout commit is invalid"
 # Git's own message is left out: it can name the remote's address, credentials included.
 refs="$(ls_remote "refs/heads/$branch" 2>/dev/null </dev/null)" || cannot_check "the remote origin could not be read"
-tip="$(printf '%s\n' "$refs" | awk -v ref="refs/heads/$branch" '$2 == ref { print $1; exit }')"
+tip="$(printf '%s\n' "$refs" | awk -v ref="refs/heads/$branch" 'NF == 2 && $2 == ref { print $1 }')"
 [ -n "$tip" ] || cannot_check "the remote origin has no branch of that name"
+[[ "$tip" =~ ^([a-fA-F0-9]{40}|[a-fA-F0-9]{64})$ ]] || cannot_check "the remote branch response is invalid or ambiguous"
 
 if [ "$tip" = "$head" ]; then
   echo "This commit ($head) is the newest commit of $branch."
