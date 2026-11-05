@@ -1,0 +1,44 @@
+name: Clean up audited branches
+
+on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/cleanup-audited-branches.yml]
+  workflow_dispatch:
+    inputs:
+      confirm_cleanup:
+        description: Delete only the frozen audited heads after main contains them
+        type: boolean
+        required: true
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cleanup-audited-branches
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    if: >-
+      github.repository == 'omargad/Bangla-Adventure' && github.ref == 'refs/heads/main' &&
+      ((github.event_name == 'workflow_dispatch' && inputs.confirm_cleanup == true) ||
+       (github.event_name == 'push' && contains(github.event.head_commit.message, '[cleanup-audited-branches]')))
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Verify cleanup against isolated bare repositories
+        run: python3 -m unittest discover -s tests -p 'branch_cleanup_test.py' -v
+      - name: Delete only the unchanged and merged audited heads
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CONFIRM_CLEANUP: ${{ inputs.confirm_cleanup == true && 'true' || 'false' }}
+        run: python3 scripts/ci/cleanup_audited_branches.py
