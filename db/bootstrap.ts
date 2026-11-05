@@ -109,7 +109,7 @@ CREATE TABLE IF NOT EXISTS video_reviews (
   checked_at text,
   updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
-CREATE UNIQUE INDEX IF NOT EXISTS video_reviews_lesson_unique ON video_reviews (owner_email, lesson_id);
+CREATE UNIQUE INDEX IF NOT EXISTS video_reviews_lesson_unique ON video_reviews (owner_email, lesson_id, video_id);
 CREATE INDEX IF NOT EXISTS video_reviews_owner_idx ON video_reviews (owner_email);
 
 CREATE TABLE IF NOT EXISTS adults (

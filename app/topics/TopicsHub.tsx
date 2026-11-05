@@ -146,8 +146,8 @@ export default function TopicsHub() {
         <h1>{s("Got a topic from Bangla school? Start here.", "বাংলা স্কুল থেকে বিষয় পেয়েছ? শুরু এখানেই।")}</h1>
         <p>
           {s(
-            "Read a short, kid-friendly page, check the government textbook it comes from, then take a short quiz you can show your teacher. Everything works in English and Bangla.",
-            "ছোট, সহজ একটি পাতা পড়ো, কোন সরকারি পাঠ্যবই থেকে এসেছে দেখো, তারপর ছোট একটি কুইজ দিয়ে শিক্ষককে দেখাও। সবকিছু ইংরেজি ও বাংলায় চলে।",
+            "Explore short readings and quizzes in English and Bangla, with related learning references. An administrator must verify the relevant textbook edition and pages.",
+            "ইংরেজি ও বাংলায় ছোট লেখা আর কুইজ দেখো, সঙ্গে আছে শেখার তথ্যসূত্র। প্রাসঙ্গিক পাঠ্যবইয়ের সংস্করণ ও পৃষ্ঠা প্রশাসককে যাচাই করতে হবে।",
           )}
         </p>
         {canRecord && loaded && <p className="topics-progress" role="status">

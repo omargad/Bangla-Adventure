@@ -1,26 +1,37 @@
 import type Database from "better-sqlite3";
-import { topics } from "../app/topics-content";
 import { checkStoredLinks, type SourceOverride } from "../lib/library-links";
+import { migrateShippedContent } from "./shipped-content-migration";
+import legacyBaseline from "./content-baseline-9ca8.json";
 
 const BASELINE_NOTE = "Edited before topic approval existed; approved as a baseline.";
 
-/**
- * Content approval and authoring: topic versions (below), the shared lesson
- * approval (migrateLessons), per-class sources (migrateClassSources) and the check
- * of older textbook links (migrateLibraryLinks). Every new or edited topic is stored as a
- * version and only an approved version reaches learners. The topics shipped in
- * app/topics-content.ts are the approved baseline (version 0). Administrator
- * edits saved before approval existed (topic_updates) were already visible to
- * students, so they are carried over once as approved baseline versions, credited
- * to the administrator who saved them while that account exists.
- * Runs on every start and is safe to repeat.
- */
+/** Content schema and policy migrations. Pre-versioning publication decisions
+ * are retained; shipped snapshots and new candidates are added atomically.
+ * A fresh install starts entirely pending. Repeated startup is idempotent. */
 export function migrateContent(sqlite: Database.Database): void {
-  migrateTopics(sqlite);
-  migrateLessons(sqlite);
-  migrateClassSources(sqlite);
-  migrateLibraryLinks(sqlite);
-  migrateAdminContentApproval(sqlite);
+  sqlite.transaction(() => {
+    // Classify before creating approval tables. A populated pre-approval app
+    // already exposed the old source baseline, whereas an empty/failed fresh
+    // installation (or an unrelated decision row) proves no such availability.
+    const legacyKind = legacyContentAvailability(sqlite);
+    migrateTopics(sqlite);
+    migrateLessons(sqlite, legacyKind === "pre-approval");
+    migrateClassSources(sqlite);
+    migrateLibraryLinks(sqlite);
+    migrateAdminContentApproval(sqlite);
+    migrateShippedContent(sqlite, legacyKind !== null);
+  })();
+}
+
+function legacyContentAvailability(sqlite: Database.Database): "pre-approval" | "baseline" | null {
+  const hasTable = (table: string) => Boolean(sqlite.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(table));
+  if (hasTable("shipped_content_state")) return null;
+  if (hasTable("content_approvals")) {
+    const ids = legacyBaseline.lessons.map((snapshot) => snapshot.lesson.id);
+    return sqlite.prepare(`SELECT 1 FROM content_approvals WHERE content_type='lesson' AND status IN ('approved','withdrawn') AND content_id IN (${ids.map(() => "?").join(",")}) LIMIT 1`).get(...ids) ? "baseline" : null;
+  }
+  const historicalTables = ["adults", "students", "learner_profiles", "skill_progress", "assignments", "classes", "class_students", "class_activities", "student_class_enrollments", "student_topic_progress", "topic_updates", "curriculum_drafts", "content_reviews", "media_assets", "video_reviews"];
+  return historicalTables.some((table) => hasTable(table) && sqlite.prepare(`SELECT 1 FROM ${table} LIMIT 1`).get()) ? "pre-approval" : null;
 }
 
 /** Apply the administrator publication boundary once, without deleting authored work or results. */
@@ -226,7 +237,7 @@ function migrateTopics(sqlite: Database.Database): void {
       ) AS latest JOIN adults ON adults.id = latest.actor_id`) : null;
     const credit = sqlite.prepare("UPDATE topic_versions SET created_by = ? WHERE topic_id = ? AND version = ? AND baseline = 1 AND created_by IS NULL AND review_note = ?");
     for (const edit of edits) {
-      const shipped = topics.find((topic) => topic.id === edit.topic_id);
+      const shipped = legacyBaseline.topics.find((topic) => topic.id === edit.topic_id);
       if (!shipped) continue;
       const author = (lastEditor?.get(edit.topic_id) as { id: string } | undefined)?.id ?? null;
       const version = Math.max(1, edit.version);
@@ -244,21 +255,14 @@ function migrateTopics(sqlite: Database.Database): void {
   })();
 }
 
-/** The 18 lessons students could already open before lesson approval existed. */
-const BASELINE_LESSONS = [
-  "hello-me", "my-family", "numbers-colours", "letters-sounds", "food-please", "my-day", "school-home", "directions", "six-seasons",
-  "river-journey", "sundarbans-voices", "friendship-help", "language-movement", "heritage-comparison", "living-arts", "two-homes", "poetry-place", "research-exhibition",
-];
-
 /**
  * The shared teacher approval of the 18 lessons. content_approvals keeps one row
  * per decision; the newest row (by rowid) is the lesson's current state, and only
- * approved lessons reach learners. The lessons students already used start as
- * approved baseline rows, so nothing disappears when approval starts; a lesson
- * with no row waits for approval. Human audio records who approved it.
+ * approved lessons reach learners. Existing publication rows are preserved; fresh
+ * installations have no approved rows and wait for individual Admin decisions. Human audio records who approved it.
  * Runs on every start and is safe to repeat.
  */
-function migrateLessons(sqlite: Database.Database): void {
+function migrateLessons(sqlite: Database.Database, inheritPreApprovalBaseline: boolean): void {
   sqlite.transaction(() => {
     sqlite.exec(`CREATE TABLE IF NOT EXISTS content_approvals (
       id text PRIMARY KEY NOT NULL,
@@ -271,11 +275,12 @@ function migrateLessons(sqlite: Database.Database): void {
       note text NOT NULL DEFAULT ''
     );
     CREATE INDEX IF NOT EXISTS content_approvals_item_idx ON content_approvals (content_type, content_id);`);
-    const hasRecord = sqlite.prepare("SELECT 1 FROM content_approvals WHERE content_type = 'lesson' AND content_id = ? LIMIT 1");
-    const baseline = sqlite.prepare("INSERT INTO content_approvals (id, content_type, content_id, status, baseline, changed_at) VALUES (?, 'lesson', ?, 'approved', 1, ?)");
-    const now = new Date().toISOString();
-    for (const lessonId of BASELINE_LESSONS) {
-      if (!hasRecord.get(lessonId)) baseline.run(crypto.randomUUID(), lessonId, now);
+    // Existing decisions are retained. Fresh installs never manufacture an
+    // approval for content merely because it was included in the source tree.
+    if (inheritPreApprovalBaseline) {
+      const insert = sqlite.prepare("INSERT INTO content_approvals (id,content_type,content_id,status,baseline,changed_at,note) VALUES (?, 'lesson', ?, 'approved', 1, ?, ?)");
+      const now = new Date().toISOString();
+      for (const snapshot of legacyBaseline.lessons) insert.run(crypto.randomUUID(), snapshot.lesson.id, now, "Retained pre-approval legacy availability; individual Admin review remains pending.");
     }
 
     const mediaColumns = new Set((sqlite.prepare("PRAGMA table_info(media_assets)").all() as Array<{ name: string }>).map((column) => column.name));

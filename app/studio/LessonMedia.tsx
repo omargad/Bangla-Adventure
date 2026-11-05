@@ -1,10 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { lessons } from "@/app/curriculum";
 import type { Bilingual } from "@/app/topics-content";
 import { call, failure } from "@/app/teach/topics/shared";
-import type { LearnerVideo } from "@/lib/lesson-model";
+import type { LearnerVideo, LessonVideo } from "@/lib/lesson-model";
 import { formatWhen, type Language } from "@/lib/topic-model";
 import {
   audioSlots, captionStatuses, optionLabel, recordingStatusLabel, slotLabel, suitabilityStatuses, videoStatuses,
@@ -135,11 +134,10 @@ function RecordingUpload({ lessonId, language, onUploaded }: { lessonId: string;
  * Administrators decide which video learners receive. Teachers see the current
  * decision and any older check waiting for administrator review.
  */
-export function VideoCheck({ lessonId, language, check, learnerVideo, canApprove, onChanged }: {
-  lessonId: string; language: Language; check: VideoCheckRecord | null; learnerVideo: LearnerVideo | null; canApprove: boolean; onChanged: () => void;
+export function VideoCheck({ lessonId, candidateVideoId, sourceVideo, contentFingerprint, language, check, learnerVideo, canApprove, onChanged }: {
+  lessonId: string; candidateVideoId: string; sourceVideo: LessonVideo; contentFingerprint: string; language: Language; check: VideoCheckRecord | null; learnerVideo: LearnerVideo | null; canApprove: boolean; onChanged: () => void;
 }) {
   const s = (en: string, bn: string) => (language === "bn" ? bn : en);
-  const lesson = lessons.find((item) => item.id === lessonId)!;
   const [status, setStatus] = useState(check?.status ?? "pending");
   const [captions, setCaptions] = useState(check?.captionsStatus ?? "unchecked");
   const [suitability, setSuitability] = useState(check?.suitabilityStatus ?? "unchecked");
@@ -148,12 +146,13 @@ export function VideoCheck({ lessonId, language, check, learnerVideo, canApprove
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<Bilingual | null>(null);
   const [saved, setSaved] = useState(false);
+  const candidateMatches = candidateVideoId === sourceVideo.id && Boolean(contentFingerprint);
 
   async function save() {
-    if (!canApprove || saving) return;
+    if (!canApprove || saving || !candidateMatches) return;
     setSaving(true); setError(null); setSaved(false);
     try {
-      await call("/api/studio/video-reviews", { method: "POST", body: JSON.stringify({ lessonId, status, captionsStatus: captions, suitabilityStatus: suitability, replacementUrl: replacement, notes }) });
+      await call("/api/studio/video-reviews", { method: "POST", body: JSON.stringify({ lessonId, videoId: candidateVideoId, contentFingerprint, status, captionsStatus: captions, suitabilityStatus: suitability, replacementUrl: replacement, notes }) });
       setSaved(true);
       onChanged();
     } catch (caught) { setError(failure(caught)); }
@@ -167,12 +166,15 @@ export function VideoCheck({ lessonId, language, check, learnerVideo, canApprove
     ? s("Learners do not see this video, and no replacement is set.", "শিক্ষার্থীরা এই ভিডিও দেখে না, এবং কোনো বিকল্প ঠিক করা নেই।")
     : learnerVideo.replaced
       ? s("Learners see an administrator-approved replacement video.", "শিক্ষার্থীরা প্রশাসকের অনুমোদিত বিকল্প ভিডিও দেখে।")
-      : s("Learners see this video.", "শিক্ষার্থীরা এই ভিডিও দেখে।");
+      : learnerVideo.id === candidateVideoId
+        ? s("Learners see this video.", "শিক্ষার্থীরা এই ভিডিও দেখে।")
+        : s("Learners still use the video from an earlier approved lesson revision.", "শিক্ষার্থীরা এখনো আগের অনুমোদিত পাঠের সংস্করণের ভিডিও দেখে।");
 
   return (
     <section className="teach-panel" aria-label={s("Video check", "ভিডিও যাচাই")}>
       <h3>{s("Video check", "ভিডিও যাচাই")}</h3>
-      <p><strong>{lesson.video.title}</strong> · {lesson.video.channel} · {lesson.video.duration} · <a href={`https://www.youtube.com/watch?v=${lesson.video.id}`} target="_blank" rel="noreferrer">{s("Watch on YouTube ↗", "YouTube-এ দেখুন ↗")}</a></p>
+      <p><strong>{sourceVideo.title}</strong> · {sourceVideo.channel} · {sourceVideo.duration} · <a href={`https://www.youtube.com/watch?v=${candidateVideoId}`} target="_blank" rel="noreferrer">{s("Watch on YouTube ↗", "YouTube-এ দেখুন ↗")}</a></p>
+      {!candidateMatches && <p className="auth-error" role="alert">{s("Refresh the lesson preview before reviewing this video.", "এই ভিডিও পর্যালোচনার আগে পাঠের প্রিভিউ আবার খুলুন।")}</p>}
       <p className="teach-note">{check
         ? s(`Last checked by ${check.checkerName ?? formerStaff.en}, ${formatWhen(check.checkedAt, language)}.`, `সর্বশেষ যাচাই করেছেন ${check.checkerName ?? formerStaff.bn}, ${formatWhen(check.checkedAt, language)}।`)
         : s("Nobody has checked this video yet.", "এই ভিডিও এখনো কেউ যাচাই করেননি।")} <strong>{effect}</strong></p>
@@ -189,7 +191,7 @@ export function VideoCheck({ lessonId, language, check, learnerVideo, canApprove
         </label>
         <label>{s("Notes", "নোট")}<textarea rows={3} maxLength={1500} value={notes} onChange={(event) => setNotes(event.target.value)} /></label>
         <p className="teach-note">{s("Choosing “Replace this video”, “Unavailable on YouTube” or “Unsuitable for children” takes the video out of the lesson for learners.", "“ভিডিওটি বদলাতে হবে”, “YouTube-এ পাওয়া যায় না” বা “শিশুদের জন্য উপযুক্ত নয়” বেছে নিলে শিক্ষার্থীদের পাঠ থেকে ভিডিওটি সরে যাবে।")}</p>
-        <div className="access-actions"><button type="button" className="outline-button" disabled={saving} onClick={() => void save()}>{s("Save video check", "ভিডিও যাচাই সংরক্ষণ")}</button></div>
+        <div className="access-actions"><button type="button" className="outline-button" disabled={saving || !candidateMatches} onClick={() => void save()}>{s("Save video check", "ভিডিও যাচাই সংরক্ষণ")}</button></div>
         {saved && <p className="teach-message" role="status">{s("Video check saved.", "ভিডিও যাচাই সংরক্ষিত হয়েছে।")}</p>}
         {error && <p className="auth-error" role="alert">{error[language]}</p>}
       </div> : <>

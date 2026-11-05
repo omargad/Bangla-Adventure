@@ -11,6 +11,7 @@ import { bootstrapSql } from "../db/bootstrap.ts";
 import { migrateAccessControl } from "../db/access-migration.ts";
 import { migrateContent } from "../db/content-migration.ts";
 import { topics } from "../app/topics-content.ts";
+import { seedLegacyLessonApprovals } from "./helpers/publish-shipped-fixture.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const at = "2026-01-02T12:00:00.000Z";
@@ -129,6 +130,10 @@ function legacyDatabase(file, media, withMedia) {
       insert(db, "video_reviews", { id: `video-${reviewer}`, owner_email: `${reviewer}@example.test`, lesson_id: lesson, video_id: "fixture-video", status: "approved", suitability_status: "suitable", checked_at: at, updated_at: at });
       insert(db, "user_audit_events", { id: `video-audit-${reviewer}`, actor_id: reviewer, target_id: lesson, target_type: "lesson", action: "lesson-video-checked", details_json: JSON.stringify({ status: "approved", suitabilityStatus: "suitable", replacementUrl: "" }), created_at: at });
     }
+    // Preserve a real pre-versioning installation's other inherited lesson
+    // approvals in the input snapshot; the candidate migration must not invent
+    // them for a fresh database or overwrite the two reviewer decisions above.
+    seedLegacyLessonApprovals(db);
     if (withMedia) {
       const objectKey = "human-audio/hello-me/reading/বাংলা.ogg";
       const bytes = Buffer.from("fixture recording bytes\0\xff", "latin1");

@@ -4,6 +4,7 @@ import Database from "better-sqlite3";
 import { bootstrapSql } from "../db/bootstrap.ts";
 import { migrateAccessControl } from "../db/access-migration.ts";
 import { migrateContent, migrateAdminContentApproval } from "../db/content-migration.ts";
+import { seedLegacyLessonApprovals } from "./helpers/publish-shipped-fixture.mjs";
 
 function legacyDatabase() {
   const db = new Database(":memory:");
@@ -41,6 +42,10 @@ function legacyDatabase() {
   insertTopic.run("admin-topic", "custom-admin-topic", '{"title":{"en":"Admin reviewed text","bn":"বাংলা"}}', 0, "teacher", "admin");
   db.prepare("INSERT INTO content_approvals(id,content_type,content_id,status,baseline,changed_by,changed_at,note) VALUES('teacher-lesson','lesson','hello-me','approved',0,'teacher','2026-01-01','Original teacher decision')").run();
   db.prepare("INSERT INTO content_approvals(id,content_type,content_id,status,baseline,changed_by,changed_at,note) VALUES('admin-lesson','lesson','my-family','approved',0,'admin','2026-01-01','Original admin decision')").run();
+  // This is an old installation, not a fresh database. Its other shipped
+  // lessons already had inherited publication rows before revision gating.
+  // Keep the explicit teacher/Admin decisions above as their original evidence.
+  seedLegacyLessonApprovals(db);
   const mediaColumns = db.prepare("PRAGMA table_info(media_assets)").all().map((column) => column.name);
   if (!mediaColumns.includes("reviewed_by")) db.exec("ALTER TABLE media_assets ADD COLUMN reviewed_by text REFERENCES adults(id)");
   if (!mediaColumns.includes("reviewed_at")) db.exec("ALTER TABLE media_assets ADD COLUMN reviewed_at text");

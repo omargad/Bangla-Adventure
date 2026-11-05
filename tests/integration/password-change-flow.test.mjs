@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test, { after, before } from "node:test";
 import Database from "better-sqlite3";
+import { approveLessonFixture } from "./content-fixture.mjs";
 
 /**
  * Accounts an administrator creates (or whose password an administrator resets) get a temporary
@@ -88,6 +89,7 @@ before(async () => {
   fixture((db) => db.prepare("UPDATE adults SET role = 'admin', approval_status = 'approved' WHERE email = ?").run("password-admin@example.com"));
   adminCookie = cookieFrom(await adultSignIn("password-admin@example.com", password));
   assert.ok(adminCookie);
+  await approveLessonFixture(BASE, adminCookie, "hello-me");
 });
 after(async () => {
   if (server && server.exitCode === null) { const closed = once(server, "exit"); server.kill("SIGTERM"); await closed; }

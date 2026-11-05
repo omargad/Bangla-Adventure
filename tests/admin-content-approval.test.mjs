@@ -4,9 +4,11 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import Database from "better-sqlite3";
+import { createLegacyContentFixture } from "./helpers/publish-shipped-fixture.mjs";
 
 const dir = mkdtempSync(path.join(tmpdir(), "bangla-admin-content-"));
 process.env.DATABASE_PATH = path.join(dir, "test.db");
+createLegacyContentFixture(process.env.DATABASE_PATH);
 const { getDb } = await import("../db/index.ts");
 const { adults, mediaAssets } = await import("../db/schema.ts");
 const catalog = await import("../lib/curriculum-catalog.ts");
@@ -47,6 +49,10 @@ const snapshot = () => Object.fromEntries(["topic_versions", "content_approvals"
 after(() => { sqlite.close(); rmSync(dir, { recursive: true, force: true }); });
 
 const video = { lessonId: "my-family", status: "approved", captionsStatus: "available", suitabilityStatus: "suitable", replacementUrl: "", notes: "Reviewed for the demo class." };
+const videoReviewOf = async (raw) => {
+  const detail = await approval.lessonStudioDetail(raw.lessonId);
+  return { ...raw, videoId: detail.snapshot.lesson.video.id, contentFingerprint: detail.contentFingerprint };
+};
 const forbidden = (error) => error.status === 403;
 
 test("publishing requires an approved active administrator with a permanent password", () => {
@@ -111,11 +117,11 @@ test("an administrator publishes after explicit review and denied teacher restor
   await approval.decideLesson("admin", "hello-me", { decision: "withdraw", note: "Check the lesson." });
   await assert.rejects(approval.decideLesson("teacher", "hello-me", { decision: "approve", confirmedRead: true }), forbidden);
   assert.equal(await approval.isLessonApproved("hello-me"), false);
-  await approval.decideLesson("admin", "hello-me", { decision: "approve", confirmedRead: true });
+  await approval.decideLesson("admin", "hello-me", { decision: "approve", confirmedRead: true, contentFingerprint: (await approval.lessonStudioDetail("hello-me")).contentFingerprint });
   assert.equal(await approval.isLessonApproved("hello-me"), true);
   await approval.reviewRecording("admin", { id: "own-recording", reviewStatus: "approved", confirmedListened: true });
   assert.equal((await approval.approvedRecording("hello-me", "dialogue")).reviewedBy, "admin");
-  await approval.saveVideoReview("admin", { ...video, suitabilityStatus: "unsuitable" });
+  await approval.saveVideoReview("admin", await videoReviewOf({ ...video, suitabilityStatus: "unsuitable" }));
   assert.equal((await approval.learnerLessonView()).videos["my-family"], null);
   const changed = sqlite.prepare("SELECT DISTINCT actor_id FROM user_audit_events WHERE action LIKE 'lesson-%' OR action LIKE 'topic-%' AND action NOT IN ('topic-created', 'topic-edit-submitted')").all();
   assert.deepEqual(changed, [{ actor_id: "admin" }]);

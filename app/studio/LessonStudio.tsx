@@ -15,7 +15,7 @@ import { justReturnedTo } from "@/lib/portal-scroll";
 import LessonReview from "./LessonReview";
 import { lessonStatusClass, lessonStatusLabel, slotLabel, type LessonApproval } from "./labels";
 
-type LessonRow = LessonApproval & { pendingAudio: number; video: { status: string; suitabilityStatus: string; takenDown: boolean; replaced: boolean } | null };
+type LessonRow = LessonApproval & { pendingRevision: number | null; pendingAudio: number; video: { status: string; suitabilityStatus: string; takenDown: boolean; replaced: boolean } | null };
 type PendingRecording = { id: string; lessonId: string; slot: string; speakerName: string; dialect: string; consentConfirmed: boolean; createdAt: string; uploaderName: string | null };
 type StudioList = { lessons: LessonRow[]; pendingRecordings: PendingRecording[] };
 
@@ -144,6 +144,7 @@ export default function LessonStudio({ name, role, canApprove }: { name: string;
                         <small>
                           <span className={lessonStatusClass(row.status, row.baseline)}>{lessonStatusLabel(row, language)}</span>
                           {" · "}{level?.code}{decidedBy(row) && <> · {decidedBy(row)}</>}
+                          {row.pendingRevision !== null && <> · {s(`revision ${row.pendingRevision} awaiting Admin review`, `সংস্করণ ${n(row.pendingRevision)} প্রশাসকের পর্যালোচনার অপেক্ষায়`)}</>}
                           {row.pendingAudio > 0 && <> · {s(`${row.pendingAudio} recording${row.pendingAudio === 1 ? "" : "s"} waiting`, `${n(row.pendingAudio)}টি রেকর্ডিং অপেক্ষায়`)}</>}
                           {row.video?.takenDown && <> · {row.video.replaced ? s("video replaced", "ভিডিও বদলানো হয়েছে") : s("video taken down", "ভিডিও সরানো হয়েছে")}</>}
                           {(!row.video || row.video.status === "pending" || row.video.suitabilityStatus === "unchecked") && <> · {s("video review pending", "ভিডিও পর্যালোচনা বাকি")}</>}

@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test, { after, before } from "node:test";
 import Database from "better-sqlite3";
+import { approveLessonFixture } from "./content-fixture.mjs";
 
 /**
  * Full HTTP integration test against the production server.
@@ -48,6 +49,13 @@ before(async () => {
     stdio: "ignore",
   });
   await waitForServer();
+  const credentials = { email: "api-reviewer@example.com", displayName: "Fixture Admin", password: "api-reviewer-password-42" };
+  assert.equal((await fetch(`${BASE}/api/auth/sign-up`, { method: "POST", headers: { "Content-Type": "application/json", "x-forwarded-for": "api-reviewer" }, body: JSON.stringify(credentials) })).status, 201);
+  const fixture = new Database(path.join(stateDir, "test.db"));
+  try { fixture.prepare("UPDATE adults SET role = 'admin', approval_status = 'approved' WHERE email = ?").run(credentials.email); } finally { fixture.close(); }
+  const signedIn = await fetch(`${BASE}/api/auth/sign-in`, { method: "POST", headers: { "Content-Type": "application/json", "x-forwarded-for": "api-reviewer" }, body: JSON.stringify(credentials) });
+  assert.equal(signedIn.status, 200);
+  await approveLessonFixture(BASE, cookieFrom(signedIn), "hello-me");
 });
 
 after(() => {

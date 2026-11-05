@@ -10,8 +10,8 @@ export const dynamic = "force-dynamic";
  * lesson only while it is approved.
  */
 export default async function AdventurePage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
-  const [{ approvedIds, videos }, query] = await Promise.all([learnerLessonView(), searchParams]);
+  const [{ approvedIds, snapshots, videos }, query] = await Promise.all([learnerLessonView(), searchParams]);
   const requested = typeof query.module === "string" ? query.module : null;
   const initialModuleId = requested && approvedIds.includes(requested) ? requested : null;
-  return <AdventureApp approvedLessonIds={approvedIds} videos={videos} recordings={await approvedRecordings(approvedIds)} initialModuleId={initialModuleId} moduleUnavailable={Boolean(requested) && !initialModuleId} />;
+  return <AdventureApp approvedLessonIds={approvedIds} snapshots={snapshots} videos={videos} recordings={await approvedRecordings(approvedIds)} initialModuleId={initialModuleId} moduleUnavailable={Boolean(requested) && !initialModuleId} />;
 }

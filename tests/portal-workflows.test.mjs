@@ -4,6 +4,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { eq } from "drizzle-orm";
+import { publishShippedFixtures } from "./helpers/publish-shipped-fixture.mjs";
 
 const dir = mkdtempSync(path.join(tmpdir(), "bangla-workflows-"));
 process.env.DATABASE_PATH = path.join(dir, "test.db");
@@ -19,6 +20,7 @@ db.insert(adults).values([
   { id: "other", email: "other@example.com", displayName: "Other", role: "teacher", teacherStatus: "approved", passwordHash: "fixture" },
   { id: "parent", email: "parent@example.com", displayName: "Parent", passwordHash: "fixture" },
 ]).run();
+await publishShippedFixtures("admin", { lessons: false });
 db.insert(students).values({ id: "student", username: "learner", displayName: "Learner", passwordHash: "fixture" }).run();
 db.insert(classes).values({ id: "class", teacherId: "teacher", name: "Class", joinCode: "ABC234" }).run();
 after(() => rmSync(dir, { recursive: true, force: true }));
@@ -47,12 +49,12 @@ test("removing and restoring allocation preserves submitted work", async () => {
 // Teachers now write topics too, and an edit reaches students only once someone approves it.
 test("topic edits wait for approval, then reach the catalogue without changing source mappings", async () => {
   const initial = (await getCatalog())[0];
-  const edit = { ...initial, title: { ...initial.title, en: "Updated learning title" }, baseVersion: 0 };
+  const edit = { ...initial, title: { ...initial.title, en: "Updated learning title" }, baseVersion: initial.version };
   await assert.rejects(submitTopicEdit("parent", initial.id, edit), /teacher or administrator/);
   const saved = await submitTopicEdit("teacher", initial.id, edit);
-  assert.equal(saved.version, 1);
+  assert.equal(saved.version, initial.version + 1);
   assert.equal((await getCatalog())[0].title.en, initial.title.en, "students keep the approved version");
-  await reviewTopicVersion("admin", initial.id, 1, { decision: "approve", confirmedRead: true });
+  await reviewTopicVersion("admin", initial.id, saved.version, { decision: "approve", confirmedRead: true });
   const current = (await getCatalog())[0];
   assert.equal(current.title.en, edit.title.en);
   assert.deepEqual(current.sources, initial.sources);
@@ -62,7 +64,7 @@ test("topic edits wait for approval, then reach the catalogue without changing s
 test("curriculum validation rejects missing fields and invalid reading time without changing stored content", async () => {
   const current = (await getCatalog())[0];
   for (const edit of [{ ...current, title: { en: "", bn: "বিষয়" } }, { ...current, sections: [] }, { ...current, minutes: 0 }, { ...current, sections: [{ heading: current.title, body: { en: "", bn: "" } }] }]) assert.throws(() => validateTopicDraft(edit));
-  assert.equal((await getCatalog())[0].version, 1);
+  assert.equal((await getCatalog())[0].version, 2);
   db.update(adults).set({ status: "suspended" }).where(eq(adults.id, "teacher")).run();
   await assert.rejects(allocateStudent("teacher", "class", "learner"), /teacher access/);
 });

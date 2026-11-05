@@ -1,9 +1,9 @@
 // Classroom topics — the core of the platform after the 10 Aug 2026 client
 // meeting: kid-friendly readings about Bangladesh's culture, history and
-// literature, each traced back to the NCTB government textbook that covers it.
-// Text here is written originally for heritage learners (English-first with a
-// Bangla translation); it summarises publicly known facts and never copies
-// textbook prose. Stories and poems are only referenced, never altered.
+// literature. Related NCTB books are provided for further reading; an Admin
+// must confirm the relevant edition and pages before approving source claims.
+// Text here is original heritage-learner material with a Bangla translation.
+// Labelled folk-tale retellings are distinct from quotations of literary texts.
 
 export type Bilingual = { en: string; bn: string };
 
@@ -35,7 +35,7 @@ export type Topic = {
   sections: TopicSection[];
   funFacts: Bilingual[];
   quiz: TopicQuizQuestion[];
-  // Which NCTB textbook(s) cover this topic — shown as the trusted source.
+  // Related NCTB references; this mapping does not establish exact edition/page provenance.
   sources: Array<{ bookId: string; note: Bilingual }>;
   // Where a teacher-written topic comes from, in the author's own words.
   sourceNote?: Bilingual;
@@ -96,15 +96,15 @@ export const topics: Topic[] = [
       {
         heading: { en: "A language worth standing up for", bn: "যে ভাষার জন্য দাঁড়াতে হয়" },
         body: {
-          en: "In 1952, Bangladesh was called East Pakistan, and the government far away decided that Urdu would be the only state language — even though most people here spoke Bangla. Students in Dhaka said no. On 21 February 1952 they marched for the right to speak their mother language, and some of them — remembered as the language martyrs — lost their lives.",
-          bn: "১৯৫২ সালে বাংলাদেশের নাম ছিল পূর্ব পাকিস্তান। দূরের সরকার ঠিক করল, রাষ্ট্রভাষা হবে শুধু উর্দু — যদিও এখানকার বেশির ভাগ মানুষ বাংলায় কথা বলত। ঢাকার ছাত্ররা বলল, না। ১৯৫২ সালের ২১ ফেব্রুয়ারি তারা মাতৃভাষার অধিকারের জন্য মিছিল করল, আর কয়েকজন — যাঁদের আমরা ভাষা শহিদ বলি — প্রাণ দিলেন।",
+          en: "In 1952, the land that is now Bangladesh was part of Pakistan. Students and other people demanded recognition of Bangla as a state language alongside Urdu. On 21 February 1952, people protested in Dhaka, and some protesters — remembered as the language martyrs — lost their lives.",
+          bn: "১৯৫২ সালে আজকের বাংলাদেশ ছিল পাকিস্তানের অংশ। ছাত্ররা ও অন্য মানুষ বাংলাকে উর্দুর পাশাপাশি রাষ্ট্রভাষা হিসেবে স্বীকৃতি দেওয়ার দাবি জানায়। ১৯৫২ সালের ২১ ফেব্রুয়ারি ঢাকায় মানুষ প্রতিবাদ করে, আর কয়েকজন প্রতিবাদকারী — যাঁদের আমরা ভাষা শহিদ বলি — প্রাণ হারান।",
         },
       },
       {
         heading: { en: "From Dhaka to the whole world", bn: "ঢাকা থেকে সারা বিশ্বে" },
         body: {
-          en: "Every year, people walk barefoot at dawn to the Shaheed Minar monument with flowers, singing 'Amar bhaiyer rokte rangano Ekushey February'. In 1999, UNESCO made 21 February International Mother Language Day, so now the whole world honours every mother language on Bangladesh's special day.",
-          bn: "প্রতি বছর ভোরে মানুষ খালি পায়ে ফুল হাতে শহিদ মিনারে যায়, গায় ‘আমার ভাইয়ের রক্তে রাঙানো একুশে ফেব্রুয়ারি’। ১৯৯৯ সালে ইউনেসকো ২১ ফেব্রুয়ারিকে আন্তর্জাতিক মাতৃভাষা দিবস ঘোষণা করে — এখন বাংলাদেশের এই বিশেষ দিনে সারা পৃথিবী নিজের নিজের মাতৃভাষাকে সম্মান জানায়।",
+          en: "Every year, people walk barefoot at dawn to the Shaheed Minar monument with flowers, singing 'Amar bhaiyer rokte rangano Ekushey February'. UNESCO proclaimed 21 February International Mother Language Day in 1999, and worldwide observance began in 2000. The day honours linguistic diversity and mother languages everywhere.",
+          bn: "প্রতি বছর ভোরে মানুষ খালি পায়ে ফুল হাতে শহিদ মিনারে যায়, গায় ‘আমার ভাইয়ের রক্তে রাঙানো একুশে ফেব্রুয়ারি’। ইউনেসকো ১৯৯৯ সালে ২১ ফেব্রুয়ারিকে আন্তর্জাতিক মাতৃভাষা দিবস ঘোষণা করে; ২০০০ সাল থেকে বিশ্বজুড়ে দিবসটি পালিত হয়। দিনটি সব দেশের ভাষার বৈচিত্র্য ও মাতৃভাষার প্রতি সম্মান জানায়।",
         },
       },
     ],
@@ -126,7 +126,7 @@ export const topics: Topic[] = [
       {
         question: { en: "What happened on 21 February 1952?", bn: "১৯৫২ সালের ২১ ফেব্রুয়ারি কী হয়েছিল?" },
         options: [
-          { en: "Students marched for the right to speak Bangla", bn: "ছাত্ররা বাংলা বলার অধিকারের জন্য মিছিল করে" },
+          { en: "People protested for Bangla to be recognised as a state language", bn: "বাংলাকে রাষ্ট্রভাষার স্বীকৃতি দেওয়ার দাবিতে মানুষ প্রতিবাদ করে" },
           { en: "Bangladesh won a cricket match", bn: "বাংলাদেশ ক্রিকেটে জেতে" },
           { en: "A new king was crowned", bn: "নতুন রাজার অভিষেক হয়" },
         ],
@@ -266,8 +266,8 @@ export const topics: Topic[] = [
         bn: "আরেক প্রাচীন নিদর্শন উয়ারী-বটেশ্বর সম্ভবত ছিল নদীবন্দর — হাজার হাজার কিলোমিটার দূরের সঙ্গে বাণিজ্য চলত।",
       },
       {
-        en: "The Sixty Dome Mosque in Bagerhat is a third UNESCO World Heritage property in Bangladesh — count its domes if you visit!",
-        bn: "বাগেরহাটের ষাট গম্বুজ মসজিদ বাংলাদেশের আরেকটি ইউনেসকো বিশ্ব ঐতিহ্য — গেলে গম্বুজ গুনে দেখো!",
+        en: "The Sixty Dome Mosque is part of the Historic Mosque City of Bagerhat, a UNESCO World Heritage property in Bangladesh.",
+        bn: "ষাট গম্বুজ মসজিদ বাগেরহাটের ঐতিহাসিক মসজিদের শহরের অংশ; এই শহরটি বাংলাদেশের একটি ইউনেসকো বিশ্ব ঐতিহ্য স্থান।",
       },
     ],
     quiz: [
@@ -458,14 +458,14 @@ export const topics: Topic[] = [
         heading: { en: "The parade of masks", bn: "মুখোশের শোভাযাত্রা" },
         body: {
           en: "In Dhaka, students of the Faculty of Fine Arts lead the Mongol Shobhajatra, a joyful procession with giant colourful masks and animal figures wishing everyone a good year. UNESCO recognises this parade as intangible cultural heritage of humanity. Shops open fresh account books called halkhata, and fairs — Boishakhi mela — fill with toys, sweets and nagordola rides.",
-          bn: "ঢাকায় চারুকলার শিক্ষার্থীদের নেতৃত্বে হয় মঙ্গল শোভাযাত্রা — বিশাল রঙিন মুখোশ আর পশুপাখির প্রতিকৃতি নিয়ে আনন্দ মিছিল, সবার জন্য শুভ বছরের কামনা। ইউনেসকো এই শোভাযাত্রাকে মানবতার অপরিমেয় সাংস্কৃতিক ঐতিহ্যের স্বীকৃতি দিয়েছে। দোকানে খোলে নতুন হিসাবের খাতা ‘হালখাতা’, আর বৈশাখী মেলায় থাকে খেলনা, মিষ্টি আর নাগরদোলা।",
+          bn: "ঢাকায় চারুকলার শিক্ষার্থীদের নেতৃত্বে হয় মঙ্গল শোভাযাত্রা — বিশাল রঙিন মুখোশ আর পশুপাখির প্রতিকৃতি নিয়ে আনন্দ মিছিল, সবার জন্য শুভ বছরের কামনা। ইউনেসকো এই শোভাযাত্রাকে মানবতার অমূর্ত সাংস্কৃতিক ঐতিহ্যের স্বীকৃতি দিয়েছে। দোকানে খোলে নতুন হিসাবের খাতা ‘হালখাতা’, আর বৈশাখী মেলায় থাকে খেলনা, মিষ্টি আর নাগরদোলা।",
         },
       },
     ],
     funFacts: [
       { en: "'Esho he Boishakh' — a Tagore song — is sung at dawn under a banyan tree in Dhaka's Ramna park.", bn: "ভোরে ঢাকার রমনার বটমূলে গাওয়া হয় রবীন্দ্রনাথের গান ‘এসো হে বৈশাখ’।" },
       { en: "Bengali communities in Australia hold Boishakhi melas too — you may have been to one!", bn: "অস্ট্রেলিয়ার বাঙালিরাও বৈশাখী মেলা করে — হয়তো তুমিও গিয়েছ!" },
-      { en: "The Bengali year count is different from the English one — Boishakh 1433 began in April 2026.", bn: "বাংলা সনের হিসাব ইংরেজি বছরের চেয়ে আলাদা — ১৪৩৩ বঙ্গাব্দ শুরু হয়েছে ২০২৬-এর এপ্রিলে।" },
+      { en: "The Bengali calendar uses a different year count from the Gregorian calendar; Pohela Boishakh marks the start of a new Bengali year.", bn: "বাংলা পঞ্জিকার সন গণনা গ্রেগরীয় পঞ্জিকা থেকে আলাদা; পহেলা বৈশাখে নতুন বাংলা বছর শুরু হয়।" },
     ],
     quiz: [
       {
@@ -593,7 +593,7 @@ export const topics: Topic[] = [
       },
     ],
     funFacts: [
-      { en: "Khejur gur (date-palm jaggery) is collected drop by drop from date-palm trees on cold winter mornings.", bn: "শীতের ভোরে খেজুর গাছ থেকে ফোঁটায় ফোঁটায় সংগ্রহ হয় খেজুরের রস ও গুড়।" },
+      { en: "Date-palm sap is collected from trees in winter and then processed into khejur gur (date-palm jaggery). The collected sap and the finished gur are different things.", bn: "শীতে খেজুর গাছ থেকে রস সংগ্রহ করা হয়; সেই রস প্রক্রিয়াজাত করে খেজুরের গুড় তৈরি হয়। সংগ্রহ করা রস আর তৈরি গুড় এক জিনিস নয়।" },
       { en: "There are said to be over a hundred kinds of pitha across Bangladesh.", bn: "বাংলাদেশে নাকি একশোরও বেশি রকমের পিঠা আছে।" },
       { en: "Dhaka holds a yearly Pitha Utshob — a whole festival just for pitha!", bn: "ঢাকায় প্রতি বছর হয় পিঠা উৎসব — শুধু পিঠারই মেলা!" },
     ],
@@ -718,8 +718,8 @@ export const topics: Topic[] = [
       {
         heading: { en: "The country that learned to be ready", bn: "প্রস্তুত থাকতে শেখা দেশ" },
         body: {
-          en: "Bangladesh answered with preparation the whole world studies: tens of thousands of trained volunteers carry warnings to every village, families move to strong cyclone shelters, and schools practise drills. In flood-prone wetlands, farmers even grow vegetables on floating gardens that rise with the water. Fewer lives are lost every decade — a quiet national victory.",
-          bn: "বাংলাদেশ জবাব দিয়েছে এমন প্রস্তুতিতে, যা আজ সারা বিশ্ব শেখে: হাজার হাজার প্রশিক্ষিত স্বেচ্ছাসেবক গ্রামে গ্রামে সতর্কবার্তা পৌঁছে দেন, পরিবারগুলো আশ্রয় নেয় মজবুত সাইক্লোন শেল্টারে, স্কুলে হয় মহড়া। বন্যাপ্রবণ জলাভূমিতে কৃষকরা পানির সঙ্গে ভেসে থাকা ধাপ-বাগানে সবজি ফলান। প্রতি দশকে প্রাণহানি কমছে — এ এক নীরব জাতীয় বিজয়।",
+          en: "Bangladesh answered with preparation the whole world studies: tens of thousands of trained volunteers carry warnings to every village, families move to strong cyclone shelters, and schools practise drills. In flood-prone wetlands, farmers even grow vegetables on floating gardens that rise with the water. The World Bank reported in 2022 that cyclone-related deaths had fallen greatly since 1970. This long-term progress does not mean every decade is safer or that storms and floods are no longer dangerous.",
+          bn: "বাংলাদেশ জবাব দিয়েছে এমন প্রস্তুতিতে, যা আজ সারা বিশ্ব শেখে: হাজার হাজার প্রশিক্ষিত স্বেচ্ছাসেবক গ্রামে গ্রামে সতর্কবার্তা পৌঁছে দেন, পরিবারগুলো আশ্রয় নেয় মজবুত সাইক্লোন শেল্টারে, স্কুলে হয় মহড়া। বন্যাপ্রবণ জলাভূমিতে কৃষকরা পানির সঙ্গে ভেসে থাকা ধাপ-বাগানে সবজি ফলান। বিশ্বব্যাংক ২০২২ সালে জানায়, ১৯৭০ সালের তুলনায় ঘূর্ণিঝড়ে প্রাণহানি অনেক কমেছে। এই দীর্ঘমেয়াদি অগ্রগতি মানে প্রতি দশকেই ঝুঁকি কমবে বা ঝড়-বন্যা আর বিপজ্জনক নয় — এমন নয়।",
         },
       },
     ],
@@ -793,7 +793,7 @@ export const topics: Topic[] = [
     funFacts: [
       { en: "Tagore wrote his first poem as a young child and published seriously from his teens.", bn: "শিশু বয়সেই রবীন্দ্রনাথ প্রথম কবিতা লেখেন, কিশোর বয়স থেকে ছাপা শুরু।" },
       { en: "He founded a school under the open sky at Santiniketan, where classes met beneath trees.", bn: "শান্তিনিকেতনে খোলা আকাশের নিচে গাছতলায় ক্লাস বসিয়ে তিনি স্কুল গড়েছিলেন।" },
-      { en: "Both Bangladesh's and India's national anthems are his songs — a world first.", bn: "বাংলাদেশ ও ভারতের জাতীয় সংগীত দুটোই তাঁর গান — পৃথিবীতে এমনটি আর নেই।" },
+      { en: "Tagore wrote the songs used as the national anthems of Bangladesh and India.", bn: "বাংলাদেশ ও ভারতের জাতীয় সংগীত হিসেবে ব্যবহৃত গান দুটির রচয়িতা রবীন্দ্রনাথ।" },
     ],
     quiz: [
       {
@@ -857,7 +857,7 @@ export const topics: Topic[] = [
     ],
     funFacts: [
       { en: "'Lichu Chor', his poem about a boy raiding a lychee orchard, still makes kids giggle a century later.", bn: "লিচু বাগানে হানা দেওয়া ছেলের ছড়া ‘লিচু চোর’ একশো বছর পরেও শিশুদের হাসায়।" },
-      { en: "He played the flute so well as a boy that people called him Dukhu Mia's magic.", bn: "ছেলেবেলায় চমৎকার বাঁশি বাজাতেন — ডাকনাম ছিল দুখু মিয়া।" },
+      { en: "Nazrul's childhood nickname was Dukhu Mia.", bn: "ছেলেবেলায় নজরুলের ডাকনাম ছিল দুখু মিয়া।" },
       { en: "Nazrul is buried beside Dhaka University's mosque, as he wished in one of his songs.", bn: "নিজের গানের ইচ্ছা অনুযায়ী নজরুল শুয়ে আছেন ঢাকা বিশ্ববিদ্যালয়ের মসজিদের পাশে।" },
     ],
     quiz: [
@@ -915,8 +915,8 @@ export const topics: Topic[] = [
       {
         heading: { en: "Why folk tales matter", bn: "রূপকথা কেন জরুরি" },
         body: {
-          en: "Folk tales are how a culture whispers its values to children: be brave, be kind, be clever. Because these are literature, they are always told as they are — the platform never rewrites them, just as your Bangla school presents poems and stories unchanged. Ask a grandparent to tell you one — most know these tales by heart.",
-          bn: "রূপকথার মধ্য দিয়েই সংস্কৃতি শিশুদের কানে কানে শেখায় — সাহসী হও, দয়ালু হও, বুদ্ধিমান হও। এগুলো সাহিত্য, তাই যেমন আছে তেমনই বলা হয় — বাংলা স্কুল যেমন কবিতা-গল্প অবিকল পড়ায়, এই প্ল্যাটফর্মও কখনো বদলায় না। দাদা-দাদি বা নানা-নানিকে একটি বলতে বোলো — বেশির ভাগেরই এসব গল্প মুখস্থ।",
+          en: "Folk tales pass values and imagination between generations: be brave, be kind, be clever. A traditional tale can have different tellings. This platform labels its adapted folk tales as retellings, so readers can distinguish new wording from an exact quotation. Ask a trusted grown-up to share a tale if they would like to.",
+          bn: "রূপকথা প্রজন্ম থেকে প্রজন্মে মূল্যবোধ ও কল্পনার কথা পৌঁছে দেয় — সাহসী হও, দয়ালু হও, বুদ্ধিমান হও। একই লোককথার নানা কথন থাকতে পারে। এই প্ল্যাটফর্মে নতুনভাবে বলা লোককথাগুলোকে পুনর্কথন বলে চিহ্নিত করা হয়, যাতে নতুন ভাষায় বলা আর হুবহু উদ্ধৃতির পার্থক্য বোঝা যায়। কোনো বিশ্বস্ত বড় মানুষ চাইলে তাঁকে একটি গল্প শোনাতে বলো।",
         },
       },
     ],
@@ -945,11 +945,11 @@ export const topics: Topic[] = [
         answer: 0,
       },
       {
-        question: { en: "Why does the platform never change stories and poems?", bn: "প্ল্যাটফর্ম কেন গল্প-কবিতা বদলায় না?" },
+        question: { en: "How should a folk-tale retelling be presented on this platform?", bn: "এই প্ল্যাটফর্মে লোককথার পুনর্কথন কীভাবে উপস্থাপন করা উচিত?" },
         options: [
-          { en: "Literature must be shared exactly as it was written", bn: "সাহিত্য যেমন লেখা তেমনই পড়তে হয়" },
-          { en: "Changing them is too much typing", bn: "বদলাতে অনেক টাইপ করতে হয়" },
-          { en: "Stories are secret", bn: "গল্প গোপন জিনিস" },
+          { en: "Clearly labelled as a retelling, with its source tradition acknowledged", bn: "পুনর্কথন বলে স্পষ্ট করে, কোন লোককথা থেকে এসেছে তা জানিয়ে" },
+          { en: "As the original author's exact words", bn: "মূল লেখকের হুবহু ভাষা হিসেবে" },
+          { en: "Without telling readers that it is adapted", bn: "পাঠককে পুনর্কথনের কথা না জানিয়ে" },
         ],
         answer: 0,
       },
@@ -974,14 +974,14 @@ export const topics: Topic[] = [
         heading: { en: "Stories stitched in cloth", bn: "কাপড়ে সেলাই করা গল্প" },
         body: {
           en: "A nakshi kantha is an embroidered quilt made from old saris, stitched with scenes of village life — peacocks, boats, harvests. Poet Jasimuddin's famous verse tale 'Nakshi Kanthar Math' is named after it. Jamdani, a fine hand-woven sari fabric with floating patterns, is so extraordinary that UNESCO recognises the art of weaving it as intangible cultural heritage of humanity.",
-          bn: "নকশি কাঁথা পুরোনো শাড়ি দিয়ে বানানো নকশা-তোলা কাঁথা — তাতে সেলাই করা থাকে গ্রামের জীবন: ময়ূর, নৌকা, ফসল। কবি জসীমউদ্দীনের বিখ্যাত কাব্য ‘নকশী কাঁথার মাঠ’-এর নামও এ থেকেই। আর জামদানি — ভেসে থাকা নকশার সূক্ষ্ম হাতে-বোনা শাড়ি — এতই অসাধারণ যে ইউনেসকো এর বয়নশিল্পকে মানবতার অপরিমেয় সাংস্কৃতিক ঐতিহ্যের স্বীকৃতি দিয়েছে।",
+          bn: "নকশি কাঁথা পুরোনো শাড়ি দিয়ে বানানো নকশা-তোলা কাঁথা — তাতে সেলাই করা থাকে গ্রামের জীবন: ময়ূর, নৌকা, ফসল। কবি জসীমউদ্দীনের বিখ্যাত কাব্য ‘নকশী কাঁথার মাঠ’-এর নামও এ থেকেই। আর জামদানি — ভেসে থাকা নকশার সূক্ষ্ম হাতে-বোনা শাড়ি — এতই অসাধারণ যে ইউনেসকো এর বয়নশিল্পকে মানবতার অমূর্ত সাংস্কৃতিক ঐতিহ্যের স্বীকৃতি দিয়েছে।",
         },
       },
       {
         heading: { en: "Galleries on three wheels", bn: "তিন চাকার চিত্রশালা" },
         body: {
           en: "Bangladesh's rickshaws are rolling art galleries — painted with movie stars, peacocks, flowers and dream cities in blazing colours. In 2023 UNESCO recognised rickshaw painting of Dhaka as intangible heritage too. Potters shape clay toys and shokher hari (painted pots), and weavers' looms click in villages like a country-wide heartbeat.",
-          bn: "বাংলাদেশের রিকশা যেন চলমান চিত্রশালা — জ্বলজ্বলে রঙে আঁকা নায়ক-নায়িকা, ময়ূর, ফুল, স্বপ্নের শহর। ২০২৩ সালে ইউনেসকো ঢাকার রিকশাচিত্রকেও অপরিমেয় ঐতিহ্যের স্বীকৃতি দিয়েছে। কুমোরেরা গড়ে মাটির খেলনা আর শখের হাঁড়ি, গ্রামে গ্রামে তাঁতের খটখট শব্দ যেন দেশের হৃৎস্পন্দন।",
+          bn: "বাংলাদেশের রিকশা যেন চলমান চিত্রশালা — জ্বলজ্বলে রঙে আঁকা নায়ক-নায়িকা, ময়ূর, ফুল, স্বপ্নের শহর। ২০২৩ সালে ইউনেসকো ঢাকার রিকশাচিত্রকেও অমূর্ত ঐতিহ্যের স্বীকৃতি দিয়েছে। কুমোরেরা গড়ে মাটির খেলনা আর শখের হাঁড়ি, গ্রামে গ্রামে তাঁতের খটখট শব্দ যেন দেশের হৃৎস্পন্দন।",
         },
       },
     ],
