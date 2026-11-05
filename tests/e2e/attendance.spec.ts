@@ -81,23 +81,24 @@ test("a teacher takes attendance with one student absent, and the gradebook show
   await nav.getByRole("button", { name: "Results", exact: true }).click();
   const gradebook = page.getByRole("region", { name: "Gradebook", exact: true });
   await expect(gradebook.getByRole("columnheader")).toHaveCount(7);
+  expect((await gradebook.getByRole("columnheader").allTextContents()).slice(0, 4)).toEqual(["Student", "Done", "Average", "Attendance"]);
   const rows = gradebook.getByRole("row");
   await expect(rows).toHaveCount(4);
   await expect(rows.nth(1).getByRole("rowheader")).toContainText(names.arif);
   await expect(rows.nth(2).getByRole("rowheader")).toContainText(names.maya);
   await expect(rows.nth(3).getByRole("rowheader")).toContainText(names.zara);
   const arif = rows.nth(1).getByRole("cell");
-  for (const index of [0, 1, 2]) {
+  for (const index of [3, 4, 5]) {
     await expect(arif.nth(index)).toContainText("—");
     await expect(arif.nth(index)).toHaveClass(/gradebook-missing/);
   }
-  await expect(arif.nth(3)).toHaveText("0/3");
-  await expect(arif.nth(4)).toHaveText("—");
+  await expect(arif.nth(0)).toHaveText("0/3");
+  await expect(arif.nth(1)).toHaveText("—");
   await expect(rows.nth(2)).toContainText("2/2");
-  await expect(rows.nth(2).getByRole("cell").nth(3)).toHaveText("1/3");
-  await expect(rows.nth(2).getByRole("cell").nth(4)).toHaveText("100%");
+  await expect(rows.nth(2).getByRole("cell").nth(0)).toHaveText("1/3");
+  await expect(rows.nth(2).getByRole("cell").nth(1)).toHaveText("100%");
   await expect(rows.nth(3)).toContainText("0/2");
-  await expect(rows.nth(3).getByRole("cell").nth(4)).toHaveText("0%");
+  await expect(rows.nth(3).getByRole("cell").nth(1)).toHaveText("0%");
   await page.getByLabel("Find a student").fill("maya");
   await expect(rows).toHaveCount(2);
   await page.getByLabel("Find a student").fill("");
@@ -175,16 +176,21 @@ test("a teacher takes attendance with one student absent, and the gradebook show
     expect(marks).toEqual([{ name: names.arif, present: 0 }, { name: names.maya, present: 1 }, { name: names.zara, present: 0 }]);
   });
 
-  // The gradebook's attendance column, and a phone-width screen scrolls the table, not the page.
+  // Summary columns precede activities on a computer. On a phone the summary stays with each student.
   await nav.getByRole("button", { name: "Results", exact: true }).click();
-  await expect(rows.nth(1).getByRole("cell").nth(5)).toHaveText("0 of 1");
-  await expect(rows.nth(2).getByRole("cell").nth(5)).toHaveText("1 of 1");
+  await expect(rows.nth(1).getByRole("cell").nth(2)).toHaveText("0 of 1");
+  await expect(rows.nth(2).getByRole("cell").nth(2)).toHaveText("1 of 1");
   await expect(rows.nth(3).getByRole("rowheader")).toContainText(nadia);
-  await expect(rows.nth(3).getByRole("cell").nth(5)).toHaveText("—");
+  await expect(rows.nth(3).getByRole("cell").nth(2)).toHaveText("—");
   await page.setViewportSize({ width: 375, height: 800 });
   await expect(gradebook).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
   expect(await gradebook.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(true);
+  const mobileSummary = rows.nth(2).getByRole("rowheader").locator("dl");
+  await expect(mobileSummary).toBeVisible();
+  await expect(mobileSummary.getByRole("term")).toHaveText(["Done", "Average", "Attendance"]);
+  await expect(mobileSummary.getByRole("definition")).toHaveText(["1/3", "100%", "1 of 1"]);
+  await expect(gradebook).toHaveAccessibleDescription(/arrow keys/);
 
   // Scrolled across, the student names stay at the left edge; scrolled down, the header row stays on top
   // (within a few pixels: without sticky cells they would move by the whole scroll).

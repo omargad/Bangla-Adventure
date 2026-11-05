@@ -99,7 +99,7 @@ export default function LessonReview({ lessonId, language, onChanged }: { lesson
         <p className="adult-eyebrow">{category.icon} {category.title[language]} · {level.code} · {s(`Lesson ${lesson.number}`, `পাঠ ${formatNumber(lesson.number, "bn")}`)}</p>
         <h2>{lesson.title}</h2>
         <p className="lesson-review-title-bn" lang="bn">{lesson.titleBn}</p>
-        <p><span className={lessonStatusClass(approval.status)}>{lessonStatusLabel(approval, language)}</span></p>
+        <p><span className={lessonStatusClass(approval.status, approval.baseline)}>{lessonStatusLabel(approval, language)}</span></p>
         {approval.status === "approved" && approval.baseline && <p className="teach-note">{s(
           "Pre-existing content, approved as a baseline: students could already use this lesson before lesson approval existed. It has not been individually reviewed.",
           "আগে থেকে থাকা বিষয়বস্তু, ভিত্তি হিসেবে অনুমোদিত: পাঠ অনুমোদন চালুর আগেই শিক্ষার্থীরা এই পাঠ ব্যবহার করত। এটি আলাদা করে পর্যালোচনা করা হয়নি।",

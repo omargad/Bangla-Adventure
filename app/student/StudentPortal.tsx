@@ -8,6 +8,8 @@ import { groupByCategory } from "@/lib/topic-model";
 import type { ClassSource } from "@/lib/class-sources";
 import { approvalNotice, type ApprovalStatus } from "@/lib/roles";
 import { scrollToTop } from "@/lib/scroll-to-top";
+import { presentQuizOptions } from "@/lib/quiz-option-order";
+import { isStudentPageTitle, studentPageTitle } from "@/lib/student-page-title";
 import PortalShell from "../components/PortalShell";
 import ClassSourceList from "../references/ClassSourceList";
 
@@ -27,7 +29,7 @@ async function request<T>(url: string, data?: object): Promise<T> {
 export default function StudentPortal({ initialStudent, destination = "/student", initialMode = "sign-in", initialSection = "learning" }: {
   initialStudent: Student | null; destination?: string; initialMode?: "sign-in" | "sign-up"; initialSection?: string;
 }) {
-  const [language, toggleLanguage] = useLanguage({ title: ["Student login | Bangla Adventures", "শিক্ষার্থীর সাইন ইন | Bangla Adventures"] });
+  const [language, toggleLanguage] = useLanguage();
   const s = (en: string, bn: string) => language === "bn" ? bn : en;
   const number = (value: number) => localNumber(value, language);
   const [student, setStudent] = useState(initialStudent);
@@ -51,6 +53,16 @@ export default function StudentPortal({ initialStudent, destination = "/student"
   const [activity, setActivity] = useState<Activity | null>(null);
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [result, setResult] = useState<{ score: number; total: number } | null>(null);
+  const title = studentPageTitle(Boolean(student), activity ? "activities" : section, mode)[language === "bn" ? 1 : 0];
+  useEffect(() => {
+    document.title = title;
+    // Next may stream this route's initial metadata after an in-page tab change.
+    const observer = new MutationObserver(() => {
+      if (document.title !== title && isStudentPageTitle(document.title)) document.title = title;
+    });
+    observer.observe(document.head, { childList: true, subtree: true, characterData: true });
+    return () => observer.disconnect();
+  }, [title]);
   const load = useCallback(async () => {
     try {
       const [nextFeed, nextCatalog] = await Promise.all([request<Feed>("/api/student/feed"), request<Catalog>("/api/curriculum")]);
@@ -145,7 +157,7 @@ export default function StudentPortal({ initialStudent, destination = "/student"
       </section>}
       {activity ? <section className="teach-panel"><button className="text-button" onClick={() => setActivity(null)}>{s("Back to activities", "কার্যক্রমে ফিরি")}</button><h2>{activity.title}</h2><p>{activity.instructions}</p>{activity.topicId && <Link className="outline-button" href={`/topics?topic=${encodeURIComponent(activity.topicId)}`}>{s("Read the learning topic & references", "বিষয় ও তথ্যসূত্র পড়ো")}</Link>}
         {result ? <div role="status"><h3>{s(`You got ${result.score} out of ${result.total}.`, `তুমি ${number(result.total)}টির মধ্যে ${number(result.score)}টি পেরেছ।`)}</h3><p>{s("Your teacher can now see your saved result.", "শিক্ষক এখন তোমার ফলাফল দেখতে পারবেন।")}</p></div> : <form onSubmit={submit}>
-          {activity.questions.map((q, index) => <fieldset className="portal-question" key={index}><legend>{index + 1}. {q.prompt}</legend>{q.options.map((option, optionIndex) => <label key={optionIndex}><input type="radio" name={`question-${index}`} required checked={answers[index] === optionIndex} onChange={() => setAnswers({ ...answers, [index]: optionIndex })} />{option}</label>)}</fieldset>)}
+          {activity.questions.map((q, index) => <fieldset className="portal-question" key={index}><legend>{index + 1}. {q.prompt}</legend>{presentQuizOptions(q.options, `${student.id}:${activity.id}`, index).map(({ text, originalIndex }) => <label key={originalIndex}><input type="radio" name={`question-${index}`} required checked={answers[index] === originalIndex} onChange={() => setAnswers({ ...answers, [index]: originalIndex })} />{text}</label>)}</fieldset>)}
           {error && <p className="auth-error" role="alert">{shownError}</p>}
           <button className="primary-button" disabled={busy}>{busy ? s("Saving…", "সংরক্ষণ হচ্ছে…") : s("Submit answers", "উত্তর জমা দাও")}</button>
         </form>}

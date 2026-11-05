@@ -1,0 +1,123 @@
+.scrollHelp {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: .85rem;
+}
+
+.scroll {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  max-height: min(70vh, 640px);
+  overflow: auto;
+  overscroll-behavior-inline: contain;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: white;
+}
+
+.scroll:focus-visible {
+  outline: 3px solid #075b4c;
+  outline-offset: 3px;
+}
+
+.table {
+  min-width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: .9rem;
+}
+
+.table :is(th, td) {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  white-space: nowrap;
+  background: white;
+}
+
+.table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #f5f5ef;
+  color: #3f5361;
+  font-size: .8rem;
+  vertical-align: bottom;
+}
+
+.table thead th:first-child {
+  left: 0;
+  z-index: 3;
+}
+
+.table tbody th {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  min-width: 8.5rem;
+  max-width: 13rem;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  box-shadow: 1px 0 0 var(--line);
+}
+
+.table tbody th small {
+  display: block;
+  margin-top: 2px;
+  font-weight: 400;
+  font-size: .78rem;
+  color: var(--muted);
+}
+
+.activityTitle {
+  display: block;
+  width: 10rem;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.table td.missing {
+  color: #7b8b91;
+  background: #f7f7f2;
+}
+
+.mobileSummary {
+  display: none;
+}
+
+@media (max-width: 650px) {
+  .table .summaryColumn {
+    display: none;
+  }
+
+  .table tbody th {
+    min-width: 10rem;
+    max-width: 11rem;
+  }
+
+  .mobileSummary {
+    display: grid;
+    gap: 5px;
+    margin: 12px 0 0;
+    font-size: .75rem;
+    font-weight: 400;
+  }
+
+  .mobileSummary div {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .mobileSummary dd {
+    flex-shrink: 0;
+    margin: 0;
+    font-weight: 700;
+  }
+
+  .activityTitle {
+    width: 8rem;
+  }
+}

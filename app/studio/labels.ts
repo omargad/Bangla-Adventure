@@ -11,12 +11,13 @@ const pick = (labels: Record<string, Bilingual>, value: string, language: Langua
 export function lessonStatusLabel(approval: Pick<LessonApproval, "status" | "baseline">, language: Language): string {
   if (approval.status === "withdrawn") return language === "bn" ? "সরিয়ে নেওয়া · শিক্ষার্থীরা দেখে না" : "Withdrawn · hidden from students";
   if (approval.status === "waiting") return language === "bn" ? "অনুমোদনের অপেক্ষায় · শিক্ষার্থীরা দেখে না" : "Waiting for approval · hidden from students";
-  if (approval.baseline) return language === "bn" ? "অনুমোদিত · আগে থেকে থাকা" : "Approved · baseline";
+  if (approval.baseline) return language === "bn" ? "চালু · পর্যালোচনা বাকি" : "Available · review pending";
   return language === "bn" ? "অনুমোদিত" : "Approved";
 }
 
 /** The chip colour classes shared with the topics area. */
-export function lessonStatusClass(status: LessonStatus): string {
+export function lessonStatusClass(status: LessonStatus, baseline = false): string {
+  if (status === "approved" && baseline) return "topic-status topic-status-pending";
   return status === "approved" ? "topic-status topic-status-approved" : status === "withdrawn" ? "topic-status topic-status-rejected" : "topic-status topic-status-pending";
 }
 

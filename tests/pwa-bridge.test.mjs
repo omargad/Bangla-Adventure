@@ -6,6 +6,7 @@ import { renderToString } from "react-dom/server";
 import ts from "typescript";
 
 const { default: PwaBridge } = await import("../app/components/PwaBridge.tsx");
+const { studentPageTitle } = await import("../lib/student-page-title.ts");
 
 test("the server renders an empty live region and no offline banner, even though Node's navigator has no onLine", () => {
   // The region is in the first markup so screen readers announce the banner when it appears later.
@@ -166,6 +167,22 @@ test("Bangla tab titles belong to their page: the English half is the page's own
     const parts = [...source.matchAll(/from "\.\/([^"]+)"/g)].map((match) => `${directory}${match[1]}.tsx`).filter((file) => appFiles.includes(file) && read(file).includes("useLanguage("));
     if (source.includes("<PageTitle")) parts.push(page);
     for (const part of parts) {
+      if (page === "student/page.tsx" && part === "student/StudentPortal.tsx") {
+        // This portal changes sections without navigating. Both server metadata and
+        // client tab/language changes must use the same bilingual title contract.
+        assert.match(source, /title: studentPageTitle\(Boolean\(student\), section, mode\)\[language === "bn" \? 1 : 0\]/);
+        const client = read(part);
+        assert.match(client, /const title = studentPageTitle\(Boolean\(student\), activity \? "activities" : section, mode\)\[language === "bn" \? 1 : 0\]/);
+        assert.match(client, /document\.title = title/);
+        for (const [signedIn, section, mode, expected] of [
+          [false, "learning", "sign-in", ["Student login | Bangla Adventures", "শিক্ষার্থীর সাইন ইন | Bangla Adventures"]],
+          [false, "learning", "sign-up", ["Create student account | Bangla Adventures", "শিক্ষার্থীর অ্যাকাউন্ট তৈরি | Bangla Adventures"]],
+          [true, "learning", "sign-in", ["My Learning | Bangla Adventures", "আমার শেখা | Bangla Adventures"]],
+          [true, "activities", "sign-in", ["My activities | Bangla Adventures", "আমার কার্যক্রম | Bangla Adventures"]],
+          [true, "results", "sign-in", ["My results | Bangla Adventures", "আমার ফলাফল | Bangla Adventures"]],
+        ]) assert.deepEqual(studentPageTitle(signedIn, section, mode), expected);
+        continue;
+      }
       const given = read(part).match(/useLanguage\(\{[^}]*\btitle: ([^}]*?)\s*\}\)|<PageTitle title=\{(\[[^\]]*\])\}/);
       assert.ok(given, `app/${part} gives no Bangla tab title for app/${page}`);
       const title = given[1] ?? given[2];
