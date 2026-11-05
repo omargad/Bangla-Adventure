@@ -4,9 +4,11 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import Database from "better-sqlite3";
+import { createLegacyContentFixture, seedLegacyLessonApprovals, legacyContent } from "./helpers/publish-shipped-fixture.mjs";
 
 const dir = mkdtempSync(path.join(tmpdir(), "bangla-topic-approval-"));
 process.env.DATABASE_PATH = path.join(dir, "test.db");
+createLegacyContentFixture(process.env.DATABASE_PATH);
 const { getDb } = await import("../db/index.ts");
 const { adults, students, classes, classStudents, studentClassEnrollments, userAuditEvents } = await import("../db/schema.ts");
 const { bootstrapSql } = await import("../db/bootstrap.ts");
@@ -121,6 +123,13 @@ test("a teacher's new topic stays hidden from learners until an administrator ap
   const shippedCount = (await catalog.getCatalog()).length;
   assert.equal(shippedCount, shipped.length);
   assert.ok((await catalog.getCatalog()).every((topic) => topic.baseline && topic.version === 0), "shipped topics are the approved baseline");
+  const inheritedTopics = (await catalog.getCatalog()).map((topic) => {
+    const content = { ...topic };
+    delete content.version; delete content.baseline; delete content.approvedAt;
+    return content;
+  });
+  assert.deepEqual(inheritedTopics, legacyContent.topics, "learner content remains the frozen legacy release until each new revision is approved");
+  assert.equal((await catalog.listStaffTopics()).filter((topic) => topic.pendingVersions.length).length, 9, "the nine corrected source topics wait separately for Admin review");
   await assert.rejects(catalog.createTopic("parent", draft()), (error) => error.status === 403);
   await assert.rejects(catalog.createTopic("pending", draft()), (error) => error.status === 403);
   await assert.rejects(catalog.createTopic("author", draft({ title: pair("", "চা") })), (error) => error.status === 400);
@@ -321,10 +330,14 @@ test("the content migration adds its table and columns and preserves earlier edi
   sqlite.prepare("INSERT INTO topic_updates (topic_id, data_json, version, updated_at) VALUES (?, ?, ?, ?)").run(shipped[1].id, "{not json", 1, "2026-10-01T10:00:00.000Z");
   sqlite.prepare("INSERT INTO students (id, username, display_name, password_hash) VALUES ('s', 's', 'S', 'x')").run();
   sqlite.prepare("INSERT INTO student_topic_progress (student_id, topic_id) VALUES ('s', ?)").run(shipped[0].id);
+  seedLegacyLessonApprovals(sqlite);
   migrateContent(sqlite);
   migrateContent(sqlite);
-  const rows = sqlite.prepare("SELECT * FROM topic_versions ORDER BY topic_id = ? DESC").all(shipped[0].id);
+  const rows = sqlite.prepare("SELECT * FROM topic_versions WHERE baseline = 1 ORDER BY topic_id = ? DESC").all(shipped[0].id);
   assert.equal(rows.length, 2);
+  const candidates = sqlite.prepare("SELECT * FROM topic_versions WHERE baseline = 0").all();
+  assert.equal(candidates.length, 9);
+  assert.ok(candidates.every((row) => row.status === "pending" && row.created_by === null && row.reviewed_by === null), "new source candidates are separate from historical edits and have no invented reviewer");
   assert.equal(rows[0].topic_id, shipped[0].id);
   assert.equal(rows[0].status, "pending", "saving a legacy edit is not proof of administrator review");
   assert.equal(rows[0].reviewed_by, null);
@@ -333,13 +346,14 @@ test("the content migration adds its table and columns and preserves earlier edi
   assert.equal(rows[0].created_by, "new-admin", "the administrator who saved the edit last is credited");
   assert.equal(rows[1].created_by, null, "an author whose account is gone is not guessed");
   // An edit carried over before authors were credited gets its author on the next start.
-  sqlite.prepare("UPDATE topic_versions SET created_by = NULL").run();
+  sqlite.prepare("UPDATE topic_versions SET created_by = NULL WHERE baseline = 1").run();
   migrateContent(sqlite);
-  assert.deepEqual(sqlite.prepare("SELECT created_by FROM topic_versions ORDER BY topic_id = ? DESC").all(shipped[0].id).map((row) => row.created_by), ["new-admin", null]);
+  assert.deepEqual(sqlite.prepare("SELECT created_by FROM topic_versions WHERE baseline = 1 ORDER BY topic_id = ? DESC").all(shipped[0].id).map((row) => row.created_by), ["new-admin", null]);
+  assert.equal(sqlite.prepare("SELECT count(*) AS n FROM topic_versions").get().n, 11, "repeat migration neither reimports edits nor duplicates pending candidates");
   const data = JSON.parse(rows[0].data_json);
   assert.equal(data.title.en, "An earlier admin title");
   assert.equal(data.theme, shipped[0].theme);
-  assert.deepEqual(data.quiz, shipped[0].quiz);
+  assert.deepEqual(data.quiz, legacyContent.topics.find((topic) => topic.id === shipped[0].id).quiz, "the old importer retains the quiz of its original release");
   assert.equal("id" in data, false);
   const progress = sqlite.prepare("SELECT * FROM student_topic_progress").get();
   assert.equal(progress.quiz_best_score, null);
@@ -407,7 +421,8 @@ test("a withdrawn topic leaves every learner path until it is approved again; a 
 
   // Approving an edit of a withdrawn topic also shows it again, as the new version.
   await catalog.decideTopic("reviewer", id, { decision: "withdraw", note: "Fixing the craft name." });
-  const { version } = await catalog.submitTopicEdit("author", id, { ...draft({ theme: before.theme, emoji: before.emoji }), title: pair("Crafts of Bengal (corrected)", before.title.bn), baseVersion: 0 });
+  const currentHead = (await catalog.getStaffTopic(id)).head.version;
+  const { version } = await catalog.submitTopicEdit("author", id, { ...draft({ theme: before.theme, emoji: before.emoji }), title: pair("Crafts of Bengal (corrected)", before.title.bn), baseVersion: currentHead });
   assert.equal((await learnerIds()).includes(id), false, "a waiting edit does not show a withdrawn topic");
   await catalog.reviewTopicVersion("reviewer", id, version, { decision: "approve", confirmedRead: true });
   const shown = await catalog.findApprovedTopic(id);

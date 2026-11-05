@@ -1,4 +1,4 @@
-export type PresentedQuizOption = { text: string; originalIndex: number };
+export type PresentedQuizOption<T = string> = { text: T; originalIndex: number };
 
 /**
  * Vary where authored options appear without changing their stored indexes.
@@ -7,7 +7,7 @@ export type PresentedQuizOption = { text: string; originalIndex: number };
  * does not teach learners to always choose the first visible option.
  * This is presentation only: the server still grades the original indexes.
  */
-export function presentQuizOptions(options: readonly string[], learnerActivityKey: string, questionIndex: number): PresentedQuizOption[] {
+export function presentQuizOptions<T>(options: readonly T[], learnerActivityKey: string, questionIndex: number): PresentedQuizOption<T>[] {
   if (!options.length) return [];
   let hash = 2166136261;
   for (const character of learnerActivityKey) hash = Math.imul(hash ^ character.charCodeAt(0), 16777619) >>> 0;

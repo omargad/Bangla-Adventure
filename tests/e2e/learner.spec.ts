@@ -109,17 +109,18 @@ test("Bangla mode reaches the tab title and labels on signed-in pages, including
   // The language button is marked with the language its own label is in.
   await expect(page.locator(".portal-topbar").getByRole("button", { name: "English", exact: true })).toHaveAttribute("lang", "en");
 
-  // Server-rendered pages take the language from the portal around them; their English-only content stays marked English.
+  // Shared resources retain language tags, and worksheets use the reviewed Bangla copy.
   const nearestLang = (selector: string) => page.locator(selector).first().evaluate((element) => element.closest("[lang]")?.getAttribute("lang"));
   await page.goto("/worksheets");
   await expect(page).toHaveTitle("প্রিন্ট করার ওয়ার্কশিট | Bangla Adventures");
   await expect(page.locator(".adult-header nav")).toHaveAttribute("aria-label", "প্ল্যাটফর্মের তথ্য");
   await expect(page.getByRole("heading", { level: 1, name: "প্রতিটি পাঠের জন্য একটি প্রিন্ট করার ওয়ার্কশিট।" })).toBeVisible();
-  expect(await nearestLang(".worksheet-band > p")).toBe("en");
+  expect(await nearestLang(".worksheet-band > p")).toBe("bn");
   await page.goto("/worksheets/hello-me");
-  expect(await nearestLang(".worksheet-cando")).toBe("en");
+  expect(await nearestLang(".worksheet-cando")).toBe("bn");
+  await expect(page.locator(".worksheet-cando")).toContainText("লক্ষ্য:");
   await expect(page.locator(".worksheet-trace").first()).toHaveAttribute("aria-label", "লেখা অনুশীলনের জায়গা");
-  await expect(page.locator(".worksheet-trace").first()).toHaveAttribute("lang", "bn");
+  expect(await nearestLang(".worksheet-trace")).toBe("bn");
   await page.goto("/books");
   await expect(page).toHaveTitle("এনসিটিবি Book Bridge | Bangla Adventures");
   await expect(page.getByRole("region", { name: "এনসিটিবি যাচাইয়ের সারাংশ" })).toHaveAttribute("lang", "bn");
@@ -607,7 +608,7 @@ test("on a tall tablet screen the lesson's close button stays in its corner, cle
   }
 });
 
-// Students now see only approved topics, so the draft notices are gone; the textbook sources stay.
+// Students see approved content and related reading without an unverified provenance claim.
 test("approved topics appear by category without draft notices", async ({ page }) => {
   await page.goto("/topics");
   await expect(page.getByRole("region", { name: "Our country — symbols, rivers & nature" }).getByRole("button", { name: /Symbols of Bangladesh/ })).toBeVisible();
@@ -616,5 +617,6 @@ test("approved topics appear by category without draft notices", async ({ page }
   await page.getByRole("button", { name: /Ekushey — the day a language was defended/i }).click();
   await expect(page.getByRole("heading", { level: 1, name: /Ekushey/ })).toBeVisible();
   await expect(page.getByText(/Draft for educator review/i)).toHaveCount(0);
-  await expect(page.getByText(/This topic is linked to these NCTB government textbooks/i)).toBeVisible();
+  await expect(page.getByRole("region", { name: "Learning references" })).toBeVisible();
+  await expect(page.getByText("These NCTB textbooks are related reading. An administrator must verify the relevant edition and page or section.", { exact: true })).toBeVisible();
 });

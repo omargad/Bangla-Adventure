@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import LessonExperience, { lessonSteps, type LessonStep } from "@/app/components/LessonExperience";
 import VoiceNote from "@/app/components/VoiceNote";
-import { lessons, levelBands } from "@/app/curriculum";
+import { levelBands } from "@/app/curriculum";
+import type { LessonSnapshot } from "@/lib/lesson-content";
 import type { Bilingual } from "@/app/topics-content";
 import { call, failure } from "@/app/teach/topics/shared";
 import { lessonCategory, LESSON_NOTE_LIMIT, type LearnerVideo } from "@/lib/lesson-model";
@@ -18,9 +19,12 @@ import SpecialistChecks, { type SpecialistCheck } from "./SpecialistChecks";
 type HistoryEntry = { status: "approved" | "withdrawn"; baseline: boolean; changedByName: string | null; changedAt: string; note: string };
 export type LessonDetail = {
   approval: LessonApproval; history: HistoryEntry[]; recordings: Recording[];
+  snapshot: LessonSnapshot; approvedSnapshot: LessonSnapshot | null; contentFingerprint: string;
+  pendingRevision: { version: number; fingerprint: string } | null;
+  revisions: Array<{ version: number; status: string; reviewedAt: string | null; reviewNote: string }>;
   /** The recording learners hear for each part, chosen on the server exactly as /api/audio chooses it. */
   learnerRecordings: RecordingMap;
-  video: VideoCheckRecord | null; learnerVideo: LearnerVideo | null; specialistChecks: SpecialistCheck[];
+  video: VideoCheckRecord | null; learnerVideo: LearnerVideo | null; candidateVideo: LearnerVideo | null; specialistChecks: SpecialistCheck[];
 };
 
 /**
@@ -30,8 +34,6 @@ export type LessonDetail = {
  */
 export default function LessonReview({ lessonId, language, canApprove, onChanged }: { lessonId: string; language: Language; canApprove: boolean; onChanged: () => void }) {
   const s = (en: string, bn: string) => (language === "bn" ? bn : en);
-  const lesson = lessons.find((item) => item.id === lessonId)!;
-  const level = levelBands.find((band) => band.id === lesson.level)!;
   const [detail, setDetail] = useState<LessonDetail | null>(null);
   const [error, setError] = useState<Bilingual | null>(null);
   const [message, setMessage] = useState<Bilingual | null>(null);
@@ -41,14 +43,20 @@ export default function LessonReview({ lessonId, language, canApprove, onChanged
   const [approveNote, setApproveNote] = useState("");
   const [withdrawNote, setWithdrawNote] = useState("");
   const [busy, setBusy] = useState(false);
+  const loadedFingerprint = useRef<string | null>(null);
+  const acceptDetail = useCallback((next: LessonDetail) => {
+    if (loadedFingerprint.current !== next.contentFingerprint) { setViewed([]); setConfirmed(false); }
+    loadedFingerprint.current = next.contentFingerprint;
+    setDetail(next);
+  }, []);
 
   const url = `/api/studio/lessons/${encodeURIComponent(lessonId)}`;
-  const load = () => call<LessonDetail>(url).then(setDetail).catch((caught) => setError(failure(caught)));
+  const load = () => call<LessonDetail>(url).then(acceptDetail).catch((caught) => setError(failure(caught)));
   useEffect(() => {
     const controller = new AbortController();
-    call<LessonDetail>(url, { signal: controller.signal }).then(setDetail).catch((caught) => { if (!controller.signal.aborted) setError(failure(caught)); });
+    call<LessonDetail>(url, { signal: controller.signal }).then(acceptDetail).catch((caught) => { if (!controller.signal.aborted) setError(failure(caught)); });
     return () => controller.abort();
-  }, [url]);
+  }, [url, acceptDetail]);
 
   const markViewed = useCallback((step: LessonStep) => setViewed((current) => (current.includes(step) ? current : [...current, step])), []);
   const allViewed = lessonSteps.every((step) => viewed.includes(step));
@@ -58,9 +66,9 @@ export default function LessonReview({ lessonId, language, canApprove, onChanged
     const wasVisible = detail.approval.status === "approved";
     setBusy(true); setError(null); setMessage(null);
     try {
-      const body = decision === "approve" ? { decision, note: approveNote, confirmedRead: confirmed } : { decision, note: withdrawNote };
+      const body = decision === "approve" ? { decision, note: approveNote, confirmedRead: confirmed, contentFingerprint: detail.contentFingerprint } : { decision, note: withdrawNote };
       const next = await call<LessonDetail>(url, { method: "POST", body: JSON.stringify(body) });
-      setDetail(next);
+      acceptDetail(next);
       setMessage(decision === "withdraw"
         ? { en: "Withdrawn. Students and parents no longer see this lesson.", bn: "সরিয়ে নেওয়া হয়েছে। শিক্ষার্থী ও অভিভাবকেরা আর এই পাঠ দেখবে না।" }
         : wasVisible
@@ -68,7 +76,7 @@ export default function LessonReview({ lessonId, language, canApprove, onChanged
           : { en: "Approved. Students can open this lesson again.", bn: "অনুমোদিত। শিক্ষার্থীরা আবার এই পাঠ খুলতে পারবে।" });
       setConfirmed(false); setApproveNote(""); setWithdrawNote("");
       onChanged();
-    } catch (caught) { setError(failure(caught)); }
+    } catch (caught) { setError(failure(caught)); setConfirmed(false); setViewed([]); void load(); }
     finally { setBusy(false); }
   }
 
@@ -77,6 +85,8 @@ export default function LessonReview({ lessonId, language, canApprove, onChanged
   }
 
   const { approval } = detail;
+  const lesson = detail.snapshot.lesson;
+  const level = levelBands.find((band) => band.id === lesson.level)!;
   const who = (name: string | null) => name ?? s("a former staff member", "একজন সাবেক কর্মী");
   const category = lessonCategory(lesson.category);
   const baselineOnly = approval.status === "approved" && approval.baseline;
@@ -90,7 +100,7 @@ export default function LessonReview({ lessonId, language, canApprove, onChanged
       <textarea rows={2} maxLength={LESSON_NOTE_LIMIT} value={approveNote} onChange={(event) => setApproveNote(event.target.value)} />
     </label>
     <div className="access-actions">
-      <button type="button" className="primary-button" disabled={!confirmed || busy} onClick={() => void decide("approve")}>{baselineOnly ? s("Confirm my review", "আমার পর্যালোচনা নিশ্চিত করুন") : s("Approve for students", "শিক্ষার্থীদের জন্য অনুমোদন দিন")}</button>
+      <button type="button" className="primary-button" disabled={!confirmed || busy} onClick={() => void decide("approve")}>{detail.pendingRevision ? s("Approve revision for students", "শিক্ষার্থীদের জন্য সংস্করণ অনুমোদন দিন") : baselineOnly ? s("Confirm my review", "আমার পর্যালোচনা নিশ্চিত করুন") : s("Approve for students", "শিক্ষার্থীদের জন্য অনুমোদন দিন")}</button>
     </div>
   </>;
   return (
@@ -107,6 +117,7 @@ export default function LessonReview({ lessonId, language, canApprove, onChanged
         {approval.status === "approved" && !approval.baseline && approval.changedAt && <p className="teach-note">{s(`Approved by ${who(approval.changedByName)}, ${formatWhen(approval.changedAt, language)}.`, `${who(approval.changedByName)} অনুমোদন করেছেন, ${formatWhen(approval.changedAt, language)}।`)}</p>}
         {approval.status === "withdrawn" && approval.changedAt && <p className="teach-note">{s(`Withdrawn by ${who(approval.changedByName)}, ${formatWhen(approval.changedAt, language)}: `, `${who(approval.changedByName)} সরিয়ে নিয়েছেন, ${formatWhen(approval.changedAt, language)}: `)}<q>{approval.note}</q></p>}
         {approval.status === "waiting" && <p className="teach-note">{s("Nobody has approved this lesson yet, so students cannot see it.", "এই পাঠ এখনো কেউ অনুমোদন করেননি, তাই শিক্ষার্থীরা এটি দেখতে পায় না।")}</p>}
+        {detail.pendingRevision && <p className="teach-note">{s(`Revision ${detail.pendingRevision.version} is waiting for Admin review. Learners keep the previously published content until this revision is approved.`, `সংস্করণ ${formatNumber(detail.pendingRevision.version, "bn")} প্রশাসকের পর্যালোচনার অপেক্ষায়। অনুমোদন না হওয়া পর্যন্ত শিক্ষার্থীরা আগের প্রকাশিত বিষয়বস্তুই দেখবে।`)}</p>}
         {!canApprove && <p className="teach-note">{s("You can preview the lesson and submit recordings. Only administrators can approve, withdraw or restore lessons and choose the media students receive.", "আপনি পাঠের প্রিভিউ দেখতে ও রেকর্ডিং জমা দিতে পারেন। শুধু প্রশাসকেরা পাঠ অনুমোদন, সরিয়ে নেওয়া বা আবার চালু করতে এবং শিক্ষার্থীদের জন্য মিডিয়া বেছে নিতে পারেন।")}</p>}
         {message && <p className="teach-message" role="status">{message[language]}</p>}
       </section>
@@ -121,20 +132,20 @@ export default function LessonReview({ lessonId, language, canApprove, onChanged
           </div>
         </div>
         <p className="teach-note">{s(
-          "This is the lesson exactly as students get it, with the Bangla transcripts, the English support and the correct answers shown so you can check them. Nothing you do here is saved. Sound plays what students hear: an approved human recording when there is one, otherwise a computer voice; a note at the bottom says which voice is playing.",
-          "শিক্ষার্থীরা যেভাবে পায় পাঠটি ঠিক সেভাবে দেখানো হচ্ছে; যাচাইয়ের জন্য বাংলা লেখা, ইংরেজি সহায়তা ও সঠিক উত্তর খোলা আছে। এখানে কিছুই সংরক্ষণ হয় না। শিক্ষার্থীরা যা শোনে তা-ই বাজে: অনুমোদিত মানুষের রেকর্ডিং থাকলে সেটি, না থাকলে কম্পিউটারের কণ্ঠ; নিচের ছোট নোটে লেখা থাকে কোন কণ্ঠ বাজছে।",
+          "This is the candidate revision for review, with the Bangla transcripts, English support and correct answers shown so you can check them. Pending changes reach learners only after Admin approval. Nothing you do here is saved. Sound plays what students hear: an approved human recording when there is one, otherwise a computer voice; a note at the bottom says which voice is playing.",
+          "পর্যালোচনার জন্য প্রস্তাবিত সংস্করণ দেখানো হচ্ছে; যাচাইয়ের জন্য বাংলা লেখা, ইংরেজি সহায়তা ও সঠিক উত্তর খোলা আছে। প্রশাসকের অনুমোদনের পরই পরিবর্তন শিক্ষার্থীদের কাছে পৌঁছাবে। এখানে কিছুই সংরক্ষণ হয় না। শিক্ষার্থীরা যা শোনে তা-ই বাজে: অনুমোদিত মানুষের রেকর্ডিং থাকলে সেটি, না থাকলে কম্পিউটারের কণ্ঠ; নিচের ছোট নোটে লেখা থাকে কোন কণ্ঠ বাজছে।",
         )}</p>
-        <PreviewPlayer lessonId={lessonId} language={previewLanguage} video={detail.learnerVideo} recordings={detail.learnerRecordings} level={level} onStepView={markViewed} />
+        <PreviewPlayer key={detail.contentFingerprint} snapshot={detail.snapshot} language={previewLanguage} video={detail.candidateVideo} recordings={detail.learnerRecordings} level={level} onStepView={markViewed} />
       </section>
 
       {canApprove && <section className="teach-panel topic-decision" aria-label={s("Your decision", "আপনার সিদ্ধান্ত")}>
         <h3>{s("Your decision", "আপনার সিদ্ধান্ত")}</h3>
         {approval.status === "approved" ? <>
-          {baselineOnly && <>
+          {(baselineOnly || detail.pendingRevision) && <>
             <h4>{s("Confirm your review", "আপনার পর্যালোচনা নিশ্চিত করুন")}</h4>
             <p className="teach-note">{s(
-              "Nobody has reviewed this lesson individually yet. Open every part of it in the preview above and read it in English and in Bangla, then confirm: students keep seeing it and the lesson is approved under your name.",
-              "এই পাঠ এখনো কেউ আলাদা করে পর্যালোচনা করেননি। ওপরের প্রিভিউতে পাঠের প্রতিটি অংশ খুলে ইংরেজি ও বাংলায় পড়ুন, তারপর নিশ্চিত করুন: শিক্ষার্থীরা পাঠটি দেখতেই থাকবে এবং আপনার নামে অনুমোদন লেখা থাকবে।",
+              "Open every part of the candidate revision and read it in English and Bangla. Approving publishes this exact revision under your name; a pending revision does not inherit an earlier review.",
+              "প্রস্তাবিত সংস্করণের প্রতিটি অংশ খুলে ইংরেজি ও বাংলায় পড়ুন। অনুমোদন দিলে এই সংস্করণটি আপনার নামে প্রকাশিত হবে; আগের পর্যালোচনা নতুন সংস্করণে প্রযোজ্য নয়।",
             )}</p>
             {reviewForm}
             <h4>{s("Or withdraw it", "অথবা সরিয়ে নিন")}</h4>
@@ -159,8 +170,14 @@ export default function LessonReview({ lessonId, language, canApprove, onChanged
         {error && <p className="auth-error" role="alert">{error[language]}</p>}
       </section>}
 
+      {detail.pendingRevision && detail.approvedSnapshot && <details className="teach-panel">
+        <summary>{s("Compare the currently published version", "বর্তমানে প্রকাশিত সংস্করণের সঙ্গে তুলনা করুন")}</summary>
+        <PreviewPlayer snapshot={detail.approvedSnapshot} language={previewLanguage} video={detail.approvedSnapshot.lesson.video} recordings={detail.learnerRecordings} level={level} onStepView={() => undefined} />
+      </details>}
+
       <section className="teach-panel" aria-label={s("Approval history", "অনুমোদনের ইতিহাস")}>
         <h3>{s("Approval history", "অনুমোদনের ইতিহাস")}</h3>
+        <ul>{detail.revisions.map((revision) => <li key={revision.version}>{s("Revision", "সংস্করণ")} {formatNumber(revision.version, language)} · {revision.status}{revision.reviewedAt ? ` · ${formatWhen(revision.reviewedAt, language)}` : ""}{revision.reviewNote ? ` · ${revision.reviewNote}` : ""}</li>)}</ul>
         {detail.history.length === 0 ? <p>{s("No decisions yet.", "এখনো কোনো সিদ্ধান্ত হয়নি।")}</p> : <div className="portal-table"><table>
           <thead><tr><th>{s("When", "কখন")}</th><th>{s("Decision", "সিদ্ধান্ত")}</th><th>{s("By", "কে")}</th><th>{s("Note", "নোট")}</th></tr></thead>
           <tbody>{detail.history.map((entry, index) => (
@@ -175,7 +192,7 @@ export default function LessonReview({ lessonId, language, canApprove, onChanged
       </section>
 
       <LessonRecordings lessonId={lessonId} language={language} recordings={detail.recordings} canApprove={canApprove} onChanged={() => { void load(); onChanged(); }} />
-      <VideoCheck lessonId={lessonId} language={language} check={detail.video} learnerVideo={detail.learnerVideo} canApprove={canApprove} onChanged={() => { void load(); onChanged(); }} />
+      <VideoCheck key={detail.contentFingerprint} lessonId={lessonId} language={language} candidateVideoId={detail.snapshot.lesson.video.id} sourceVideo={detail.snapshot.lesson.video} contentFingerprint={detail.contentFingerprint} check={detail.video} learnerVideo={detail.learnerVideo} canApprove={canApprove} onChanged={() => { void load(); onChanged(); }} />
       <SpecialistChecks lessonId={lessonId} language={language} checks={detail.specialistChecks} onChanged={() => void load()} />
     </>
   );
@@ -186,16 +203,15 @@ export default function LessonReview({ lessonId, language, canApprove, onChanged
  * students hear (lib/voice-playback.ts), starting with the lesson's approved
  * human recordings; nothing is awarded or saved.
  */
-function PreviewPlayer({ lessonId, language, video, recordings, level, onStepView }: {
-  lessonId: string; language: Language; video: LearnerVideo | null; recordings: RecordingMap; level: (typeof levelBands)[number]; onStepView: (step: LessonStep) => void;
+function PreviewPlayer({ snapshot, language, video, recordings, level, onStepView }: {
+  snapshot: LessonSnapshot; language: Language; video: LearnerVideo | null; recordings: RecordingMap; level: (typeof levelBands)[number]; onStepView: (step: LessonStep) => void;
 }) {
-  const lesson = lessons.find((item) => item.id === lessonId)!;
   const voice = useVoicePlayer(recordings);
 
   return (
     <div className="lesson-preview-frame" lang={language}>
       <LessonExperience
-        lesson={lesson} video={video} preview onStepView={onStepView} level={level} language={language} completed={[]}
+        snapshot={snapshot} video={video} preview onStepView={onStepView} level={level} language={language} completed={[]}
         soundEnabled isSpeaking={voice.speakingKey !== null} voiceStatus={voice.status} onSpeak={(text, lang = "bn-BD", clip) => voice.speak(text, { lang, clip })} onStopAudio={voice.stop}
         onAward={() => undefined} onCue={() => undefined}
         onClose={() => scrollToTop("smooth")}

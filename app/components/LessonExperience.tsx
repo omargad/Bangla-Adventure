@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import type { Lesson } from "../curriculum";
-import { lessonExtensions, lessonSessionSkills, type LearningSkill, type QuickCheck } from "../learning-content";
+import type { LearningSkill, QuickCheck } from "../learning-content";
+import { localizeLesson, localizeLessonExtension, lessonTextLanguage } from "../lesson-locales/presentation";
+import type { LessonSupportModel } from "../lesson-locales";
+import type { LessonSnapshot } from "../../lib/lesson-content";
 import type { LearnerVideo } from "../../lib/lesson-model";
 import { lessonClip, voiceStatusText, type Clip, type VoiceStatus } from "../../lib/voice-playback";
 import { localNumber } from "../../lib/local-format";
@@ -20,8 +22,9 @@ type LevelBand = {
 };
 
 type LessonExperienceProps = {
-  lesson: Lesson;
-  /** The video learners get after a teacher's video check; null when it was taken down without a replacement. */
+  /** The approved revision for learners, or the explicit candidate revision in staff preview. */
+  snapshot: LessonSnapshot;
+  /** The video learners get after an administrator's video decision; null when unavailable. */
   video?: LearnerVideo | null;
   /** Staff preview in the Studio: transcripts, scaffolds and answers start visible and nothing is saved. */
   preview?: boolean;
@@ -50,6 +53,7 @@ export const lessonSteps: LessonStep[] = [
   "culture",
   "mastery",
 ];
+const lessonSessionSkills = lessonSteps.filter((step): step is LearningSkill => step !== "overview");
 
 const labels: Record<Language, Record<LessonStep, string>> = {
   en: {
@@ -137,6 +141,29 @@ function PreviewAnswer({ language }: { language: Language }) {
   return <em className="preview-answer"> ✓ {paired(language, "correct answer", "সঠিক উত্তর")}</em>;
 }
 
+/** Text reference only: it deliberately has no listening controls or invented clip IDs. */
+export function LessonWrittenSupport({ model, language, showEnglish = false }: { model: LessonSupportModel; language: Language; showEnglish?: boolean }) {
+  return (
+    <section className="lesson-word-bank lesson-written-reference" aria-label={model.title[language]} lang={language}>
+      <h4>{model.title[language]}</h4>
+      <p>{model.note[language]}</p>
+      {model.groups.map((group) => (
+        <div key={group.title.en}>
+          <h5>{group.title[language]}</h5>
+          <dl className="written-model-grid">
+            {group.items.map((item) => (
+              <div key={item.bn}>
+                <dt>{item.value !== undefined && <span>{localNumber(item.value, language)} · </span>}<strong lang="bn">{item.bn}</strong></dt>
+                <dd><span lang="bn-Latn">/{item.transliteration}/</span>{(language === "en" || showEnglish) && <small lang="en">{item.en}</small>}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      ))}
+    </section>
+  );
+}
+
 function QuickCheckCard({
   language,
   check,
@@ -159,7 +186,7 @@ function QuickCheckCard({
   return (
     <section className="session-check" aria-label={s("Quick check", "ছোট যাচাই")}>
       <p className="modal-kicker">{paired(language, "Quick check", "ছোট যাচাই")}</p>
-      <h4 lang="en">{mixed(check.prompt)}</h4>
+      <h4 lang={language}>{mixed(check.prompt)}</h4>
       <div className="session-check-options">
         {check.options.map((option, index) => (
           <button
@@ -169,17 +196,17 @@ function QuickCheckCard({
             aria-pressed={answer === index}
             onClick={() => onAnswer(index)}
           >
-            <span>{optionLetter(index, language)}</span><span lang="en">{mixed(option)}</span>{showAnswer && index === check.answer && <PreviewAnswer language={language} />}
+            <span>{optionLetter(index, language)}</span><span lang={language}>{mixed(option)}</span>{showAnswer && index === check.answer && <PreviewAnswer language={language} />}
           </button>
         ))}
       </div>
-      {showAnswer && <p className="preview-answer-note" lang="en">{mixed(check.explanation)}</p>}
+      {showAnswer && <p className="preview-answer-note" lang={language}>{mixed(check.explanation)}</p>}
       <button className="outline-button compact-button" type="button" onClick={onSubmit}>
         {s("Check this answer", "উত্তরটা যাচাই করি")}
       </button>
       {submitted && (
         <p className={`session-feedback ${correct ? "success" : "retry"}`} role="status">
-          <strong>{correct ? s("✓ That’s it.", "✓ ঠিক হয়েছে।") : s("↻ Try once more.", "↻ আর একবার চেষ্টা করো।")}</strong> <span lang="en">{mixed(check.explanation)}</span>
+          <strong>{correct ? s("✓ That’s it.", "✓ ঠিক হয়েছে।") : s("↻ Try once more.", "↻ আর একবার চেষ্টা করো।")}</strong> <span lang={language}>{mixed(check.explanation)}</span>
         </p>
       )}
     </section>
@@ -187,7 +214,7 @@ function QuickCheckCard({
 }
 
 export default function LessonExperience({
-  lesson,
+  snapshot,
   video: learnerVideo,
   preview = false,
   onStepView,
@@ -203,10 +230,12 @@ export default function LessonExperience({
   onCue,
   onClose,
 }: LessonExperienceProps) {
-  const extension = lessonExtensions[lesson.id];
+  const lesson = localizeLesson(snapshot.lesson, language, snapshot.banglaCopy);
+  const extension = localizeLessonExtension(snapshot.extension, language, snapshot.banglaCopy);
+  const textLanguage = lessonTextLanguage(language, snapshot.banglaCopy);
   const s = (en: string, bn: string) => (language === "bn" ? bn : en);
   const voiceText = voiceStatusText(voiceStatus, language);
-  const video: LearnerVideo | null = learnerVideo === undefined ? lesson.video : learnerVideo;
+  const video: LearnerVideo | null = learnerVideo ?? null;
   const [step, setStep] = useState<LessonStep>("overview");
   const [showTranscript, setShowTranscript] = useState(preview);
   const [showEnglish, setShowEnglish] = useState(preview);
@@ -250,6 +279,16 @@ export default function LessonExperience({
       streamRef.current?.getTracks().forEach((track) => track.stop());
     };
   }, []);
+
+  if (language === "bn" && !snapshot.banglaCopy) {
+    return (
+      <div className="lesson-shell lesson-content-missing" lang="bn">
+        <h2>এই সংস্করণের বাংলা অনুবাদের অনুমোদন বাকি।</h2>
+        <p>প্রশাসক বাংলা অনুবাদ অনুমোদন করলে এখানে পড়তে পারবে। অনুমোদিত ইংরেজি পাঠটি দেখতে পাঠ বন্ধ করে ইংরেজি বেছে নাও।</p>
+        <button type="button" className="primary-button" onClick={onClose}>{s("Close", "বন্ধ করি")}</button>
+      </div>
+    );
+  }
 
   if (!extension) {
     return (
@@ -358,7 +397,7 @@ export default function LessonExperience({
   const sectionTitle = labels[language][step];
 
   return (
-    <div className="lesson-shell expanded-lesson-shell">
+    <div className="lesson-shell expanded-lesson-shell" lang={language}>
       <header className={`lesson-modal-hero ${level.tone}`}>
         <div className="lesson-modal-meta">
           <span lang="en">{level.code}</span>
@@ -403,17 +442,17 @@ export default function LessonExperience({
           <div className="lesson-start-pane">
             <div className="module-overview-banner">
               <div><span>{s("108-session pathway", "১০৮ সেশনের পথ")}</span><strong>{localNumber(6, language)} × {lessonDuration(lesson.duration, language)}</strong></div>
-              <p lang="en">{mixed(lesson.summary)}</p>
+              <p lang={textLanguage}>{mixed(lesson.summary)}</p>
             </div>
             <div className="lesson-can-do large">
               <span aria-hidden="true">✓</span>
-              <p><strong>{s("By the end, I can…", "শেষে আমি পারব…")}</strong><span lang="en">{mixed(lesson.canDo)}</span></p>
+              <p><strong>{s("By the end, I can…", "শেষে আমি পারব…")}</strong><span lang={textLanguage}>{mixed(lesson.canDo)}</span></p>
             </div>
             <div className="lesson-start-grid">
               <section>
                 <p className="modal-kicker">{paired(language, "Learning goals", "শেখার লক্ষ্য")}</p>
                 <ol className="objective-list">
-                  {lesson.objectives.map((objective, index) => <li key={objective}><span>{localNumber(index + 1, language)}</span><span lang="en">{mixed(objective)}</span></li>)}
+                  {lesson.objectives.map((objective, index) => <li key={objective}><span>{localNumber(index + 1, language)}</span><span lang={textLanguage}>{mixed(objective)}</span></li>)}
                 </ol>
               </section>
               <section className="lesson-route-card six-session-route">
@@ -433,6 +472,10 @@ export default function LessonExperience({
               <span aria-hidden="true">↺</span>
               <div><strong>{s("Adaptive route", "নিজের মতো পথ")}</strong><p>{s("Start with Listen. If a check feels difficult, replay with the transcript, visit Read, then return. Confident learners can go straight to the skill they need.", "শুনি দিয়ে শুরু করো। কোনো যাচাই কঠিন লাগলে লেখা দেখে আবার শোনো, পড়ি অংশে যাও, তারপর ফিরে এসো। যারা ভালো পারে, তারা সোজা দরকারি দক্ষতায় যেতে পারে।")}</p></div>
             </aside>
+            <aside className="family-mission">
+              <div aria-hidden="true">⌂</div>
+              <div><p className="modal-kicker">{s("Family mission", "পরিবারের সঙ্গে কাজ")}</p><h4>{s("Take Bangla beyond the screen", "স্ক্রিনের বাইরেও বাংলা")}</h4><p lang={textLanguage}>{mixed(lesson.familyMission)}</p></div>
+            </aside>
           </div>
         )}
 
@@ -441,7 +484,7 @@ export default function LessonExperience({
             <div className="lesson-pane-heading">
               <p className="modal-kicker">{paired(language, "Session 1 · Listening", "শোনা", "সেশন ১ · শোনা")}</p>
               <h3>{s("Hear the whole message before decoding every word", "প্রতিটি শব্দ বোঝার আগে পুরো কথাটা শোনো")}</h3>
-              <p lang="en">{mixed(extension.listening.focus)}</p>
+              <p lang={textLanguage}>{mixed(extension.listening.focus)}</p>
             </div>
             <div className="audio-story-card">
               <div className="audio-story-controls">
@@ -454,6 +497,7 @@ export default function LessonExperience({
                   <span aria-hidden="true">♪</span>{isSpeaking ? s("Playing dialogue…", "কথোপকথন বাজছে…") : s("Play complete dialogue", "পুরো কথোপকথন শুনি")}
                 </button>
                 <button type="button" className="text-button" onClick={() => setShowTranscript((value) => !value)}>{showTranscript ? s("Hide transcript", "লেখাটা লুকাই") : s("Reveal transcript after listening", "শোনার পরে লেখাটা দেখি")}</button>
+                {showTranscript && <button type="button" className="text-button" onClick={() => setShowEnglish((value) => !value)}>{showEnglish ? s("Hide English scaffold", "ইংরেজি সহায়তা লুকাই") : s("Show English scaffold", "ইংরেজি সহায়তা দেখি")}</button>}
               </div>
               <p className="audio-source-note">{voiceText ? `${voiceText} · ` : ""}{s("Replay as often as needed · no timer", "যতবার খুশি আবার শোনো · সময়ের কোনো চাপ নেই")}</p>
               {showTranscript ? (
@@ -461,7 +505,7 @@ export default function LessonExperience({
                   {extension.dialogue.map((line, index) => (
                     <li key={`${line.speaker}-${line.bn}`}>
                       <button type="button" onClick={() => onSpeak(line.bn, "bn-BD")} disabled={!soundEnabled} aria-label={s(`Play line ${index + 1}`, `${localNumber(index + 1, "bn")} নম্বর লাইন শোনো`)}>♪</button>
-                      <div><span lang="bn">{line.speaker}</span><strong lang="bn">{line.bn}</strong><em lang="bn-Latn">/{line.transliteration}/</em><p lang="en">{mixed(line.en)}</p></div>
+                      <div><span lang="bn">{line.speaker}</span><strong lang="bn">{line.bn}</strong><em lang="bn-Latn">/{line.transliteration}/</em>{showEnglish && <p lang="en">{mixed(line.en)}</p>}</div>
                     </li>
                   ))}
                 </ol>
@@ -477,7 +521,7 @@ export default function LessonExperience({
           <div className="session-pane reading-session">
             <div className="lesson-pane-heading">
               <p className="modal-kicker">{paired(language, "Session 2 · Reading", "পড়া", "সেশন ২ · পড়া")}</p>
-              <h3 lang="en">{mixed(extension.reading.title)}</h3>
+              <h3 lang={textLanguage}>{mixed(extension.reading.title)}</h3>
               <p>{s("Read for the main idea, listen, then reread for detail. The English scaffold is optional.", "আগে মূল কথাটা বুঝতে পড়ো, তারপর শোনো, তারপর খুঁটিনাটি বুঝতে আবার পড়ো। ইংরেজি সহায়তা দেখা না-দেখা তোমার ইচ্ছা।")}</p>
             </div>
             <article className="guided-reading-card">
@@ -492,10 +536,14 @@ export default function LessonExperience({
               <p className="modal-kicker">{s("Word bank · tap a word to hear it", "শব্দভান্ডার · শব্দ ছুঁয়ে শোনো")}</p>
               <div>{lesson.vocabulary.map((word, index) => (
                 <button type="button" key={word.bn} disabled={!soundEnabled} aria-label={`${s("Listen", "শোনো")}: ${word.bn} (${word.en})`} onClick={() => onSpeak(word.bn, "bn-BD", lessonClip(lesson.id, `word-${index + 1}`))}>
-                  <span aria-hidden="true">♪</span><strong lang="bn">{word.bn}</strong><small lang="en">{mixed(word.en)}</small>
+                  <span aria-hidden="true">♪</span><strong lang="bn">{word.bn}</strong>{(language === "en" || showEnglish) && <small lang="en">{mixed(word.en)}</small>}
                 </button>
               ))}</div>
             </div>
+            {snapshot.supportModel && <LessonWrittenSupport model={snapshot.supportModel} language={language} showEnglish={showEnglish} />}
+            <section className="teaching-grid" aria-label={s("Learning notes", "শেখার সহায়তা")}>
+              {lesson.teaching.map((note) => <article key={note.title}><h4 lang={textLanguage}>{mixed(note.title)}</h4><p lang={textLanguage}>{mixed(note.body)}</p></article>)}
+            </section>
             <QuickCheckCard language={language} check={extension.reading.check} answer={readAnswer} submitted={readSubmitted} showAnswer={preview} onAnswer={(answer) => { setReadAnswer(answer); setReadSubmitted(false); }} onSubmit={submitRead} />
           </div>
         )}
@@ -505,23 +553,23 @@ export default function LessonExperience({
             <div className="lesson-pane-heading">
               <p className="modal-kicker">{paired(language, "Session 3 · Speaking", "বলা", "সেশন ৩ · বলা")}</p>
               <h3>{s("Rehearse, record locally if you choose, then reflect", "অনুশীলন করো, চাইলে এখানেই রেকর্ড করো, তারপর ভেবে দেখো")}</h3>
-              <p lang="en">{mixed(extension.speaking.mission)}</p>
+              <p lang={textLanguage}>{mixed(extension.speaking.mission)}</p>
             </div>
             <section className="lesson-word-bank" aria-label={s("Sentence patterns", "বাক্যের ধাঁচ")}>
               <p className="modal-kicker">{s("Sentence patterns · listen, then say them", "বাক্যের ধাঁচ · শোনো, তারপর বলো")}</p>
               <ul className="pattern-listen-list">{lesson.patterns.map((pattern, index) => (
                 <li key={pattern.bn}>
                   <button type="button" disabled={!soundEnabled} aria-label={`${s("Listen", "শোনো")}: ${pattern.bn} (${pattern.en})`} onClick={() => onSpeak(pattern.bn, "bn-BD", lessonClip(lesson.id, `pattern-${index + 1}`))}>
-                    <span aria-hidden="true">♪</span><strong lang="bn">{pattern.bn}</strong><small lang="en">{mixed(pattern.en)}</small>
+                    <span aria-hidden="true">♪</span><strong lang="bn">{pattern.bn}</strong>{(language === "en" || showEnglish) && <small lang="en">{mixed(pattern.en)}</small>}
                   </button>
                 </li>
               ))}</ul>
             </section>
             <div className="roleplay-grid">
-              <article><span>{optionLetter(0, language)}</span><h4>{s("First role", "প্রথম চরিত্র")}</h4><p lang="en">{mixed(extension.speaking.roleA)}</p></article>
-              <article><span>{optionLetter(1, language)}</span><h4>{s("Second role", "দ্বিতীয় চরিত্র")}</h4><p lang="en">{mixed(extension.speaking.roleB)}</p></article>
+              <article><span>{optionLetter(0, language)}</span><h4>{s("First role", "প্রথম চরিত্র")}</h4><p lang={textLanguage}>{mixed(extension.speaking.roleA)}</p></article>
+              <article><span>{optionLetter(1, language)}</span><h4>{s("Second role", "দ্বিতীয় চরিত্র")}</h4><p lang={textLanguage}>{mixed(extension.speaking.roleB)}</p></article>
             </div>
-            <aside className="pronunciation-lab"><span aria-hidden="true">◌</span><div><p className="modal-kicker">{s("Pronunciation focus—not accent scoring", "উচ্চারণে মন দাও—টানের কোনো নম্বর নেই")}</p><p lang="en">{mixed(extension.speaking.pronunciation)}</p></div></aside>
+            <aside className="pronunciation-lab"><span aria-hidden="true">◌</span><div><p className="modal-kicker">{s("Pronunciation focus—not accent scoring", "উচ্চারণে মন দাও—টানের কোনো নম্বর নেই")}</p><p lang={textLanguage}>{mixed(extension.speaking.pronunciation)}</p></div></aside>
             <section className="local-recorder">
               <div>
                 <p className="modal-kicker">{s("Optional record & compare", "চাইলে রেকর্ড করে মিলিয়ে দেখো")}</p>
@@ -538,7 +586,7 @@ export default function LessonExperience({
             </section>
             <div className="success-checklist">
               <p className="modal-kicker">{s("Reflect, don’t rank", "নম্বর নয়, নিজে ভেবে দেখো")}</p>
-              {extension.speaking.success.map((item) => <label key={item}><input type="checkbox" /> <span lang="en">{mixed(item)}</span></label>)}
+              {extension.speaking.success.map((item) => <label key={item}><input type="checkbox" /> <span lang={textLanguage}>{mixed(item)}</span></label>)}
             </div>
             <button type="button" className="primary-button session-complete-button" onClick={() => complete("speaking")} disabled={currentSessionComplete}>{currentSessionComplete ? s("✓ Speaking session complete", "✓ বলার সেশন শেষ") : s("I rehearsed and reflected", "আমি অনুশীলন করেছি আর ভেবে দেখেছি")}</button>
           </div>
@@ -549,7 +597,7 @@ export default function LessonExperience({
             <div className="lesson-pane-heading">
               <p className="modal-kicker">{paired(language, "Session 4 · Writing", "লেখা", "সেশন ৪ · লেখা")}</p>
               <h3>{s("Build a message with support, then make it yours", "সাহায্য নিয়ে একটা বার্তা বানাও, তারপর নিজের মতো করে লেখো")}</h3>
-              <p lang="en">{mixed(extension.writing.mission)}</p>
+              <p lang={textLanguage}>{mixed(extension.writing.mission)}</p>
             </div>
             <div className="writing-workbench">
               <div className="sentence-starters">
@@ -563,37 +611,45 @@ export default function LessonExperience({
               </label>
               <div className="model-answer-card">
                 <button type="button" className="text-button" onClick={() => setShowModel((value) => !value)}>{showModel ? s("Hide model", "নমুনা লুকাই") : s("Reveal one possible model after trying", "চেষ্টা করার পরে একটা নমুনা দেখি")}</button>
-                {showModel && <div><p lang="bn">{extension.writing.modelBn}</p><p lang="en">{mixed(extension.writing.modelEn)}</p><small>{s("Model, not the only correct answer", "এটা একটা নমুনা, একমাত্র সঠিক উত্তর নয়")}</small></div>}
+                {showModel && <div><p lang="bn">{extension.writing.modelBn}</p><button type="button" className="text-button" onClick={() => setShowEnglish((value) => !value)}>{showEnglish ? s("Hide English scaffold", "ইংরেজি সহায়তা লুকাই") : s("Show English scaffold", "ইংরেজি সহায়তা দেখি")}</button>{showEnglish && <p lang="en">{mixed(extension.writing.modelEn)}</p>}<small>{s("Model, not the only correct answer", "এটা একটা নমুনা, একমাত্র সঠিক উত্তর নয়")}</small></div>}
               </div>
-              <aside className="stretch-card"><span aria-hidden="true">↗</span><p><strong>{s("Stretch:", "আরও একটু:")}</strong> <span lang="en">{mixed(extension.writing.stretch)}</span></p></aside>
+              <aside className="stretch-card"><span aria-hidden="true">↗</span><p><strong>{s("Stretch:", "আরও একটু:")}</strong> <span lang={textLanguage}>{mixed(extension.writing.stretch)}</span></p></aside>
             </div>
+            <section className="practice-grid" aria-label={s("More ways to practise", "আরও অনুশীলন")}>
+              {lesson.practice.map((activity, index) => <article key={activity.title}><span>{localNumber(index + 1, language)}</span><h4 lang={textLanguage}>{mixed(activity.title)}</h4><p lang={textLanguage}>{mixed(activity.instruction)}</p></article>)}
+            </section>
             <button type="button" className="primary-button session-complete-button" disabled={writing.trim().length < 5 || currentSessionComplete} onClick={() => complete("writing")}>{currentSessionComplete ? s("✓ Writing session complete", "✓ লেখার সেশন শেষ") : writing.trim().length < 5 ? s("Add a short draft to complete", "শেষ করতে ছোট করে কিছু লেখো") : s("I drafted and checked my message", "আমি লিখেছি আর মিলিয়ে দেখেছি")}</button>
           </div>
         )}
 
         {step === "culture" && (
           <div className="session-pane lesson-watch-pane">
+            <section className="lesson-culture-note">
+              <h3 lang={textLanguage}>{mixed(lesson.culture.title)}</h3>
+              <p lang={textLanguage}>{mixed(lesson.culture.body)}</p>
+              {lesson.culture.source && <a href={lesson.culture.source} target="_blank" rel="noreferrer">{s("Learning source ↗", "শেখার সূত্র ↗")}</a>}
+            </section>
             <div className="lesson-pane-heading">
               <p className="modal-kicker">{paired(language, "Session 5 · Video & culture", "দেখা ও সংস্কৃতি", "সেশন ৫ · দেখা ও সংস্কৃতি")}</p>
-              {video && !video.replaced ? <h3 lang="en">{mixed(video.title)}</h3> : <h3>{video ? s("A video chosen by your teacher", "তোমার শিক্ষকের বেছে নেওয়া ভিডিও") : s("Culture inquiry", "সংস্কৃতি নিয়ে খোঁজ")}</h3>}
-              {video && !video.replaced ? <p lang="en">{mixed(video.reason)}</p> : <p>{video ? s("A teacher checked the original video and chose this one instead.", "একজন শিক্ষক আগের ভিডিওটি দেখে এর বদলে এটি বেছে নিয়েছেন।") : s("A teacher took this lesson’s video down after checking it. Talk through the three prompts below with a grown-up instead.", "একজন শিক্ষক দেখে এই পাঠের ভিডিওটি সরিয়ে নিয়েছেন। তার বদলে বড় কারও সঙ্গে নিচের তিনটি প্রশ্ন নিয়ে কথা বলো।")}</p>}
+              {video && !video.replaced ? <h3 lang="en">{mixed(video.title)}</h3> : <h3>{video ? s("A video chosen by an administrator", "প্রশাসকের বেছে নেওয়া ভিডিও") : s("Culture inquiry", "সংস্কৃতি নিয়ে খোঁজ")}</h3>}
+              {video && !video.replaced ? <p lang="en">{mixed(video.reason)}</p> : <p>{video ? s("An administrator chose this replacement after reviewing the original video.", "প্রশাসক আগের ভিডিওটি পর্যালোচনা করে এর বদলে এটি বেছে নিয়েছেন।") : s("This lesson’s video is unavailable. Talk through the three prompts below with a grown-up instead.", "এই পাঠের ভিডিওটি এখন খোলা নেই। তার বদলে বড় কারও সঙ্গে নিচের তিনটি প্রশ্ন নিয়ে কথা বলো।")}</p>}
             </div>
             <div className="video-learning-cycle">
               {[{ label: s("Before", "দেখার আগে"), text: extension.watch.before }, { label: s("During", "দেখার সময়"), text: extension.watch.during }, { label: s("After", "দেখার পরে"), text: extension.watch.after }].map((item, index) => (
                 <label key={index} className={watchChecks[index] ? "complete" : ""}>
                   <input type="checkbox" checked={watchChecks[index]} onChange={() => setWatchChecks((current) => current.map((value, itemIndex) => itemIndex === index ? !value : value))} />
-                  <span>{localNumber(index + 1, language)}</span><div><strong>{item.label}</strong><p lang="en">{mixed(item.text)}</p></div>
+                  <span>{localNumber(index + 1, language)}</span><div><strong>{item.label}</strong><p lang={textLanguage}>{mixed(item.text)}</p></div>
                 </label>
               ))}
             </div>
             {video && <>
               <div className="video-resource-meta">
-                <span lang="en">YouTube</span>{video.channel && !video.replaced && <strong lang="en">{video.channel}</strong>}{video.duration && <span lang="en">{video.duration}</span>}{!video.replaced && <em lang="en">{mixed(extension.watch.segment)}</em>}
+                <span lang="en">YouTube</span>{video.channel && !video.replaced && <strong lang="en">{video.channel}</strong>}{video.duration && <span lang="en">{video.duration}</span>}{!video.replaced && <em lang={textLanguage}>{mixed(extension.watch.segment)}</em>}
                 <a href={`https://www.youtube.com/watch?v=${video.id}`} target="_blank" rel="noreferrer">{s("Open on YouTube ↗", "YouTube-এ খুলি ↗")}</a>
               </div>
               {videoLoaded ? (
                 <div className="lesson-video-frame">
-                  <iframe src={`https://www.youtube-nocookie.com/embed/${video.id}?rel=0&cc_load_policy=1`} title={video.replaced ? (language === "en" ? "A video chosen by your teacher" : "তোমার শিক্ষকের বেছে নেওয়া ভিডিও") : video.title} loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen />
+                  <iframe src={`https://www.youtube-nocookie.com/embed/${video.id}?rel=0&cc_load_policy=1`} title={video.replaced ? (language === "en" ? "A video chosen by an administrator" : "প্রশাসকের বেছে নেওয়া ভিডিও") : video.title} loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen />
                 </div>
               ) : (
                 <div className="video-gate">
@@ -602,8 +658,8 @@ export default function LessonExperience({
                 </div>
               )}
             </>}
-            <a className="playlist-card" href={`https://www.youtube.com/playlist?list=${lesson.playlist.id}`} target="_blank" rel="noreferrer"><span className="playlist-icon" aria-hidden="true">☷</span><span><small>{s("Curated follow-on playlist", "পরে দেখার জন্য বাছাই করা প্লেলিস্ট")}</small><strong lang="en">{lesson.playlist.title}</strong><em><span lang="en">{lesson.playlist.channel}</span> · {s("external YouTube", "বাইরের YouTube")}</em></span><span aria-hidden="true">↗</span></a>
-            <aside className="media-review-note"><span aria-hidden="true" lang="en">CC</span><p><strong>{s("Caption and availability check:", "ক্যাপশন আর ভিডিও থাকা-না-থাকা:")}</strong> {s("captions and recommendations are controlled by YouTube and may change. Teachers check each lesson video; a video they mark unsuitable is taken out of the lesson.", "ক্যাপশন আর পরামর্শ দেওয়া ভিডিও YouTube ঠিক করে, তাই এগুলো বদলাতে পারে। শিক্ষকেরা প্রতিটি পাঠের ভিডিও দেখে নেন; অনুপযুক্ত মনে হলে ভিডিওটি পাঠ থেকে সরিয়ে দেওয়া হয়।")}</p></aside>
+            {preview && video && <a className="playlist-card" href={`https://www.youtube.com/playlist?list=${lesson.playlist.id}`} target="_blank" rel="noreferrer"><span className="playlist-icon" aria-hidden="true">☷</span><span><small>{s("Suggested external playlist — review before assigning", "প্রস্তাবিত বাইরের প্লেলিস্ট — দেওয়ার আগে পর্যালোচনা করুন")}</small><strong lang="en">{lesson.playlist.title}</strong><em><span lang="en">{lesson.playlist.channel}</span> · {s("external YouTube", "বাইরের YouTube")}</em></span><span aria-hidden="true">↗</span></a>}
+            <aside className="media-review-note"><span aria-hidden="true" lang="en">CC</span><p><strong>{s("Caption and availability check:", "ক্যাপশন আর ভিডিও থাকা-না-থাকা:")}</strong> {s("captions and recommendations are controlled by YouTube and may change. Lesson approval does not confirm an individual review of every external video or playlist. A grown-up should preview and supervise external media; administrators control video publication.", "ক্যাপশন আর পরামর্শ দেওয়া ভিডিও YouTube ঠিক করে, তাই এগুলো বদলাতে পারে। পাঠের অনুমোদন মানে প্রতিটি বাইরের ভিডিও বা প্লেলিস্ট আলাদাভাবে পর্যালোচিত হয়েছে, এমন নয়। বড় কেউ আগে দেখে নেবেন ও পাশে থাকবেন; প্রশাসকেরা ভিডিও প্রকাশের সিদ্ধান্ত নেন।")}</p></aside>
             <button type="button" className="primary-button session-complete-button" disabled={!watchChecks.every(Boolean) || currentSessionComplete} onClick={() => complete("culture")}>{currentSessionComplete ? s("✓ Video & culture session complete", "✓ দেখা ও সংস্কৃতির সেশন শেষ") : watchChecks.every(Boolean) ? s("I completed before, during and after", "দেখার আগে, সময়ে আর পরে—তিনটিই করেছি") : s("Complete the three viewing prompts", "দেখার তিনটি কাজ শেষ করো")}</button>
           </div>
         )}
@@ -621,14 +677,14 @@ export default function LessonExperience({
                 const correct = selectedAnswer === question.answer;
                 return (
                   <fieldset className="lesson-quiz-question" key={question.question}>
-                    <legend><span>{localNumber(questionIndex + 1, language)}</span><span lang="en">{mixed(question.question)}</span></legend>
+                    <legend><span>{localNumber(questionIndex + 1, language)}</span><span lang={textLanguage}>{mixed(question.question)}</span></legend>
                     <div className="lesson-quiz-options">
                       {question.options.map((option, optionIndex) => (
-                        <button type="button" key={option} className={`${selectedAnswer === optionIndex ? "selected" : ""} ${quizSubmitted && selectedAnswer === optionIndex ? (correct ? "correct" : "wrong") : ""}`} aria-pressed={selectedAnswer === optionIndex} onClick={() => { setQuizAnswers((current) => ({ ...current, [questionIndex]: optionIndex })); setQuizSubmitted(false); }}><span>{optionLetter(optionIndex, language)}</span><span lang="en">{mixed(option)}</span>{preview && optionIndex === question.answer && <PreviewAnswer language={language} />}</button>
+                        <button type="button" key={option} className={`${selectedAnswer === optionIndex ? "selected" : ""} ${quizSubmitted && selectedAnswer === optionIndex ? (correct ? "correct" : "wrong") : ""}`} aria-pressed={selectedAnswer === optionIndex} onClick={() => { setQuizAnswers((current) => ({ ...current, [questionIndex]: optionIndex })); setQuizSubmitted(false); }}><span>{optionLetter(optionIndex, language)}</span><span lang={textLanguage}>{mixed(option)}</span>{preview && optionIndex === question.answer && <PreviewAnswer language={language} />}</button>
                       ))}
                     </div>
-                    {quizSubmitted && selectedAnswer !== undefined && <p className={correct ? "answer-explanation correct" : "answer-explanation wrong"}><strong>{correct ? "✓" : "↻"}</strong><span lang="en">{mixed(question.explanation)}</span></p>}
-                    {preview && !quizSubmitted && <p className="preview-answer-note" lang="en">{mixed(question.explanation)}</p>}
+                    {quizSubmitted && selectedAnswer !== undefined && <p className={correct ? "answer-explanation correct" : "answer-explanation wrong"}><strong>{correct ? "✓" : "↻"}</strong><span lang={textLanguage}>{mixed(question.explanation)}</span></p>}
+                    {preview && !quizSubmitted && <p className="preview-answer-note" lang={textLanguage}>{mixed(question.explanation)}</p>}
                   </fieldset>
                 );
               })}

@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test, { after, before } from "node:test";
 import Database from "better-sqlite3";
+import { approveShippedFixtureContent } from "./content-fixture.mjs";
 
 /**
  * Lesson word and sentence-pattern audio against the production server:
@@ -57,6 +58,7 @@ before(async () => {
   }
   teacherCookie = await teacher("voice-teacher@example.com");
   colleagueCookie = await teacher("voice-colleague@example.com", "admin");
+  await approveShippedFixtureContent(BASE, colleagueCookie, { topics: false });
   assert.equal((await send("/api/student/sign-up", "POST", { username: "voice-maya", displayName: "Maya", password }, undefined, { "x-forwarded-for": "voice-student" })).status, 201);
   fixture((db) => db.prepare("UPDATE students SET approval_status = 'approved' WHERE username = ?").run("voice-maya"));
   const signedIn = await send("/api/student/sign-in", "POST", { username: "voice-maya", password }, undefined, { "x-forwarded-for": "voice-student" });

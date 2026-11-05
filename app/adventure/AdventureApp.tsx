@@ -3,7 +3,9 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { lessons as allLessons, levelBands, type CurriculumLevel, type Lesson } from "../curriculum";
+import { levelBands, type CurriculumLevel, type Lesson } from "../curriculum";
+import { localizeLesson } from "../lesson-locales/presentation";
+import type { LessonSnapshot } from "../../lib/lesson-content";
 import { groupLessonsByCategory, visibleLessons, type LearnerVideo } from "../../lib/lesson-model";
 import { libraryBooks } from "../library-content";
 import LessonExperience from "../components/LessonExperience";
@@ -444,20 +446,21 @@ type AmbienceNodes = {
 };
 
 /**
- * The learner adventure page. The server passes the lessons a teacher has
+ * The learner adventure page. The server passes the lesson snapshots an administrator has
  * approved (learners never see withdrawn ones), the replacement for any video a
  * teacher took down, the approved human recordings (asked for again whenever a
  * lesson opens), and the lesson a ?module= link asks for when it may open.
  */
-export default function AdventureApp({ approvedLessonIds, videos, recordings: initialRecordings, initialModuleId, moduleUnavailable }: {
+export default function AdventureApp({ approvedLessonIds, snapshots, videos, recordings: initialRecordings, initialModuleId, moduleUnavailable }: {
   approvedLessonIds: string[];
+  snapshots: Record<string, LessonSnapshot>;
   videos: Record<string, LearnerVideo | null>;
   recordings: RecordingMap;
   initialModuleId: string | null;
   moduleUnavailable: boolean;
 }) {
-  const lessons = useMemo(() => visibleLessons(allLessons, approvedLessonIds), [approvedLessonIds]);
-  const videoFor = (lesson: Lesson): LearnerVideo | null => (lesson.id in videos ? videos[lesson.id] : lesson.video);
+  const lessons = useMemo(() => visibleLessons(Object.values(snapshots).map(({ lesson }) => lesson), approvedLessonIds), [snapshots, approvedLessonIds]);
+  const videoFor = (lesson: Lesson): LearnerVideo | null => videos[lesson.id] ?? null;
   const { recordings, refresh: refreshRecordings } = useLessonRecordings(initialRecordings);
   // The shared preference, so the page opens in the learner's language and <html lang> and the tab title follow it.
   const [language, toggleLanguage] = useLanguage({ title: siteTitle });
@@ -477,7 +480,7 @@ export default function AdventureApp({ approvedLessonIds, videos, recordings: in
   const [audioMessage, setAudioMessage] = useState("");
   const [voiceStatus, setVoiceStatus] = useState<VoiceStatus | null>(null);
   const voiceStatusTimerRef = useRef<number | null>(null);
-  const [selectedLevel, setSelectedLevel] = useState<CurriculumLevel | "all">(() => allLessons.find((lesson) => lesson.id === initialModuleId)?.level ?? "pre-a1");
+  const [selectedLevel, setSelectedLevel] = useState<CurriculumLevel | "all">(() => (initialModuleId && snapshots[initialModuleId]?.lesson.level) || "pre-a1");
   const [cloudLearner, setCloudLearner] = useState<CloudLearner | null>(null);
   const [syncStatus, setSyncStatus] = useState<"device" | "syncing" | "synced" | "pending">("device");
   const [lessonStep, setLessonStep] = useState<LessonStep>("start");
@@ -674,6 +677,7 @@ export default function AdventureApp({ approvedLessonIds, videos, recordings: in
     () => modal?.type === "lesson" ? lessons.find((lesson) => lesson.id === modal.id) : null,
     [modal, lessons],
   );
+  const activeSnapshot = activeLesson ? snapshots[activeLesson.id] : null;
   const activeLevel = useMemo(
     () => activeLesson ? levelBands.find((level) => level.id === activeLesson.level) : null,
     [activeLesson],
@@ -1321,6 +1325,9 @@ export default function AdventureApp({ approvedLessonIds, videos, recordings: in
                 <h3 className="lesson-category-title"><span aria-hidden="true">{category.icon}</span> {category.title[language]} <small>{language === "en" ? items.length : items.length.toLocaleString("bn-BD")}</small></h3>
                 <div className="lesson-grid">
                   {items.map((lesson) => {
+                    const copy = snapshots[lesson.id].banglaCopy;
+                    const presentation = localizeLesson(lesson, language, copy);
+                    const translationAvailable = language === "en" || Boolean(copy);
                     const level = levelBands.find((item) => item.id === lesson.level)!;
                     const isComplete = completed.includes(`lesson-${lesson.id}`);
                     const lessonSessions = completed.filter((item) => item.startsWith(`session-${lesson.id}-`)).length;
@@ -1333,14 +1340,16 @@ export default function AdventureApp({ approvedLessonIds, videos, recordings: in
                         </div>
                         <h4>{lesson.title}</h4>
                         <p className="lesson-title-bn" lang="bn">{lesson.titleBn}</p>
-                        <p className="lesson-summary">{lesson.summary}</p>
-                        <div className="lesson-can-do">
+                        {translationAvailable ? <>
+                        <p className="lesson-summary" lang={language}>{presentation.summary}</p>
+                        <div className="lesson-can-do" lang={language}>
                           <span aria-hidden="true">✓</span>
-                          <p><strong>{t.canDo}</strong>{lesson.canDo}</p>
+                          <p><strong>{t.canDo}</strong>{presentation.canDo}</p>
                         </div>
-                        <ul className="lesson-focus-list">
-                          {lesson.objectives.slice(0, 2).map((objective) => <li key={objective}>{objective}</li>)}
+                        <ul className="lesson-focus-list" lang={language}>
+                          {presentation.objectives.slice(0, 2).map((objective) => <li key={objective}>{objective}</li>)}
                         </ul>
+                        </> : <p className="lesson-summary" lang="bn">এই সংস্করণের বাংলা অনুবাদের অনুমোদন বাকি। অনুমোদিত ইংরেজি পাঠটি ইংরেজি বেছে নিয়ে দেখতে পারবে।</p>}
                         <div className="lesson-session-preview" aria-label={language === "en" ? `${lessonSessions} of 6 sessions complete` : `৬টির মধ্যে ${lessonSessions.toLocaleString("bn-BD")}টি সেশন শেষ`}>
                           <div>{[["listening", "L"], ["reading", "R"], ["speaking", "S"], ["writing", "W"], ["culture", "V"], ["mastery", "M"]].map(([skill, label]) => <span key={skill} className={completed.includes(`session-${lesson.id}-${skill}`) ? "complete" : ""}>{label}</span>)}</div>
                           <small>{lessonSessions}/6 {language === "en" ? "sessions" : "সেশন"}</small>
@@ -1350,7 +1359,7 @@ export default function AdventureApp({ approvedLessonIds, videos, recordings: in
                           return video ? (
                             <div className="lesson-video-preview">
                               <span className="video-play-mark" aria-hidden="true">▶</span>
-                              <p><small>YouTube{video.duration ? ` · ${video.duration}` : ""}</small><strong>{video.replaced ? (language === "en" ? "A video chosen by your teacher" : "তোমার শিক্ষকের বেছে নেওয়া ভিডিও") : video.title}</strong></p>
+                              <p><small>YouTube{video.duration ? ` · ${video.duration}` : ""}</small><strong>{video.replaced ? (language === "en" ? "A video chosen by an administrator" : "প্রশাসকের বেছে নেওয়া ভিডিও") : video.title}</strong></p>
                             </div>
                           ) : null;
                         })()}
@@ -1511,9 +1520,9 @@ export default function AdventureApp({ approvedLessonIds, videos, recordings: in
           >
             <button className="modal-close" type="button" onClick={() => { stopNarration(); setModal(null); }} aria-label={t.close}>×</button>
 
-            {activeLesson && activeLevel && (
+            {activeLesson && activeSnapshot && activeLevel && (
               <LessonExperience
-                lesson={activeLesson}
+                snapshot={activeSnapshot}
                 video={videoFor(activeLesson)}
                 level={activeLevel}
                 language={language}
@@ -1534,7 +1543,7 @@ export default function AdventureApp({ approvedLessonIds, videos, recordings: in
                 <header className={`lesson-modal-hero ${activeLevel.tone}`}>
                   <div className="lesson-modal-meta">
                     <span>{activeLevel.code}</span>
-                    <span>{language === "en" ? "Lesson" : "পাঠ"} {activeLesson.number} / {allLessons.length}</span>
+                    <span>{language === "en" ? "Lesson" : "পাঠ"} {activeLesson.number} / {lessons.length}</span>
                     <span>◷ {activeLesson.duration}</span>
                   </div>
                   <div className="lesson-modal-title-row">

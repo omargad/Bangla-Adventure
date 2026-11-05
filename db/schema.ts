@@ -137,7 +137,7 @@ export const videoReviews = sqliteTable(
     updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   },
   (table) => [
-    uniqueIndex("video_reviews_lesson_unique").on(table.ownerEmail, table.lessonId),
+    uniqueIndex("video_reviews_lesson_unique").on(table.ownerEmail, table.lessonId, table.videoId),
     index("video_reviews_owner_idx").on(table.ownerEmail),
   ],
 );
@@ -411,6 +411,27 @@ export const topicVersions = sqliteTable("topic_versions", {
 ]);
 
 // One row per lesson approval decision; the newest row (by rowid) is the lesson's current state.
+export const shippedContentState = sqliteTable("shipped_content_state", {
+  contentType: text("content_type").notNull(),
+  contentId: text("content_id").notNull(),
+  baselineJson: text("baseline_json"),
+  lastSourceFingerprint: text("last_source_fingerprint").notNull(),
+});
+
+export const lessonVersions = sqliteTable("lesson_versions", {
+  id: text("id").primaryKey(),
+  lessonId: text("lesson_id").notNull(),
+  version: integer("version").notNull(),
+  dataJson: text("data_json").notNull(),
+  fingerprint: text("fingerprint").notNull(),
+  status: text("status", { enum: ["pending", "approved", "rejected", "superseded"] }).notNull(),
+  baseline: integer("baseline", { mode: "boolean" }).notNull().default(false),
+  createdAt: text("created_at").notNull(),
+  reviewedBy: text("reviewed_by").references(() => adults.id, { onDelete: "set null" }),
+  reviewedAt: text("reviewed_at"),
+  reviewNote: text("review_note").notNull().default(""),
+}, (table) => [uniqueIndex("lesson_versions_revision").on(table.lessonId, table.version)]);
+
 export const contentApprovals = sqliteTable("content_approvals", {
   id: text("id").primaryKey(),
   contentType: text("content_type").notNull(),

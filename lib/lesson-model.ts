@@ -119,5 +119,5 @@ export function learnerVideo(original: LessonVideo, check: VideoCheck | null | u
   if (!videoTakenDown(check)) return original;
   const id = youtubeVideoId(check!.replacementUrl);
   if (!id) return null;
-  return { id, title: "A video chosen by your teacher", channel: "YouTube", duration: "", reason: "A teacher checked the original video and chose this one instead.", replaced: true };
+  return { id, title: "A video chosen by an administrator", channel: "YouTube", duration: "", reason: "An administrator checked the original video and chose this one instead.", replaced: true };
 }

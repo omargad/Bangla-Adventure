@@ -1,9 +1,10 @@
 import { and, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import { getDb } from "../db";
-import { adults, contentApprovals, contentReviews, mediaAssets, userAuditEvents, videoReviews } from "../db/schema";
+import { adults, contentApprovals, contentReviews, lessonVersions, mediaAssets, shippedContentState, userAuditEvents, videoReviews } from "../db/schema";
 import { lessons } from "../app/curriculum";
 import { canPublishContent } from "./roles";
 import { LESSON_AUDIO_SLOT, type RecordingMap } from "./voice-playback";
+import type { LessonSnapshot } from "./lesson-content";
 import {
   checkLessonDecision, learnerVideo, LessonError, lessonStatus, validateReplacementUrl, videoTakenDown, type LearnerVideo, type LessonStatus,
 } from "./lesson-model";
@@ -24,10 +25,36 @@ type Transaction = Parameters<Parameters<Db["transaction"]>[0]>[0];
 type Reader = Db | Transaction;
 type ApprovalRow = typeof contentApprovals.$inferSelect;
 type VideoRow = typeof videoReviews.$inferSelect;
+type LessonVersionRow = typeof lessonVersions.$inferSelect;
 
 const lessonById = new Map(lessons.map((lesson) => [lesson.id, lesson]));
 export const isLessonId = (value: unknown): value is string => typeof value === "string" && lessonById.has(value);
 const AUDIO_STATUSES = new Set(["pending", "changes-requested", "approved", "retired"]);
+
+function versionRows(db: Reader, lessonId: string): LessonVersionRow[] {
+  return db.select().from(lessonVersions).where(eq(lessonVersions.lessonId, lessonId)).orderBy(lessonVersions.version).all();
+}
+
+function snapshotOf(row: LessonVersionRow | undefined): LessonSnapshot | null {
+  if (!row) return null;
+  try { return JSON.parse(row.dataJson) as LessonSnapshot; } catch { return null; }
+}
+
+function approvedSnapshot(db: Reader, lessonId: string): LessonSnapshot | null {
+  if (lessonStatus(approvalRows(db, lessonId).at(-1)) !== "approved") return null;
+  return snapshotOf(versionRows(db, lessonId).find((row) => row.status === "approved"));
+}
+
+export async function getApprovedLessonSnapshot(lessonId: string): Promise<LessonSnapshot | null> {
+  const db = await getDb();
+  const snapshot = approvedSnapshot(db, lessonId);
+  return snapshot ? learnerSnapshot(snapshot, effectiveVideo(db, lessonId, snapshot, latestVideoChecks(db, lessonId).get(lessonId))) : null;
+}
+
+/** Staff preview only. Callers must authorize staff before exposing this candidate. */
+export async function getCandidateLessonSnapshot(lessonId: string): Promise<LessonSnapshot | null> {
+  return snapshotOf(versionRows(await getDb(), lessonId).at(-1));
+}
 
 /** A lesson's approval records, oldest first. */
 function approvalRows(db: Reader, lessonId?: string): ApprovalRow[] {
@@ -43,11 +70,37 @@ function latestByLesson(rows: ApprovalRow[]): Map<string, ApprovalRow> {
 }
 
 /** Only explicit administrator decisions change the learner's video. */
-function latestVideoChecks(db: Reader, lessonId?: string, publishedOnly = true): Map<string, VideoRow> {
-  const rows = db.select().from(videoReviews).where(and(lessonId ? eq(videoReviews.lessonId, lessonId) : undefined, publishedOnly ? isNotNull(videoReviews.adminDecidedAt) : undefined)).orderBy(desc(videoReviews.updatedAt), desc(sql`${videoReviews}.rowid`)).all();
+function latestVideoChecks(db: Reader, lessonId?: string, publishedOnly = true, videoId?: string): Map<string, VideoRow> {
+  const rows = db.select().from(videoReviews).where(and(lessonId ? eq(videoReviews.lessonId, lessonId) : undefined, videoId ? eq(videoReviews.videoId, videoId) : undefined, publishedOnly ? isNotNull(videoReviews.adminDecidedAt) : undefined)).orderBy(desc(videoReviews.updatedAt), desc(sql`${videoReviews}.rowid`)).all();
   const latest = new Map<string, VideoRow>();
   for (const row of rows) if (!latest.has(row.lessonId)) latest.set(row.lessonId, row);
   return latest;
+}
+
+/** Text publication never manufactures a media review. Only the unchanged
+ * primary video already available in an upgraded installation retains its
+ * legacy availability; fresh installations need a separate Admin decision. */
+function effectiveVideo(db: Reader, lessonId: string, snapshot: LessonSnapshot, check?: VideoRow | null): LearnerVideo | null {
+  if (check?.videoId !== snapshot.lesson.video.id) check = latestVideoChecks(db, lessonId, true, snapshot.lesson.video.id).get(lessonId);
+  if (check?.videoId === snapshot.lesson.video.id) {
+    if (videoTakenDown(check)) return learnerVideo(snapshot.lesson.video, check);
+    return check.status === "approved" && ["suitable", "supervision-required"].includes(check.suitabilityStatus) ? snapshot.lesson.video : null;
+  }
+  const state = db.select().from(shippedContentState).where(and(eq(shippedContentState.contentType, "lesson"), eq(shippedContentState.contentId, lessonId))).get();
+  try {
+    const legacy = state?.baselineJson ? JSON.parse(state.baselineJson) as LessonSnapshot : null;
+    return legacy?.lesson.video.id === snapshot.lesson.video.id ? snapshot.lesson.video : null;
+  } catch { return null; }
+}
+
+/** Omitted media must also be absent from server-component/JSON payloads, not
+ * merely hidden by the player. Playlists/alternatives have no publication
+ * decision of their own, so they remain staff preview material. */
+function learnerSnapshot(snapshot: LessonSnapshot, video: LearnerVideo | null): LessonSnapshot {
+  return { ...snapshot, lesson: { ...snapshot.lesson,
+    video: video ?? { id: "", title: "", channel: "", duration: "", reason: "" },
+    playlist: { id: "", title: "", channel: "" }, extraVideos: [],
+  } };
 }
 
 function namesById(db: Reader, ids: Array<string | null>) {
@@ -70,30 +123,36 @@ function approvalOf(lessonId: string, row: ApprovalRow | undefined, name: (id: s
 export async function approvedLessonIds(): Promise<string[]> {
   const db = await getDb();
   const latest = latestByLesson(approvalRows(db));
-  return lessons.filter((lesson) => lessonStatus(latest.get(lesson.id)) === "approved").map((lesson) => lesson.id);
+  return lessons.filter((lesson) => lessonStatus(latest.get(lesson.id)) === "approved" && approvedSnapshot(db, lesson.id)).map((lesson) => lesson.id);
 }
 
 export async function isLessonApproved(lessonId: unknown): Promise<boolean> {
   if (!isLessonId(lessonId)) return false;
   const db = await getDb();
-  return lessonStatus(approvalRows(db, lessonId).at(-1)) === "approved";
+  return approvedSnapshot(db, lessonId) !== null;
 }
 
 /**
  * What the learner pages need: the approved lessons and, for lessons whose video
  * an administrator took down, the replacement video (or null for no video).
  */
-export async function learnerLessonView(): Promise<{ approvedIds: string[]; videos: Record<string, LearnerVideo | null> }> {
+export async function learnerLessonView(): Promise<{ approvedIds: string[]; videos: Record<string, LearnerVideo | null>; snapshots: Record<string, LessonSnapshot> }> {
   const db = await getDb();
   const latest = latestByLesson(approvalRows(db));
   const checks = latestVideoChecks(db);
-  const approvedIds = lessons.filter((lesson) => lessonStatus(latest.get(lesson.id)) === "approved").map((lesson) => lesson.id);
+  const snapshots: Record<string, LessonSnapshot> = {};
+  for (const lesson of lessons) {
+    const snapshot = lessonStatus(latest.get(lesson.id)) === "approved" ? approvedSnapshot(db, lesson.id) : null;
+    if (snapshot) snapshots[lesson.id] = snapshot;
+  }
+  const approvedIds = Object.keys(snapshots);
   const videos: Record<string, LearnerVideo | null> = {};
   for (const id of approvedIds) {
     const check = checks.get(id);
-    if (videoTakenDown(check)) videos[id] = learnerVideo(lessonById.get(id)!.video, check);
+    videos[id] = effectiveVideo(db, id, snapshots[id], check);
+    snapshots[id] = learnerSnapshot(snapshots[id], videos[id]);
   }
-  return { approvedIds, videos };
+  return { approvedIds, videos, snapshots };
 }
 
 /** Approved recordings with recorded consent, newest first: what learners hear. */
@@ -133,15 +192,17 @@ export async function lessonStudioList() {
   const db = await getDb();
   const rows = approvalRows(db);
   const latest = latestByLesson(rows);
-  const checks = latestVideoChecks(db);
   const pending = db.select().from(mediaAssets).where(eq(mediaAssets.reviewStatus, "pending")).orderBy(desc(mediaAssets.createdAt)).all().filter((asset) => lessonById.has(asset.lessonId));
   const name = namesById(db, [...latest.values()].map((row) => row.changedBy));
   const uploader = namesByEmail(db, pending.map((asset) => asset.ownerEmail));
   return {
     lessons: lessons.map((lesson) => {
-      const check = checks.get(lesson.id);
+      const current = versionRows(db, lesson.id).at(-1);
+      const video = snapshotOf(current)?.lesson.video;
+      const check = video ? latestVideoChecks(db, lesson.id, true, video.id).get(lesson.id) : undefined;
       return {
         ...approvalOf(lesson.id, latest.get(lesson.id), name),
+        pendingRevision: current?.status === "pending" ? current.version : null,
         pendingAudio: pending.filter((asset) => asset.lessonId === lesson.id).length,
         video: check ? { status: check.status, suitabilityStatus: check.suitabilityStatus, takenDown: videoTakenDown(check), replaced: Boolean(learnerVideo(lesson.video, check)?.replaced) } : null,
       };
@@ -164,13 +225,23 @@ export async function lessonStudioDetail(lessonId: string) {
   if (!lesson) throw new LessonError("Lesson not found.", "পাঠটি পাওয়া যায়নি।", 404);
   const db = await getDb();
   const rows = approvalRows(db, lessonId);
+  const versions = versionRows(db, lessonId);
+  const candidate = versions.at(-1);
+  const snapshot = snapshotOf(candidate);
+  if (!candidate || !snapshot) throw new LessonError("Lesson content is unavailable.", "পাঠের বিষয়বস্তু পাওয়া যাচ্ছে না।", 503);
+  const publishedSnapshot = approvedSnapshot(db, lessonId);
   const recordings = db.select().from(mediaAssets).where(eq(mediaAssets.lessonId, lessonId)).orderBy(desc(mediaAssets.createdAt)).all();
-  const check = latestVideoChecks(db, lessonId, false).get(lessonId) ?? null;
-  const publishedCheck = latestVideoChecks(db, lessonId).get(lessonId) ?? null;
+  const check = latestVideoChecks(db, lessonId, false, snapshot.lesson.video.id).get(lessonId) ?? null;
+  const publishedCheck = latestVideoChecks(db, lessonId, true, snapshot.lesson.video.id).get(lessonId) ?? null;
   const specialist = db.select().from(contentReviews).where(eq(contentReviews.lessonId, lessonId)).orderBy(desc(contentReviews.updatedAt)).all();
   const name = namesById(db, [...rows.map((row) => row.changedBy), ...recordings.map((asset) => asset.reviewedBy)]);
   const account = namesByEmail(db, [...recordings, ...specialist, ...(check ? [check] : [])].map((row) => row.ownerEmail));
   return {
+    snapshot,
+    contentFingerprint: candidate.fingerprint,
+    pendingRevision: candidate.status === "pending" ? { version: candidate.version, fingerprint: candidate.fingerprint } : null,
+    approvedSnapshot: publishedSnapshot,
+    revisions: versions.map(({ version, fingerprint, status, baseline, reviewedAt, reviewNote }) => ({ version, fingerprint, status, baseline, reviewedAt, reviewNote })),
     approval: approvalOf(lessonId, rows.at(-1), name),
     history: rows.map((row): LessonHistoryEntry => ({ status: row.status, baseline: row.baseline, changedByName: name(row.changedBy), changedAt: row.changedAt, note: row.note })).reverse(),
     recordings: recordings.map((asset) => ({
@@ -183,7 +254,8 @@ export async function lessonStudioDetail(lessonId: string) {
       status: check.status, captionsStatus: check.captionsStatus, suitabilityStatus: check.suitabilityStatus, replacementUrl: check.replacementUrl,
       notes: check.notes, checkedAt: check.checkedAt ?? check.updatedAt, checkerName: account(check.ownerEmail), adminDecidedAt: check.adminDecidedAt,
     } : null,
-    learnerVideo: learnerVideo(lesson.video, publishedCheck),
+    learnerVideo: publishedSnapshot ? effectiveVideo(db, lessonId, publishedSnapshot) : null,
+    candidateVideo: learnerVideo(snapshot.lesson.video, publishedCheck?.videoId === snapshot.lesson.video.id ? publishedCheck : null),
     specialistChecks: specialist.map((review) => ({
       id: review.id, reviewType: review.reviewType, status: review.status, reviewerName: review.reviewerName, notes: review.notes,
       reviewedAt: review.reviewedAt, updatedAt: review.updatedAt, recordedBy: account(review.ownerEmail),
@@ -215,13 +287,24 @@ export async function decideLesson(actorId: string, lessonId: string, raw: Recor
     requirePublisher(tx, actorId);
     const latest = approvalRows(tx, lessonId).at(-1);
     const current = lessonStatus(latest);
-    const { decision, note } = checkLessonDecision(current, raw, latest?.baseline ?? false);
+    const versions = versionRows(tx, lessonId);
+    const candidate = versions.at(-1);
+    if (raw.decision === "approve" && (!candidate || raw.contentFingerprint !== candidate.fingerprint || candidate.status === "rejected")) {
+      throw new LessonError("The lesson revision changed. Reload and review its current English and Bangla content before approving.", "পাঠের সংস্করণ বদলেছে। আবার খুলে বর্তমান ইংরেজি ও বাংলা বিষয়বস্তু দেখে অনুমোদন দিন।", 409);
+    }
+    const pending = candidate?.status === "pending";
+    const { decision, note } = checkLessonDecision(current, raw, (latest?.baseline ?? false) || pending);
+    const now = new Date().toISOString();
+    if (decision === "approve" && candidate) {
+      tx.update(lessonVersions).set({ status: "superseded" }).where(and(eq(lessonVersions.lessonId, lessonId), inArray(lessonVersions.status, ["approved", "pending"]))).run();
+      tx.update(lessonVersions).set({ status: "approved", baseline: false, reviewedBy: actorId, reviewedAt: now, reviewNote: note }).where(eq(lessonVersions.id, candidate.id)).run();
+    }
     tx.insert(contentApprovals).values({
       id: crypto.randomUUID(), contentType: "lesson", contentId: lessonId, status: decision === "approve" ? "approved" : "withdrawn",
-      baseline: false, changedBy: actorId, changedAt: new Date().toISOString(), note,
+      baseline: false, changedBy: actorId, changedAt: now, note,
     }).run();
     const reviewedBaseline = decision === "approve" && current === "approved";
-    audit(tx, actorId, lessonId, decision === "approve" ? "lesson-approved" : "lesson-withdrawn", { ...(note ? { note } : {}), ...(reviewedBaseline ? { reviewedBaseline: true } : {}) });
+    audit(tx, actorId, lessonId, decision === "approve" ? "lesson-approved" : "lesson-withdrawn", { version: candidate?.version, contentFingerprint: candidate?.fingerprint, ...(note ? { note } : {}), ...(reviewedBaseline ? { reviewedBaseline: true } : {}) });
   });
   const rows = approvalRows(db, lessonId);
   return approvalOf(lessonId, rows.at(-1), namesById(db, [actorId]));
@@ -265,8 +348,12 @@ export async function saveVideoReview(actorId: string, raw: Record<string, unkno
     const actor = requirePublisher(tx, actorId);
     const value = (input: unknown, maxLength: number) => typeof input === "string" ? input.trim().slice(0, maxLength) : "";
     const lessonId = value(raw.lessonId, 60);
-    const lesson = lessonById.get(lessonId);
-    if (!lesson) throw new LessonError("Unknown lesson.", "পাঠটি পাওয়া যায়নি।");
+    if (!isLessonId(lessonId)) throw new LessonError("Unknown lesson.", "পাঠটি পাওয়া যায়নি।");
+    const candidate = versionRows(tx, lessonId).at(-1);
+    const snapshot = snapshotOf(candidate);
+    if (!candidate || !snapshot || raw.contentFingerprint !== candidate.fingerprint || raw.videoId !== snapshot.lesson.video.id) {
+      throw new LessonError("The video preview changed. Reload the lesson and review the current video before saving your decision.", "ভিডিওর প্রিভিউ বদলেছে। পাঠটি আবার খুলে বর্তমান ভিডিও দেখে সিদ্ধান্ত সংরক্ষণ করুন।", 409);
+    }
     const status = value(raw.status, 30);
     const captionsStatus = value(raw.captionsStatus, 30);
     const suitabilityStatus = value(raw.suitabilityStatus, 30);
@@ -277,12 +364,12 @@ export async function saveVideoReview(actorId: string, raw: Record<string, unkno
     const replacementUrl = validateReplacementUrl(raw.replacementUrl);
     const now = new Date().toISOString();
     const existing = tx.select({ id: videoReviews.id }).from(videoReviews)
-      .where(and(eq(videoReviews.ownerEmail, actor.email), eq(videoReviews.lessonId, lessonId))).get();
-    const values = { videoId: lesson.video.id, status, captionsStatus, suitabilityStatus, replacementUrl, notes, checkedAt: now, updatedAt: now, adminDecidedAt: now };
+      .where(and(eq(videoReviews.ownerEmail, actor.email), eq(videoReviews.lessonId, lessonId), eq(videoReviews.videoId, snapshot.lesson.video.id))).get();
+    const values = { videoId: snapshot.lesson.video.id, status, captionsStatus, suitabilityStatus, replacementUrl, notes, checkedAt: now, updatedAt: now, adminDecidedAt: now };
     const review = existing
       ? tx.update(videoReviews).set(values).where(eq(videoReviews.id, existing.id)).returning().get()
       : tx.insert(videoReviews).values({ id: crypto.randomUUID(), ownerEmail: actor.email, lessonId, ...values }).returning().get();
-    audit(tx, actorId, lessonId, "lesson-video-checked", { status, suitabilityStatus, takenDown: videoTakenDown(review), replacementUrl });
+    audit(tx, actorId, lessonId, "lesson-video-checked", { status, suitabilityStatus, takenDown: videoTakenDown(review), replacementUrl, videoId: snapshot.lesson.video.id, contentFingerprint: candidate.fingerprint });
     return { review, created: !existing };
   });
 }

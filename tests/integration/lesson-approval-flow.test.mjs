@@ -6,13 +6,14 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test, { after, before } from "node:test";
 import Database from "better-sqlite3";
+import { approveShippedFixtureContent, currentVideoReviewFixture } from "./content-fixture.mjs";
 
 /**
  * The shared lesson approval against the production server: an administrator withdraws
  * a lesson and students can no longer open it (lesson list, ?module= link,
  * audio, worksheet), new assignments and progress for it are refused and parents
  * stop seeing its assignments; an administrator re-approves it and everything
- * comes back. A baseline lesson takes a real review while students keep it.
+ * comes back. Fresh shipped content waits for its first explicit Admin review.
  * Recordings waiting for review play for staff only, and a video an administrator
  * marks unsuitable disappears from the learner lesson, even after that administrator
  * deletes their account.
@@ -28,7 +29,13 @@ const cookieFrom = (response, name = "ba_adult_session") => response.headers.get
 const send = (route, method = "GET", body, cookie, headers = {}) => fetch(`${BASE}${route}`, { method, redirect: "manual", headers: { ...(body !== undefined ? { "Content-Type": "application/json" } : {}), ...(cookie ? { cookie } : {}), ...headers }, ...(body !== undefined ? { body: JSON.stringify(body) } : {}) });
 const fixture = (callback) => { const db = new Database(path.join(stateDir, "test.db")); try { return callback(db); } finally { db.close(); } };
 const html = async (route, cookie) => { const response = await send(route, "GET", undefined, cookie); assert.equal(response.status, 200, route); return response.text(); };
-const decide = (lessonId, body, cookie) => send(`/api/studio/lessons/${lessonId}`, "POST", body, cookie);
+const decide = async (lessonId, body, cookie) => {
+  if (body.decision === "approve" && cookie) {
+    const detail = await (await send(`/api/studio/lessons/${lessonId}`, "GET", undefined, cookie)).json();
+    body = { ...body, contentFingerprint: detail.contentFingerprint };
+  }
+  return send(`/api/studio/lessons/${lessonId}`, "POST", body, cookie);
+};
 
 async function adult(email, role) {
   assert.equal((await send("/api/auth/sign-up", "POST", { email, displayName: email.split("@")[0], password }, undefined, { "x-forwarded-for": email })).status, 201);
@@ -67,11 +74,36 @@ after(async () => {
   rmSync(stateDir, { recursive: true, force: true });
 });
 
+test("fresh shipped lessons require an Admin review of the current snapshot before any learner access", async () => {
+  const list = await (await send("/api/studio/lessons", "GET", undefined, adminCookie)).json();
+  assert.equal(list.lessons.length, 18);
+  assert.ok(list.lessons.every((lesson) => lesson.status === "waiting" && !lesson.baseline && lesson.pendingRevision === 1));
+  const detail = await (await send("/api/studio/lessons/hello-me", "GET", undefined, adminCookie)).json();
+  assert.equal(detail.approvedSnapshot, null);
+  assert.equal(detail.pendingRevision.version, 1);
+  for (const cookie of [studentCookie, parentCookie]) {
+    assert.equal((await send("/api/audio/hello-me/dialogue", "GET", undefined, cookie)).status, 404);
+    assert.equal((await send("/worksheets/hello-me", "GET", undefined, cookie)).status, 404);
+    assert.match(await html("/adventure?module=hello-me", cookie), /That lesson is not available at the moment/);
+  }
+  assert.equal((await send("/api/studio/lessons/hello-me", "POST", { decision: "approve", confirmedRead: true }, adminCookie)).status, 409, "the reviewed fingerprint is required");
+  assert.equal((await send("/api/studio/lessons/hello-me", "POST", { decision: "approve", confirmedRead: true, contentFingerprint: "stale-revision" }, adminCookie)).status, 409, "a stale preview cannot publish");
+  assert.equal((await decide("hello-me", { decision: "approve", confirmedRead: true }, teacherCookie)).status, 403);
+  const profile = await send("/api/profiles", "POST", { displayName: "Pending lessons learner" }, teacherCookie);
+  assert.equal(profile.status, 201);
+  const profileId = (await profile.json()).profile.id;
+  assert.equal((await send("/api/assignments", "POST", { profileId, lessonId: "hello-me" }, teacherCookie)).status, 400);
+  assert.equal((await send("/api/progress", "POST", { profileId, lessonId: "hello-me", sessionId: "session-hello-me-reading", skill: "reading" }, teacherCookie)).status, 400);
+  assert.equal(fixture((db) => db.prepare("SELECT COUNT(*) AS n FROM content_approvals WHERE content_type = 'lesson'").get().n), 0, "failed reviews leave every lesson unpublished");
+  await approveShippedFixtureContent(BASE, adminCookie, { topics: false, excludeLessons: ["food-please"] });
+  assert.equal((await send("/api/audio/hello-me/dialogue", "GET", undefined, studentCookie)).status, 307);
+});
+
 test("a withdrawn lesson disappears for students and parents everywhere, and re-approval brings it back", async () => {
-  // Every lesson starts approved as a baseline, and the state is the same for all staff.
+  // Explicit fixture reviews publish the lessons used here; Food, please still waits for its first review.
   const list = await (await send("/api/studio/lessons", "GET", undefined, teacherCookie)).json();
   assert.equal(list.lessons.length, 18);
-  assert.ok(list.lessons.every((lesson) => lesson.status === "approved" && lesson.baseline));
+  assert.ok(list.lessons.every((lesson) => lesson.status === (lesson.lessonId === "food-please" ? "waiting" : "approved") && !lesson.baseline));
   assert.equal((await send("/api/studio/lessons", "GET", undefined, parentCookie)).status, 403);
   assert.equal((await send("/api/studio/lessons", "GET", undefined, studentCookie)).status, 401);
   assert.equal((await send("/api/studio/lessons")).status, 401);
@@ -143,7 +175,7 @@ test("a withdrawn lesson disappears for students and parents everywhere, and re-
   assert.equal(approved.status, 200);
   const detail = await approved.json();
   assert.deepEqual([detail.approval.status, detail.approval.changedByName], ["approved", "lessons-admin"]);
-  assert.deepEqual(detail.history.map((entry) => [entry.status, entry.baseline]), [["approved", false], ["withdrawn", false], ["approved", true]]);
+  assert.deepEqual(detail.history.map((entry) => [entry.status, entry.baseline]), [["approved", false], ["withdrawn", false], ["approved", false]]);
   assert.equal((await decide("six-seasons", { decision: "approve", confirmedRead: true }, adminCookie)).status, 409);
 
   const restored = await html("/adventure?module=six-seasons", studentCookie);
@@ -154,12 +186,13 @@ test("a withdrawn lesson disappears for students and parents everywhere, and re-
   assert.equal((await send("/api/assignments", "POST", { profileId, lessonId: "six-seasons" }, teacherCookie)).status, 201);
   assert.deepEqual(await parentAssignments(), ["hello-me", "six-seasons"]);
   const audit = fixture((db) => db.prepare("SELECT action FROM user_audit_events WHERE target_id = 'six-seasons' ORDER BY created_at, rowid").all().map((row) => row.action));
-  assert.deepEqual(audit, ["lesson-withdrawn", "lesson-approved"]);
+  assert.deepEqual(audit, ["lesson-approved", "lesson-withdrawn", "lesson-approved"]);
 });
 
-test("an administrator records a full review of a baseline lesson while students keep seeing it", async () => {
+test("an administrator records the first full review of a pending shipped lesson before students see it", async () => {
   const foodTitle = "Food, please";
-  assert.match(await html("/adventure?module=food-please", studentCookie), new RegExp(foodTitle));
+  assert.doesNotMatch(await html("/adventure?module=food-please", studentCookie), new RegExp(foodTitle));
+  assert.equal((await send("/api/audio/food-please/dialogue", "GET", undefined, studentCookie)).status, 404);
   assert.equal((await decide("food-please", { decision: "approve" }, adminCookie)).status, 400);
   const reviewed = await decide("food-please", { decision: "approve", confirmedRead: true }, adminCookie);
   assert.equal(reviewed.status, 200);
@@ -220,8 +253,14 @@ test("a recording waiting for review plays for staff only, and an administrator 
 
 test("a video an administrator marks unsuitable is not shown to learners; a YouTube replacement is shown instead", async () => {
   const videoTitle = "5 First Bengali Words: My Family";
-  const check = (body, cookie = adminCookie) => send("/api/studio/video-reviews", "POST", { lessonId: "my-family", status: "approved", captionsStatus: "available", suitabilityStatus: "suitable", replacementUrl: "", notes: "", ...body }, cookie);
-  assert.match(await html("/adventure", studentCookie), new RegExp(videoTitle));
+  const check = async (body, cookie = adminCookie) => send("/api/studio/video-reviews", "POST", await currentVideoReviewFixture(BASE, adminCookie, "my-family", body), cookie);
+  assert.doesNotMatch(await html("/adventure", studentCookie), new RegExp(videoTitle), "lesson text approval does not publish unreviewed media");
+  assert.equal((await (await send("/api/studio/lessons/my-family", "GET", undefined, adminCookie)).json()).learnerVideo, null);
+  for (const status of ["approved", "pending", "replace", "unavailable"]) {
+    assert.equal((await check({ status, contentFingerprint: "stale-reviewed-candidate" })).status, 409, `${status} cannot change a video from a stale lesson preview`);
+  }
+  assert.equal((await check({ videoId: "stale-video-id" })).status, 409, "a video decision is bound to the video that was previewed");
+  assert.equal((await check({ contentFingerprint: undefined, videoId: undefined })).status, 409, "reviewed candidate identity is required");
   assert.equal((await check({ suitabilityStatus: "unsuitable", replacementUrl: "https://example.com/video" })).status, 400);
   assert.equal((await check({}, parentCookie)).status, 403);
   for (const cookie of [teacherCookie, colleagueCookie]) {
@@ -230,8 +269,10 @@ test("a video an administrator marks unsuitable is not shown to learners; a YouT
     }
   }
   assert.equal(fixture((db) => db.prepare("SELECT COUNT(*) AS n FROM video_reviews WHERE lesson_id = 'my-family'").get().n), 0);
+  assert.doesNotMatch(await html("/adventure", studentCookie), new RegExp(videoTitle), "denied staff decisions cannot publish media");
+  assert.equal((await check({ notes: "Fixture media review separate from the lesson text review." })).status, 201);
   assert.match(await html("/adventure", studentCookie), new RegExp(videoTitle));
-  assert.equal((await check({ suitabilityStatus: "unsuitable" })).status, 201);
+  assert.equal((await check({ suitabilityStatus: "unsuitable" })).status, 200);
   assert.doesNotMatch(await html("/adventure", studentCookie), new RegExp(videoTitle));
   const detail = await (await send("/api/studio/lessons/my-family", "GET", undefined, colleagueCookie)).json();
   assert.equal(detail.learnerVideo, null);
@@ -241,7 +282,7 @@ test("a video an administrator marks unsuitable is not shown to learners; a YouT
   assert.equal((await check({ status: "replace", replacementUrl: "https://www.youtube.com/watch?v=h-egsGh_VbQ" }, adminCookie)).status, 200);
   const page = await html("/adventure", studentCookie);
   assert.doesNotMatch(page, new RegExp(videoTitle));
-  assert.match(page, /A video chosen by your teacher/);
+  assert.match(page, /A video chosen by an administrator/);
   assert.equal((await (await send("/api/studio/lessons/my-family", "GET", undefined, teacherCookie)).json()).learnerVideo.id, "h-egsGh_VbQ");
 });
 
@@ -251,9 +292,11 @@ test("an administrator's video take-down stays in place after demotion and accou
   // The deep link opens the lesson's level, where its card shows the video title.
   const lessonPage = "/adventure?module=directions";
   const leaverCookie = await adult(leaverEmail, "admin");
+  assert.doesNotMatch(await html(lessonPage, studentCookie), new RegExp(videoTitle));
+  assert.equal((await send("/api/studio/video-reviews", "POST", await currentVideoReviewFixture(BASE, leaverCookie, "directions", { notes: "Fixture media review." }), leaverCookie)).status, 201);
   assert.match(await html(lessonPage, studentCookie), new RegExp(videoTitle));
-  const takenDown = await send("/api/studio/video-reviews", "POST", { lessonId: "directions", status: "approved", captionsStatus: "available", suitabilityStatus: "unsuitable", replacementUrl: "", notes: "Not for children." }, leaverCookie);
-  assert.equal(takenDown.status, 201);
+  const takenDown = await send("/api/studio/video-reviews", "POST", await currentVideoReviewFixture(BASE, leaverCookie, "directions", { suitabilityStatus: "unsuitable", notes: "Not for children." }), leaverCookie);
+  assert.equal(takenDown.status, 200);
   assert.doesNotMatch(await html(lessonPage, studentCookie), new RegExp(videoTitle));
 
   assert.equal((await send("/api/account/delete", "POST", { password }, leaverCookie)).status, 409, "administrators cannot delete their own Admin account");

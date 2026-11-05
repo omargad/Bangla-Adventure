@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { getDb } from "../db";
-import { adults, contentApprovals, studentTopicProgress, topicVersions, userAuditEvents } from "../db/schema";
+import { adults, contentApprovals, shippedContentState, studentTopicProgress, topicVersions, userAuditEvents } from "../db/schema";
 import { topics as shippedTopics, type Bilingual, type Topic, type TopicQuizQuestion } from "../app/topics-content";
 import { topicSourceLinks, type SourceOverride } from "./library-links";
 import { currentMembers } from "./class-roster";
@@ -13,8 +13,8 @@ import {
 
 /**
  * Topics students may read: the latest approved version of each topic. The
- * shipped topics in app/topics-content.ts are the approved baseline (version 0);
- * teachers and administrators add and edit topics as pending versions in
+ * pre-versioning topics are immutable stored baselines (version 0) on upgrades.
+ * Fresh installations and shipped source changes start pending. Staff edit topics in
  * topic_versions, and nothing reaches learners until an administrator approves
  * it. Administrators may also withdraw a topic (content_approvals, as for
  * lessons), which hides it until an administrator approves it again.
@@ -98,17 +98,22 @@ function baselineReviewOf(approved: CatalogTopic | null, summaries: TopicDecisio
   return approved?.baseline && adminReviewed && latest && latest.kind !== "withdrawn" ? latest : null;
 }
 
-/** Every topic with its stored versions: shipped topics first, then new topics oldest first. */
+/** Every topic with its stored versions: catalogue topics first, then new topics oldest first. */
 function topicStates(db: Reader, onlyId?: string): TopicState[] {
   const rows = db.select().from(topicVersions).where(onlyId ? eq(topicVersions.topicId, onlyId) : undefined).orderBy(asc(topicVersions.version)).all();
   const byTopic = new Map<string, VersionRow[]>();
   for (const row of rows) byTopic.set(row.topicId, [...(byTopic.get(row.topicId) ?? []), row]);
+  const baselines = new Map(db.select().from(shippedContentState).where(eq(shippedContentState.contentType, "topic")).all().map((row) => {
+    let baseline: Topic | null = null;
+    try { baseline = row.baselineJson ? JSON.parse(row.baselineJson) as Topic : null; } catch { /* Invalid snapshots fail closed. */ }
+    return [row.contentId, baseline] as const;
+  }));
   const shippedIds = shippedTopics.map((topic) => topic.id).filter((id) => !onlyId || id === onlyId);
   const newIds = [...byTopic.keys()].filter((id) => !shippedById.has(id))
     .sort((a, b) => byTopic.get(a)![0].createdAt.localeCompare(byTopic.get(b)![0].createdAt) || a.localeCompare(b));
   return [...shippedIds, ...newIds].map((id) => {
     const versions = byTopic.get(id) ?? [];
-    return { id, shipped: shippedById.get(id) ?? null, rows: versions, approved: versions.find((row) => row.status === "approved") ?? null };
+    return { id, shipped: baselines.get(id) ?? null, rows: versions, approved: versions.find((row) => row.status === "approved") ?? null };
   });
 }
 
@@ -144,7 +149,7 @@ function summaries(state: TopicState, name: (id: string | null) => string | null
   return [{ version: 0, status: state.approved ? "superseded" : "approved", baseline: true, basedOn: null, authorName: null, createdAt: null, reviewerName: null, reviewedAt: null, reviewNote: "" }, ...stored];
 }
 
-/** Approved topics only, less any a teacher withdrew: what students, parents and every learner page receive. */
+/** Approved topics only, less any an administrator withdrew: what students, parents and every learner page receive. */
 export async function getCatalog(): Promise<CatalogTopic[]> {
   const db = await getDb();
   const decisions = latestDecisions(decisionRows(db));

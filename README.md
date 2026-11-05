@@ -32,14 +32,15 @@ The running deployment uses the **custom English–Bangla application**, followi
 | Role | What they can do |
 | --- | --- |
 | 🧒&nbsp;**Students** | • My Learning: classes, activities, results and attendance<br>• Approved topics by category, with quizzes that count towards *Topics read*<br>• Announcements and sources for their classes<br>• Choose their own password at first sign-in when given a temporary one |
-| 🧑‍🏫&nbsp;**Teachers** | • Add students to a class by searching and ticking them, or upload a CSV class list<br>• Read results as a gradebook (students down, activities across, `—` for missing work) with attendance<br>• Take attendance by date, with everyone ticked present by default<br>• Post announcements to everyone, students only or parents only<br>• Write topics in English and Bangla, preview them in full and approve them for students (`/teach/topics`)<br>• Preview, approve or withdraw the 18 lessons (`/studio`), and add sources for each class |
-| 🛡️&nbsp;**Administrators** | • Approve or decline self-registered students, parents and teachers<br>• Create accounts and reset passwords with one-time temporary passwords on a printable sheet<br>• Import families from one CSV (`student name`, `parent name`, `parent email`), linked automatically<br>• Create classes for teachers or hand a class to another teacher (`/admin/classes`)<br>• Keep each NCTB textbook's yearly link up to date (`/admin/sources`)<br>• Review, export and reset results and attendance in every class (`/admin/results`); every change is audited |
+| 🧑‍🏫&nbsp;**Teachers** | • Add students to a class by searching and ticking them, or upload a CSV class list<br>• Read results as a gradebook (students down, activities across, `—` for missing work) with attendance<br>• Take attendance by date, with everyone ticked present by default<br>• Post announcements to everyone, students only or parents only<br>• Write topics in English and Bangla, preview them and submit them for Admin review (`/teach/topics`)<br>• Preview all 18 lesson revisions (`/studio`), submit recordings and add class sources for Admin review |
+| 🛡️&nbsp;**Administrators** | • Approve or decline self-registered students, parents and teachers<br>• Create accounts and reset passwords with one-time temporary passwords on a printable sheet<br>• Import families from one CSV (`student name`, `parent name`, `parent email`), linked automatically<br>• Create classes for teachers or hand a class to another teacher (`/admin/classes`)<br>• Keep each NCTB textbook's yearly link up to date (`/admin/sources`)<br>• Review, export and reset results and attendance in every class (`/admin/results`); every change is audited<br>• Approve the exact lesson/topic revision, class content, recordings and separate video decisions before publication |
 | 👪&nbsp;**Parents** | • Read-only view of linked children's results, attendance and class sources<br>• Announcements meant for parents |
 
-Learning content requires sign-in. Students see only approved topics: a new or edited topic
-stays hidden until a teacher or administrator has previewed all of it in English and Bangla
-and approved it. The topics that shipped with the app are approved as a baseline and are
-marked that way for staff, because they have not been individually reviewed.
+Learning content requires sign-in. Only an Admin can publish a reviewed topic or lesson
+revision. Fresh installations start with all 15 topics and 18 lessons pending. Existing
+installations keep their frozen, previously available versions while source corrections and
+new Bangla instructions wait for review. Text approval does not approve external videos.
+See [content approval](docs/CONTENT_APPROVAL.md) for the upgrade and media rules.
 
 `PLATFORM_MODE=legacy` is the configuration name for the custom application; it does not mean
 the running portals are retired. The Moodle pilot remains an alternative implementation, not the
@@ -132,8 +133,8 @@ where they stand:
 <table>
 <tr>
 <td width="75%" valign="top">
-<img src="docs/screenshots/lessons-studio.jpg" alt="Staff Lessons page with the Letters and numbers and Places and nature categories: one lesson approved by a teacher, the others approved as a baseline, each with a Preview lesson button">
-<p><b>Lessons by category</b><br><sub>The 18 lessons grouped by category, each with its approval status and who approved it.</sub></p>
+<img src="docs/screenshots/lessons-studio.jpg" alt="Historical staff Lessons page showing lesson categories and the earlier baseline status display">
+<p><b>Lessons by category</b><br><sub>Historical category view; current revisions use the Admin approval controls described above.</sub></p>
 </td>
 <td width="25%" valign="top">
 <img src="docs/screenshots/mobile-student.jpg" alt="Student My Learning dashboard on a phone-sized screen with progress cards, classes attended and a class announcement" width="185">
@@ -144,7 +145,7 @@ where they stand:
 
 </details>
 
-<sub>Captured from a local build seeded with a fictional weekend school and fictional demo accounts; names, e-mail addresses and passwords are made up.</sub>
+<sub>Historical screenshots from an earlier local build seeded with fictional demo accounts. They predate the current immutable revision and separate media approval controls.</sub>
 
 ## Honest delivery status
 
@@ -152,7 +153,7 @@ where they stand:
 | --- | --- |
 | ✅ Custom platform for learners, teachers, parents and admins | Deployed; role checks, staff allocation, learning progress and parent monitoring implemented |
 | 🟡 Official NCTB catalogue and PDF audit | Source records implemented; a verified PDF is not an approved adaptation |
-| 🟡 Bilingual topics and lessons | Teachers preview and approve content before students see it; the shipped content is approved as a baseline and still needs individual educator and community review |
+| 🟡 Bilingual topics and lessons | Complete Bangla instruction copy is staged for Admin review; approved snapshots control learner views. Qualified educator, source and community review remain pending |
 | 🟡 Bangla audio | Approved human recordings play first, then provider clips, the device voice and the bundled eSpeak voice; ElevenLabs is the chosen provider and generation waits for the client's key (Azure remains an alternative); native-speaker review and reviewed recordings remain incomplete |
 | 🟡 Application deployment and operations | Docker image, Compose and native service setups, an automatic deployment pipeline for the ten most used CI/CD systems and backup and restore tools included; deployment to the client's server, off-site backups and a recovery exercise still to do |
 | 🟡 Moodle pilot course | Installable hidden-course plugin implemented: 15 bilingual chapters, nine activities and nine questions |

@@ -10820,3 +10820,16 @@ body.modal-open .pwa-status {
   text-align: left;
 }
 
+
+/* Written lesson references share no audio slots with the recorded word bank. */
+.lesson-written-reference > div { display: block; margin-top: 16px; }
+.lesson-written-reference h4, .lesson-written-reference h5 { margin: 0 0 8px; }
+.lesson-written-reference > p { line-height: 1.65; color: #5b6a6d; }
+.written-model-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(105px, 1fr)); gap: 8px; margin: 0; }
+.written-model-grid > div { padding: 10px; border: 1px solid rgba(23, 50, 77, .12); border-radius: 12px; background: white; }
+.written-model-grid dt, .written-model-grid dd { margin: 0; }
+.written-model-grid dd { display: grid; gap: 3px; margin-top: 4px; font-size: 12px; }
+.lesson-culture-note { padding: 20px; border: 1px dashed #d9a825; border-radius: 20px; background: #fff6c9; }
+.lesson-culture-note h3 { margin-top: 0; }
+.lesson-culture-note p { line-height: 1.72; }
+.lesson-culture-note a { color: var(--indigo); font-weight: 800; text-decoration: underline; }

@@ -4,7 +4,7 @@ import os from "node:os";
 
 const PORT = 3210;
 const stateDir = process.env.BANGLA_E2E_DB ? path.dirname(process.env.BANGLA_E2E_DB) : path.join(os.tmpdir(), `bangla-e2e-${process.pid}`);
-if (!stateDir.startsWith(path.join(os.tmpdir(), "bangla-e2e-"))) throw new Error("E2E tests require a temporary database.");
+if (!path.resolve(stateDir).startsWith(path.join(os.tmpdir(), "bangla-e2e-"))) throw new Error("E2E tests require a temporary database.");
 process.env.BANGLA_E2E_DB = path.join(stateDir, "e2e.db");
 
 /**
@@ -25,7 +25,19 @@ export default defineConfig({
   },
   projects: [
     {
+      name: "fixture-publication",
+      testMatch: /published-fixtures\.setup\.ts/,
+      use: {
+        ...devices["Desktop Chrome"],
+        launchOptions: process.env.PLAYWRIGHT_CHROMIUM_PATH
+          ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH }
+          : {},
+      },
+    },
+    {
       name: "chromium",
+      dependencies: ["fixture-publication"],
+      testIgnore: /published-fixtures\.setup\.ts/,
       use: {
         ...devices["Desktop Chrome"],
         // Use the environment's pre-installed Chromium rather than the build
