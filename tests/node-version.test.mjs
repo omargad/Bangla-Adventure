@@ -15,12 +15,17 @@ function compare(a, b) {
   for (let index = 0; index < 3; index += 1) if ((a[index] ?? 0) !== (b[index] ?? 0)) return (a[index] ?? 0) - (b[index] ?? 0);
   return 0;
 }
-/** Enough of npm's range syntax for engines fields: ||, >=, >, <, <=, ^, partial versions (20 means 20.x) and *. */
+/** Enough of npm's range syntax for engines fields: ||, >=, >, <, <=, ^, partial versions, x-ranges and *. */
 function satisfies(version, range) {
   const wanted = parse(version);
   return range.split("||").some((alternative) => alternative.trim().replace(/([<>]=?|\^)\s+/g, "$1").split(/\s+/).every((comparator) => {
     const [, operator, bound] = comparator.match(/^(>=|<=|>|<|\^|)(.*)$/);
     if (bound === "*") return true;
+    const wildcard = bound.match(/^(\d+)(?:\.(\d+))?\.[xX*]$/);
+    if (wildcard) {
+      assert.equal(operator, "", `cannot read the range ${range}`);
+      return wanted[0] === Number(wildcard[1]) && (wildcard[2] === undefined || wanted[1] === Number(wildcard[2]));
+    }
     const parts = parse(bound);
     assert.ok(parts.every(Number.isInteger) && !(operator === "^" && parts[0] === 0), `cannot read the range ${range}`);
     const order = compare(wanted, parts);
@@ -41,6 +46,11 @@ test("the range check reads engines fields the way npm does", () => {
   assert.equal(satisfies("21.0.0", "18 || 20 || >=22"), false);
   assert.equal(satisfies("22.13.0", ">= 0.4"), true);
   assert.equal(satisfies("23.0.0", ">=22.13 <23"), false);
+  assert.equal(satisfies("22.13.0", "4.x || >=6.0.0"), true);
+  assert.equal(satisfies("5.0.0", "4.x || >=6.0.0"), false);
+  assert.equal(satisfies("4.9.0", "4.x || >=6.0.0"), true);
+  assert.equal(satisfies("22.13.1", "22.13.*"), true);
+  assert.equal(satisfies("22.14.0", "22.13.x"), false);
 });
 
 test("package.json allows only Node 22, from the oldest 22.x every locked dependency supports", () => {

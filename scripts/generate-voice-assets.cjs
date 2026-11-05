@@ -442,8 +442,10 @@ async function errorReason(response, key) {
   } catch {
     // Not JSON: the text itself is the reason.
   }
-  reason = reason.replace(/\s+/g, " ").trim().slice(0, 200);
-  return key ? reason.split(key).join("[key]") : reason;
+  // Redact before shortening: truncating an echoed key first would leave a
+  // partial secret which no longer matches the value we need to remove.
+  if (key) reason = reason.split(key).join("[key]");
+  return reason.replace(/\s+/g, " ").trim().slice(0, 200);
 }
 
 /**
@@ -486,7 +488,8 @@ async function synthesizeElevenLabs(asset, options, { fetch = globalThis.fetch, 
     }
     if (bytes) {
       if (!isOggOpus(bytes)) {
-        const type = (response.headers.get("content-type") ?? "no content type").slice(0, 60);
+        const rawType = response.headers.get("content-type") ?? "no content type";
+        const type = (options.key ? rawType.split(options.key).join("[key]") : rawType).slice(0, 60);
         throw new Error(`ElevenLabs did not return Ogg Opus audio for ${asset.file} (${type}), so nothing was written: the app plays bundled clips only as .ogg.`);
       }
       return bytes;
