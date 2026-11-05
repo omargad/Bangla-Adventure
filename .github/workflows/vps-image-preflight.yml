@@ -57,12 +57,15 @@ jobs:
           EFFECTIVE_DOCKER_HOST_STATE: ${{ vars.DEPLOY_DOCKER_HOST == '' && (vars.DEPLOY_DOCKER_CONTEXT == '' && 'default rootless socket' || 'unset; context selected') || vars.DEPLOY_DOCKER_HOST == 'unix:///run/user/1002/docker.sock' && 'matches rootless socket' || 'unexpected' }}
           EFFECTIVE_DOCKER_CONTEXT_STATE: ${{ vars.DEPLOY_DOCKER_CONTEXT == '' && 'unset' || vars.DEPLOY_DOCKER_CONTEXT == 'rootless' && 'rootless' || 'unexpected' }}
           EFFECTIVE_HEALTH_URL_STATE: ${{ vars.PUBLIC_HEALTH_URL == '' && 'unset' || 'provided; needs domain review' }}
+          EFFECTIVE_HOST_PIN_STATE: ${{ vars.DEPLOY_HOST_FINGERPRINT == '' && 'default verified server pin' || vars.DEPLOY_HOST_FINGERPRINT == 'SHA256:79xe+ubCodL2ACAHPNloo7I/K6mvngU88vEiFoEeWL8' && 'matches verified server pin' || 'unexpected' }}
+          EFFECTIVE_KEY_PIN_STATE: ${{ vars.DEPLOY_KEY_FINGERPRINT == '' && 'default verified deployment key pin' || vars.DEPLOY_KEY_FINGERPRINT == 'SHA256:y1+C6cvcfpJFmO8pfjyMSFERpd5BtcQyDf5SptZXVlQ' && 'matches verified deployment key pin' || 'unexpected' }}
           MISPLACED_PRIVATE_VARIABLE_STATE: ${{ vars.DEPLOY_SSH_KEY == '' && 'absent' || 'present; remove misplaced entry' }}
           UNUSED_HOST_SECRET_STATE: ${{ secrets.DEPLOY_KNOWN_HOSTS == '' && 'absent' || 'present; unused secret entry' }}
         run: |
           set -euo pipefail
           printf 'effective production settings: user=%s; port=%s; path=%s.\n' "$EFFECTIVE_USER_STATE" "$EFFECTIVE_PORT_STATE" "$EFFECTIVE_PATH_STATE"
           printf 'effective production settings: Docker host=%s; context=%s; public health URL=%s.\n' "$EFFECTIVE_DOCKER_HOST_STATE" "$EFFECTIVE_DOCKER_CONTEXT_STATE" "$EFFECTIVE_HEALTH_URL_STATE"
+          printf 'effective production fingerprint settings: server=%s; deployment key=%s.\n' "$EFFECTIVE_HOST_PIN_STATE" "$EFFECTIVE_KEY_PIN_STATE"
           printf 'production section placement: DEPLOY_SSH_KEY variable=%s; DEPLOY_KNOWN_HOSTS secret=%s.\n' "$MISPLACED_PRIVATE_VARIABLE_STATE" "$UNUSED_HOST_SECRET_STATE"
       - name: Verify the pinned production image on the rootless VPS
         if: ${{ success() }}
