@@ -22,6 +22,7 @@
     "test:e2e": "playwright test",
     "db:generate": "drizzle-kit generate",
     "audio:generate": "node scripts/generate-voice-assets.cjs",
+    "audio:elevenlabs": "node --env-file-if-exists=.env.local scripts/generate-elevenlabs-audio.mjs",
     "verify:media": "node scripts/verify-media.mjs",
     "verify:links": "node scripts/verify-links.mjs",
     "verify:moodle-pilot": "node scripts/verify-moodle-pilot.mjs",
@@ -33,6 +34,7 @@
     "crawl:nctb": "node scripts/crawl-nctb.mjs"
   },
   "dependencies": {
+    "@elevenlabs/elevenlabs-js": "2.76.0",
     "better-sqlite3": "^11.10.0",
     "drizzle-orm": "^0.45.2",
     "next": "16.3.8",

@@ -285,6 +285,30 @@ test("ElevenLabs clips: 429 waits as long as Retry-After asks, 5xx and network f
   assert.equal(throttled, 3);
 });
 
+test("ElevenLabs errors redact echoed keys before truncating response messages and content types", async () => {
+  const key = "fake-key-redaction-boundary-1234567890";
+  const options = voice.parseOptions(["--provider", "elevenlabs"], { ...elevenEnv, ELEVENLABS_API_KEY: key });
+  const asset = { file: "hello-bn", text: "হ্যালো, বন্ধু!", language: "bn" };
+  const redacted = (error) => {
+    assert.ok(error.message.includes("[key]"), "an echoed key is removed before shortening");
+    assert.ok(!error.message.includes(key.slice(0, 10)), "even a truncated key prefix must not appear");
+    return true;
+  };
+  for (const detail of [`${"x".repeat(185)}${key}`, { message: `${"x".repeat(185)}${key}` }]) {
+    await assert.rejects(
+      voice.synthesizeElevenLabs(asset, options, { fetch: async () => answer(401, { detail }), attempts: 1 }),
+      redacted,
+    );
+  }
+  await assert.rejects(
+    voice.synthesizeElevenLabs(asset, options, {
+      fetch: async () => response(200, Buffer.from("not audio"), { "Content-Type": `${"x".repeat(45)}${key}` }),
+      attempts: 1,
+    }),
+    redacted,
+  );
+});
+
 test("an ElevenLabs request with no answer in time, or audio that stops arriving, is retried and then stops", async () => {
   const options = voice.parseOptions(["--provider", "elevenlabs"], elevenEnv);
   const asset = { file: "story-1-bn", text: "মায়া একটি চওড়া নদীর পাশে দাঁড়াল।", language: "bn" };

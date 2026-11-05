@@ -101,14 +101,35 @@ away (lesson audio is never cached by browsers).
 
 ## A better Bangla computer voice (ElevenLabs)
 
-The bundled clips are made offline with eSpeak-NG, which misreads some names
-(for example মায়া). The client chose **ElevenLabs** for clearer Bangla, and
-`scripts/generate-voice-assets.cjs` can make the same 204 clips with its
-Eleven v4 model, which lists Bengali (`bn`). Generation waits for the client's
-API key: nothing calls ElevenLabs unless someone runs the commands below with a
-key, and the key is used only on the computer that runs them, never by the app
-or the browser. Only the fixed lesson, story and place texts in the repository
-are sent; no learner names, accounts or other personal data.
+The official JavaScript SDK is available through `npm run audio:elevenlabs`.
+This operator-only command reads `ELEVENLABS_API_KEY` from the environment or a
+private, git-ignored `.env.local`. It uses the same validated texts, filenames,
+manifest, sample selection and resumable generation as the existing REST command.
+The API key is excluded from Docker builds; the website plays static audio files
+and does not need the key for playback.
+
+For the Bangladeshi narrator selected for the demo, use voice
+`6fKdJFZHa5oCXNSVGieE` (Dr Mahmood — Calm & Telecasting Host, described by
+ElevenLabs as a British Bangladeshi broadcaster). To generate only the 198
+Bengali clips while retaining the six English recordings:
+
+```bash
+npm run audio:elevenlabs -- --voice 6fKdJFZHa5oCXNSVGieE --bangla-only --force --resume --out voice-samples/elevenlabs-demo
+```
+
+Review the generated files before replacing the corresponding `public/audio`
+clips and merging their manifest entries. These are synthetic recordings, not
+human-reviewed pronunciation. Alphabet, numbers and the other hub pages that
+have no bundled clip still use the device's Bengali voice.
+
+The original bundled clips used eSpeak-NG, which can misread names such as মায়া.
+The 198 Bengali clips now use **ElevenLabs**, model `eleven_v4`, and the six
+English clips retain their original eSpeak audio. All 198 generated Ogg Opus
+files passed a full decode check on 5 November 2026; this verifies file integrity,
+not pronunciation or native-speaker review. The manifest records the provider,
+voice and model for each clip. Regeneration requires the operator's API key:
+nothing calls ElevenLabs during normal website playback. Only fixed lesson,
+story and place texts are sent for generation; no learner accounts or personal data.
 
 1. **Account and key: the client.** The client should own the ElevenLabs
    account, its plan and billing, and the API key, so the audio can be remade
