@@ -1,0 +1,110 @@
+name: VPS SSH preflight
+
+on:
+  push:
+    branches:
+      - codex/vps-ssh-preflight-20261105
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ssh-preflight:
+    if: >-
+      github.repository == 'omargad/Bangla-Adventure' &&
+      (github.ref == 'refs/heads/main' ||
+       github.ref == 'refs/heads/codex/vps-ssh-preflight-20261105')
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    environment: production
+    steps:
+      - name: Reject misplaced private credentials
+        if: ${{ contains(vars.DEPLOY_KNOWN_HOSTS, 'PRIVATE KEY') || contains(vars.DEPLOY_KNOWN_HOSTS, '-----BEGIN') }}
+        shell: bash
+        run: |
+          printf '::error::DEPLOY_KNOWN_HOSTS must contain only verified server public host-key lines. Store the private deployment key only in DEPLOY_SSH_KEY.\n'
+          exit 1
+      - name: Verify pinned SSH access and rootless Docker
+        if: ${{ success() }}
+        shell: bash
+        env:
+          DEPLOY_ENABLED: ${{ vars.DEPLOY_ENABLED }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ vars.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          umask 077
+          fail() { printf 'preflight: %s\n' "$*" >&2; exit 1; }
+          [ "${DEPLOY_ENABLED:-false}" != true ] || fail 'DEPLOY_ENABLED must remain false during this read-only preflight.'
+          [ -n "${DEPLOY_SSH_KEY:-}" ] || fail 'production secret DEPLOY_SSH_KEY is missing.'
+          [ -n "${DEPLOY_KNOWN_HOSTS:-}" ] || fail 'production variable DEPLOY_KNOWN_HOSTS is missing.'
+
+          readonly host='203.0.113.10'
+          readonly user='deployer'
+          readonly port='22'
+          readonly key_pin='SHA256:y1+C6cvcfpJFmO8pfjyMSFERpd5BtcQyDf5SptZXVlQ'
+          readonly host_pin='SHA256:79xe+ubCodL2ACAHPNloo7I/K6mvngU88vEiFoEeWL8'
+          work="$(mktemp -d)"
+          chmod 700 "$work"
+          trap 'rm -rf -- "$work"' EXIT
+          trap 'exit 129' HUP
+          trap 'exit 130' INT
+          trap 'exit 143' TERM
+          printf '%s\n' "$DEPLOY_SSH_KEY" | tr -d '\r' > "$work/key"
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" | tr -d '\r' > "$work/provided_hosts"
+          unset DEPLOY_SSH_KEY DEPLOY_KNOWN_HOSTS
+          chmod 600 "$work/key" "$work/provided_hosts"
+
+          ssh-keygen -y -P '' -f "$work/key" > "$work/public_key" 2>/dev/null || fail 'DEPLOY_SSH_KEY must be a readable, unencrypted CI deployment key.'
+          actual="$(ssh-keygen -l -E sha256 -f "$work/public_key" 2>/dev/null | awk '{print $2}')" || fail 'Could not fingerprint the deployment key.'
+          [ "$actual" = "$key_pin" ] || fail 'The deployment key does not match the supplied public-key fingerprint.'
+          : > "$work/known_hosts"
+          while IFS= read -r line || [ -n "$line" ]; do
+            [[ "$line" =~ ^[[:space:]]*(#|$) ]] && continue
+            [[ "$line" =~ ^[[:space:]]*@ ]] && fail 'known_hosts markers are not permitted; supply the pinned server public key directly.'
+            IFS=$' \t' read -r hostnames key_type key_data comment <<< "$line"
+            [ -n "$hostnames" ] || fail 'DEPLOY_KNOWN_HOSTS is not in known_hosts format.'
+            case "$key_type" in
+              ssh-ed25519|ssh-rsa|ecdsa-sha2-nistp256|ecdsa-sha2-nistp384|ecdsa-sha2-nistp521) ;;
+              *) fail 'DEPLOY_KNOWN_HOSTS is not in known_hosts format.' ;;
+            esac
+            [[ "$key_data" =~ ^[a-zA-Z0-9+/]+={0,2}$ ]] || fail 'DEPLOY_KNOWN_HOSTS has invalid public-key encoding.'
+            printf '%s\n' "$line" > "$work/host_line"
+            actual="$(ssh-keygen -l -E sha256 -f "$work/host_line" 2>/dev/null | awk '{print $2}')" || fail 'DEPLOY_KNOWN_HOSTS contains an invalid host-key line.'
+            [ "$actual" = "$host_pin" ] || fail 'DEPLOY_KNOWN_HOSTS contains a host key that does not match the supplied server fingerprint.'
+            printf '%s\n' "$line" >> "$work/known_hosts"
+          done < "$work/provided_hosts"
+          [ -s "$work/known_hosts" ] || fail 'DEPLOY_KNOWN_HOSTS has no pinned server key.'
+          ssh-keygen -F "$host" -f "$work/known_hosts" >/dev/null 2>&1 || fail 'The pinned known_hosts entry does not cover the deployment server on port 22.'
+          chmod 600 "$work/known_hosts" "$work/public_key" "$work/host_line"
+          printf 'preflight: deployment key and server host-key fingerprints verified.\n'
+
+          ssh -F /dev/null -T -i "$work/key" -p "$port" \
+            -o BatchMode=yes -o IdentitiesOnly=yes \
+            -o PreferredAuthentications=publickey -o PasswordAuthentication=no \
+            -o KbdInteractiveAuthentication=no -o StrictHostKeyChecking=yes \
+            -o UpdateHostKeys=no -o GlobalKnownHostsFile=/dev/null \
+            -o "UserKnownHostsFile=$work/known_hosts" \
+            -o ForwardAgent=no -o ClearAllForwardings=yes \
+            -o PermitLocalCommand=no -o ControlMaster=no -o ControlPath=none \
+            -o ConnectTimeout=15 -o ConnectionAttempts=1 \
+            -o ServerAliveInterval=15 -o ServerAliveCountMax=2 \
+            "$user@$host" 'bash -s' <<'REMOTE'
+          set -euo pipefail
+          fail() { printf 'preflight: %s\n' "$*" >&2; exit 1; }
+          [ "$(id -un)" = deployer ] || fail 'SSH connected as an unexpected user.'
+          test -d /opt/bangla-adventures || fail 'The deployment directory is missing.'
+          test -w /opt/bangla-adventures || fail 'The deployment directory is not writable by deployer.'
+          readonly docker_socket='unix:///run/user/1002/docker.sock'
+          security_options="$(docker --host "$docker_socket" info --format '{{json .SecurityOptions}}')" || fail 'The prepared Docker daemon is not accessible.'
+          case "$security_options" in
+            *'"name=rootless"'*) ;;
+            *) fail 'The prepared Docker daemon does not report rootless mode.' ;;
+          esac
+          compose_version="$(docker --host "$docker_socket" compose version --short)" || fail 'Docker Compose is not available.'
+          printf 'preflight: authenticated as deployer; deployment directory exists and is writable.\n'
+          printf 'preflight: the prepared Docker daemon reports rootless mode.\n'
+          printf 'preflight: Docker Compose version %s.\n' "$compose_version"
+          REMOTE
+          printf 'preflight: read-only SSH checks passed; no application deployment was performed.\n'
