@@ -193,7 +193,10 @@ test("connected four-role demo preserves quiz scores and keeps gradebook summari
     await expect(queue.getByRole("listitem").filter({ hasText: pending.student.username })).toContainText("Student");
     await expect(adminPage.locator("input[type=password], .credential-sheet")).toHaveCount(0);
     await queue.screenshot({ path: testInfo.outputPath("admin-pending-applicants.png") });
+    let approvalPrompt = "";
+    adminPage.once("dialog", (dialog) => { approvalPrompt = dialog.message(); void dialog.accept(); });
     await teacherApplicant.getByRole("button", { name: "Approve", exact: true }).click();
+    expect(approvalPrompt).toBe(`Apply this change to ${pending.teacher.displayName}? Permission changes sign the user out.`);
     await expect(adminPage.getByRole("status").filter({ hasText: `${pending.teacher.displayName} is approved as a teacher` })).toBeVisible();
     await expect(teacherApplicant).toHaveCount(0);
     fixture((db) => {
