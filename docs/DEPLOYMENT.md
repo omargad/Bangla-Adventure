@@ -106,7 +106,8 @@ docker compose up --build -d
 docker compose ps
 ```
 
-Put the HTTPS proxy in front of `127.0.0.1:3000`, or the configured `APP_PORT`.
+Put the HTTPS proxy in front of `127.0.0.1:3000`, or the configured `APP_PORT`
+(`3001` in the prepared VPS settings).
 The native Caddy example uses port `3300`; change its upstream for Compose.
 Keep the same Compose project name so recreations reuse the same named volume.
 Never run `docker compose down -v` during an upgrade. The CI Docker smoke test
@@ -215,7 +216,7 @@ each system. The scripts:
 | `scripts/ci/e2e.sh` | The browser tests | Node 22 (and root or sudo for Chromium's libraries, or `PLAYWRIGHT_INSTALL_DEPS=0` when they are installed already) |
 | `scripts/ci/container.sh IMAGE` | Builds the image and runs the container test on it | Docker with Compose |
 | `scripts/ci/publish.sh` | Pushes an image to a registry, or adds a tag to one already there | Docker |
-| `scripts/deploy.sh IMAGE` | Deploys an image to the server | bash, ssh |
+| `scripts/deploy.sh IMAGE` | Deploys an image to the server | bash, ssh, ssh-keygen; curl on the server for public health |
 | `scripts/ci/newest.sh BRANCH` | Says whether this commit is still the newest one of BRANCH on the remote; the pipelines mark an image `latest` and deploy it only then | git |
 
 On the default branch the pipeline then:
@@ -224,7 +225,12 @@ On the default branch the pipeline then:
    `ghcr.io/OWNER/REPOSITORY:sha-COMMIT` on GitHub (lowercase), the project's registry on GitLab.
 2. Tags that same image `latest` once every check has passed. Nothing is rebuilt, so what is
    deployed is exactly what was tested.
-3. Deploys it, when the server is configured (below). Until then that step is skipped.
+3. Deploys it when the server is configured and `DEPLOY_ENABLED=true`. Until then that step is skipped.
+
+For Faysal's prepared `deployer` rootless VPS, use [VPS_DEPLOYMENT.md](VPS_DEPLOYMENT.md)
+and the supplied non-secret settings templates. That server uses host port `3001`,
+the existing rootless daemon, and Nginx; the generic rootful setup below does not
+apply to it.
 
 **What a deploy does.** `scripts/deploy.sh` connects to the server over SSH, uploads
 `compose.yaml` and `scripts/deploy-remote.sh` into the deployment folder (each file is replaced
@@ -241,8 +247,9 @@ to `deploy.log` in the deployment folder. `deploy-remote.sh`:
   and media into `backups/` with the current version (`scripts/backup.sh`, the latest 14 kept).
   When it takes no backup, for example on the first deploy, it says why. If the backup fails, the
   app is started again unchanged and the deploy stops;
-- starts the new image with `compose.yaml` and waits up to 3 minutes for `/api/health`. If it
-  does not answer, the previous image is started again and the pipeline fails. If that fails too,
+- starts the new image with `compose.yaml`, waits up to 3 minutes for container readiness,
+  then checks `/api/health` inside the container and through public HTTPS (required on GitHub).
+  If a check fails, the previous image is started again and the pipeline fails. If that fails too,
   it says the site is down: start an earlier image by hand (below);
 - records the image in `deployments.log` and removes images older than the previous one.
 
@@ -274,7 +281,8 @@ Each deploy is offline for the backup plus a few seconds of start-up. Only one r
 
    Compare the SHA256 fingerprints it prints with the server's administrator, who can list them
    on the server with `for key in /etc/ssh/ssh_host_*_key.pub; do ssh-keygen -lf "$key"; done`.
-   When they match, the contents of `server.keys` are the value of `DEPLOY_KNOWN_HOSTS`.
+   Retain only the host-key line matching the agreed `DEPLOY_HOST_FINGERPRINT` pin;
+   the contents of `server.keys` are then the value of `DEPLOY_KNOWN_HOSTS`.
 
 After the first deploy, register the client's administrator on the site and approve the account
 from the deployment folder: `docker compose exec app npm run admin:grant -- EMAIL`.
@@ -283,18 +291,27 @@ from the deployment folder: `docker compose exec app npm run admin:grant -- EMAI
 
 | Name | Kind | Value |
 | --- | --- | --- |
+| `DEPLOY_ENABLED` | Repository variable | Must be exactly `true` to enable deployment. Leave unset or `false` while preparing access, the domain and backups |
 | `DEPLOY_HOST` | Repository variable | The server's name or address. The deploy job is skipped while it is unset. It must be a repository variable, not an environment one: the job checks it before the environment loads |
 | `DEPLOY_KNOWN_HOSTS` | Variable | The contents of `server.keys` (step 5 above) |
-| `DEPLOY_USER` | Variable | Optional; default `deploy` |
+| `DEPLOY_HOST_FINGERPRINT` | Variable | Expected SHA256 fingerprint; every supplied host-key line must match this pin |
+| `DEPLOY_KEY_FINGERPRINT` | Variable | Expected SHA256 fingerprint of the deployment key's public half |
+| `DEPLOY_USER` | Variable | Optional; GitHub defaults to `deployer`; the portable script defaults to `deploy` |
 | `DEPLOY_PORT` | Variable | Optional; default `22` |
 | `DEPLOY_PATH` | Variable | Optional; default `/opt/bangla-adventures` |
+| `DEPLOY_DOCKER_HOST` | Variable | Explicit daemon endpoint; for the prepared VPS, `unix:///run/user/1002/docker.sock` |
+| `DEPLOY_DOCKER_CONTEXT` | Variable | Alternative named context; use only one Docker selector |
+| `DEPLOY_REQUIRE_ROOTLESS` | Fixed workflow setting | GitHub enforces `true`; portable scripts accept this environment setting and default to `true` |
+| `DEPLOY_REQUIRE_PUBLIC_HEALTH` | Fixed workflow setting | GitHub enforces `true`; portable scripts accept this environment setting and default to `false` |
+| `PUBLIC_HEALTH_URL` | Variable | Optional HTTPS health URL; defaults to the server's `PUBLIC_ORIGIN` plus `/api/health` |
 | `DEPLOY_SSH_KEY` | Secret | The deploy user's private key |
 
-The variables other than `DEPLOY_HOST`, and the `DEPLOY_SSH_KEY` secret, may be set on the
+The configurable variables other than `DEPLOY_HOST` and `DEPLOY_ENABLED`, and the `DEPLOY_SSH_KEY` secret, may be set on the
 `production` environment instead (Settings > Environments). To approve each deploy before it runs,
 add required reviewers to that environment. Only the newest commit on the default branch is marked
 `latest` and deployed: a run whose commit is no longer the newest, such as an old run started
-again, skips those steps with a notice.
+again, skips those steps with a notice. If the newest commit cannot be verified,
+the check fails and the release is not promoted or deployed.
 
 The image is a package of the repository's owner. It takes the repository's visibility when the
 workflow first creates it, so it is public while the repository is public; to change that, open
@@ -312,7 +329,10 @@ image is `ghcr.io/NEWOWNER/REPOSITORY`.
 repository, with `server.keys` from step 5 above:
 
 ```sh
-DEPLOY_HOST=SERVER DEPLOY_KNOWN_HOSTS="$(cat server.keys)" DEPLOY_SSH_KEY=~/.ssh/bangla_deploy \
+DEPLOY_ENABLED=true DEPLOY_HOST=SERVER DEPLOY_KNOWN_HOSTS="$(cat server.keys)" DEPLOY_SSH_KEY=~/.ssh/bangla_deploy \
+  DEPLOY_HOST_FINGERPRINT=EXPECTED_SERVER_SHA256 DEPLOY_KEY_FINGERPRINT=EXPECTED_DEPLOY_KEY_SHA256 \
+  DEPLOY_USER=deployer DEPLOY_DOCKER_HOST=unix:///run/user/1002/docker.sock \
+  DEPLOY_REQUIRE_ROOTLESS=true DEPLOY_REQUIRE_PUBLIC_HEALTH=true \
   REGISTRY_USER=GITHUB_USER REGISTRY_PASSWORD=TOKEN_WITH_READ_PACKAGES \
   bash scripts/deploy.sh ghcr.io/OWNER/REPOSITORY:sha-COMMIT
 ```
@@ -320,11 +340,17 @@ DEPLOY_HOST=SERVER DEPLOY_KNOWN_HOSTS="$(cat server.keys)" DEPLOY_SSH_KEY=~/.ssh
 `DEPLOY_KNOWN_HOSTS` and `DEPLOY_SSH_KEY` each take either the text itself or the path of a file
 holding it. The registry settings are needed only for a private image. If the connection drops, the
 deploy still finishes on the server; `deploy.log` in the deployment folder shows how it went.
+The example selects Faysal's rootless daemon. For a separately approved rootful host,
+explicitly use `DEPLOY_DOCKER_HOST=unix:///var/run/docker.sock`,
+`DEPLOY_REQUIRE_ROOTLESS=false` and that host's user and fingerprint pins.
 
 To go back to an earlier version, deploy its `sha-` tag the same way, or run `deploy-remote.sh` in
 the deployment folder on the server (`deployments.log` lists earlier images):
 
 ```sh
+unset DOCKER_CONTEXT
+export DOCKER_HOST=unix:///run/user/1002/docker.sock
+export DEPLOY_REQUIRE_ROOTLESS=true DEPLOY_REQUIRE_PUBLIC_HEALTH=true
 bash deploy-remote.sh IMAGE                                     # an image still on the server
 printf '%s' TOKEN | bash deploy-remote.sh IMAGE REGISTRY_USER   # one to pull from a private registry
 ```

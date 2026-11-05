@@ -4,7 +4,7 @@
 # git, ssh and passwordless sudo (or PLAYWRIGHT_INSTALL_DEPS=0 with Chromium's libraries installed).
 # The settings are variables of this pipeline (Edit > Variables). On main the tested image is
 # published when REGISTRY_IMAGE is set (for example ghcr.io/OWNER/REPOSITORY), signing in with
-# REGISTRY_USER and the secret variable REGISTRY_PASSWORD, and deployed when DEPLOY_HOST is also set,
+# REGISTRY_USER and the secret variable REGISTRY_PASSWORD, and deployed when DEPLOY_ENABLED=true and DEPLOY_HOST are set,
 # with DEPLOY_KNOWN_HOSTS_BASE64 (`base64 -w0 server.keys`), DEPLOY_USER, DEPLOY_PORT and DEPLOY_PATH
 # when they differ from the defaults, and the secret variable DEPLOY_SSH_KEY_BASE64 (`base64 -w0` of
 # the private key). REGISTRY_IMAGE (lowercase), REGISTRY_USER, DEPLOY_HOST and the other DEPLOY_
@@ -99,16 +99,19 @@ stages:
           - bash: |
               if bash scripts/ci/newest.sh "${BUILD_SOURCEBRANCH#refs/heads/}"; then
                 bash scripts/ci/publish.sh promote "$REGISTRY_IMAGE:sha-$BUILD_SOURCEVERSION" "$REGISTRY_IMAGE:latest"
+              else
+                status=$?
+                [ "$status" -eq 1 ] || exit "$status"
               fi
             displayName: Mark the tested image as latest
             env:
               REGISTRY_PASSWORD: $(REGISTRY_PASSWORD)
 
-  # Skipped until the pipeline variable DEPLOY_HOST is set. With the Exclusive lock check on the
+  # Skipped until DEPLOY_ENABLED=true and the pipeline variable DEPLOY_HOST is set. With the Exclusive lock check on the
   # environment, one deploy runs at a time and a newer run's deploy replaces one still waiting.
   - stage: Deploy
     dependsOn: Publish
-    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'), ne(variables['REGISTRY_IMAGE'], ''), ne(variables['DEPLOY_HOST'], ''))
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'), ne(variables['REGISTRY_IMAGE'], ''), eq(variables['DEPLOY_ENABLED'], 'true'), ne(variables['DEPLOY_HOST'], ''))
     lockBehavior: runLatest
     jobs:
       - deployment: server
@@ -124,6 +127,9 @@ stages:
                 - bash: |
                     if bash scripts/ci/newest.sh "${BUILD_SOURCEBRANCH#refs/heads/}"; then
                       bash scripts/deploy.sh "$REGISTRY_IMAGE:sha-$BUILD_SOURCEVERSION"
+                    else
+                      status=$?
+                      [ "$status" -eq 1 ] || exit "$status"
                     fi
                   displayName: Deploy to the server
                   env:

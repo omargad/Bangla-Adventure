@@ -1,6 +1,6 @@
 # The same pipeline as .github/workflows/ci.yml, for AWS CodeBuild (on its own or as the build action
 # of CodePipeline): each command runs one of the shared scripts in scripts/ci. On the default branch
-# the tested image is published once REGISTRY_IMAGE is set and, once DEPLOY_HOST is set too, deployed
+# the tested image is published once REGISTRY_IMAGE is set and, once DEPLOY_ENABLED=true and DEPLOY_HOST are set, deployed
 # (docs/DEPLOYMENT.md "Automatic deployment").
 # Build project: image aws/codebuild/standard:8.0 (Ubuntu 24.04), Privileged on (Docker needs it),
 # compute with 8 GB of memory or more (BUILD_GENERAL1_MEDIUM), timeout 90 minutes.
@@ -60,18 +60,23 @@ phases:
             if bash scripts/ci/newest.sh "$BRANCH"; then
               bash scripts/ci/publish.sh push "$LOCAL_IMAGE" "$REGISTRY_IMAGE:sha-$COMMIT" "$REGISTRY_IMAGE:latest"
             else
+              status=$?
+              [ "$status" -eq 1 ] || exit "$status"
               bash scripts/ci/publish.sh push "$LOCAL_IMAGE" "$REGISTRY_IMAGE:sha-$COMMIT"
             fi
         else
           echo "Not published: only $DEFAULT_BRANCH is, once REGISTRY_IMAGE is set."
         fi
       - |
-        if [ "$BRANCH" = "$DEFAULT_BRANCH" ] && [ -n "${REGISTRY_IMAGE:-}" ] && [ -n "${DEPLOY_HOST:-}" ]; then
+        if [ "$BRANCH" = "$DEFAULT_BRANCH" ] && [ -n "${REGISTRY_IMAGE:-}" ] && [ "${DEPLOY_ENABLED:-false}" = true ] && [ -n "${DEPLOY_HOST:-}" ]; then
           if bash scripts/ci/newest.sh "$BRANCH"; then
             bash scripts/deploy.sh "$REGISTRY_IMAGE:sha-$COMMIT"
+          else
+            status=$?
+            [ "$status" -eq 1 ] || exit "$status"
           fi
         else
-          echo "Not deployed: only $DEFAULT_BRANCH is, once REGISTRY_IMAGE and DEPLOY_HOST are set."
+          echo "Not deployed: only $DEFAULT_BRANCH is, once DEPLOY_ENABLED=true, REGISTRY_IMAGE and DEPLOY_HOST are set."
         fi
 
 cache:

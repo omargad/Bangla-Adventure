@@ -1,93 +1,110 @@
 #!/usr/bin/env bash
-# Deploys IMAGE (a registry name with its tag) to the server over SSH. The server pulls it and
-# runs it with Docker Compose, after a backup, and goes back to the previous image if the new one
-# does not become healthy (scripts/deploy-remote.sh does that part on the server).
-#
-#   scripts/deploy.sh ghcr.io/OWNER/REPOSITORY:sha-COMMIT
-#
-# Settings, from the environment (docs/DEPLOYMENT.md "Automatic deployment"):
-#   DEPLOY_HOST          the server's name or address (required)
-#   DEPLOY_KNOWN_HOSTS   its SSH host key line(s), from `ssh-keyscan -p PORT -H HOST` (required)
-#   DEPLOY_SSH_KEY       the deploy user's private key, or DEPLOY_SSH_KEY_FILE pointing to it
-#                        (each of these two may also be the path of a file holding the text, as
-#                        GitLab's File-type variables are)
-#   DEPLOY_SSH_KEY_BASE64, DEPLOY_KNOWN_HOSTS_BASE64   instead, the same texts as one line of base64
-#                        (`base64 -w0 FILE`; on macOS `base64 -i FILE`), for CI systems whose
-#                        secrets cannot hold several lines. When more than one form is set, the
-#                        _FILE one is used first, then the text or path, then the _BASE64 one
-#   DEPLOY_USER          default deploy;  DEPLOY_PORT default 22
-#   DEPLOY_PATH          the deployment folder on the server, default /opt/bangla-adventures
-#   REGISTRY_USER, REGISTRY_PASSWORD   for a private image; used once on the server, not stored
-#   DEPLOY_BACKUP        1 (default) backs up the database and media before switching; 0 skips it
-#   DEPLOY_HEALTH_TIMEOUT  seconds to wait for the new version to be healthy, default 180
+# Deploy a tested IMAGE over pinned SSH. Disabled unless DEPLOY_ENABLED=true and DEPLOY_HOST is set.
+# The VPS defaults below are public connection metadata, never credentials or an enable switch.
+# Key/known_hosts accept text, file variables, or their existing _BASE64 forms. Host keys must be
+# independently verified: this script never accepts ssh-keyscan output without fingerprint checks.
 set -euo pipefail
+if [ "${DEPLOY_ENABLED:-false}" != true ]; then
+  echo 'deploy: disabled (set DEPLOY_ENABLED=true explicitly to enable).'
+  exit 0
+fi
 image="${1:?usage: scripts/deploy.sh IMAGE}"
 : "${DEPLOY_HOST:?Set DEPLOY_HOST to the server to deploy to.}"
-if [ -z "${DEPLOY_KNOWN_HOSTS:-}${DEPLOY_KNOWN_HOSTS_BASE64:-}" ]; then
-  echo "Set DEPLOY_KNOWN_HOSTS (or DEPLOY_KNOWN_HOSTS_BASE64) to the server host key line(s), from ssh-keyscan -p PORT -H HOST." >&2
-  exit 1
-fi
-if [ -z "${DEPLOY_SSH_KEY_FILE:-}${DEPLOY_SSH_KEY:-}${DEPLOY_SSH_KEY_BASE64:-}" ]; then
-  echo "Set DEPLOY_SSH_KEY, DEPLOY_SSH_KEY_FILE or DEPLOY_SSH_KEY_BASE64 to the deploy user's private key." >&2
-  exit 1
-fi
 user="${DEPLOY_USER:-deploy}"
 port="${DEPLOY_PORT:-22}"
 folder="${DEPLOY_PATH:-/opt/bangla-adventures}"
+host_fingerprint="${DEPLOY_HOST_FINGERPRINT:-SHA256:79xe+ubCodL2ACAHPNloo7I/K6mvngU88vEiFoEeWL8}"
+key_fingerprint="${DEPLOY_KEY_FINGERPRINT:-SHA256:y1+C6cvcfpJFmO8pfjyMSFERpd5BtcQyDf5SptZXVlQ}"
+docker_host="${DEPLOY_DOCKER_HOST:-}"
+docker_context="${DEPLOY_DOCKER_CONTEXT:-}"
+require_rootless="${DEPLOY_REQUIRE_ROOTLESS:-true}"
+require_public_health="${DEPLOY_REQUIRE_PUBLIC_HEALTH:-false}"
+health_url="${PUBLIC_HEALTH_URL:-}"
+backup="${DEPLOY_BACKUP:-1}"
+health_timeout="${DEPLOY_HEALTH_TIMEOUT:-180}"
+fail() { printf 'deploy: %s\n' "$*" >&2; exit 1; }
+[[ "$image" =~ ^[a-zA-Z0-9][a-zA-Z0-9._/@:-]*$ ]] || fail 'invalid image reference.'
+[[ "$DEPLOY_HOST" =~ ^[a-zA-Z0-9][a-zA-Z0-9.:-]*$ ]] || fail 'invalid deploy host.'
+[[ "$user" =~ ^[a-zA-Z_][a-zA-Z0-9_-]*$ ]] || fail 'invalid deploy user.'
+[[ "$port" =~ ^[0-9]{1,5}$ ]] && ((10#$port > 0 && 10#$port <= 65535)) || fail 'invalid SSH port.'
+[[ "$folder" =~ ^/[a-zA-Z0-9_./-]+$ ]] || fail 'use an absolute deployment path without spaces or shell characters.'
+[[ "$host_fingerprint" =~ ^SHA256:[a-zA-Z0-9+/]{43}$ ]] || fail 'DEPLOY_HOST_FINGERPRINT must be a SHA256 fingerprint.'
+[[ "$key_fingerprint" =~ ^SHA256:[a-zA-Z0-9+/]{43}$ ]] || fail 'DEPLOY_KEY_FINGERPRINT must be a SHA256 fingerprint.'
+[[ "$backup" = 0 || "$backup" = 1 ]] || fail 'DEPLOY_BACKUP must be 0 or 1.'
+[[ "$health_timeout" =~ ^[1-9][0-9]{0,4}$ ]] || fail 'DEPLOY_HEALTH_TIMEOUT must be positive seconds.'
+[[ "$require_rootless" = true || "$require_rootless" = false ]] || fail 'DEPLOY_REQUIRE_ROOTLESS must be true or false.'
+[[ "$require_public_health" = true || "$require_public_health" = false ]] || fail 'DEPLOY_REQUIRE_PUBLIC_HEALTH must be true or false.'
+[ -z "$docker_host" ] || [ -z "$docker_context" ] || fail 'select DEPLOY_DOCKER_HOST or DEPLOY_DOCKER_CONTEXT, not both.'
+[ -z "$docker_host" ] || [[ "$docker_host" =~ ^unix:///[-a-zA-Z0-9_./]+$ ]] || fail 'DEPLOY_DOCKER_HOST must be an explicit local Unix socket.'
+[ -z "$docker_context" ] || [[ "$docker_context" =~ ^[a-zA-Z0-9][a-zA-Z0-9_.-]*$ ]] || fail 'invalid Docker context.'
+[ "$require_rootless" != true ] || [ -n "$docker_host$docker_context" ] || fail 'select a rootless Docker socket or context explicitly.'
+[ -z "$health_url" ] || [[ "$health_url" =~ ^https://[^/@?#[:space:]]+([/?][^[:space:]]*)?$ ]] || fail 'PUBLIC_HEALTH_URL must be an HTTPS URL without credentials.'
+if [ -z "${DEPLOY_KNOWN_HOSTS:-}${DEPLOY_KNOWN_HOSTS_BASE64:-}" ]; then
+  fail 'set DEPLOY_KNOWN_HOSTS (or DEPLOY_KNOWN_HOSTS_BASE64) to independently verified host key lines.'
+fi
+if [ -z "${DEPLOY_SSH_KEY_FILE:-}${DEPLOY_SSH_KEY:-}${DEPLOY_SSH_KEY_BASE64:-}" ]; then
+  fail 'set DEPLOY_SSH_KEY, DEPLOY_SSH_KEY_FILE or DEPLOY_SSH_KEY_BASE64.'
+fi
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
-# The text of a setting that holds either the text or the path of a file with it. A value pasted
-# from Windows may carry carriage returns, which ssh rejects, so they are removed.
 text_of() {
   local text="$1"
   if [ -f "$text" ]; then text="$(cat -- "$text")"; fi
   printf '%s\n' "$text" | tr -d '\r'
 }
-# The text of a _BASE64 setting (named by $1). Spaces and line breaks in the encoded value are
-# ignored; the decoded text is never printed.
 decoded() {
   local text
   if ! text="$(printf '%s' "${!1:-}" | tr -d ' \t\r\n' | base64 -d 2>/dev/null)" || [ -z "$text" ]; then
-    echo "$1 is not valid base64 (make it with: base64 -w0 FILE)." >&2
+    printf 'deploy: %s is not valid base64.\n' "$1" >&2
     return 1
   fi
   printf '%s\n' "$text" | tr -d '\r'
 }
-# The text of a setting given in any of its forms: $1 is the name of the _FILE or text-or-path
-# setting to try first (empty to skip), $2 the text-or-path one, $3 the _BASE64 one.
 setting() {
   if [ -n "$1" ] && [ -n "${!1:-}" ]; then text_of "${!1}"
   elif [ -n "${!2:-}" ]; then text_of "${!2}"
   else decoded "$3"
   fi
 }
-# Always a private copy: ssh refuses a key file others can read, as a CI system's file may be.
 key="$work/key"
 (umask 077; setting DEPLOY_SSH_KEY_FILE DEPLOY_SSH_KEY DEPLOY_SSH_KEY_BASE64 > "$key")
-if ! grep -q 'PRIVATE KEY-----' "$key"; then
-  echo "The deploy key is not an SSH private key: its text should start with a -----BEGIN ... PRIVATE KEY----- line." >&2
-  exit 1
-fi
-setting '' DEPLOY_KNOWN_HOSTS DEPLOY_KNOWN_HOSTS_BASE64 > "$work/known_hosts"
-ssh_options=(-i "$key" -p "$port" -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes
+# Derive the public key privately, with no passphrase prompt or private-key diagnostic output.
+ssh-keygen -y -P '' -f "$key" > "$work/public_key" 2>/dev/null || fail 'the deploy private key could not be read (an unencrypted CI key is required).'
+actual="$(ssh-keygen -l -E sha256 -f "$work/public_key" 2>/dev/null | awk '{print $2}')" || fail 'could not fingerprint the deploy key.'
+[ "$actual" = "$key_fingerprint" ] || fail 'the deploy key fingerprint does not match DEPLOY_KEY_FINGERPRINT.'
+setting '' DEPLOY_KNOWN_HOSTS DEPLOY_KNOWN_HOSTS_BASE64 > "$work/provided_hosts"
+: > "$work/known_hosts"
+# Every retained line must match the pin. A valid line cannot hide an additional unverified key.
+while IFS= read -r line || [ -n "$line" ]; do
+  [[ "$line" =~ ^[[:space:]]*(#|$) ]] && continue
+  [[ "$line" =~ ^[[:space:]]*@ ]] && fail 'host key markers are not allowed; provide the pinned host key directly.'
+  printf '%s\n' "$line" > "$work/host_line"
+  actual="$(ssh-keygen -l -E sha256 -f "$work/host_line" 2>/dev/null | awk '{print $2}')" || fail 'a known_hosts entry is not a valid SSH host key.'
+  [ "$actual" = "$host_fingerprint" ] || fail 'a known_hosts fingerprint does not match DEPLOY_HOST_FINGERPRINT.'
+  printf '%s\n' "$line" >> "$work/known_hosts"
+done < "$work/provided_hosts"
+[ -s "$work/known_hosts" ] || fail 'no verified host key was provided.'
+lookup="$DEPLOY_HOST"
+[ "$port" = 22 ] || lookup="[$DEPLOY_HOST]:$port"
+ssh-keygen -F "$lookup" -f "$work/known_hosts" >/dev/null 2>&1 || fail 'the verified known_hosts entries do not cover the deploy host and port.'
+ssh_options=(-F /dev/null -i "$key" -p "$port" -o BatchMode=yes -o IdentitiesOnly=yes
+  -o StrictHostKeyChecking=yes -o UpdateHostKeys=no -o GlobalKnownHostsFile=/dev/null
   -o "UserKnownHostsFile=$work/known_hosts" -o ConnectTimeout=20)
-# The remote commands are built here on purpose, with every value quoted for the server's shell.
+# All nonsecret parameters are validated above and quoted for the remote Bash shell.
 # shellcheck disable=SC2029
 on_server() { ssh "${ssh_options[@]}" "$user@$DEPLOY_HOST" "$@"; }
 quoted() { printf '%q' "$1"; }
-
 echo "deploy: $image to $user@$DEPLOY_HOST:$folder"
 on_server "mkdir -p $(quoted "$folder")"
-# Each file is written beside the old one and then moved into place: a deployment still running
-# keeps reading its own copy of the script (bash reads it as it goes) when this one is refused.
 upload() {
-  on_server "cat > $(quoted "$folder/$1.new") && mv -f $(quoted "$folder/$1.new") \
-$(quoted "$folder/$1")" < "$2"
+  on_server "cat > $(quoted "$folder/$1.new") && mv -f $(quoted "$folder/$1.new") $(quoted "$folder/$1")" < "$2"
 }
 upload compose.yaml compose.yaml
 upload deploy-remote.sh scripts/deploy-remote.sh
 # The registry password reaches the server on standard input, never on a command line.
 printf '%s' "${REGISTRY_PASSWORD:-}" | on_server "bash $(quoted "$folder/deploy-remote.sh") $(quoted "$image") \
-$(quoted "${REGISTRY_USER:-}") $(quoted "${DEPLOY_BACKUP:-1}") $(quoted "${DEPLOY_HEALTH_TIMEOUT:-180}")"
+$(quoted "${REGISTRY_USER:-}") $(quoted "$backup") $(quoted "$health_timeout") \
+$(quoted "$docker_host") $(quoted "$docker_context") $(quoted "$require_rootless") \
+$(quoted "$health_url") $(quoted "$require_public_health")"
