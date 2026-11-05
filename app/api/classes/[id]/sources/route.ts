@@ -1,5 +1,5 @@
 import { getStaffAccess } from "@/lib/auth";
-import { addClassSource, classSourceErrorResponse, listClassSources, removeClassSource, updateClassSource } from "@/lib/class-sources";
+import { addClassSource, classSourceErrorResponse, listClassSources, removeClassSource, reviewClassSource, updateClassSource } from "@/lib/class-sources";
 
 export const dynamic = "force-dynamic";
 type RouteContext = { params: Promise<{ id: string }> };
@@ -52,7 +52,9 @@ export async function PATCH(request: Request, context: RouteContext) {
   if (!sourceId(body)) return sourceNotFound();
   try {
     if (!(await listClassSources(actor, id))) return classNotFound();
-    const source = await updateClassSource(actor, id, sourceId(body), body);
+    const source = body.approvalStatus !== undefined
+      ? await reviewClassSource(actor, id, sourceId(body), body)
+      : await updateClassSource(actor, id, sourceId(body), body);
     return source ? Response.json({ source }) : sourceNotFound();
   } catch (error) { return classSourceErrorResponse(error); }
 }

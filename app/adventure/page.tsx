@@ -4,8 +4,8 @@ import AdventureApp from "./AdventureApp";
 export const dynamic = "force-dynamic";
 
 /**
- * Learners only get lessons a teacher or administrator has approved, so the
- * approved list (and any video a teacher took down, and the approved human
+ * Learners only get approved lessons, so the
+ * approved list (and any video an administrator took down, and the approved human
  * recordings) is read on the server for every visit. A ?module= link opens its
  * lesson only while it is approved.
  */

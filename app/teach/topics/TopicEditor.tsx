@@ -31,7 +31,7 @@ const baseOf = (topic: StaffTopic, which: Base) => (which === "approved" && topi
 
 /**
  * Write a new topic or edit one. Saving always creates a version that waits for
- * approval; what students see changes only when someone approves it. When every
+ * administrator approval; students see changes only after approval. When every
  * change since the approved version was sent back, editing starts again from the
  * approved version (what students see), with the sent-back version one click away.
  */
@@ -104,8 +104,8 @@ export default function TopicEditor({ topicId, language, onSaved, onCancel }: {
       <h2>{topicId ? s("Edit topic", "বিষয় সম্পাদনা") : s("Write a new topic", "নতুন বিষয় লিখুন")}</h2>
       <p className="teach-note">
         {s(
-          "Fill in every part in English and Bangla. Saving sends the topic for approval: students see it only after a teacher or administrator previews and approves it.",
-          "প্রতিটি অংশ ইংরেজি ও বাংলায় লিখুন। সংরক্ষণ করলে বিষয়টি অনুমোদনের জন্য যাবে: একজন শিক্ষক বা প্রশাসক দেখে অনুমোদন দিলে তবেই শিক্ষার্থীরা দেখবে।",
+          "Fill in every part in English and Bangla, then submit it for administrator review. Students see new topics and changes only after an administrator approves them.",
+          "প্রতিটি অংশ ইংরেজি ও বাংলায় লিখে প্রশাসকের পর্যালোচনার জন্য জমা দিন। প্রশাসক অনুমোদন দিলেই শিক্ষার্থীরা নতুন বিষয় ও পরিবর্তন দেখতে পাবে।",
         )}
       </p>
       {head && headSummary && <p className="topic-editor-base" role="note">
@@ -191,7 +191,7 @@ export default function TopicEditor({ topicId, language, onSaved, onCancel }: {
           {pair(s("Source note", "উৎসের নোট"), draft.sourceNote, (sourceNote) => update({ sourceNote }), TOPIC_LIMITS.sourceNote, { rows: 2, required: Boolean(draft.sourceNote.en.trim() || draft.sourceNote.bn.trim()) })}
 
           <div className="access-actions">
-            <button className="primary-button" disabled={busy}>{busy ? s("Saving…", "সংরক্ষণ হচ্ছে…") : s("Save and send for approval", "সংরক্ষণ করে অনুমোদনে পাঠান")}</button>
+            <button className="primary-button" disabled={busy}>{busy ? s("Submitting…", "জমা হচ্ছে…") : s("Submit for administrator review", "প্রশাসকের পর্যালোচনার জন্য জমা দিন")}</button>
             <button type="button" className="outline-button" onClick={onCancel} disabled={busy}>{s("Cancel", "বাতিল")}</button>
           </div>
         </form>

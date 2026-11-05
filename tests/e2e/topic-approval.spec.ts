@@ -11,22 +11,22 @@ function fixture(sql: string, ...values: string[]) {
   try { db.prepare(sql).run(...values); } finally { db.close(); }
 }
 
-/** A signed-in browser for an approved teacher. Self sign-ups wait for an administrator: approve directly, then sign in. */
-async function teacher(browser: Browser, baseURL: string | undefined, name: string, suffix: string) {
+/** Provision staff in the isolated fixture; content approval uses the actual application. */
+async function staff(browser: Browser, baseURL: string | undefined, name: string, suffix: string, role: "teacher" | "admin" = "teacher") {
   const context = await browser.newContext({ baseURL, extraHTTPHeaders: { "x-forwarded-for": `${name}-${suffix}` } });
   const email = `${name}-${suffix}@example.com`;
   expect((await context.request.post("/api/auth/sign-up", { data: { email, displayName: `${name} ${suffix}`, password } })).status()).toBe(201);
-  fixture("UPDATE adults SET role = 'teacher', teacher_status = 'approved', approval_status = 'approved' WHERE email = ?", email);
+  fixture("UPDATE adults SET role = ?, teacher_status = ?, approval_status = 'approved' WHERE email = ?", role, role === "teacher" ? "approved" : "none", email);
   expect((await context.request.post("/api/auth/sign-in", { data: { email, password } })).status()).toBe(200);
   return context;
 }
 
-test("a teacher writes a bilingual topic, another previews it in Bangla and approves it, and a student's quiz counts", async ({ browser, baseURL }) => {
+test("a teacher submits a bilingual topic, a separate administrator publishes it, and a student's quiz counts", async ({ browser, baseURL }) => {
   test.setTimeout(120000);
   const suffix = randomUUID().slice(0, 8);
   const title = `Tea gardens ${suffix}`, titleBn = `সিলেটের চা-বাগান ${suffix}`;
-  const authorContext = await teacher(browser, baseURL, "author", suffix);
-  const reviewerContext = await teacher(browser, baseURL, "reviewer", suffix);
+  const authorContext = await staff(browser, baseURL, "author", suffix);
+  const reviewerContext = await staff(browser, baseURL, "reviewer", suffix, "admin");
   const studentContext = await browser.newContext({ baseURL, extraHTTPHeaders: { "x-forwarded-for": `topic-student-${suffix}` } });
   try {
     const author = await authorContext.newPage(), reviewer = await reviewerContext.newPage(), student = await studentContext.newPage();
@@ -56,8 +56,13 @@ test("a teacher writes a bilingual topic, another previews it in Bangla and appr
     await author.getByLabel("Question 1 answer 2 (English)", { exact: true }).fill("On the hills");
     await author.getByLabel("Question 1 answer 2 (Bangla)", { exact: true }).fill("পাহাড়ে");
     await author.getByRole("radio", { name: "Question 1: answer 2 is correct", exact: true }).check();
-    await author.getByRole("button", { name: "Save and send for approval", exact: true }).click();
-    await expect(author.getByRole("status").filter({ hasText: "Students will not see it until" })).toBeVisible();
+    await author.getByRole("button", { name: "Submit for administrator review", exact: true }).click();
+    await expect(author.getByRole("status").filter({ hasText: "Students will not see this version until an administrator approves it." })).toBeVisible();
+    await expect(author.getByRole("region", { name: "Version history" })).toBeVisible();
+    await expect(author.getByRole("button", { name: "Approve and publish to students", exact: true })).toHaveCount(0);
+    await expect(author.getByRole("button", { name: "Send back to the author", exact: true })).toHaveCount(0);
+    const submittedId = new URL(author.url()).searchParams.get("topic")!;
+    expect((await authorContext.request.post(`/api/topics/${submittedId}/versions/1`, { data: { decision: "approve", confirmedRead: true } })).status()).toBe(403);
 
     // The waiting topic is invisible to students.
     expect((await studentContext.request.post("/api/student/sign-up", { data: { username: `tea-${suffix}`, displayName: "Tea learner", password } })).status()).toBe(201);
@@ -67,7 +72,8 @@ test("a teacher writes a bilingual topic, another previews it in Bangla and appr
     await expect(student.getByRole("button", { name: /Symbols of Bangladesh/ })).toBeVisible();
     await expect(student.getByRole("button", { name: new RegExp(title) })).toHaveCount(0);
 
-    await reviewer.goto("/teach/topics");
+    await reviewer.goto("/admin");
+    await reviewer.getByRole("navigation", { name: "Portal navigation" }).getByRole("link", { name: "Topics", exact: true }).click();
     await reviewer.getByRole("region", { name: "Waiting for approval" }).getByRole("button", { name: `Preview & review: ${title}`, exact: true }).click();
     await expect(reviewer.getByRole("heading", { level: 1, name: title, exact: true })).toBeVisible();
     await reviewer.getByRole("group", { name: "Preview language" }).getByRole("button", { name: "বাংলা", exact: true }).click();
@@ -116,17 +122,21 @@ test("after an edit is sent back, the next editor starts from the approved versi
   test.setTimeout(90000);
   const suffix = randomUUID().slice(0, 8);
   const id = "ethnic-communities", wrongTitle = `A wrong title ${suffix}`;
-  const authorContext = await teacher(browser, baseURL, "editor", suffix);
-  const reviewerContext = await teacher(browser, baseURL, "checker", suffix);
+  const authorContext = await staff(browser, baseURL, "editor", suffix);
+  const reviewerContext = await staff(browser, baseURL, "checker", suffix, "admin");
   try {
-    const author = await authorContext.newPage(), page = await reviewerContext.newPage();
-    for (const each of [author, page]) { each.setDefaultTimeout(15000); await each.goto("/teach"); }
+    const author = await authorContext.newPage(), reviewer = await reviewerContext.newPage();
+    const page = author;
+    for (const each of [author, reviewer]) { each.setDefaultTimeout(15000); await each.goto("/teach"); }
     const { topic } = (await api(author, "GET", `/api/topics/${id}`)).body;
     const approvedTitle = topic.approved.content.title.en, minutes = topic.approved.content.minutes;
     const saved = await api(author, "PUT", `/api/topics/${id}`, { ...topic.head.content, title: { ...topic.head.content.title, en: wrongTitle }, baseVersion: topic.head.version });
     expect(saved.status).toBe(200);
     const rejected = saved.body.version;
-    expect((await api(page, "POST", `/api/topics/${id}/versions/${rejected}`, { decision: "reject", note: "This title is wrong." })).status).toBe(200);
+    await reviewer.goto(`/teach/topics?topic=${id}&version=${rejected}`);
+    await reviewer.getByLabel("Note for the author (needed to send it back)").fill("This title is wrong.");
+    await reviewer.getByRole("button", { name: "Send back to the author", exact: true }).click();
+    await expect(reviewer.getByRole("status").filter({ hasText: "Sent back to the author" })).toBeVisible();
 
     await page.goto(`/teach/topics?edit=${id}`);
     const title = page.getByLabel("Title (English)", { exact: true });
@@ -145,8 +155,9 @@ test("after an edit is sent back, the next editor starts from the approved versi
     await expect(readingTime).toHaveValue(String(minutes + 2));
     await expect(title).toHaveValue(approvedTitle);
 
-    await page.getByRole("button", { name: "Save and send for approval", exact: true }).click();
-    await expect(page.getByRole("status").filter({ hasText: "Students will not see it until" })).toBeVisible();
+    await page.getByRole("button", { name: "Submit for administrator review", exact: true }).click();
+    await expect(page.getByRole("status").filter({ hasText: "Students will not see this version until" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Approve and publish to students", exact: true })).toHaveCount(0);
     const changes = page.getByRole("region", { name: "What changed" });
     await expect(changes).toContainText(`Reading time: ${minutes} → ${minutes + 2} minutes`);
     await expect(changes).not.toContainText("Title (English) changed");
@@ -154,31 +165,37 @@ test("after an edit is sent back, the next editor starts from the approved versi
 
     // Leave the topic as students already see it.
     const waiting = (await api(page, "GET", `/api/topics/${id}`)).body.topic.head.version;
-    expect((await api(page, "POST", `/api/topics/${id}/versions/${waiting}`, { decision: "reject", note: "Test clean-up." })).status).toBe(200);
+    expect((await api(reviewer, "POST", `/api/topics/${id}/versions/${waiting}`, { decision: "reject", note: "Test clean-up." })).status).toBe(200);
   } finally {
     await authorContext.close().catch(() => undefined);
     await reviewerContext.close().catch(() => undefined);
   }
 });
 
-test("a teacher withdraws an approved topic from students and approves it again after reading it", async ({ browser, baseURL }) => {
+test("only an administrator can withdraw and restore a teacher's approved topic", async ({ browser, baseURL }) => {
   test.setTimeout(90000);
   const suffix = randomUUID().slice(0, 8);
   const title = `Rivers of Bengal ${suffix}`;
-  const teacherContext = await teacher(browser, baseURL, "withdrawer", suffix);
+  const teacherContext = await staff(browser, baseURL, "topic-author", suffix);
+  const adminContext = await staff(browser, baseURL, "withdrawer", suffix, "admin");
   const studentContext = await browser.newContext({ baseURL, extraHTTPHeaders: { "x-forwarded-for": `withdraw-student-${suffix}` } });
   try {
-    const page = await teacherContext.newPage(), student = await studentContext.newPage();
-    for (const each of [page, student]) each.setDefaultTimeout(15000);
-    await page.goto("/teach");
+    const author = await teacherContext.newPage(), page = await adminContext.newPage(), student = await studentContext.newPage();
+    for (const each of [author, page, student]) each.setDefaultTimeout(15000);
+    await author.goto("/teach");
+    await page.goto("/admin");
     const pair = (en: string, bn: string) => ({ en, bn });
-    const created = await api(page, "POST", "/api/topics", {
+    const created = await api(author, "POST", "/api/topics", {
       theme: "our-country", emoji: "🌊", title: pair(title, `বাংলার নদী ${suffix}`), tagline: pair("Rivers everywhere.", "সবখানে নদী।"), minutes: 3,
       sections: [{ heading: pair("Many rivers", "অনেক নদী"), body: pair("Bengal has many rivers.", "বাংলায় অনেক নদী আছে।") }], funFacts: [], quiz: [],
     });
     expect(created.status).toBe(201);
     const id = created.body.topicId;
     expect((await api(page, "POST", `/api/topics/${id}/versions/1`, { decision: "approve", confirmedRead: true })).status).toBe(200);
+    await author.goto(`/teach/topics?topic=${id}`);
+    await expect(author.getByRole("region", { name: "Version history" })).toBeVisible();
+    await expect(author.getByRole("button", { name: "Withdraw from students", exact: true })).toHaveCount(0);
+    expect((await api(author, "POST", `/api/topics/${id}`, { decision: "withdraw", note: "Teacher cannot withdraw." })).status).toBe(403);
 
     expect((await studentContext.request.post("/api/student/sign-up", { data: { username: `river-${suffix}`, displayName: "River learner", password } })).status()).toBe(201);
     fixture("UPDATE students SET approval_status = 'approved' WHERE username = ?", `river-${suffix}`);
@@ -198,6 +215,10 @@ test("a teacher withdraws an approved topic from students and approves it again 
     await student.goto("/topics");
     await expect(student.getByRole("button", { name: /Symbols of Bangladesh/ })).toBeVisible();
     await expect(student.getByRole("button", { name: new RegExp(title) })).toHaveCount(0);
+    await author.reload();
+    await expect(author.getByRole("region", { name: "Version details" })).toContainText("Withdrawn · hidden from students");
+    await expect(author.getByRole("button", { name: "Approve again and show to students", exact: true })).toHaveCount(0);
+    expect((await api(author, "POST", `/api/topics/${id}`, { decision: "approve", confirmedRead: true })).status).toBe(403);
 
     const again = decision.getByRole("button", { name: "Approve again and show to students", exact: true });
     await expect(again).toBeDisabled();
@@ -209,6 +230,7 @@ test("a teacher withdraws an approved topic from students and approves it again 
     await expect(student.getByRole("button", { name: new RegExp(title) })).toBeVisible();
   } finally {
     await teacherContext.close().catch(() => undefined);
+    await adminContext.close().catch(() => undefined);
     await studentContext.close().catch(() => undefined);
   }
 });

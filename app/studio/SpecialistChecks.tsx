@@ -40,8 +40,8 @@ export default function SpecialistChecks({ lessonId, language, checks, onChanged
     <details className="teach-panel specialist-checks">
       <summary>{s("Detailed specialist checks (optional)", "বিশেষজ্ঞদের বিস্তারিত যাচাই (ঐচ্ছিক)")} ({checks.length.toLocaleString(language === "bn" ? "bn-BD" : "en-AU")})</summary>
       <p className="teach-note">{s(
-        "Optional records from language, culture, learning-design, accessibility, media or legal specialists. Every staff member’s records are listed. They do not change what students see: only the lesson decision above does.",
-        "ভাষা, সংস্কৃতি, শেখার নকশা, ব্যবহারযোগ্যতা, মিডিয়া বা আইন বিশেষজ্ঞদের ঐচ্ছিক রেকর্ড। সব কর্মীর রেকর্ড এখানে দেখা যায়। এগুলো শিক্ষার্থীরা কী দেখবে তা বদলায় না: শুধু ওপরের পাঠের সিদ্ধান্তই তা ঠিক করে।",
+        "Optional internal notes from language, culture, learning-design, accessibility, media or legal specialists. Every staff member’s records are listed. Completing a check does not publish content; an administrator makes the publication decisions separately.",
+        "ভাষা, সংস্কৃতি, শেখার নকশা, ব্যবহারযোগ্যতা, মিডিয়া বা আইন বিশেষজ্ঞদের ঐচ্ছিক অভ্যন্তরীণ নোট। সব কর্মীর রেকর্ড এখানে দেখা যায়। যাচাই সম্পন্ন করলে বিষয়বস্তু প্রকাশিত হয় না; প্রশাসক আলাদাভাবে প্রকাশের সিদ্ধান্ত নেন।",
       )}</p>
       {checks.length === 0 ? <p>{s("No specialist checks recorded for this lesson.", "এই পাঠের জন্য কোনো বিশেষজ্ঞ যাচাই লেখা নেই।")}</p> : <div className="portal-table"><table>
         <thead><tr><th>{s("Check", "যাচাই")}</th><th>{s("Status", "অবস্থা")}</th><th>{s("Reviewer", "পর্যালোচক")}</th><th>{s("Recorded by", "লিখেছেন")}</th><th>{s("Notes", "নোট")}</th><th>{s("Updated", "হালনাগাদ")}</th></tr></thead>

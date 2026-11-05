@@ -91,8 +91,8 @@ grammar and the other hubs) can only use the device voice.
 Synthetic fallback audio already exists for every slot and is covered by tests.
 To add real voices: **Lessons → Preview lesson → Human audio recordings**, upload
 a recording with a speaker credit and recorded consent. It waits for review in
-the Lessons list, where any teacher or administrator can play it; approving
-needs consent and the reviewer's confirmation that they listened to the whole
+the Lessons list, where any teacher or administrator can play it. Only an
+administrator may approve it; approval needs consent and confirmation that the administrator listened to the whole
 recording, and records who approved it. Once approved, learners hear it on every
 device ahead of any computer voice: the complete dialogue (Listen), the guided
 reading and the word bank (Read), the sentence patterns (Speak) and the words in

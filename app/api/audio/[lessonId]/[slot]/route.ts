@@ -11,9 +11,9 @@ type RouteContext = { params: Promise<{ lessonId: string; slot: string }> };
 
 /**
  * One part of a lesson as learners hear it: the newest approved human recording
- * (with recorded consent) when a teacher approved one, otherwise a redirect to
+ * (with recorded consent) when an administrator approved one, otherwise a redirect to
  * the bundled clip. A page that knows the recording asks for it with
- * ?v=<recording id>; once a teacher stops using that recording the answer is
+ * ?v=<recording id>; once an administrator retires that recording the answer is
  * 404, so the page moves on to the next voice instead of mislabelling the
  * bundled clip. Answers are never cached (proxy.ts marks every signed-in
  * response private, no-store), so a retired recording is not replayed.

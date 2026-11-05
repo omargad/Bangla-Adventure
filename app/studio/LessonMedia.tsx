@@ -16,16 +16,16 @@ export type Recording = {
 };
 export type VideoCheckRecord = {
   status: string; captionsStatus: string; suitabilityStatus: string; replacementUrl: string; notes: string; checkedAt: string; checkerName: string | null;
+  adminDecidedAt: string | null;
 };
 
 const formerStaff: Bilingual = { en: "a former staff member", bn: "একজন সাবেক কর্মী" };
 
 /**
- * Human recordings for one lesson from every staff member. Anyone on the staff
- * can play a recording (including one still waiting) and approve it after
- * listening; the approval records their name.
+ * Staff can play and upload recordings. Only administrators approve, retire or
+ * send back a recording; the approval records their name.
  */
-export function LessonRecordings({ lessonId, language, recordings, onChanged }: { lessonId: string; language: Language; recordings: Recording[]; onChanged: () => void }) {
+export function LessonRecordings({ lessonId, language, recordings, canApprove, onChanged }: { lessonId: string; language: Language; recordings: Recording[]; canApprove: boolean; onChanged: () => void }) {
   const s = (en: string, bn: string) => (language === "bn" ? bn : en);
   const [played, setPlayed] = useState<string[]>([]);
   const [listened, setListened] = useState<string[]>([]);
@@ -34,6 +34,7 @@ export function LessonRecordings({ lessonId, language, recordings, onChanged }: 
   const [message, setMessage] = useState<Bilingual | null>(null);
 
   async function review(recording: Recording, reviewStatus: string) {
+    if (!canApprove || busy) return;
     setBusy(recording.id); setError(null); setMessage(null);
     try {
       await call("/api/studio/media", { method: "PATCH", body: JSON.stringify({ id: recording.id, reviewStatus, notes: "", ...(reviewStatus === "approved" ? { confirmedListened: listened.includes(recording.id) } : {}) }) });
@@ -48,10 +49,10 @@ export function LessonRecordings({ lessonId, language, recordings, onChanged }: 
   return (
     <section className="teach-panel" aria-label={s("Human audio recordings", "মানুষের কণ্ঠের রেকর্ডিং")}>
       <h3>{s("Human audio recordings", "মানুষের কণ্ঠের রেকর্ডিং")}</h3>
-      <p className="teach-note">{s(
+      <p className="teach-note">{canApprove ? s(
         "Play a recording before you approve it. Once approved, learners hear it on every device instead of a computer voice: the complete dialogue in Listen, the guided reading and the word bank in Read, the sentence patterns in Speak, and the words in word practice.",
         "অনুমোদনের আগে রেকর্ডিংটি বাজিয়ে শুনুন। অনুমোদনের পর শিক্ষার্থীরা সব ডিভাইসে কম্পিউটারের কণ্ঠের বদলে এটি শুনবে: ‘শুনি’ অংশে পুরো কথোপকথন, ‘পড়ি’ অংশে পড়ার লেখা ও শব্দভান্ডার, ‘বলি’ অংশে বাক্যের ধাঁচ, আর শব্দ অনুশীলনের শব্দগুলো।",
-      )}</p>
+      ) : s("Upload recordings for administrator review. You can listen to every submitted recording here; learners hear a recording only after an administrator approves it.", "প্রশাসকের পর্যালোচনার জন্য রেকর্ডিং আপলোড করুন। এখানে জমা দেওয়া সব রেকর্ডিং শুনতে পারবেন; প্রশাসক অনুমোদন দেওয়ার পরই শিক্ষার্থীরা রেকর্ডিংটি শুনবে।")}</p>
       {recordings.length === 0 && <p>{s("No recordings yet. Learners hear a computer voice for this lesson.", "এখনো কোনো রেকর্ডিং নেই। শিক্ষার্থীরা এই পাঠে কম্পিউটারের কণ্ঠ শোনে।")}</p>}
       {recordings.length > 0 && <ul className="topic-admin-list">{recordings.map((recording) => {
         const label = slotLabel(recording.slot, language);
@@ -63,14 +64,14 @@ export function LessonRecordings({ lessonId, language, recordings, onChanged }: 
               <small>{s("Uploaded by", "আপলোড করেছেন")} {recording.uploaderName ?? formerStaff[language]}, {formatWhen(recording.createdAt, language)}{recording.reviewedAt && <> · {s("reviewed by", "পর্যালোচনা করেছেন")} {recording.reviewerName ?? formerStaff[language]}, {formatWhen(recording.reviewedAt, language)}</>}</small>
             </span>
             <audio controls preload="none" src={`/api/studio/media/${encodeURIComponent(recording.id)}`} aria-label={`${s("Play", "শুনুন")}: ${label}`} onPlay={() => setPlayed((current) => (current.includes(recording.id) ? current : [...current, recording.id]))} />
-            <span className="topic-admin-actions recording-actions">
+            {canApprove && <span className="topic-admin-actions recording-actions">
               {recording.reviewStatus !== "approved" && <>
                 <label className="recording-listened"><input type="checkbox" disabled={!played.includes(recording.id)} checked={listened.includes(recording.id)} onChange={(event) => setListened((current) => (event.target.checked ? [...current, recording.id] : current.filter((id) => id !== recording.id)))} /> {s("I listened to the whole recording", "আমি পুরো রেকর্ডিং শুনেছি")}</label>
                 <button type="button" className="primary-button" disabled={busy === recording.id || !listened.includes(recording.id) || !recording.consentConfirmed} onClick={() => void review(recording, "approved")}>{s("Approve recording", "রেকর্ডিং অনুমোদন")}</button>
               </>}
               {recording.reviewStatus === "approved" && <button type="button" className="outline-button" disabled={busy === recording.id} onClick={() => void review(recording, "retired")}>{s("Stop using it", "ব্যবহার বন্ধ করুন")}</button>}
               {recording.reviewStatus !== "changes-requested" && recording.reviewStatus !== "retired" && <button type="button" className="outline-button" disabled={busy === recording.id} onClick={() => void review(recording, "changes-requested")}>{s("Ask for a new recording", "নতুন রেকর্ডিং চান")}</button>}
-            </span>
+            </span>}
           </li>
         );
       })}</ul>}
@@ -123,7 +124,7 @@ function RecordingUpload({ lessonId, language, onUploaded }: { lessonId: string;
         <label>{s("Audio file (MP3, WAV, OGG, M4A or WebM, up to 12 MB)", "অডিও ফাইল (MP3, WAV, OGG, M4A বা WebM, সর্বোচ্চ ১২ MB)")}<input key={fileKey} required type="file" accept="audio/*" onChange={(event) => setFile(event.target.files?.[0] ?? null)} /></label>
         <label className="topic-confirm"><input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} /> {s("The speaker (and a guardian, for a child) agreed to this use and credit.", "বক্তা (শিশু হলে অভিভাবকও) এই ব্যবহার ও নাম উল্লেখে সম্মতি দিয়েছেন।")}</label>
         <div className="access-actions"><button type="submit" className="outline-button" disabled={saving}>{saving ? s("Uploading…", "আপলোড হচ্ছে…") : s("Upload for review", "পর্যালোচনার জন্য আপলোড")}</button></div>
-        {done && <p className="teach-message" role="status">{s("Uploaded. It waits for review; any teacher or administrator can play and approve it.", "আপলোড হয়েছে। এটি পর্যালোচনার অপেক্ষায়; যেকোনো শিক্ষক বা প্রশাসক শুনে অনুমোদন দিতে পারবেন।")}</p>}
+        {done && <p className="teach-message" role="status">{s("Uploaded for administrator review. Learners will hear it only after an administrator listens and approves it.", "প্রশাসকের পর্যালোচনার জন্য আপলোড হয়েছে। প্রশাসক শুনে অনুমোদন দেওয়ার পরই শিক্ষার্থীরা এটি শুনবে।")}</p>}
         {error && <p className="auth-error" role="alert">{error[language]}</p>}
       </form>
     </details>
@@ -131,12 +132,11 @@ function RecordingUpload({ lessonId, language, onUploaded }: { lessonId: string;
 }
 
 /**
- * The shared video check: the newest check from any staff member decides what
- * learners get. A video marked unsuitable, to be replaced or unavailable is taken
- * out of the lesson; a YouTube replacement link is shown instead when given.
+ * Administrators decide which video learners receive. Teachers see the current
+ * decision and any older check waiting for administrator review.
  */
-export function VideoCheck({ lessonId, language, check, learnerVideo, onChanged }: {
-  lessonId: string; language: Language; check: VideoCheckRecord | null; learnerVideo: LearnerVideo | null; onChanged: () => void;
+export function VideoCheck({ lessonId, language, check, learnerVideo, canApprove, onChanged }: {
+  lessonId: string; language: Language; check: VideoCheckRecord | null; learnerVideo: LearnerVideo | null; canApprove: boolean; onChanged: () => void;
 }) {
   const s = (en: string, bn: string) => (language === "bn" ? bn : en);
   const lesson = lessons.find((item) => item.id === lessonId)!;
@@ -150,6 +150,7 @@ export function VideoCheck({ lessonId, language, check, learnerVideo, onChanged 
   const [saved, setSaved] = useState(false);
 
   async function save() {
+    if (!canApprove || saving) return;
     setSaving(true); setError(null); setSaved(false);
     try {
       await call("/api/studio/video-reviews", { method: "POST", body: JSON.stringify({ lessonId, status, captionsStatus: captions, suitabilityStatus: suitability, replacementUrl: replacement, notes }) });
@@ -165,7 +166,7 @@ export function VideoCheck({ lessonId, language, check, learnerVideo, onChanged 
   const effect = learnerVideo === null
     ? s("Learners do not see this video, and no replacement is set.", "শিক্ষার্থীরা এই ভিডিও দেখে না, এবং কোনো বিকল্প ঠিক করা নেই।")
     : learnerVideo.replaced
-      ? s("Learners do not see this video; they see the replacement linked below.", "শিক্ষার্থীরা এই ভিডিও দেখে না; তারা নিচের লিংকের বিকল্প ভিডিও দেখে।")
+      ? s("Learners see an administrator-approved replacement video.", "শিক্ষার্থীরা প্রশাসকের অনুমোদিত বিকল্প ভিডিও দেখে।")
       : s("Learners see this video.", "শিক্ষার্থীরা এই ভিডিও দেখে।");
 
   return (
@@ -175,7 +176,9 @@ export function VideoCheck({ lessonId, language, check, learnerVideo, onChanged 
       <p className="teach-note">{check
         ? s(`Last checked by ${check.checkerName ?? formerStaff.en}, ${formatWhen(check.checkedAt, language)}.`, `সর্বশেষ যাচাই করেছেন ${check.checkerName ?? formerStaff.bn}, ${formatWhen(check.checkedAt, language)}।`)
         : s("Nobody has checked this video yet.", "এই ভিডিও এখনো কেউ যাচাই করেননি।")} <strong>{effect}</strong></p>
-      <div className="portal-editor">
+      {learnerVideo?.replaced && <p><a href={`https://www.youtube.com/watch?v=${learnerVideo.id}`} target="_blank" rel="noreferrer">{s("Watch the replacement learners see ↗", "শিক্ষার্থীদের জন্য বিকল্প ভিডিও দেখুন ↗")}</a></p>}
+      {check && !check.adminDecidedAt && <p className="teach-note">{s("This earlier video check is waiting for administrator review. It does not decide which video learners see.", "আগের এই ভিডিও যাচাই প্রশাসকের পর্যালোচনার অপেক্ষায় আছে। শিক্ষার্থীরা কোন ভিডিও দেখবে তা এই যাচাই নির্ধারণ করে না।")}</p>}
+      {canApprove ? <div className="portal-editor">
         <div className="topic-editor-row">
           {select(s("Decision", "সিদ্ধান্ত"), status, setStatus, videoStatuses)}
           {select(s("Captions", "ক্যাপশন"), captions, setCaptions, captionStatuses)}
@@ -189,7 +192,16 @@ export function VideoCheck({ lessonId, language, check, learnerVideo, onChanged 
         <div className="access-actions"><button type="button" className="outline-button" disabled={saving} onClick={() => void save()}>{s("Save video check", "ভিডিও যাচাই সংরক্ষণ")}</button></div>
         {saved && <p className="teach-message" role="status">{s("Video check saved.", "ভিডিও যাচাই সংরক্ষিত হয়েছে।")}</p>}
         {error && <p className="auth-error" role="alert">{error[language]}</p>}
-      </div>
+      </div> : <>
+        <p className="teach-note">{s("Only an administrator can approve, replace or remove the video learners see.", "শিক্ষার্থীরা যে ভিডিও দেখে তা শুধু প্রশাসক অনুমোদন, পরিবর্তন বা সরিয়ে নিতে পারেন।")}</p>
+        {check && <dl>
+          <dt>{s("Recorded decision", "নথিভুক্ত সিদ্ধান্ত")}</dt><dd>{optionLabel(videoStatuses, check.status, language)}</dd>
+          <dt>{s("Captions", "ক্যাপশন")}</dt><dd>{optionLabel(captionStatuses, check.captionsStatus, language)}</dd>
+          <dt>{s("Suitability", "উপযোগিতা")}</dt><dd>{optionLabel(suitabilityStatuses, check.suitabilityStatus, language)}</dd>
+          {check.replacementUrl && <><dt>{s("Recorded replacement", "নথিভুক্ত বিকল্প")}</dt><dd><a href={check.replacementUrl} target="_blank" rel="noreferrer">{s("Watch replacement on YouTube ↗", "বিকল্প ভিডিও YouTube-এ দেখুন ↗")}</a></dd></>}
+          {check.notes && <><dt>{s("Notes", "নোট")}</dt><dd>{check.notes}</dd></>}
+        </dl>}
+      </>}
     </section>
   );
 }
