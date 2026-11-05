@@ -11,7 +11,7 @@ import jetbrains.buildServer.configs.kotlin.triggers.vcs
 // plugin, bash, git and ssh.
 // On the default branch the tested image is published when env.REGISTRY_IMAGE is set (for example
 // ghcr.io/OWNER/REPOSITORY), signing in with env.REGISTRY_USER and env.REGISTRY_PASSWORD (a Password
-// parameter), and deployed when env.DEPLOY_HOST is also set, with env.DEPLOY_KNOWN_HOSTS_BASE64 and
+// parameter), and deployed when env.DEPLOY_ENABLED=true and env.DEPLOY_HOST are set, with env.DEPLOY_KNOWN_HOSTS_BASE64 and
 // env.DEPLOY_SSH_KEY_BASE64 (a Password parameter), each `base64 -w0 FILE`, plus env.DEPLOY_USER,
 // env.DEPLOY_PORT and env.DEPLOY_PATH when they differ from the defaults. Add these parameters to a
 // parent project, whose settings are not kept in the repository; this project inherits them.
@@ -121,6 +121,9 @@ object Publish : BuildType({
                 branch="%teamcity.build.branch%"
                 if bash scripts/ci/newest.sh "${'$'}{branch#refs/heads/}"; then
                   bash scripts/ci/publish.sh promote "${'$'}REGISTRY_IMAGE:sha-%build.vcs.number%" "${'$'}REGISTRY_IMAGE:latest"
+                else
+                  status=${'$'}?
+                  [ "${'$'}status" -eq 1 ] || exit "${'$'}status"
                 fi
             """.trimIndent()
         }
@@ -141,7 +144,7 @@ object Publish : BuildType({
 
 object Deploy : BuildType({
     name = "Deploy"
-    description = "Deploys the tested image to the server when DEPLOY_HOST is set"
+    description = "Deploys the tested image to the server when DEPLOY_ENABLED=true and DEPLOY_HOST is set"
     vcs {
         root(DslContext.settingsRoot)
         branchFilter = "+:<default>"
@@ -152,13 +155,16 @@ object Deploy : BuildType({
         script {
             name = "Deploy to the server"
             scriptContent = """
-                if [ -z "${'$'}{REGISTRY_IMAGE:-}" ] || [ -z "${'$'}{DEPLOY_HOST:-}" ]; then
-                  echo "Not deployed: REGISTRY_IMAGE and DEPLOY_HOST are not both set."
+                if [ "${'$'}{DEPLOY_ENABLED:-false}" != true ] || [ -z "${'$'}{REGISTRY_IMAGE:-}" ] || [ -z "${'$'}{DEPLOY_HOST:-}" ]; then
+                  echo "Not deployed: DEPLOY_ENABLED=true, REGISTRY_IMAGE and DEPLOY_HOST are required."
                   exit 0
                 fi
                 branch="%teamcity.build.branch%"
                 if bash scripts/ci/newest.sh "${'$'}{branch#refs/heads/}"; then
                   bash scripts/deploy.sh "${'$'}REGISTRY_IMAGE:sha-%build.vcs.number%"
+                else
+                  status=${'$'}?
+                  [ "${'$'}status" -eq 1 ] || exit "${'$'}status"
                 fi
             """.trimIndent()
         }

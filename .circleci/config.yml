@@ -2,7 +2,7 @@
 # in scripts/ci (docs/DEPLOYMENT.md "Automatic deployment").
 # CircleCI has no container registry, so on the default branch the tested image is published to the
 # one named by REGISTRY_IMAGE (lowercase, for example docker.io/OWNER/bangla-adventures), signing in
-# with REGISTRY_USER and REGISTRY_PASSWORD, and deployed once DEPLOY_HOST is set as well. Set them in
+# with REGISTRY_USER and REGISTRY_PASSWORD, and deployed once DEPLOY_ENABLED=true and DEPLOY_HOST are set. Set them in
 # the context bangla-release (Organization Settings > Contexts), restricted to the default branch:
 # only the default branch's container, promote and deploy jobs use it, so no other job or branch
 # receives them. Create that context, even empty, before the default branch's first build. The
@@ -84,9 +84,12 @@ jobs:
               echo "REGISTRY_IMAGE is not set, so no image is published."
             elif bash scripts/ci/newest.sh "$CIRCLE_BRANCH"; then
               bash scripts/ci/publish.sh promote "$REGISTRY_IMAGE:sha-$CIRCLE_SHA1" "$REGISTRY_IMAGE:latest"
+            else
+              status=$?
+              [ "$status" -eq 1 ] || exit "$status"
             fi
 
-  # Needs DEPLOY_HOST, DEPLOY_SSH_KEY_BASE64 and DEPLOY_KNOWN_HOSTS_BASE64 (plus DEPLOY_USER, DEPLOY_PORT
+  # Needs DEPLOY_ENABLED=true, DEPLOY_HOST, DEPLOY_SSH_KEY_BASE64 and DEPLOY_KNOWN_HOSTS_BASE64 (plus DEPLOY_USER, DEPLOY_PORT
   # and DEPLOY_PATH when they differ from the defaults). The key and the host key lines are given
   # base64-encoded on one line: base64 -w0 < FILE (on macOS, base64 -i FILE).
   deploy:
@@ -97,10 +100,13 @@ jobs:
       - run:
           name: Deploy to the server
           command: |
-            if [ -z "${REGISTRY_IMAGE:-}" ] || [ -z "${DEPLOY_HOST:-}" ]; then
-              echo "REGISTRY_IMAGE or DEPLOY_HOST is not set, so nothing is deployed."
+            if [ "${DEPLOY_ENABLED:-false}" != true ] || [ -z "${REGISTRY_IMAGE:-}" ] || [ -z "${DEPLOY_HOST:-}" ]; then
+              echo "Deployment requires DEPLOY_ENABLED=true, REGISTRY_IMAGE and DEPLOY_HOST; nothing is deployed."
             elif bash scripts/ci/newest.sh "$CIRCLE_BRANCH"; then
               bash scripts/deploy.sh "$REGISTRY_IMAGE:sha-$CIRCLE_SHA1"
+            else
+              status=$?
+              [ "$status" -eq 1 ] || exit "$status"
             fi
 
 workflows:
