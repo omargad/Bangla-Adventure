@@ -103,6 +103,9 @@ jobs:
             *) fail 'The prepared Docker daemon does not report rootless mode.' ;;
           esac
           compose_version="$(docker --host "$docker_socket" compose version --short)" || fail 'Docker Compose is not available.'
+          printf 'preflight: server architecture %s; online CPUs %s.\n' "$(uname -m)" "$(getconf _NPROCESSORS_ONLN)"
+          awk '$1 == "MemTotal:" || $1 == "MemAvailable:" { printf "preflight: %s %s KiB.\n", $1, $2 }' /proc/meminfo
+          df -Pk -- /opt/bangla-adventures | awk 'NR == 2 { printf "preflight: deployment filesystem size %s KiB; available %s KiB.\n", $2, $4 }'
           printf 'preflight: authenticated as deployer; deployment directory exists and is writable.\n'
           printf 'preflight: the prepared Docker daemon reports rootless mode.\n'
           printf 'preflight: Docker Compose version %s.\n' "$compose_version"
