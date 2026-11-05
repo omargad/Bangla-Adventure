@@ -54,7 +54,7 @@ test("the class_sources table is created on start and the migration is safe to r
     migrateContent(sqlite);
     migrateContent(sqlite);
     const columns = sqlite.prepare("PRAGMA table_info(class_sources)").all().map((column) => column.name);
-    assert.deepEqual(columns, ["id", "class_id", "title_en", "title_bn", "url", "note", "created_by", "created_at"]);
+    assert.deepEqual(columns, ["id", "class_id", "title_en", "title_bn", "url", "note", "created_by", "created_at", "approval_status", "revision", "reviewed_by", "reviewed_at", "review_note", "updated_at"]);
   } finally { sqlite.close(); }
 });
 

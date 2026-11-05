@@ -1,7 +1,7 @@
 import { getSessionAdult } from "@/lib/auth";
 import { getSessionStudent, passwordChangeRequired } from "@/lib/student-auth";
 import { getCatalog, listStaffTopics, topicProgressFor, topicReferences } from "@/lib/curriculum-catalog";
-import { canTeach } from "@/lib/roles";
+import { canPublishContent, canTeach } from "@/lib/roles";
 import { libraryOverrides } from "@/lib/library-catalog";
 export const dynamic = "force-dynamic";
 /**
@@ -28,7 +28,7 @@ export async function GET(request: Request) {
         ...topic, references: topicReferences(topic, overrides),
         ...(review ? { approval: { version, baseline, approvedAt, reviewerName: review.get(topic.id)?.approved?.reviewerName ?? null, pendingVersions: review.get(topic.id)?.pendingVersions ?? [] } } : {}),
       })),
-      ...progress, learnerId: student?.id ?? null, canRecordProgress: Boolean(student), canReview: staff,
+      ...progress, learnerId: student?.id ?? null, canRecordProgress: Boolean(student), canReview: canPublishContent(adult),
       ...(review ? { pendingCount: [...review.values()].filter((topic) => topic.pendingVersions.length > 0).length } : {}),
     });
   } catch { return Response.json({ error: "Learning topics are temporarily unavailable. Please retry." }, { status: 503 }); }

@@ -91,8 +91,8 @@ grammar and the other hubs) can only use the device voice.
 Synthetic fallback audio already exists for every slot and is covered by tests.
 To add real voices: **Lessons → Preview lesson → Human audio recordings**, upload
 a recording with a speaker credit and recorded consent. It waits for review in
-the Lessons list, where any teacher or administrator can play it; approving
-needs consent and the reviewer's confirmation that they listened to the whole
+the Lessons list, where any teacher or administrator can play it. Only an
+administrator may approve it; approval needs consent and confirmation that the administrator listened to the whole
 recording, and records who approved it. Once approved, learners hear it on every
 device ahead of any computer voice: the complete dialogue (Listen), the guided
 reading and the word bank (Read), the sentence patterns (Speak) and the words in
@@ -105,8 +105,9 @@ The official JavaScript SDK is available through `npm run audio:elevenlabs`.
 This operator-only command reads `ELEVENLABS_API_KEY` from the environment or a
 private, git-ignored `.env.local`. It uses the same validated texts, filenames,
 manifest, sample selection and resumable generation as the existing REST command.
-The API key is excluded from Docker builds; the website plays static audio files
-and does not need the key for playback.
+The private local key file is excluded from Docker builds. Bundled clips play
+without an API key; automatic narration of newly written content uses the
+separate server environment configuration described below.
 
 For the Bangladeshi narrator selected for the demo, use voice
 `6fKdJFZHa5oCXNSVGieE` (Dr Mahmood — Calm & Telecasting Host, described by
@@ -127,9 +128,9 @@ The 198 Bengali clips now use **ElevenLabs**, model `eleven_v4`, and the six
 English clips retain their original eSpeak audio. All 198 generated Ogg Opus
 files passed a full decode check on 5 November 2026; this verifies file integrity,
 not pronunciation or native-speaker review. The manifest records the provider,
-voice and model for each clip. Regeneration requires the operator's API key:
-nothing calls ElevenLabs during normal website playback. Only fixed lesson,
-story and place texts are sent for generation; no learner accounts or personal data.
+voice and model for each clip. Regenerating these bundled clips requires the
+operator's API key; playing them makes no ElevenLabs request. The offline
+generator sends only fixed lesson, story and place texts.
 
 1. **Account and key: the client.** The client should own the ElevenLabs
    account, its plan and billing, and the API key, so the audio can be remade
@@ -147,8 +148,9 @@ story and place texts are sent for generation; no learner accounts or personal d
    a native Bangla voice from the ElevenLabs Voice Library added to the
    account, and copy its voice id (letters and digits). The six English story
    and place clips use the same voice unless an English one is set. Set these
-   only in the shell of the person who runs the generation, not in the app's
-   `.env`, `app.env` or Compose settings (the app never reads them):
+   in the shell of the person who runs offline generation. The `_BN` and `_EN`
+   voice overrides belong to this script; runtime narration uses the separate
+   server configuration below:
    ```bash
    read -rs ELEVENLABS_API_KEY && export ELEVENLABS_API_KEY   # paste; not shown or kept in history
    export ELEVENLABS_VOICE_ID_BN=<voice id>
@@ -235,3 +237,48 @@ as with ElevenLabs, needs neither the key nor the region), `--samples` and
 
 Without `--provider` the script uses eSpeak as before, and without `--force` it
 only makes clips that are missing.
+
+## Automatic narration of teacher content
+
+Approved topics have **Listen in Bangla** controls for their introduction,
+sections and facts. Approved, open class activities have learner Listen controls
+for the instructions and question prompts. Question options and answer keys are excluded, so audio
+does not reveal answers or contradict a learner's shuffled option order.
+Topic draft comparisons remain silent until the content is approved. Class
+managers may preview their accessible activity instructions before approval;
+that preview does not publish the activity. External class-source links are not
+fetched or narrated.
+
+The first Listen generates audio with the official ElevenLabs SDK and saves it
+under `MEDIA_ROOT/generated-narration`. Subsequent listens reuse the saved clip.
+Long passages are split without losing characters into parts of at most 1,500
+Unicode characters. Each part is generated when playback reaches it. The key
+includes the exact text, voice, model, language and audio settings: changed text
+gets fresh audio automatically, without regenerating unchanged parts.
+
+Set `ELEVENLABS_API_KEY` in the hosting service's private environment variables,
+never in a `NEXT_PUBLIC_` variable or a committed file. Optional overrides are
+`ELEVENLABS_VOICE_ID` and `ELEVENLABS_MODEL_ID`; the defaults are the demo's
+Bangladeshi narrator and `eleven_v4`. New generation needs a valid key and available
+provider credits. Revoking the key leaves saved clips playable but prevents new
+clips from being made. Keep `MEDIA_ROOT` on the persistent application volume.
+
+The default generation budget is 20,000 new Unicode characters per UTC day,
+configured with `ELEVENLABS_DAILY_CHARACTER_LIMIT`. Reservations are saved before
+provider requests, including unsuccessful requests, to bound repeated failures.
+Concurrent requests for the same clip share one generation. Only two provider
+requests run at once; provider errors are sanitized before returning to users.
+
+Every playback request checks the current session and access to the source,
+including cache hits and again after generation. Students need active class enrollment
+and an approved, open activity; parents need a linked, enrolled child and the same
+activity approval. Staff previews require current management access. Topic audio
+uses only the currently approved content. A hash of the displayed text must
+match the server's current text, preventing an old page from playing new words.
+Withdrawing a topic, rejecting an activity, or removing class access stops further
+learner audio requests even when a saved clip already exists.
+
+Only the selected canonical passage is sent to ElevenLabs. Account identifiers,
+student submissions, marks and quiz answer keys are not sent. Teachers should
+keep personal information out of text intended for narration. Generated audio
+is labelled as an ElevenLabs computer voice and is not pronunciation approval.

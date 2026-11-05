@@ -4,6 +4,7 @@ import { adults, classes, classSources, classStudents, parentStudentLinks, stude
 import type { Bilingual } from "../app/topics-content";
 import { linkProblem } from "./library-links";
 import { managedClass, type Staff } from "./class-access";
+import { canTeach, canPublishContent } from "./roles";
 
 /**
  * Per-class sources: links a class's teacher (or an administrator) adds for one
@@ -15,6 +16,7 @@ import { managedClass, type Staff } from "./class-access";
 export const CLASS_SOURCE_LIMITS = { title: 120, note: 300, perClass: 50 } as const;
 
 export type ClassSource = { id: string; classId: string; titleEn: string; titleBn: string; url: string; host: string; note: string; createdAt: string };
+export type ManagedClassSource = ClassSource & { updatedAt: string; approvalStatus: "pending" | "approved" | "rejected"; revision: number; reviewedBy: string | null; reviewedAt: string | null; reviewNote: string };
 export type ClassSourceInput = { titleEn: string; titleBn: string; url: string; note: string };
 
 export class ClassSourceError extends Error {
@@ -43,17 +45,18 @@ export function validateClassSource(raw: Record<string, unknown>): ClassSourceIn
 }
 
 type Row = typeof classSources.$inferSelect;
-const view = (row: Row): ClassSource => {
+const learnerView = (row: Row): ClassSource => {
   let host = "";
   try { host = new URL(row.url).hostname; } catch { /* stored links were validated */ }
   return { id: row.id, classId: row.classId, titleEn: row.titleEn, titleBn: row.titleBn, url: row.url, host, note: row.note, createdAt: row.createdAt };
 };
+const view = (row: Row): ManagedClassSource => ({ ...learnerView(row), updatedAt: row.updatedAt, approvalStatus: row.approvalStatus, revision: row.revision, reviewedBy: row.reviewedBy, reviewedAt: row.reviewedAt, reviewNote: row.reviewNote });
 
 /** The sources of these classes, oldest first. Callers decide who may see which classes. */
 export async function sourcesOf(classIds: string[]): Promise<ClassSource[]> {
   if (!classIds.length) return [];
   const db = await getDb();
-  return db.select().from(classSources).where(inArray(classSources.classId, classIds)).orderBy(asc(classSources.createdAt), asc(classSources.id)).all().map(view);
+  return db.select().from(classSources).where(and(inArray(classSources.classId, classIds), eq(classSources.approvalStatus, "approved"))).orderBy(asc(classSources.createdAt), asc(classSources.id)).all().map(learnerView);
 }
 
 function audit(tx: Transaction, actorId: string, classId: string, action: string, details: Record<string, unknown>) {
@@ -61,38 +64,74 @@ function audit(tx: Transaction, actorId: string, classId: string, action: string
 }
 
 /** The sources of a class the actor manages, or null when they do not manage it. */
-export async function listClassSources(actor: Staff, classId: string): Promise<ClassSource[] | null> {
+export async function listClassSources(actor: Staff, classId: string): Promise<ManagedClassSource[] | null> {
   const db = await getDb();
   if (!db.select({ id: classes.id }).from(classes).where(managedClass(actor, classId)).get()) return null;
-  return sourcesOf([classId]);
+  return db.select().from(classSources).where(eq(classSources.classId, classId)).orderBy(asc(classSources.createdAt), asc(classSources.id)).all().map(view);
+}
+
+function currentManager(tx: Transaction, actorId: string, classId: string) {
+  const actor = tx.select().from(adults).where(eq(adults.id, actorId)).get();
+  if (!actor || !canTeach(actor) || actor.approvalStatus !== "approved" || actor.mustChangePassword) throw refuse({ en: "Approved staff access required.", bn: "অনুমোদিত কর্মীর অনুমতি প্রয়োজন।" }, 403);
+  if (!tx.select({ id: classes.id }).from(classes).where(managedClass(actor, classId)).get()) return null;
+  return actor;
 }
 
 /** Add a source to a class the actor manages (null when they do not). */
-export async function addClassSource(actor: Staff, classId: string, raw: Record<string, unknown>): Promise<ClassSource | null> {
+export async function addClassSource(actor: Staff, classId: string, raw: Record<string, unknown>): Promise<ManagedClassSource | null> {
   const db = await getDb();
   return db.transaction((tx) => {
-    if (!tx.select({ id: classes.id }).from(classes).where(managedClass(actor, classId)).get()) return null;
+    const current = currentManager(tx, actor.id, classId);
+    if (!current) return null;
     const input = validateClassSource(raw);
     const count = tx.select({ id: classSources.id }).from(classSources).where(eq(classSources.classId, classId)).all().length;
     if (count >= CLASS_SOURCE_LIMITS.perClass) {
       throw refuse({ en: `A class can have at most ${CLASS_SOURCE_LIMITS.perClass} sources. Remove one first.`, bn: `একটি ক্লাসে সর্বোচ্চ ${CLASS_SOURCE_LIMITS.perClass.toLocaleString("bn-BD")}টি উৎস রাখা যায়। আগে একটি সরান।` });
     }
-    const row = tx.insert(classSources).values({ id: crypto.randomUUID(), classId, ...input, createdBy: actor.id, createdAt: new Date().toISOString() }).returning().get();
+    const approved = canPublishContent(current);
+    const now = new Date().toISOString();
+    const row = tx.insert(classSources).values({ id: crypto.randomUUID(), classId, ...input, createdBy: current.id, createdAt: now, updatedAt: now, approvalStatus: approved ? "approved" : "pending", reviewedBy: approved ? current.id : null, reviewedAt: approved ? now : null }).returning().get();
     audit(tx, actor.id, classId, "class-source-added", { sourceId: row.id, url: row.url });
     return view(row);
   });
 }
 
 /** Change a source of a class the actor manages (null when the class or source is not theirs). */
-export async function updateClassSource(actor: Staff, classId: string, sourceId: string, raw: Record<string, unknown>): Promise<ClassSource | null> {
+export async function updateClassSource(actor: Staff, classId: string, sourceId: string, raw: Record<string, unknown>): Promise<ManagedClassSource | null> {
   const db = await getDb();
   return db.transaction((tx) => {
-    if (!tx.select({ id: classes.id }).from(classes).where(managedClass(actor, classId)).get()) return null;
+    const current = currentManager(tx, actor.id, classId);
+    if (!current) return null;
     const before = tx.select().from(classSources).where(and(eq(classSources.id, sourceId), eq(classSources.classId, classId))).get();
     if (!before) return null;
     const input = validateClassSource(raw);
-    const row = tx.update(classSources).set(input).where(eq(classSources.id, sourceId)).returning().get();
+    if (raw.revision !== undefined && raw.revision !== before.revision) throw refuse({ en: "This source changed. Reload it before editing.", bn: "উৎসটি বদলেছে। সম্পাদনার আগে আবার লোড করুন।" }, 409);
+    const approved = canPublishContent(current);
+    const now = new Date().toISOString();
+    const row = tx.update(classSources).set({ ...input, revision: before.revision + 1, updatedAt: now, approvalStatus: approved ? "approved" : "pending", reviewedBy: approved ? current.id : null, reviewedAt: approved ? now : null, reviewNote: "" }).where(eq(classSources.id, sourceId)).returning().get();
     audit(tx, actor.id, classId, "class-source-updated", { sourceId, ...(before.url !== row.url ? { oldUrl: before.url, newUrl: row.url } : {}) });
+    return view(row);
+  });
+}
+
+/** Administrator decision for the exact source revision that was reviewed. */
+export async function reviewClassSource(actor: Staff, classId: string, sourceId: string, raw: Record<string, unknown>): Promise<ManagedClassSource | null> {
+  const db = await getDb();
+  return db.transaction((tx) => {
+    const current = currentManager(tx, actor.id, classId);
+    if (!current) return null;
+    if (!canPublishContent(current)) throw refuse({ en: "Only an administrator can approve or reject class sources.", bn: "শুধু প্রশাসক ক্লাসের উৎস অনুমোদন বা প্রত্যাখ্যান করতে পারেন।" }, 403);
+    const before = tx.select().from(classSources).where(and(eq(classSources.id, sourceId), eq(classSources.classId, classId))).get();
+    if (!before) return null;
+    if (raw.approvalStatus !== "approved" && raw.approvalStatus !== "rejected") throw refuse({ en: "Choose approved or rejected.", bn: "অনুমোদিত বা প্রত্যাখ্যাত বেছে নিন।" });
+    if (!Number.isInteger(raw.revision) || raw.revision !== before.revision) throw refuse({ en: "This source changed. Reload it before reviewing.", bn: "উৎসটি বদলেছে। পর্যালোচনার আগে আবার লোড করুন।" }, 409);
+    if (raw.reviewNote !== undefined && typeof raw.reviewNote !== "string") throw refuse({ en: "Provide a text review note.", bn: "পর্যালোচনার নোট লিখুন।" });
+    const note = text(raw.reviewNote);
+    if (note.length > 1500 || (raw.approvalStatus === "rejected" && !note)) throw refuse({ en: "A rejection needs a note; review notes can be at most 1500 characters.", bn: "প্রত্যাখ্যানের কারণ লিখুন। নোট সর্বোচ্চ ১৫০০ অক্ষরের হতে পারে।" });
+    const now = new Date().toISOString();
+    const row = tx.update(classSources).set({ approvalStatus: raw.approvalStatus, reviewedBy: current.id, reviewedAt: now, reviewNote: note, updatedAt: now, revision: before.revision + 1 }).where(and(eq(classSources.id, sourceId), eq(classSources.revision, before.revision))).returning().get();
+    if (!row) throw refuse({ en: "This source changed. Reload it before reviewing.", bn: "উৎসটি বদলেছে। পর্যালোচনার আগে আবার লোড করুন।" }, 409);
+    audit(tx, current.id, classId, "class-source-reviewed", { sourceId, approvalStatus: row.approvalStatus, revision: row.revision, reviewNote: note });
     return view(row);
   });
 }
@@ -101,7 +140,7 @@ export async function updateClassSource(actor: Staff, classId: string, sourceId:
 export async function removeClassSource(actor: Staff, classId: string, sourceId: string): Promise<boolean> {
   const db = await getDb();
   return db.transaction((tx) => {
-    if (!tx.select({ id: classes.id }).from(classes).where(managedClass(actor, classId)).get()) return false;
+    if (!currentManager(tx, actor.id, classId)) return false;
     const removed = tx.delete(classSources).where(and(eq(classSources.id, sourceId), eq(classSources.classId, classId))).returning().get();
     if (!removed) return false;
     audit(tx, actor.id, classId, "class-source-removed", { sourceId, url: removed.url });

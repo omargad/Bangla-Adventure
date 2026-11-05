@@ -16,10 +16,11 @@ const model = await import("../lib/lesson-model.ts");
 const { lessons, lessonCategories } = await import("../app/curriculum.ts");
 const db = await getDb();
 db.insert(adults).values([
-  { id: "admin", email: "admin@example.com", displayName: "Admin Ayesha", role: "admin", passwordHash: "fixture" },
-  { id: "teacher", email: "teacher@example.com", displayName: "Teacher Tania", role: "teacher", teacherStatus: "approved", passwordHash: "fixture" },
-  { id: "colleague", email: "colleague@example.com", displayName: "Teacher Rafi", role: "teacher", teacherStatus: "approved", passwordHash: "fixture" },
-  { id: "parent", email: "parent@example.com", displayName: "Parent", passwordHash: "fixture" },
+  { id: "admin", email: "admin@example.com", displayName: "Admin Ayesha", role: "admin", passwordHash: "fixture", approvalStatus: "approved" },
+  { id: "second-admin", email: "second-admin@example.com", displayName: "Admin Rafi", role: "admin", passwordHash: "fixture", approvalStatus: "approved" },
+  { id: "teacher", email: "teacher@example.com", displayName: "Teacher Tania", role: "teacher", teacherStatus: "approved", passwordHash: "fixture", approvalStatus: "approved" },
+  { id: "colleague", email: "colleague@example.com", displayName: "Teacher Rafi", role: "teacher", teacherStatus: "approved", passwordHash: "fixture", approvalStatus: "approved" },
+  { id: "parent", email: "parent@example.com", displayName: "Parent", passwordHash: "fixture", approvalStatus: "approved" },
 ]).run();
 after(() => rmSync(dir, { recursive: true, force: true }));
 
@@ -119,11 +120,11 @@ test("all 18 lessons start approved as a baseline, once, and the migration is sa
   assert.ok(list.lessons.every((row) => row.status === "approved" && row.baseline));
 });
 
-test("a teacher withdraws a lesson for everyone, it leaves every learner view, and another teacher re-approves it", async () => {
+test("an administrator withdraws a lesson for everyone and restores it after review", async () => {
   await assert.rejects(approval.decideLesson("parent", "six-seasons", { decision: "withdraw", note: "No" }), (error) => error.status === 403);
-  await assert.rejects(approval.decideLesson("teacher", "made-up", { decision: "withdraw", note: "No" }), (error) => error.status === 404);
-  const withdrawn = await approval.decideLesson("teacher", "six-seasons", { decision: "withdraw", note: "The Bangla season names need checking." });
-  assert.deepEqual({ status: withdrawn.status, by: withdrawn.changedByName, baseline: withdrawn.baseline }, { status: "withdrawn", by: "Teacher Tania", baseline: false });
+  await assert.rejects(approval.decideLesson("admin", "made-up", { decision: "withdraw", note: "No" }), (error) => error.status === 404);
+  const withdrawn = await approval.decideLesson("admin", "six-seasons", { decision: "withdraw", note: "The Bangla season names need checking." });
+  assert.deepEqual({ status: withdrawn.status, by: withdrawn.changedByName, baseline: withdrawn.baseline }, { status: "withdrawn", by: "Admin Ayesha", baseline: false });
   assert.equal(await approval.isLessonApproved("six-seasons"), false);
   assert.equal((await approval.approvedLessonIds()).includes("six-seasons"), false);
   assert.equal((await approval.learnerLessonView()).approvedIds.includes("six-seasons"), false);
@@ -142,37 +143,37 @@ test("a teacher withdraws a lesson for everyone, it leaves every learner view, a
 
   // The state is shared: the administrator and every teacher see the same decision.
   const listed = (await approval.lessonStudioList()).lessons.find((row) => row.lessonId === "six-seasons");
-  assert.deepEqual([listed.status, listed.changedByName, listed.note], ["withdrawn", "Teacher Tania", "The Bangla season names need checking."]);
+  assert.deepEqual([listed.status, listed.changedByName, listed.note], ["withdrawn", "Admin Ayesha", "The Bangla season names need checking."]);
 
-  await assert.rejects(approval.decideLesson("colleague", "six-seasons", { decision: "approve" }), (error) => error.status === 400);
-  const back = await approval.decideLesson("colleague", "six-seasons", { ...confirmRead, note: "Season names checked." });
-  assert.deepEqual([back.status, back.changedByName], ["approved", "Teacher Rafi"]);
+  await assert.rejects(approval.decideLesson("admin", "six-seasons", { decision: "approve" }), (error) => error.status === 400);
+  const back = await approval.decideLesson("admin", "six-seasons", { ...confirmRead, note: "Season names checked." });
+  assert.deepEqual([back.status, back.changedByName], ["approved", "Admin Ayesha"]);
   assert.equal(await approval.isLessonApproved("six-seasons"), true);
   await assert.rejects(approval.decideLesson("admin", "six-seasons", confirmRead), (error) => error.status === 409);
 
   const detail = await approval.lessonStudioDetail("six-seasons");
-  assert.deepEqual(detail.history.map((entry) => [entry.status, entry.baseline, entry.changedByName]), [["approved", false, "Teacher Rafi"], ["withdrawn", false, "Teacher Tania"], ["approved", true, null]]);
+  assert.deepEqual(detail.history.map((entry) => [entry.status, entry.baseline, entry.changedByName]), [["approved", false, "Admin Ayesha"], ["withdrawn", false, "Admin Ayesha"], ["approved", true, null]]);
   const audit = db.select().from(userAuditEvents).all().filter((event) => event.targetId === "six-seasons");
-  assert.deepEqual(audit.map((event) => [event.actorId, event.action, event.targetType]), [["teacher", "lesson-withdrawn", "lesson"], ["colleague", "lesson-approved", "lesson"]]);
+  assert.deepEqual(audit.map((event) => [event.actorId, event.action, event.targetType]), [["admin", "lesson-withdrawn", "lesson"], ["admin", "lesson-approved", "lesson"]]);
   assert.equal(JSON.parse(audit[0].detailsJson).note, "The Bangla season names need checking.");
 });
 
-test("a teacher confirms a full review of a baseline lesson without hiding it from students", async () => {
-  await assert.rejects(approval.decideLesson("teacher", "food-please", { decision: "approve" }), (error) => error.status === 400);
-  const reviewed = await approval.decideLesson("teacher", "food-please", { ...confirmRead, note: "Read every part in both languages." });
-  assert.deepEqual([reviewed.status, reviewed.baseline, reviewed.changedByName, reviewed.note], ["approved", false, "Teacher Tania", "Read every part in both languages."]);
+test("an administrator confirms a full review of a baseline lesson without hiding it from students", async () => {
+  await assert.rejects(approval.decideLesson("admin", "food-please", { decision: "approve" }), (error) => error.status === 400);
+  const reviewed = await approval.decideLesson("admin", "food-please", { ...confirmRead, note: "Read every part in both languages." });
+  assert.deepEqual([reviewed.status, reviewed.baseline, reviewed.changedByName, reviewed.note], ["approved", false, "Admin Ayesha", "Read every part in both languages."]);
   assert.equal(await approval.isLessonApproved("food-please"), true, "students keep the lesson throughout");
   // Once reviewed, a second approval is stale.
-  await assert.rejects(approval.decideLesson("colleague", "food-please", confirmRead), (error) => error.status === 409);
+  await assert.rejects(approval.decideLesson("admin", "food-please", confirmRead), (error) => error.status === 409);
   const detail = await approval.lessonStudioDetail("food-please");
-  assert.deepEqual(detail.history.map((entry) => [entry.status, entry.baseline, entry.changedByName]), [["approved", false, "Teacher Tania"], ["approved", true, null]]);
+  assert.deepEqual(detail.history.map((entry) => [entry.status, entry.baseline, entry.changedByName]), [["approved", false, "Admin Ayesha"], ["approved", true, null]]);
   const listed = (await approval.lessonStudioList()).lessons.find((row) => row.lessonId === "food-please");
   assert.deepEqual([listed.status, listed.baseline], ["approved", false]);
   const event = db.select().from(userAuditEvents).all().find((item) => item.targetId === "food-please");
   assert.deepEqual([event.action, JSON.parse(event.detailsJson).reviewedBaseline], ["lesson-approved", true]);
 });
 
-test("any teacher can approve a colleague's recording after listening, and the approval names them", async () => {
+test("an administrator can approve a teacher's recording after listening, and the approval names them", async () => {
   const recording = (id, ownerEmail, reviewStatus = "pending", consentConfirmed = true) => ({
     id, ownerEmail, lessonId: "hello-me", slot: "dialogue", objectKey: `human-audio/hello-me/dialogue/${id}.ogg`, originalName: `${id}.ogg`,
     contentType: "audio/ogg", byteSize: 10, speakerName: "Nadia", dialect: "Dhaka", consentConfirmed, reviewStatus,
@@ -183,19 +184,19 @@ test("any teacher can approve a colleague's recording after listening, and the a
   assert.equal(list.lessons.find((row) => row.lessonId === "hello-me").pendingAudio, 2);
 
   await assert.rejects(approval.reviewRecording("parent", { id: "new", reviewStatus: "approved", confirmedListened: true }), (error) => error.status === 403);
-  await assert.rejects(approval.reviewRecording("colleague", { id: "new", reviewStatus: "approved" }), /Play the recording/);
-  await assert.rejects(approval.reviewRecording("colleague", { id: "no-consent", reviewStatus: "approved", confirmedListened: true }), /Consent/);
-  await assert.rejects(approval.reviewRecording("colleague", { id: "missing", reviewStatus: "approved", confirmedListened: true }), (error) => error.status === 404);
-  await assert.rejects(approval.reviewRecording("colleague", { id: "new", reviewStatus: "live" }), (error) => error.status === 400);
-  const approved = await approval.reviewRecording("colleague", { id: "new", reviewStatus: "approved", confirmedListened: true });
-  assert.deepEqual([approved.reviewStatus, approved.reviewedBy], ["approved", "colleague"]);
+  await assert.rejects(approval.reviewRecording("admin", { id: "new", reviewStatus: "approved" }), /Play the recording/);
+  await assert.rejects(approval.reviewRecording("admin", { id: "no-consent", reviewStatus: "approved", confirmedListened: true }), /Consent/);
+  await assert.rejects(approval.reviewRecording("admin", { id: "missing", reviewStatus: "approved", confirmedListened: true }), (error) => error.status === 404);
+  await assert.rejects(approval.reviewRecording("admin", { id: "new", reviewStatus: "live" }), (error) => error.status === 400);
+  const approved = await approval.reviewRecording("admin", { id: "new", reviewStatus: "approved", confirmedListened: true });
+  assert.deepEqual([approved.reviewStatus, approved.reviewedBy], ["approved", "admin"]);
   assert.ok(approved.reviewedAt);
   const statuses = Object.fromEntries(db.select().from(mediaAssets).all().map((asset) => [asset.id, asset.reviewStatus]));
   assert.deepEqual(statuses, { old: "retired", new: "approved", "no-consent": "pending" }, "the slot's previous track is retired whoever uploaded it");
   const detail = await approval.lessonStudioDetail("hello-me");
   const shown = detail.recordings.find((item) => item.id === "new");
-  assert.deepEqual([shown.uploaderName, shown.reviewerName], ["Teacher Tania", "Teacher Rafi"]);
-  assert.ok(db.select().from(userAuditEvents).all().some((event) => event.action === "lesson-audio-approved" && event.actorId === "colleague" && event.targetId === "hello-me"));
+  assert.deepEqual([shown.uploaderName, shown.reviewerName], ["Teacher Tania", "Admin Ayesha"]);
+  assert.ok(db.select().from(userAuditEvents).all().some((event) => event.action === "lesson-audio-approved" && event.actorId === "admin" && event.targetId === "hello-me"));
 });
 
 test("learner pages get the newest approved, consented recording of each lesson part, for the lessons they may open", async () => {
@@ -212,7 +213,7 @@ test("learner pages get the newest approved, consented recording of each lesson 
     recording("other-lesson", "six-seasons", "reading", "2026-10-02T00:00:00.000Z"),
     recording("odd-slot", "hello-me", "word-9", "2026-10-02T00:00:00.000Z"),
   ]).run();
-  // "new" is the dialogue recording a teacher approved in the test above.
+  // "new" is the dialogue recording an administrator approved in the test above.
   assert.deepEqual(await approval.approvedRecordings(["hello-me", "my-day"]), {
     "hello-me/dialogue": "new", "hello-me/word-1": "word-newer", "my-day/pattern-2": "pattern-ok",
   });
@@ -240,11 +241,11 @@ test("the Studio preview plays the recording learners hear, even when older data
   assert.equal((await approval.approvedRecording("school-home", "reading")).id, "uploaded-first-approved-last", "what /api/audio serves");
 });
 
-test("the newest video check from any teacher decides the video learners get", async () => {
-  const check = (id, ownerEmail, status, suitabilityStatus, replacementUrl, updatedAt) => ({ id, ownerEmail, lessonId: "my-family", videoId: "uHTorwKsVFg", status, suitabilityStatus, replacementUrl, captionsStatus: "available", updatedAt });
-  db.insert(videoReviews).values(check("first", "teacher@example.com", "approved", "suitable", "", "2026-10-01T00:00:00.000Z")).run();
+test("the newest administrator video check decides the video learners get", async () => {
+  const check = (id, ownerEmail, status, suitabilityStatus, replacementUrl, updatedAt) => ({ id, ownerEmail, lessonId: "my-family", videoId: "uHTorwKsVFg", status, suitabilityStatus, replacementUrl, captionsStatus: "available", updatedAt, adminDecidedAt: updatedAt });
+  db.insert(videoReviews).values(check("first", "admin@example.com", "approved", "suitable", "", "2026-10-01T00:00:00.000Z")).run();
   assert.equal((await approval.learnerLessonView()).videos["my-family"], undefined, "an approved video is unchanged");
-  db.insert(videoReviews).values(check("second", "colleague@example.com", "approved", "unsuitable", "", "2026-10-02T00:00:00.000Z")).run();
+  db.insert(videoReviews).values(check("second", "second-admin@example.com", "approved", "unsuitable", "", "2026-10-02T00:00:00.000Z")).run();
   assert.equal((await approval.learnerLessonView()).videos["my-family"], null);
   db.update(videoReviews).set({ status: "replace", replacementUrl: "https://youtu.be/h-egsGh_VbQ", updatedAt: "2026-10-03T00:00:00.000Z" }).where(eq(videoReviews.id, "second")).run();
   const view = await approval.learnerLessonView();

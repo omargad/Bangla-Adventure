@@ -38,10 +38,14 @@ the repository.
 
 Agree who owns hosting, domain/TLS, support, backup storage and recovery keys.
 
-The client also owns the ElevenLabs account and API key used to make the Bangla
-audio clips. The key is only needed on the computer that generates them, never
-on the server; [`MEDIA_REVIEW.md`](MEDIA_REVIEW.md#a-better-bangla-computer-voice-elevenlabs)
-has the licence check, dry run, samples, generation and native-speaker review.
+The client also owns the ElevenLabs account and API key. Bundled Bangla clips
+play without a runtime key; their offline generation and native-speaker review
+are documented in [`MEDIA_REVIEW.md`](MEDIA_REVIEW.md#a-better-bangla-computer-voice-elevenlabs).
+Optional automatic narration of newly approved topic and class activity text
+requires a client-owned key in the server's private runtime environment. It is
+never exposed to browsers or committed. Confirm the spending limit, key rotation
+owner and persistent audio storage before enabling it. See the separate
+[runtime narration configuration](MEDIA_REVIEW.md#automatic-narration-of-teacher-content).
 
 ## Administrator and role handover
 

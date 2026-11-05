@@ -82,6 +82,7 @@ before(async () => {
   ] }, teacherCookie);
   assert.equal(activity.status, 201);
   activityId = (await activity.json()).activity.id;
+  assert.equal((await send(`/api/classes/${classId}/activities`, "PATCH", { activityId, approvalStatus: "approved", revision: 1 }, adminCookie)).status, 200);
   for (const [name, answers] of [["maya", [0, 1]], ["nadia", [0, 0]]]) {
     assert.equal((await send("/api/student/submit", "POST", { activityId, answers }, studentCookies[name], device(name))).status, 200);
   }

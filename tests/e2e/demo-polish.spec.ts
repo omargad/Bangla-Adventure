@@ -69,6 +69,9 @@ test("connected four-role demo preserves quiz scores and keeps gradebook summari
     expect((await api.put(`/api/classes/${classId}/attendance`, { headers: teacher, data: { date: new Date().toISOString().slice(0, 10), marks: [{ studentId, present: true }] } })).status()).toBe(200);
     expect((await api.post(`/api/classes/${classId}/announcements`, { headers: teacher, data: { body: announcement, audience: "all" } })).status()).toBe(201);
     const admin = await signIn(api, "auth", { email: adminEmail, password }, `demo-admin-${suffix}`);
+    for (const id of activityIds) {
+      expect((await api.patch(`/api/classes/${classId}/activities`, { headers: admin, data: { activityId: id, approvalStatus: "approved", revision: 1 } })).status()).toBe(200);
+    }
     expect((await api.post("/api/admin/family-links", { headers: admin, data: { studentId, parentEmail, confirmed: true } })).status()).toBe(200);
     // Normal registrations stay pending, ready for the administrator's approval demonstration.
     for (const role of ["teacher", "parent"] as const) {

@@ -33,6 +33,10 @@ test("a teacher takes attendance with one student absent, and the gradebook show
     fixture((db) => db.prepare("UPDATE adults SET role = 'teacher', teacher_status = 'approved', approval_status = 'approved' WHERE email = ?").run(teacherEmail));
     const teacher = await signIn(api, "auth", { email: teacherEmail, password }, `attendance-teacher-${suffix}`);
     teacherCookie = teacher.cookie;
+    const adminEmail = `attendance-admin-${suffix}@example.com`;
+    expect((await api.post("/api/auth/sign-up", { data: { email: adminEmail, displayName: "Attendance Admin", password }, headers: { "x-forwarded-for": `attendance-admin-${suffix}` } })).status()).toBe(201);
+    fixture((db) => db.prepare("UPDATE adults SET role = 'admin', approval_status = 'approved' WHERE email = ?").run(adminEmail));
+    const admin = await signIn(api, "auth", { email: adminEmail, password }, `attendance-admin-${suffix}`);
     const created = await api.post("/api/classes", { headers: teacher, data: { name: className } });
     expect(created.status()).toBe(201);
     classId = (await created.json()).class.id;
@@ -44,7 +48,9 @@ test("a teacher takes attendance with one student absent, and the gradebook show
         { prompt: "What do shops open on Pohela Boishakh?", options: ["Halkhata", "Umbrellas"], answer: 0 },
       ] } });
       expect(activity.status()).toBe(201);
-      activityIds.push((await activity.json()).activity.id);
+      const item = (await activity.json()).activity;
+      activityIds.push(item.id);
+      expect((await api.patch(`/api/classes/${classId}/activities`, { headers: admin, data: { activityId: item.id, approvalStatus: "approved", revision: item.revision } })).status()).toBe(200);
     }
     for (const [key, displayName] of Object.entries(names)) {
       expect((await api.post("/api/student/sign-up", { data: { username: `${key}.${suffix}`, displayName, password }, headers: { "x-forwarded-for": `attendance-${key}-${suffix}` } })).status()).toBe(201);

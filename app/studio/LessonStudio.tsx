@@ -24,12 +24,10 @@ const lessonById = new Map(lessons.map((lesson) => [lesson.id, lesson]));
 const lessonAt = (params: URLSearchParams) => { const id = params.get("lesson"); return id && lessonById.has(id) ? id : null; };
 
 /**
- * Lessons: every teacher and administrator sees the 18 lessons grouped by
- * category with one shared status, previews a lesson in full as students see it
- * (in English and Bangla) and approves or withdraws it. Recordings from any staff
- * member wait here until someone listens to them and approves them.
+ * Staff preview the lessons and upload recordings. Administrators decide which
+ * lessons and recordings are published to students.
  */
-export default function LessonStudio({ name, role }: { name: string; role: "teacher" | "admin" }) {
+export default function LessonStudio({ name, role, canApprove }: { name: string; role: "teacher" | "admin"; canApprove: boolean }) {
   const [language, toggleLanguage] = useLanguage({ title: ["Lessons | Bangla Adventures", "পাঠ | Bangla Adventures"] });
   const s = (en: string, bn: string) => (language === "bn" ? bn : en);
   const n = (value: number) => formatNumber(value, language);
@@ -90,19 +88,19 @@ export default function LessonStudio({ name, role }: { name: string; role: "teac
       <main className="topic-studio lesson-studio" lang={language}>
         <div className="portal-heading">
           <div>
-            <p className="adult-eyebrow">{s("Preview · approve · withdraw", "দেখা · অনুমোদন · সরিয়ে নেওয়া")}</p>
+            <p className="adult-eyebrow">{canApprove ? s("Preview · approve · withdraw", "দেখা · অনুমোদন · সরিয়ে নেওয়া") : s("Preview · record · submit", "প্রিভিউ · রেকর্ড · জমা")}</p>
             <h1>{s("Lessons", "পাঠ")}</h1>
           </div>
           {lessonId && <button type="button" className="outline-button" onClick={() => open(null)}>← {s("All lessons", "সব পাঠ")}</button>}
         </div>
         {error && <p className="auth-error" role="alert">{error[language]}</p>}
 
-        {lessonId && <LessonReview key={lessonId} lessonId={lessonId} language={language} onChanged={() => void loadList()} />}
+        {lessonId && <LessonReview key={lessonId} lessonId={lessonId} language={language} canApprove={canApprove} onChanged={() => void loadList()} />}
 
         {!lessonId && <>
           <p>{s(
-            "These are the 18 lessons students open on the adventure page. Students see a lesson only while it is approved. Open “Preview lesson” to go through the whole lesson in English and Bangla exactly as students see it, then approve it or withdraw it.",
-            "শিক্ষার্থীরা অভিযানের পাতায় এই ১৮টি পাঠ খোলে। পাঠ অনুমোদিত থাকলেই শুধু শিক্ষার্থীরা তা দেখে। “পাঠটি দেখুন” চেপে শিক্ষার্থীরা যেভাবে দেখে ঠিক সেভাবে পুরো পাঠ ইংরেজি ও বাংলায় দেখে নিন, তারপর অনুমোদন দিন বা সরিয়ে নিন।",
+            "These are the 18 lessons students open on the adventure page. Teachers can preview each lesson in English and Bangla and submit recordings for administrator review. Administrators approve lessons and recordings and decide which videos students see.",
+            "শিক্ষার্থীরা অভিযানের পাতায় এই ১৮টি পাঠ খোলে। শিক্ষকেরা প্রতিটি পাঠ ইংরেজি ও বাংলায় দেখে প্রশাসকের পর্যালোচনার জন্য রেকর্ডিং জমা দিতে পারেন। প্রশাসকেরা পাঠ ও রেকর্ডিং অনুমোদন করেন এবং শিক্ষার্থীরা কোন ভিডিও দেখবে তা ঠিক করেন।",
           )}</p>
           {!list && !error && <p role="status">{s("Loading lessons…", "পাঠ লোড হচ্ছে…")}</p>}
           {list && <>
@@ -117,7 +115,7 @@ export default function LessonStudio({ name, role }: { name: string; role: "teac
             <section className="teach-panel" aria-label={s("Recordings waiting for review", "পর্যালোচনার অপেক্ষায় থাকা রেকর্ডিং")}>
               <h2>{s("Recordings waiting for review", "পর্যালোচনার অপেক্ষায় থাকা রেকর্ডিং")} ({n(list.pendingRecordings.length)})</h2>
               {list.pendingRecordings.length === 0
-                ? <p>{s("No recordings are waiting. Recordings any teacher uploads appear here until someone listens to them and approves them.", "কোনো রেকর্ডিং অপেক্ষায় নেই। যেকোনো শিক্ষকের আপলোড করা রেকর্ডিং কেউ শুনে অনুমোদন না দেওয়া পর্যন্ত এখানে থাকে।")}</p>
+                ? <p>{s("No recordings are waiting. Uploaded recordings appear here until an administrator listens to them and approves them.", "কোনো রেকর্ডিং অপেক্ষায় নেই। প্রশাসক শুনে অনুমোদন না দেওয়া পর্যন্ত আপলোড করা রেকর্ডিং এখানে থাকে।")}</p>
                 : <ul className="topic-admin-list">{list.pendingRecordings.map((recording) => (
                   <li key={recording.id} className="topic-admin-row recording-row">
                     <span className="topic-admin-title">
@@ -125,7 +123,7 @@ export default function LessonStudio({ name, role }: { name: string; role: "teac
                       <small>{recording.speakerName} · {recording.dialect} · {s("uploaded by", "আপলোড করেছেন")} {recording.uploaderName ?? s("a former staff member", "একজন সাবেক কর্মী")}, {formatWhen(recording.createdAt, language)}</small>
                     </span>
                     <audio controls preload="none" src={`/api/studio/media/${encodeURIComponent(recording.id)}`} aria-label={`${s("Play", "শুনুন")}: ${title(recording.lessonId)} · ${slotLabel(recording.slot, language)}`} />
-                    <span className="topic-admin-actions"><button type="button" className="outline-button" onClick={() => open(recording.lessonId)}>{s("Review in the lesson", "পাঠে গিয়ে পর্যালোচনা")}</button></span>
+                    <span className="topic-admin-actions"><button type="button" className="outline-button" onClick={() => open(recording.lessonId)}>{canApprove ? s("Review in the lesson", "পাঠে গিয়ে পর্যালোচনা") : s("Preview in the lesson", "পাঠে গিয়ে প্রিভিউ")}</button></span>
                   </li>
                 ))}</ul>}
             </section>
@@ -161,9 +159,9 @@ export default function LessonStudio({ name, role }: { name: string; role: "teac
               </section>
             ))}
             <p className="teach-note">{s(
-              "“Available · review pending” marks existing lessons that students can use but a teacher has not individually reviewed. Preview each lesson in both languages before confirming a review. Video and recording checks are separate; lesson approval does not approve its media.",
-              "“চালু · পর্যালোচনা বাকি” মানে আগে থেকে থাকা পাঠ যা শিক্ষার্থীরা ব্যবহার করতে পারে, কিন্তু কোনো শিক্ষক আলাদাভাবে পর্যালোচনা করেননি। পর্যালোচনা নিশ্চিত করার আগে দুই ভাষায় পুরো পাঠ দেখুন। ভিডিও ও রেকর্ডিং আলাদাভাবে যাচাই করতে হয়; পাঠ অনুমোদন মানে মিডিয়ার অনুমোদন নয়।",
-            )} <Link href="/teach/topics">{s("Topics are written and approved in Topics →", "বিষয় লেখা ও অনুমোদন হয় “বিষয়” অংশে →")}</Link></p>
+              "“Available · review pending” marks existing lessons that students could use before approval existed. Administrators review lessons, videos and recordings separately; lesson approval does not approve its media.",
+              "“চালু · পর্যালোচনা বাকি” মানে অনুমোদন চালুর আগেই শিক্ষার্থীরা পাঠগুলো ব্যবহার করতে পারত। প্রশাসকেরা পাঠ, ভিডিও ও রেকর্ডিং আলাদাভাবে পর্যালোচনা করেন; পাঠ অনুমোদন মানে মিডিয়ার অনুমোদন নয়।",
+            )} <Link href="/teach/topics">{s("Write and submit topics →", "বিষয় লিখে জমা দিন →")}</Link></p>
           </>}
         </>}
       </main>

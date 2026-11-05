@@ -19,7 +19,7 @@ type VersionDetail = {
 };
 type History = {
   versions: VersionSummary[]; approvedVersion: number | null; head: { version: number };
-  /** Hidden from students by a teacher; who reviewed an approved baseline version; every such decision. */
+  /** Publication decisions and the review of an approved baseline version. */
   withdrawn: boolean; baselineReview: TopicDecisionSummary | null; decisions: TopicDecisionSummary[];
 };
 type PreviewMode = "en" | "bn" | "both";
@@ -36,8 +36,8 @@ async function fetchReview(topicId: string, version: number | null, signal?: Abo
  * as students see it, in English, in Bangla or side by side, with what changed
  * since the approved version, the decision and the topic's history.
  */
-export default function TopicReview({ topicId, version, language, onOpenVersion, onEdit, onDecided }: {
-  topicId: string; version: number | null; language: Language;
+export default function TopicReview({ topicId, version, language, canApprove, onOpenVersion, onEdit, onDecided }: {
+  topicId: string; version: number | null; language: Language; canApprove: boolean;
   onOpenVersion: (version: number) => void; onEdit: () => void; onDecided: () => void;
 }) {
   const s = (en: string, bn: string) => (language === "bn" ? bn : en);
@@ -61,7 +61,7 @@ export default function TopicReview({ topicId, version, language, onOpenVersion,
   }, [topicId, version]);
 
   async function decide(decision: "approve" | "reject") {
-    if (!detail || busy) return;
+    if (!canApprove || !detail || busy) return;
     setBusy(true); setError(null); setMessage(null);
     try {
       await call(`/api/topics/${encodeURIComponent(topicId)}/versions/${detail.version.version}`, {
@@ -79,7 +79,7 @@ export default function TopicReview({ topicId, version, language, onOpenVersion,
 
   /** Withdraw the approved topic, approve a withdrawn one again, or confirm a review of a baseline topic. */
   async function decideTopic(decision: "withdraw" | "approve" | "confirm") {
-    if (busy) return;
+    if (!canApprove || busy) return;
     setBusy(true); setError(null); setMessage(null);
     try {
       await call(`/api/topics/${encodeURIComponent(topicId)}`, {
@@ -105,7 +105,7 @@ export default function TopicReview({ topicId, version, language, onOpenVersion,
   const topic = { ...current.content, id: topicId, references: detail.references };
   const reader = (lang: Language, titleLevel: 1 | 2) => (
     <article className="topic-reader" lang={lang} key={lang}>
-      <TopicReader topic={topic} language={lang} titleLevel={titleLevel} />
+      <TopicReader topic={topic} language={lang} titleLevel={titleLevel} narrationEnabled={false} />
     </article>
   );
   const who = (name: string | null) => name ?? s("a former staff member", "একজন সাবেক কর্মী");
@@ -137,6 +137,7 @@ export default function TopicReview({ topicId, version, language, onOpenVersion,
           )}</p>)}
         {current.status === "approved" && !current.baseline && <p className="teach-note">{s(`Approved by ${who(current.reviewerName)}, ${formatWhen(current.reviewedAt, language)}.`, `${who(current.reviewerName)} অনুমোদন করেছেন, ${formatWhen(current.reviewedAt, language)}।`)}</p>}
         {current.status === "rejected" && <p className="teach-note">{s(`Sent back by ${who(current.reviewerName)}, ${formatWhen(current.reviewedAt, language)}: `, `${who(current.reviewerName)} ফেরত পাঠিয়েছেন, ${formatWhen(current.reviewedAt, language)}: `)}<q>{current.reviewNote}</q></p>}
+        {!canApprove && <p className="teach-note">{s("You can preview this topic, view its history and submit edits. An administrator must approve new topics and changes before students see them.", "আপনি বিষয়টির প্রিভিউ ও ইতিহাস দেখতে এবং সম্পাদনা জমা দিতে পারেন। শিক্ষার্থীরা দেখার আগে প্রশাসককে নতুন বিষয় ও পরিবর্তন অনুমোদন করতে হবে।")}</p>}
         {current.version < detail.latestVersion && <p className="teach-note">{s("This is not the newest version.", "এটি সবচেয়ে নতুন সংস্করণ নয়।")} <button type="button" className="text-button" onClick={() => onOpenVersion(detail.latestVersion)}>{s("Open the newest version", "সবচেয়ে নতুন সংস্করণ খুলুন")}</button></p>}
         <div className="access-actions">
           <button type="button" className="outline-button" onClick={onEdit}>{s("Edit this topic", "বিষয়টি সম্পাদনা করুন")}</button>
@@ -152,7 +153,7 @@ export default function TopicReview({ topicId, version, language, onOpenVersion,
 
       <section className="topic-preview" aria-label={s("Student view preview", "শিক্ষার্থীর দৃশ্যের প্রিভিউ")}>
         <div className="topic-preview-bar">
-          <strong>{s("Students will see this:", "শিক্ষার্থীরা এটি দেখবে:")}</strong>
+          <strong>{s("Student view preview", "শিক্ষার্থীর দৃশ্যের প্রিভিউ")}</strong>
           <div role="group" aria-label={s("Preview language", "প্রিভিউয়ের ভাষা")} className="topic-preview-modes">
             {([["en", "English"], ["bn", "বাংলা"], ["both", s("Side by side", "পাশাপাশি")]] as const).map(([value, label]) => (
               <button type="button" key={value} aria-pressed={mode === value} onClick={() => setMode(value)}>{label}</button>
@@ -164,11 +165,11 @@ export default function TopicReview({ topicId, version, language, onOpenVersion,
         </div>
       </section>
 
-      {current.status === "pending" && <section className="teach-panel topic-decision" aria-label={s("Approval decision", "অনুমোদনের সিদ্ধান্ত")}>
+      {canApprove && current.status === "pending" && <section className="teach-panel topic-decision" aria-label={s("Approval decision", "অনুমোদনের সিদ্ধান্ত")}>
         <h3>{s("Your decision", "আপনার সিদ্ধান্ত")}</h3>
         <p className="teach-note">{s(
-          "Read the whole topic in English and in Bangla, including the quiz, before you approve. Approving publishes this version to students and records your name. Authors may approve their own topic.",
-          "অনুমোদনের আগে কুইজসহ পুরো বিষয়টি ইংরেজি ও বাংলায় পড়ুন। অনুমোদন দিলে এই সংস্করণ শিক্ষার্থীদের কাছে প্রকাশিত হবে এবং আপনার নাম লেখা থাকবে। লেখক নিজেও নিজের বিষয় অনুমোদন করতে পারেন।",
+          "As the administrator, read the whole topic in English and Bangla, including the quiz, before approving it. Approval publishes this version to students and records your name.",
+          "প্রশাসক হিসেবে অনুমোদনের আগে কুইজসহ পুরো বিষয়টি ইংরেজি ও বাংলায় পড়ুন। অনুমোদন দিলে এই সংস্করণ শিক্ষার্থীদের কাছে প্রকাশিত হবে এবং আপনার নাম লেখা থাকবে।",
         )}</p>
         {readTick}
         <div className="access-actions">
@@ -182,7 +183,7 @@ export default function TopicReview({ topicId, version, language, onOpenVersion,
         </div>
         {error && <p className="auth-error" role="alert">{error[language]}</p>}
       </section>}
-      {current.status === "approved" && <section className="teach-panel topic-decision" aria-label={s("Your decision", "আপনার সিদ্ধান্ত")}>
+      {canApprove && current.status === "approved" && <section className="teach-panel topic-decision" aria-label={s("Your decision", "আপনার সিদ্ধান্ত")}>
         <h3>{s("Your decision", "আপনার সিদ্ধান্ত")}</h3>
         {history.withdrawn ? <>
           <p className="teach-note">{s(
