@@ -103,7 +103,7 @@ test("complete approved-teacher, allocated-student, curriculum and recovery work
     await page.goto("/teach");
     await page.getByRole("button", { name: new RegExp(`Learning Class ${suffix}`) }).click();
     await page.getByRole("navigation", { name: "Portal navigation" }).getByRole("button", { name: "Activities & quizzes", exact: true }).click();
-    const activityReview = page.locator(".teach-activity").filter({ hasText: "A festival and a boat" });
+    const activityReview = page.getByRole("region", { name: "Activities and submissions", exact: true }).getByRole("article").filter({ hasText: "A festival and a boat" });
     await activityReview.getByText("Preview instructions and questions", { exact: true }).click();
     await expect(activityReview).toContainText("Which month starts the Bengali year?");
     await expect(activityReview).toContainText("What can travel on a river?");

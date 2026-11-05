@@ -62,7 +62,10 @@ test("a teacher submits a bilingual topic, a separate administrator publishes it
     await expect(author.getByRole("button", { name: "Approve and publish to students", exact: true })).toHaveCount(0);
     await expect(author.getByRole("button", { name: "Send back to the author", exact: true })).toHaveCount(0);
     const submittedId = new URL(author.url()).searchParams.get("topic")!;
-    expect((await authorContext.request.post(`/api/topics/${submittedId}/versions/1`, { data: { decision: "approve", confirmedRead: true } })).status()).toBe(403);
+    expect((await api(author, "GET", "/api/auth/session")).body).toMatchObject({ authenticated: true, role: "teacher" });
+    const deniedApproval = await api(author, "POST", `/api/topics/${submittedId}/versions/1`, { decision: "approve", confirmedRead: true });
+    expect(deniedApproval.status).toBe(403);
+    expect(deniedApproval.body.error).toBe("Administrator access required.");
 
     // The waiting topic is invisible to students.
     expect((await studentContext.request.post("/api/student/sign-up", { data: { username: `tea-${suffix}`, displayName: "Tea learner", password } })).status()).toBe(201);

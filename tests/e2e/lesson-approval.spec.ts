@@ -33,6 +33,21 @@ async function signedInStudent(browser: Browser, baseURL: string | undefined, su
   return context;
 }
 
+/** Use the browser's session: its Secure cookie works on loopback, unlike APIRequestContext at 127.0.0.1. */
+async function api(page: Page, method: string, url: string, data?: unknown) {
+  return page.evaluate(async ({ method, url, data }) => {
+    const response = await fetch(url, { method, headers: data ? { "Content-Type": "application/json" } : {}, body: data ? JSON.stringify(data) : undefined });
+    return { status: response.status, body: await response.json() };
+  }, { method, url, data });
+}
+
+async function learnerRecording(page: Page, url: string) {
+  return page.evaluate(async (url) => {
+    const response = await fetch(url);
+    return { status: response.status, bytes: [...new Uint8Array(await response.arrayBuffer())] };
+  }, url);
+}
+
 /** The student's lesson list with every level shown. */
 async function openAllLessons(student: Page) {
   await student.goto("/adventure");
@@ -73,7 +88,10 @@ test("a teacher can preview a lesson, but only an administrator can withdraw and
     await expect(teacher.getByRole("region", { name: "Approval history" })).toBeVisible();
     await expect(teacher.getByRole("region", { name: "Your decision" })).toHaveCount(0);
     await expect(teacher.getByRole("button", { name: "Save video check", exact: true })).toHaveCount(0);
-    expect((await teacherContext.request.post("/api/studio/lessons/six-seasons", { data: { decision: "approve", confirmedRead: true } })).status()).toBe(403);
+    expect((await api(teacher, "GET", "/api/auth/session")).body).toMatchObject({ authenticated: true, role: "teacher" });
+    const deniedApproval = await api(teacher, "POST", "/api/studio/lessons/six-seasons", { decision: "approve", confirmedRead: true });
+    expect(deniedApproval.status).toBe(403);
+    expect(deniedApproval.body.error).toBe("Administrator access required.");
 
     await admin.goto("/admin");
     await admin.getByRole("navigation", { name: "Portal navigation" }).getByRole("link", { name: "Lessons", exact: true }).click();
@@ -149,8 +167,10 @@ test("a teacher's recording stays pending until a separate administrator listens
   const speaker = `Recording speaker ${suffix}`;
   const bytes = readFileSync(new URL("../../public/audio/lesson-my-day-dialogue.ogg", import.meta.url));
   try {
-    const teacher = await teacherContext.newPage(), admin = await adminContext.newPage();
-    for (const page of [teacher, admin]) page.setDefaultTimeout(15000);
+    const teacher = await teacherContext.newPage(), admin = await adminContext.newPage(), student = await studentContext.newPage();
+    for (const page of [teacher, admin, student]) page.setDefaultTimeout(15000);
+    await student.goto("/student");
+    expect((await api(student, "GET", "/api/auth/session")).body).toMatchObject({ authenticated: true, role: "student" });
     await teacher.goto("/studio?lesson=my-day");
     const recordings = teacher.getByRole("region", { name: "Human audio recordings", exact: true });
     await recordings.getByText("Upload a recording", { exact: true }).click();
@@ -167,9 +187,12 @@ test("a teacher's recording stays pending until a separate administrator listens
     await expect(teacherRow).toContainText("Waiting for review");
     await expect(teacherRow.getByRole("button", { name: "Approve recording", exact: true })).toHaveCount(0);
     await expect(teacher.getByRole("button", { name: "Save video check", exact: true })).toHaveCount(0);
-    expect((await teacherContext.request.patch("/api/studio/media", { data: { id: asset.id, reviewStatus: "approved", confirmedListened: true } })).status()).toBe(403);
+    expect((await api(teacher, "GET", "/api/auth/session")).body).toMatchObject({ authenticated: true, role: "teacher" });
+    const deniedApproval = await api(teacher, "PATCH", "/api/studio/media", { id: asset.id, reviewStatus: "approved", confirmedListened: true });
+    expect(deniedApproval.status).toBe(403);
+    expect(deniedApproval.body.error).toBe("Administrator access required.");
     const learnerAudio = `/api/audio/my-day/dialogue?v=${encodeURIComponent(asset.id)}`;
-    expect((await studentContext.request.get(learnerAudio)).status()).toBe(404);
+    expect((await learnerRecording(student, learnerAudio)).status).toBe(404);
 
     await admin.goto("/studio?lesson=my-day");
     const adminRow = admin.getByRole("region", { name: "Human audio recordings", exact: true }).getByRole("listitem").filter({ hasText: speaker });
@@ -179,12 +202,12 @@ test("a teacher's recording stays pending until a separate administrator listens
     await adminRow.getByRole("checkbox", { name: "I listened to the whole recording", exact: true }).check();
     await approve.click();
     await expect(adminRow).toContainText("Approved · in use");
-    const published = await studentContext.request.get(learnerAudio);
-    expect(published.status()).toBe(200);
-    expect(await published.body()).toEqual(bytes);
+    const published = await learnerRecording(student, learnerAudio);
+    expect(published.status).toBe(200);
+    expect(Buffer.from(published.bytes)).toEqual(bytes);
     await adminRow.getByRole("button", { name: "Stop using it", exact: true }).click();
     await expect(adminRow).toContainText("Retired");
-    expect((await studentContext.request.get(learnerAudio)).status()).toBe(404);
+    expect((await learnerRecording(student, learnerAudio)).status).toBe(404);
   } finally {
     await teacherContext.close().catch(() => undefined);
     await adminContext.close().catch(() => undefined);
