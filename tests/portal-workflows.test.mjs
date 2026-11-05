@@ -35,7 +35,7 @@ test("only the owner teacher or administrator can allocate; duplicates do not cr
 });
 test("removing and restoring allocation preserves submitted work", async () => {
   const enrollment = db.select().from(studentClassEnrollments).get();
-  db.insert(classActivities).values({ id: "quiz", classId: "class", title: "Quiz" }).run();
+  db.insert(classActivities).values({ id: "quiz", approvalStatus: "approved", classId: "class", title: "Quiz" }).run();
   db.insert(activitySubmissions).values({ id: "result", activityId: "quiz", studentId: enrollment.classStudentId, score: 1, total: 1 }).run();
   await removeAllocation("admin", "class", "student");
   assert.deepEqual(await roster("teacher", "class"), [], "a removed student leaves the class list");

@@ -87,8 +87,29 @@ test("complete approved-teacher, allocated-student, curriculum and recovery work
     await teacher.getByLabel("Question 2", { exact: true }).fill("What can travel on a river?");
     await teacher.getByLabel("Question 2 option 1", { exact: true }).fill("Boat");
     await teacher.getByLabel("Question 2 option 2", { exact: true }).fill("Train");
-    await teacher.getByRole("button", { name: "Publish to the class", exact: true }).click();
-    await expect(teacher.getByText("Activity published to the class.", { exact: true })).toBeVisible();
+    await teacher.getByRole("button", { name: "Submit for Admin approval", exact: true }).click();
+    await expect(teacher.getByText("Activity submitted for Admin approval. Students and parents cannot see it yet.", { exact: true })).toBeVisible();
+    await expect(teacher.getByRole("button", { name: "Approve and publish", exact: true })).toHaveCount(0);
+
+    await student.goto("/student");
+    await student.getByLabel("Username", { exact: true }).fill(username);
+    await student.getByLabel("Password", { exact: true }).fill(password);
+    await student.getByRole("button", { name: "Sign in", exact: true }).click();
+    await expect(student.getByRole("heading", { name: "My Learning", exact: true })).toBeVisible();
+    await student.getByRole("navigation", { name: "Portal navigation" }).getByRole("button", { name: "My activities", exact: true }).click();
+    await expect(student.getByRole("button", { name: /A festival and a boat/ })).toHaveCount(0);
+
+    // A separate administrator reads the submitted quiz before publishing it.
+    await page.goto("/teach");
+    await page.getByRole("button", { name: new RegExp(`Learning Class ${suffix}`) }).click();
+    await page.getByRole("navigation", { name: "Portal navigation" }).getByRole("button", { name: "Activities & quizzes", exact: true }).click();
+    const activityReview = page.getByRole("region", { name: "Activities and submissions", exact: true }).getByRole("article").filter({ hasText: "A festival and a boat" });
+    await activityReview.getByText("Preview instructions and questions", { exact: true }).click();
+    await expect(activityReview).toContainText("Which month starts the Bengali year?");
+    await expect(activityReview).toContainText("What can travel on a river?");
+    await activityReview.getByRole("checkbox", { name: "I have reviewed all the content above.", exact: true }).check();
+    await activityReview.getByRole("button", { name: "Approve and publish", exact: true }).click();
+    await expect(activityReview).toContainText("Approved by Admin · published");
     await teacher.getByRole("navigation", { name: "Portal navigation" }).getByRole("button", { name: "Announcements", exact: true }).click();
     const announcement = `Bring your reading worksheet ${suffix}.`;
     await teacher.getByLabel("New announcement", { exact: true }).fill(announcement);
@@ -96,9 +117,6 @@ test("complete approved-teacher, allocated-student, curriculum and recovery work
     await expect(teacher.getByText(announcement, { exact: true })).toBeVisible();
 
     await student.goto("/student");
-    await student.getByLabel("Username", { exact: true }).fill(username);
-    await student.getByLabel("Password", { exact: true }).fill(password);
-    await student.getByRole("button", { name: "Sign in", exact: true }).click();
     await expect(student.getByRole("heading", { name: "My Learning", exact: true })).toBeVisible();
     await expect(student.getByRole("region", { name: "Class announcements" })).toContainText(announcement);
     await expect(student.getByLabel("Class code", { exact: true })).toHaveCount(0);
@@ -125,16 +143,18 @@ test("complete approved-teacher, allocated-student, curriculum and recovery work
     await page.goto("/admin/curriculum");
     await expect(page).toHaveURL(/\/teach\/topics$/);
     const approvedTitle: string = (await api(page, "/api/curriculum", undefined, "GET")).data.topics.find((topic: { id: string }) => topic.id === "pohela-boishakh").title.en;
-    await page.getByRole("button", { name: `Edit: ${approvedTitle}`, exact: true }).click();
+    await teacher.goto("/teach/topics?edit=pohela-boishakh");
     const title = `Learning update ${suffix}`;
-    await page.getByLabel("Title (English)", { exact: true }).fill(title);
-    await page.getByRole("textbox", { name: "Section 1 text (English)", exact: true }).fill("Read this updated section with your teacher and check the original NCTB source.");
-    await page.getByRole("button", { name: "Save and send for approval", exact: true }).click();
+    await teacher.getByLabel("Title (English)", { exact: true }).fill(title);
+    await teacher.getByRole("textbox", { name: "Section 1 text (English)", exact: true }).fill("Read this updated section with your teacher and check the original NCTB source.");
+    await teacher.getByRole("button", { name: "Submit for administrator review", exact: true }).click();
     // The connection banner is also a status region; target the save result.
-    await expect(page.getByRole("status").filter({ hasText: "Students will not see it until" })).toBeVisible();
+    await expect(teacher.getByRole("status").filter({ hasText: "Students will not see this version until an administrator approves it." })).toBeVisible();
+    await expect(teacher.getByRole("button", { name: "Approve and publish to students", exact: true })).toHaveCount(0);
     await student.goto("/student");
     await expect(student.getByRole("heading", { name: approvedTitle, exact: true })).toBeVisible();
     await expect(student.getByRole("heading", { name: title, exact: true })).toHaveCount(0);
+    await page.goto("/teach/topics?topic=pohela-boishakh");
     await expect(page.getByRole("button", { name: "Approve and publish to students", exact: true })).toBeDisabled();
     await page.getByRole("checkbox", { name: "I have read the whole topic, including its quiz, in English and Bangla" }).check();
     await page.getByRole("button", { name: "Approve and publish to students", exact: true }).click();

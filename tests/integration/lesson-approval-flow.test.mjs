@@ -8,13 +8,13 @@ import test, { after, before } from "node:test";
 import Database from "better-sqlite3";
 
 /**
- * The shared lesson approval against the production server: a teacher withdraws
+ * The shared lesson approval against the production server: an administrator withdraws
  * a lesson and students can no longer open it (lesson list, ?module= link,
  * audio, worksheet), new assignments and progress for it are refused and parents
- * stop seeing its assignments; another teacher re-approves it and everything
+ * stop seeing its assignments; an administrator re-approves it and everything
  * comes back. A baseline lesson takes a real review while students keep it.
- * Recordings waiting for review play for staff only, and a video a teacher
- * marks unsuitable disappears from the learner lesson, even after that teacher
+ * Recordings waiting for review play for staff only, and a video an administrator
+ * marks unsuitable disappears from the learner lesson, even after that administrator
  * deletes their account.
  */
 
@@ -91,18 +91,27 @@ test("a withdrawn lesson disappears for students and parents everywhere, and re-
   const seasonsTitle = "Bangladesh through six seasons";
   assert.match(await html("/adventure?module=six-seasons", studentCookie), new RegExp(seasonsTitle));
 
-  // Only staff decide, withdrawing needs a reason, and the reason is kept.
+  // Every valid shared-content decision is denied to the owning teacher and a colleague.
+  const beforeTeacherReview = fixture((db) => db.prepare("SELECT * FROM content_approvals ORDER BY rowid").all());
+  for (const cookie of [teacherCookie, colleagueCookie]) {
+    for (const decision of ["approve", "withdraw"]) {
+      assert.equal((await decide("six-seasons", { decision, confirmedRead: true, note: "Teacher forged decision" }, cookie)).status, 403);
+    }
+  }
+  assert.deepEqual(fixture((db) => db.prepare("SELECT * FROM content_approvals ORDER BY rowid").all()), beforeTeacherReview);
+
+  // Only administrators decide, withdrawing needs a reason, and the reason is kept.
   assert.equal((await decide("six-seasons", { decision: "withdraw", note: "Check" }, parentCookie)).status, 403);
   assert.equal((await decide("six-seasons", { decision: "withdraw", note: "Check" }, undefined)).status, 401);
-  assert.equal((await decide("made-up", { decision: "withdraw", note: "Check" }, teacherCookie)).status, 404);
-  const noReason = await decide("six-seasons", { decision: "withdraw" }, teacherCookie);
+  assert.equal((await decide("made-up", { decision: "withdraw", note: "Check" }, adminCookie)).status, 404);
+  const noReason = await decide("six-seasons", { decision: "withdraw" }, adminCookie);
   assert.equal(noReason.status, 400);
   assert.match((await noReason.json()).errorBn, /কেন/);
-  const withdrawn = await decide("six-seasons", { decision: "withdraw", note: "The season names in Bangla need a check." }, teacherCookie);
+  const withdrawn = await decide("six-seasons", { decision: "withdraw", note: "The season names in Bangla need a check." }, adminCookie);
   assert.equal(withdrawn.status, 200);
   assert.deepEqual([(await withdrawn.json()).approval.status], ["withdrawn"]);
   const seen = (await (await send("/api/studio/lessons", "GET", undefined, adminCookie)).json()).lessons.find((lesson) => lesson.lessonId === "six-seasons");
-  assert.deepEqual([seen.status, seen.changedByName, seen.note], ["withdrawn", "lessons-teacher", "The season names in Bangla need a check."]);
+  assert.deepEqual([seen.status, seen.changedByName, seen.note], ["withdrawn", "lessons-admin", "The season names in Bangla need a check."]);
 
   // Students cannot open it: not in the deep link, not as audio, not as a worksheet.
   const deepLink = await html("/adventure?module=six-seasons", studentCookie);
@@ -128,12 +137,12 @@ test("a withdrawn lesson disappears for students and parents everywhere, and re-
   const staffView = (await (await send(`/api/assignments?profileId=${profileId}`, "GET", undefined, teacherCookie)).json()).assignments;
   assert.deepEqual(staffView.map((item) => [item.lessonId, item.lessonAvailable]), [["six-seasons", false]]);
 
-  // Another teacher must confirm a full review to approve it again.
-  assert.equal((await decide("six-seasons", { decision: "approve" }, colleagueCookie)).status, 400);
-  const approved = await decide("six-seasons", { decision: "approve", confirmedRead: true, note: "Season names checked." }, colleagueCookie);
+  // An administrator must confirm a full review to approve it again.
+  assert.equal((await decide("six-seasons", { decision: "approve" }, adminCookie)).status, 400);
+  const approved = await decide("six-seasons", { decision: "approve", confirmedRead: true, note: "Season names checked." }, adminCookie);
   assert.equal(approved.status, 200);
   const detail = await approved.json();
-  assert.deepEqual([detail.approval.status, detail.approval.changedByName], ["approved", "lessons-colleague"]);
+  assert.deepEqual([detail.approval.status, detail.approval.changedByName], ["approved", "lessons-admin"]);
   assert.deepEqual(detail.history.map((entry) => [entry.status, entry.baseline]), [["approved", false], ["withdrawn", false], ["approved", true]]);
   assert.equal((await decide("six-seasons", { decision: "approve", confirmedRead: true }, adminCookie)).status, 409);
 
@@ -148,23 +157,23 @@ test("a withdrawn lesson disappears for students and parents everywhere, and re-
   assert.deepEqual(audit, ["lesson-withdrawn", "lesson-approved"]);
 });
 
-test("a teacher records a full review of a baseline lesson while students keep seeing it", async () => {
+test("an administrator records a full review of a baseline lesson while students keep seeing it", async () => {
   const foodTitle = "Food, please";
   assert.match(await html("/adventure?module=food-please", studentCookie), new RegExp(foodTitle));
-  assert.equal((await decide("food-please", { decision: "approve" }, teacherCookie)).status, 400);
-  const reviewed = await decide("food-please", { decision: "approve", confirmedRead: true }, teacherCookie);
+  assert.equal((await decide("food-please", { decision: "approve" }, adminCookie)).status, 400);
+  const reviewed = await decide("food-please", { decision: "approve", confirmedRead: true }, adminCookie);
   assert.equal(reviewed.status, 200);
   const { approval } = await reviewed.json();
-  assert.deepEqual([approval.status, approval.baseline, approval.changedByName], ["approved", false, "lessons-teacher"]);
-  assert.equal((await decide("food-please", { decision: "approve", confirmedRead: true }, colleagueCookie)).status, 409);
+  assert.deepEqual([approval.status, approval.baseline, approval.changedByName], ["approved", false, "lessons-admin"]);
+  assert.equal((await decide("food-please", { decision: "approve", confirmedRead: true }, adminCookie)).status, 409);
   const listed = (await (await send("/api/studio/lessons", "GET", undefined, adminCookie)).json()).lessons.find((lesson) => lesson.lessonId === "food-please");
-  assert.deepEqual([listed.status, listed.baseline, listed.changedByName], ["approved", false, "lessons-teacher"]);
+  assert.deepEqual([listed.status, listed.baseline, listed.changedByName], ["approved", false, "lessons-admin"]);
   const stillOpen = await html("/adventure?module=food-please", studentCookie);
   assert.match(stillOpen, new RegExp(foodTitle));
   assert.doesNotMatch(stillOpen, /That lesson is not available at the moment/);
 });
 
-test("a recording waiting for review plays for staff only, and any teacher approves it after listening", async () => {
+test("a recording waiting for review plays for staff only, and an administrator approves it after listening", async () => {
   const bytes = Buffer.from("OggS fake recording for the integration test");
   const form = new FormData();
   form.set("file", new Blob([bytes], { type: "audio/ogg" }), "hello.ogg");
@@ -190,50 +199,69 @@ test("a recording waiting for review plays for staff only, and any teacher appro
   assert.equal((await send("/api/audio/hello-me/dialogue", "GET", undefined, studentCookie)).status, 307, "learners do not get a pending recording");
 
   assert.equal((await send("/api/studio/media", "PATCH", { id: asset.id, reviewStatus: "approved" }, parentCookie)).status, 403);
-  const unheard = await send("/api/studio/media", "PATCH", { id: asset.id, reviewStatus: "approved" }, colleagueCookie);
+  for (const cookie of [teacherCookie, colleagueCookie]) {
+    for (const reviewStatus of ["pending", "changes-requested", "approved", "retired"]) {
+      assert.equal((await send("/api/studio/media", "PATCH", { id: asset.id, reviewStatus, confirmedListened: true }, cookie)).status, 403);
+    }
+  }
+  const waitingAfterDenied = fixture((db) => db.prepare("SELECT review_status, reviewed_by FROM media_assets WHERE id = ?").get(asset.id));
+  assert.deepEqual(waitingAfterDenied, { review_status: "pending", reviewed_by: null });
+  const unheard = await send("/api/studio/media", "PATCH", { id: asset.id, reviewStatus: "approved" }, adminCookie);
   assert.equal(unheard.status, 400);
   assert.match((await unheard.json()).error, /Play the recording/);
-  const approved = await send("/api/studio/media", "PATCH", { id: asset.id, reviewStatus: "approved", confirmedListened: true }, colleagueCookie);
+  const approved = await send("/api/studio/media", "PATCH", { id: asset.id, reviewStatus: "approved", confirmedListened: true }, adminCookie);
   assert.equal(approved.status, 200);
   const recording = (await (await send("/api/studio/lessons/hello-me", "GET", undefined, adminCookie)).json()).recordings.find((item) => item.id === asset.id);
-  assert.deepEqual([recording.reviewStatus, recording.uploaderName, recording.reviewerName], ["approved", "lessons-teacher", "lessons-colleague"]);
+  assert.deepEqual([recording.reviewStatus, recording.uploaderName, recording.reviewerName], ["approved", "lessons-teacher", "lessons-admin"]);
   const learner = await send("/api/audio/hello-me/dialogue", "GET", undefined, studentCookie);
   assert.equal(learner.status, 200);
   assert.deepEqual(Buffer.from(await learner.arrayBuffer()), bytes);
 });
 
-test("a video a teacher marks unsuitable is not shown to learners; a YouTube replacement is shown instead", async () => {
+test("a video an administrator marks unsuitable is not shown to learners; a YouTube replacement is shown instead", async () => {
   const videoTitle = "5 First Bengali Words: My Family";
-  const check = (body, cookie = teacherCookie) => send("/api/studio/video-reviews", "POST", { lessonId: "my-family", status: "approved", captionsStatus: "available", suitabilityStatus: "suitable", replacementUrl: "", notes: "", ...body }, cookie);
+  const check = (body, cookie = adminCookie) => send("/api/studio/video-reviews", "POST", { lessonId: "my-family", status: "approved", captionsStatus: "available", suitabilityStatus: "suitable", replacementUrl: "", notes: "", ...body }, cookie);
   assert.match(await html("/adventure", studentCookie), new RegExp(videoTitle));
   assert.equal((await check({ suitabilityStatus: "unsuitable", replacementUrl: "https://example.com/video" })).status, 400);
   assert.equal((await check({}, parentCookie)).status, 403);
+  for (const cookie of [teacherCookie, colleagueCookie]) {
+    for (const status of ["pending", "approved", "replace", "unavailable"]) {
+      assert.equal((await check({ status, suitabilityStatus: "unsuitable" }, cookie)).status, 403);
+    }
+  }
+  assert.equal(fixture((db) => db.prepare("SELECT COUNT(*) AS n FROM video_reviews WHERE lesson_id = 'my-family'").get().n), 0);
+  assert.match(await html("/adventure", studentCookie), new RegExp(videoTitle));
   assert.equal((await check({ suitabilityStatus: "unsuitable" })).status, 201);
   assert.doesNotMatch(await html("/adventure", studentCookie), new RegExp(videoTitle));
   const detail = await (await send("/api/studio/lessons/my-family", "GET", undefined, colleagueCookie)).json();
   assert.equal(detail.learnerVideo, null);
-  assert.deepEqual([detail.video.suitabilityStatus, detail.video.checkerName], ["unsuitable", "lessons-teacher"]);
+  assert.deepEqual([detail.video.suitabilityStatus, detail.video.checkerName], ["unsuitable", "lessons-admin"]);
 
-  // A colleague's newer check with a replacement link decides what learners see.
-  assert.equal((await check({ status: "replace", replacementUrl: "https://www.youtube.com/watch?v=h-egsGh_VbQ" }, colleagueCookie)).status, 201);
+  // The administrator's newer check with a replacement link decides what learners see.
+  assert.equal((await check({ status: "replace", replacementUrl: "https://www.youtube.com/watch?v=h-egsGh_VbQ" }, adminCookie)).status, 200);
   const page = await html("/adventure", studentCookie);
   assert.doesNotMatch(page, new RegExp(videoTitle));
   assert.match(page, /A video chosen by your teacher/);
   assert.equal((await (await send("/api/studio/lessons/my-family", "GET", undefined, teacherCookie)).json()).learnerVideo.id, "h-egsGh_VbQ");
 });
 
-test("a teacher's video take-down stays in place after that teacher deletes their account", async () => {
+test("an administrator's video take-down stays in place after demotion and account deletion", async () => {
   const videoTitle = "Basic Bengali: Asking for Directions";
   const leaverEmail = "lessons-leaver@example.com";
   // The deep link opens the lesson's level, where its card shows the video title.
   const lessonPage = "/adventure?module=directions";
-  const leaverCookie = await adult(leaverEmail, "teacher");
+  const leaverCookie = await adult(leaverEmail, "admin");
   assert.match(await html(lessonPage, studentCookie), new RegExp(videoTitle));
   const takenDown = await send("/api/studio/video-reviews", "POST", { lessonId: "directions", status: "approved", captionsStatus: "available", suitabilityStatus: "unsuitable", replacementUrl: "", notes: "Not for children." }, leaverCookie);
   assert.equal(takenDown.status, 201);
   assert.doesNotMatch(await html(lessonPage, studentCookie), new RegExp(videoTitle));
 
-  const deleted = await send("/api/account/delete", "POST", { password }, leaverCookie);
+  assert.equal((await send("/api/account/delete", "POST", { password }, leaverCookie)).status, 409, "administrators cannot delete their own Admin account");
+  const leaverId = fixture((db) => db.prepare("SELECT id FROM adults WHERE email = ?").get(leaverEmail).id);
+  assert.equal((await send(`/api/admin/users/${leaverId}`, "PATCH", { kind: "adult", role: "parent" }, adminCookie)).status, 200);
+  const demotedSignIn = await send("/api/auth/sign-in", "POST", { email: leaverEmail, password }, undefined, { "x-forwarded-for": leaverEmail });
+  assert.equal(demotedSignIn.status, 200);
+  const deleted = await send("/api/account/delete", "POST", { password }, cookieFrom(demotedSignIn));
   assert.equal(deleted.status, 200);
   assert.equal((await send("/api/auth/sign-in", "POST", { email: leaverEmail, password }, undefined, { "x-forwarded-for": leaverEmail })).status, 401);
 
@@ -245,4 +273,28 @@ test("a teacher's video take-down stays in place after that teacher deletes thei
   const owners = fixture((db) => db.prepare("SELECT owner_email FROM video_reviews WHERE lesson_id = 'directions'").all().map((row) => row.owner_email));
   assert.equal(owners.length, 1);
   assert.match(owners[0], /^deleted-staff:/);
+});
+
+test("teacher specialist checks and draft statuses cannot bypass administrator publication", async () => {
+  const lessonId = "friendship-help";
+  assert.equal((await decide(lessonId, { decision: "withdraw", note: "Wait for the administrator's complete review." }, adminCookie)).status, 200);
+  const before = fixture((db) => db.prepare("SELECT * FROM content_approvals WHERE content_id = ? ORDER BY rowid").all(lessonId));
+  const specialist = await send("/api/studio/reviews", "POST", {
+    lessonId, reviewType: "language", status: "approved", reviewerName: "Demo language teacher", notes: "Language check complete; publication still requires Admin review.",
+  }, teacherCookie);
+  assert.equal(specialist.status, 201, "teachers may record specialist feedback");
+  const draftBody = { lessonId, title: "Friendship lesson draft", level: "b1", status: "ready-for-review", dataJson: JSON.stringify({ title: "Teacher draft" }) };
+  const created = await send("/api/studio/drafts", "POST", draftBody, teacherCookie);
+  assert.equal(created.status, 201);
+  const { draft } = await created.json();
+  for (const cookie of [teacherCookie, colleagueCookie]) {
+    assert.equal((await send("/api/studio/drafts", "POST", { ...draftBody, id: draft.id, status: "approved-for-release" }, cookie)).status, 403);
+  }
+  assert.deepEqual(fixture((db) => db.prepare("SELECT status, data_json FROM curriculum_drafts WHERE id = ?").get(draft.id)), { status: "ready-for-review", data_json: draftBody.dataJson });
+  assert.deepEqual(fixture((db) => db.prepare("SELECT * FROM content_approvals WHERE content_id = ? ORDER BY rowid").all(lessonId)), before);
+  assert.equal((await send(`/api/audio/${lessonId}/dialogue`, "GET", undefined, studentCookie)).status, 404);
+  assert.equal((await send("/api/studio/drafts", "POST", { ...draftBody, status: "approved-for-release" }, adminCookie)).status, 201);
+  assert.equal((await send(`/api/audio/${lessonId}/dialogue`, "GET", undefined, studentCookie)).status, 404, "an archived Studio draft flag is not a lesson publication decision");
+  assert.equal((await decide(lessonId, { decision: "approve", confirmedRead: true }, adminCookie)).status, 200);
+  assert.equal((await send(`/api/audio/${lessonId}/dialogue`, "GET", undefined, studentCookie)).status, 307);
 });

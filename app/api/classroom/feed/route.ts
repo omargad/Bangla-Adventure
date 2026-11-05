@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { getDb } from "../../../../db";
 import { activitySubmissions, classActivities } from "../../../../db/schema";
 import { listAnnouncements } from "@/lib/class-announcements";
@@ -18,7 +18,7 @@ export async function GET(request: Request) {
     const activities = await db
       .select()
       .from(classActivities)
-      .where(eq(classActivities.classId, student.classId))
+      .where(and(eq(classActivities.classId, student.classId), eq(classActivities.approvalStatus, "approved")))
       .orderBy(desc(classActivities.createdAt));
     const submissions = await db
       .select()

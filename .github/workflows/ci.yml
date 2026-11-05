@@ -51,6 +51,8 @@ jobs:
       packages: write
     outputs:
       image: ${{ steps.name.outputs.image }}
+      # Re-running the same commit may replace its tag; pass this run's pushed digest onward.
+      image_ref: ${{ steps.push.outputs.image_ref }}
     steps:
       - uses: actions/checkout@v5
       - id: name
@@ -62,11 +64,12 @@ jobs:
       # Each tested image is kept under its commit; it is only marked latest and deployed once
       # every job has passed. A manual run publishes from any branch, for checking the setup.
       - name: Publish this commit's image
+        id: push
         if: (github.event_name == 'push' && github.ref_name == github.event.repository.default_branch) || github.event_name == 'workflow_dispatch'
         env:
           REGISTRY_USER: ${{ github.actor }}
           REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
-        run: bash scripts/ci/publish.sh push bangla-adventures:ci "${{ steps.name.outputs.image }}:sha-${GITHUB_SHA}"
+        run: PUBLISH_DIGEST_OUTPUT="$GITHUB_OUTPUT" bash scripts/ci/publish.sh push bangla-adventures:ci "${{ steps.name.outputs.image }}:sha-${GITHUB_SHA}"
 
   publish:
     needs: [verify, e2e, container]
@@ -97,7 +100,8 @@ jobs:
           REGISTRY_USER: ${{ github.actor }}
           REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
           IMAGE: ${{ needs.container.outputs.image }}
-        run: bash scripts/ci/publish.sh promote "$IMAGE:sha-${GITHUB_SHA}" "$IMAGE:latest"
+          IMAGE_REF: ${{ needs.container.outputs.image_ref }}
+        run: bash scripts/ci/publish.sh promote "${IMAGE_REF:?Missing verified image digest}" "$IMAGE:latest"
 
   # Disabled until repository variables DEPLOY_ENABLED=true AND DEPLOY_HOST are set. This gate
   # runs before the production environment loads; public defaults below never enable deployment.
@@ -147,5 +151,5 @@ jobs:
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           REGISTRY_USER: ${{ github.actor }}
           REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
-          IMAGE: ${{ needs.container.outputs.image }}
-        run: bash scripts/deploy.sh "$IMAGE:sha-${GITHUB_SHA}"
+          IMAGE_REF: ${{ needs.container.outputs.image_ref }}
+        run: bash scripts/deploy.sh "${IMAGE_REF:?Missing verified image digest}"

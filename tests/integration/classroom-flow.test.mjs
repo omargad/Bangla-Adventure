@@ -6,9 +6,9 @@ import path from "node:path";
 import test, { after, before } from "node:test";
 import Database from "better-sqlite3";
 
-function approveFixture(email) {
+function approveFixture(email, role = "teacher") {
   const fixture = new Database(path.join(stateDir, "test.db"));
-  fixture.prepare("UPDATE adults SET role = 'teacher', teacher_status = 'approved', approval_status = 'approved' WHERE email = ?").run(email);
+  fixture.prepare("UPDATE adults SET role = ?, teacher_status = 'approved', approval_status = 'approved' WHERE email = ?").run(role, email);
   fixture.close();
 }
 
@@ -107,7 +107,7 @@ test("teacher signs up and creates a class with a join code", async () => {
   assert.match(joinCode, /^[A-Z2-9]{6}$/);
 });
 
-test("teacher publishes an announcement and a quiz activity", async () => {
+test("teacher publishes an announcement and an administrator reviews the quiz activity", async () => {
   const announced = await fetch(`${BASE}/api/classes/${classId}/announcements`, {
     method: "POST",
     headers: { "Content-Type": "application/json", cookie: teacherCookie },
@@ -131,6 +131,19 @@ test("teacher publishes an announcement and a quiz activity", async () => {
   assert.equal(activity.status, 201);
   const data = await activity.json();
   activityId = data.activity.id;
+  assert.equal(data.activity.approvalStatus, "pending");
+  const adminSignUp = await fetch(`${BASE}/api/auth/sign-up`, {
+    method: "POST", headers: { "Content-Type": "application/json", "x-forwarded-for": "classroom-reviewer" },
+    body: JSON.stringify({ email: "classroom-reviewer@example.com", displayName: "Admin Reviewer", password: "test-classroom-reviewer-42" }),
+  });
+  assert.equal(adminSignUp.status, 201);
+  approveFixture("classroom-reviewer@example.com", "admin");
+  const adminCookie = cookieFrom(await signIn("/api/auth/sign-in", { email: "classroom-reviewer@example.com", password: "test-classroom-reviewer-42" }));
+  const reviewed = await fetch(`${BASE}/api/classes/${classId}/activities`, {
+    method: "PATCH", headers: { "Content-Type": "application/json", cookie: adminCookie },
+    body: JSON.stringify({ activityId, approvalStatus: "approved", revision: data.activity.revision }),
+  });
+  assert.equal(reviewed.status, 200);
 });
 
 test("activity creation rejects a quiz without a valid answer key", async () => {

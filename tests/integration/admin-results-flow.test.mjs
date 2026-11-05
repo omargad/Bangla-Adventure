@@ -61,6 +61,7 @@ before(async () => {
   ] }, teacherCookie);
   assert.equal(activity.status, 201);
   activityId = (await activity.json()).activity.id;
+  assert.equal((await send(`/api/classes/${classId}/activities`, "PATCH", { activityId, approvalStatus: "approved", revision: 1 }, adminCookie)).status, 200);
   const student = await send("/api/student/sign-up", "POST", { username: "results-maya", displayName: "Maya", password }, undefined, { "x-forwarded-for": "results-student" });
   assert.equal(student.status, 201);
   studentId = (await student.json()).student.id;

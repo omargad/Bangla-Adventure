@@ -60,6 +60,7 @@ before(async () => {
   const activity = await send(`/api/classes/${classId}/activities`, "POST", { title: "Festivals check-in", questions: quiz }, teacherCookie);
   assert.equal(activity.status, 201);
   activityId = (await activity.json()).activity.id;
+  assert.equal((await send(`/api/classes/${classId}/activities`, "PATCH", { activityId, approvalStatus: "approved", revision: 1 }, adminCookie)).status, 200);
   const announcement = await send(`/api/classes/${classId}/announcements`, "POST", { body: "Read the Pohela Boishakh topic." }, teacherCookie);
   assert.equal(announcement.status, 201);
   announcementId = (await announcement.json()).announcement.id;

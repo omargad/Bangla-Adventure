@@ -52,7 +52,7 @@ for (const width of [1920, 1280, 1024, 820, 768, 390]) {
   test(`the safety page fits a ${width}px screen without sideways scrolling`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/safety");
-    await expect(page.getByRole("heading", { name: "A teacher approves every lesson" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Admin approval before publication" })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
     const sections = await page.locator(".safety-section").evaluateAll((elements) => elements.map((element) => {
       const box = element.getBoundingClientRect();

@@ -24,7 +24,7 @@ db.insert(classes).values([
   { id: "class-b", teacherId: "teacher-b", name: "সোমবারের ক্লাস", joinCode: "DEF567" },
 ]).run();
 db.insert(classStudents).values([{ id: "roster-a", classId: "class-a", displayName: "Maya", tokenHash: "secret-a" }]).run();
-db.insert(classActivities).values([{ id: "quiz-a", classId: "class-a", title: "Festival quiz" }]).run();
+db.insert(classActivities).values([{ id: "quiz-a", approvalStatus: "approved", classId: "class-a", title: "Festival quiz" }]).run();
 db.insert(classAnnouncements).values([{ id: "note-a", classId: "class-a", body: "Read the Pohela Boishakh topic." }]).run();
 db.insert(activitySubmissions).values([{ id: "s1", activityId: "quiz-a", studentId: "roster-a", score: 1, total: 2 }]).run();
 after(() => rmSync(dir, { recursive: true, force: true }));

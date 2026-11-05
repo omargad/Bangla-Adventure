@@ -1,0 +1,32 @@
+.control {
+  margin: 12px 0;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.actions button {
+  min-height: 44px;
+}
+
+.status {
+  font-size: .875rem;
+  color: var(--muted);
+}
+
+.provider {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: .75rem;
+}
+
+.error {
+  margin: 8px 0 0;
+  color: #a02c2c;
+  font-size: .875rem;
+}

@@ -17,15 +17,15 @@ const model = await import("../lib/topic-model.ts");
 const { topics: shipped, topicThemes } = await import("../app/topics-content.ts");
 const db = await getDb();
 db.insert(adults).values([
-  { id: "admin", email: "admin@example.com", displayName: "Admin Ayesha", role: "admin", passwordHash: "fixture" },
-  { id: "author", email: "author@example.com", displayName: "Teacher Tania", role: "teacher", teacherStatus: "approved", passwordHash: "fixture" },
-  { id: "reviewer", email: "reviewer@example.com", displayName: "Teacher Rafi", role: "teacher", teacherStatus: "approved", passwordHash: "fixture" },
-  { id: "pending", email: "pending@example.com", displayName: "Pending", role: "parent", teacherStatus: "pending", passwordHash: "fixture" },
-  { id: "parent", email: "parent@example.com", displayName: "Parent", passwordHash: "fixture" },
+  { id: "admin", email: "admin@example.com", displayName: "Admin Ayesha", role: "admin", passwordHash: "fixture", approvalStatus: "approved" },
+  { id: "author", email: "author@example.com", displayName: "Teacher Tania", role: "teacher", teacherStatus: "approved", passwordHash: "fixture", approvalStatus: "approved" },
+  { id: "reviewer", email: "reviewer@example.com", displayName: "Admin Rafi", role: "admin", teacherStatus: "none", passwordHash: "fixture", approvalStatus: "approved" },
+  { id: "pending", email: "pending@example.com", displayName: "Pending", role: "parent", teacherStatus: "pending", passwordHash: "fixture", approvalStatus: "approved" },
+  { id: "parent", email: "parent@example.com", displayName: "Parent", passwordHash: "fixture", approvalStatus: "approved" },
 ]).run();
 db.insert(students).values([
-  { id: "maya", username: "maya", displayName: "Maya", passwordHash: "fixture" },
-  { id: "rohan", username: "rohan", displayName: "Rohan", passwordHash: "fixture" },
+  { id: "maya", username: "maya", displayName: "Maya", passwordHash: "fixture", approvalStatus: "approved" },
+  { id: "rohan", username: "rohan", displayName: "Rohan", passwordHash: "fixture", approvalStatus: "approved" },
 ]).run();
 after(() => rmSync(dir, { recursive: true, force: true }));
 
@@ -117,7 +117,7 @@ test("change summaries, quiz marking, grouping and formatting", () => {
   assert.equal(model.formatNumber(15, "bn"), "১৫");
 });
 
-test("a teacher's new topic stays hidden from learners until another teacher approves it", async () => {
+test("a teacher's new topic stays hidden from learners until an administrator approves it", async () => {
   const shippedCount = (await catalog.getCatalog()).length;
   assert.equal(shippedCount, shipped.length);
   assert.ok((await catalog.getCatalog()).every((topic) => topic.baseline && topic.version === 0), "shipped topics are the approved baseline");
@@ -149,7 +149,7 @@ test("a teacher's new topic stays hidden from learners until another teacher app
   assert.equal(visible.baseline, false);
   assert.equal((await catalog.getCatalog()).length, shippedCount + 1);
   const history = await catalog.getStaffTopic(topicId);
-  assert.equal(history.versions[0].reviewerName, "Teacher Rafi");
+  assert.equal(history.versions[0].reviewerName, "Admin Rafi");
   assert.ok(history.versions[0].reviewedAt);
   await assert.rejects(catalog.reviewTopicVersion("reviewer", topicId, 1, { decision: "reject", note: "Too late" }), (error) => error.status === 409);
   const audit = db.select().from(userAuditEvents).all().filter((event) => event.targetId === topicId).map((event) => [event.action, event.actorId]);
@@ -305,7 +305,7 @@ test("a quiz score counts only while the topic still has the quiz it was earned 
   assert.equal(results.quizPercent, null);
 });
 
-test("the content migration adds its table and columns and carries earlier admin edits over once, crediting their author", () => {
+test("the content migration adds its table and columns and preserves earlier edits once, crediting authors without inventing a review", () => {
   const sqlite = new Database(":memory:");
   sqlite.exec(bootstrapSql);
   migrateAccessControl(sqlite);
@@ -326,7 +326,8 @@ test("the content migration adds its table and columns and carries earlier admin
   const rows = sqlite.prepare("SELECT * FROM topic_versions ORDER BY topic_id = ? DESC").all(shipped[0].id);
   assert.equal(rows.length, 2);
   assert.equal(rows[0].topic_id, shipped[0].id);
-  assert.equal(rows[0].status, "approved");
+  assert.equal(rows[0].status, "pending", "saving a legacy edit is not proof of administrator review");
+  assert.equal(rows[0].reviewed_by, null);
   assert.equal(rows[0].baseline, 1);
   assert.equal(rows[0].version, 2);
   assert.equal(rows[0].created_by, "new-admin", "the administrator who saved the edit last is credited");
@@ -379,19 +380,19 @@ test("a withdrawn topic leaves every learner path until it is approved again; a 
   assert.deepEqual(await catalog.findApprovedTopic(id), before, "students keep the same topic");
   let staff = (await catalog.listStaffTopics()).find((topic) => topic.id === id);
   assert.equal(staff.withdrawn, false);
-  assert.equal(staff.baselineReview.changedByName, "Teacher Rafi");
+  assert.equal(staff.baselineReview.changedByName, "Admin Rafi");
   assert.equal(staff.baselineReview.kind, "confirmed");
-  await assert.rejects(catalog.decideTopic("author", id, { decision: "confirm", confirmedRead: true }), (error) => error.status === 409);
+  await assert.rejects(catalog.decideTopic("admin", id, { decision: "confirm", confirmedRead: true }), (error) => error.status === 409);
 
   // Withdrawing hides it from the catalogue, progress and new class activities at once.
-  await catalog.decideTopic("author", id, { decision: "withdraw", note: "A craft is named wrongly." });
+  await catalog.decideTopic("admin", id, { decision: "withdraw", note: "A craft is named wrongly." });
   assert.equal((await learnerIds()).includes(id), false);
   assert.equal(await catalog.findApprovedTopic(id), null);
   await assert.rejects(catalog.recordTopicProgress("maya", id), (error) => error.status === 400 || error.status === 404);
   const detail = await catalog.getStaffTopic(id);
   assert.equal(detail.withdrawn, true);
   assert.equal(detail.baselineReview, null);
-  assert.deepEqual(detail.decisions.map((item) => [item.kind, item.changedByName]), [["confirmed", "Teacher Rafi"], ["withdrawn", "Teacher Tania"]]);
+  assert.deepEqual(detail.decisions.map((item) => [item.kind, item.changedByName]), [["confirmed", "Admin Rafi"], ["withdrawn", "Admin Ayesha"]]);
   assert.equal(detail.decisions.at(-1).note, "A craft is named wrongly.");
   assert.equal((await catalog.listStaffTopics()).find((topic) => topic.id === id).withdrawn, true);
   await assert.rejects(catalog.decideTopic("reviewer", id, { decision: "withdraw", note: "Twice" }), (error) => error.status === 409);

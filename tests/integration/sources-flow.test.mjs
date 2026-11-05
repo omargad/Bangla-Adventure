@@ -210,6 +210,10 @@ test("a teacher manages sources for their own class only", async () => {
 
 test("a class source reaches the allocated student and linked parent, not other students or parents", async () => {
   const url = "https://example.org/boishakh-songs";
+  const [waiting] = (await (await send(`/api/classes/${classId}/sources`, "GET", undefined, teacherCookie)).json()).sources;
+  assert.equal(waiting.approvalStatus, "pending");
+  assert.equal((await page("/references", mayaCookie)).includes(url), false, "teacher submissions remain hidden until Admin review");
+  assert.equal((await send(`/api/classes/${classId}/sources`, "PATCH", { sourceId: waiting.id, approvalStatus: "approved", revision: waiting.revision }, adminCookie)).status, 200);
   const mayaPage = await page("/references", mayaCookie);
   assert.ok(mayaPage.includes("My class sources"));
   assert.ok(mayaPage.includes(url), "the allocated student sees the class source");
@@ -230,6 +234,9 @@ test("a class source reaches the allocated student and linked parent, not other 
 
   const [{ id }] = (await (await send(`/api/classes/${classId}/sources`, "GET", undefined, teacherCookie)).json()).sources;
   assert.equal((await send(`/api/classes/${classId}/sources`, "PATCH", { sourceId: id, titleEn: "Boishakh songs (new)", url: "https://example.org/boishakh-songs-2" }, teacherCookie)).status, 200);
+  assert.equal((await page("/references", mayaCookie)).includes("https://example.org/boishakh-songs-2"), false, "a teacher edit needs another Admin review");
+  const [edited] = (await (await send(`/api/classes/${classId}/sources`, "GET", undefined, adminCookie)).json()).sources;
+  assert.equal((await send(`/api/classes/${classId}/sources`, "PATCH", { sourceId: id, approvalStatus: "approved", revision: edited.revision }, adminCookie)).status, 200);
   assert.ok((await page("/references", mayaCookie)).includes("https://example.org/boishakh-songs-2"));
   assert.equal((await send(`/api/classes/${classId}/sources`, "DELETE", { sourceId: id }, teacherCookie)).status, 200);
   assert.equal((await page("/references", mayaCookie)).includes("https://example.org/boishakh-songs-2"), false);

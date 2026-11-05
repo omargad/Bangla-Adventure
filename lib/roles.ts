@@ -20,6 +20,11 @@ export function canTeach(account: AccountAccess | null): boolean {
   return canManageUsers(account) || (account?.status === "active" && account.role === "teacher" && account.teacherStatus === "approved");
 }
 
+/** Shared learner content may be published only by an approved administrator. */
+export function canPublishContent(account: (AccountAccess & { approvalStatus: string; mustChangePassword: boolean }) | null): boolean {
+  return Boolean(account && canManageUsers(account) && account.approvalStatus === "approved" && account.mustChangePassword === false);
+}
+
 export function accountHome(account: AccountAccess): string {
   if (canManageUsers(account)) return "/admin";
   return canTeach(account) || account.teacherStatus === "pending" ? "/teach" : "/family";

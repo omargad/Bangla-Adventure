@@ -1,20 +1,20 @@
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import { getDb } from "../db";
 import { adults, contentApprovals, contentReviews, mediaAssets, userAuditEvents, videoReviews } from "../db/schema";
 import { lessons } from "../app/curriculum";
-import { canTeach } from "./roles";
+import { canPublishContent } from "./roles";
 import { LESSON_AUDIO_SLOT, type RecordingMap } from "./voice-playback";
 import {
-  checkLessonDecision, learnerVideo, LessonError, lessonStatus, videoTakenDown, type LearnerVideo, type LessonStatus,
+  checkLessonDecision, learnerVideo, LessonError, lessonStatus, validateReplacementUrl, videoTakenDown, type LearnerVideo, type LessonStatus,
 } from "./lesson-model";
 
 /**
- * The shared teacher approval of the 18 lessons. content_approvals keeps one row
+ * Administrator approval of the 18 shared lessons. content_approvals keeps one row
  * per decision and the newest row is the lesson's state, so every teacher and
  * administrator sees the same status. Learners (students, parents, every
  * learner page and API) only get approved lessons. Human audio and video checks
- * are shared between staff too: anyone can play and approve a recording, and the
- * newest video check decides which video learners get.
+ * are shared between staff too: teachers can preview and submit recordings;
+ * only administrators approve recordings or change the video learners get.
  */
 export type LessonApproval = { lessonId: string; status: LessonStatus; baseline: boolean; changedByName: string | null; changedAt: string | null; note: string };
 export type LessonHistoryEntry = { status: "approved" | "withdrawn"; baseline: boolean; changedByName: string | null; changedAt: string; note: string };
@@ -42,9 +42,9 @@ function latestByLesson(rows: ApprovalRow[]): Map<string, ApprovalRow> {
   return latest;
 }
 
-/** The newest video check of each lesson, whoever made it. */
-function latestVideoChecks(db: Reader, lessonId?: string): Map<string, VideoRow> {
-  const rows = db.select().from(videoReviews).where(lessonId ? eq(videoReviews.lessonId, lessonId) : undefined).orderBy(desc(videoReviews.updatedAt)).all();
+/** Only explicit administrator decisions change the learner's video. */
+function latestVideoChecks(db: Reader, lessonId?: string, publishedOnly = true): Map<string, VideoRow> {
+  const rows = db.select().from(videoReviews).where(and(lessonId ? eq(videoReviews.lessonId, lessonId) : undefined, publishedOnly ? isNotNull(videoReviews.adminDecidedAt) : undefined)).orderBy(desc(videoReviews.updatedAt), desc(sql`${videoReviews}.rowid`)).all();
   const latest = new Map<string, VideoRow>();
   for (const row of rows) if (!latest.has(row.lessonId)) latest.set(row.lessonId, row);
   return latest;
@@ -81,7 +81,7 @@ export async function isLessonApproved(lessonId: unknown): Promise<boolean> {
 
 /**
  * What the learner pages need: the approved lessons and, for lessons whose video
- * a teacher took down, the replacement video (or null for no video).
+ * an administrator took down, the replacement video (or null for no video).
  */
 export async function learnerLessonView(): Promise<{ approvedIds: string[]; videos: Record<string, LearnerVideo | null> }> {
   const db = await getDb();
@@ -103,7 +103,7 @@ function approvedRecordingRows(db: Reader, lessonId?: string, slot?: string) {
     .orderBy(desc(mediaAssets.updatedAt)).all();
 }
 
-/** The human recording learners hear for one part of a lesson, if a teacher approved one. */
+/** The human recording learners hear for one part of a lesson, after administrator approval. */
 export async function approvedRecording(lessonId: string, slot: string) {
   if (!isLessonId(lessonId) || !LESSON_AUDIO_SLOT.test(slot)) return null;
   return approvedRecordingRows(await getDb(), lessonId, slot)[0] ?? null;
@@ -156,8 +156,8 @@ export async function lessonStudioList() {
 /**
  * One lesson for the Studio: its approval and history, every staff member's
  * recordings (and the one learners hear for each part, chosen exactly as
- * /api/audio chooses it), the newest video check (and what learners get
- * because of it) and every optional specialist check.
+ * /api/audio chooses it), the newest video check, the effective administrator
+ * video decision and every optional specialist check.
  */
 export async function lessonStudioDetail(lessonId: string) {
   const lesson = lessonById.get(lessonId);
@@ -165,7 +165,8 @@ export async function lessonStudioDetail(lessonId: string) {
   const db = await getDb();
   const rows = approvalRows(db, lessonId);
   const recordings = db.select().from(mediaAssets).where(eq(mediaAssets.lessonId, lessonId)).orderBy(desc(mediaAssets.createdAt)).all();
-  const check = latestVideoChecks(db, lessonId).get(lessonId) ?? null;
+  const check = latestVideoChecks(db, lessonId, false).get(lessonId) ?? null;
+  const publishedCheck = latestVideoChecks(db, lessonId).get(lessonId) ?? null;
   const specialist = db.select().from(contentReviews).where(eq(contentReviews.lessonId, lessonId)).orderBy(desc(contentReviews.updatedAt)).all();
   const name = namesById(db, [...rows.map((row) => row.changedBy), ...recordings.map((asset) => asset.reviewedBy)]);
   const account = namesByEmail(db, [...recordings, ...specialist, ...(check ? [check] : [])].map((row) => row.ownerEmail));
@@ -180,9 +181,9 @@ export async function lessonStudioDetail(lessonId: string) {
     learnerRecordings: recordingMap(db, [lessonId]),
     video: check ? {
       status: check.status, captionsStatus: check.captionsStatus, suitabilityStatus: check.suitabilityStatus, replacementUrl: check.replacementUrl,
-      notes: check.notes, checkedAt: check.checkedAt ?? check.updatedAt, checkerName: account(check.ownerEmail),
+      notes: check.notes, checkedAt: check.checkedAt ?? check.updatedAt, checkerName: account(check.ownerEmail), adminDecidedAt: check.adminDecidedAt,
     } : null,
-    learnerVideo: learnerVideo(lesson.video, check),
+    learnerVideo: learnerVideo(lesson.video, publishedCheck),
     specialistChecks: specialist.map((review) => ({
       id: review.id, reviewType: review.reviewType, status: review.status, reviewerName: review.reviewerName, notes: review.notes,
       reviewedAt: review.reviewedAt, updatedAt: review.updatedAt, recordedBy: account(review.ownerEmail),
@@ -190,9 +191,10 @@ export async function lessonStudioDetail(lessonId: string) {
   };
 }
 
-function requireStaff(tx: Transaction, actorId: string) {
-  const actor = tx.select({ role: adults.role, status: adults.status, teacherStatus: adults.teacherStatus }).from(adults).where(eq(adults.id, actorId)).get();
-  if (!actor || !canTeach(actor)) throw new LessonError("An approved teacher or administrator account is required.", "অনুমোদিত শিক্ষক বা প্রশাসকের অ্যাকাউন্ট প্রয়োজন।", 403);
+function requirePublisher(tx: Transaction, actorId: string) {
+  const actor = tx.select({ id: adults.id, email: adults.email, role: adults.role, status: adults.status, teacherStatus: adults.teacherStatus, approvalStatus: adults.approvalStatus, mustChangePassword: adults.mustChangePassword }).from(adults).where(eq(adults.id, actorId)).get();
+  if (!actor || !canPublishContent(actor)) throw new LessonError("Administrator approval is required to publish or review shared content.", "সবার জন্য বিষয়বস্তু প্রকাশ বা পর্যালোচনার সিদ্ধান্ত নিতে প্রশাসকের অনুমোদন প্রয়োজন।", 403);
+  return actor;
 }
 
 function audit(tx: Transaction, actorId: string, lessonId: string, action: string, details: Record<string, unknown>) {
@@ -200,9 +202,9 @@ function audit(tx: Transaction, actorId: string, lessonId: string, action: strin
 }
 
 /**
- * A teacher or administrator approves a lesson (students see it again) or
+ * An administrator approves a lesson (students see it again) or
  * withdraws it (students and parents stop seeing it at once). Approving a
- * lesson that is approved only as a baseline records the teacher's review while
+ * lesson that is approved only as a baseline records the administrator's review while
  * students keep seeing it. The decision is recorded under the signed-in
  * account, never a typed name.
  */
@@ -210,7 +212,7 @@ export async function decideLesson(actorId: string, lessonId: string, raw: Recor
   if (!isLessonId(lessonId)) throw new LessonError("Lesson not found.", "পাঠটি পাওয়া যায়নি।", 404);
   const db = await getDb();
   db.transaction((tx) => {
-    requireStaff(tx, actorId);
+    requirePublisher(tx, actorId);
     const latest = approvalRows(tx, lessonId).at(-1);
     const current = lessonStatus(latest);
     const { decision, note } = checkLessonDecision(current, raw, latest?.baseline ?? false);
@@ -226,7 +228,7 @@ export async function decideLesson(actorId: string, lessonId: string, raw: Recor
 }
 
 /**
- * Any teacher or administrator may approve, retire or send back any staff
+ * An administrator may approve, retire or send back any staff
  * member's recording. Approving needs recorded consent and the reviewer's
  * confirmation that they listened to it; it retires the slot's previous track
  * whoever uploaded it, and records who approved.
@@ -240,7 +242,7 @@ export async function reviewRecording(actorId: string, raw: Record<string, unkno
   if (notes.length > 1500) throw new LessonError("Keep the note under 1500 characters.", "নোট ১,৫০০ অক্ষরের মধ্যে রাখুন।");
   const db = await getDb();
   return db.transaction((tx) => {
-    requireStaff(tx, actorId);
+    requirePublisher(tx, actorId);
     const asset = tx.select().from(mediaAssets).where(eq(mediaAssets.id, id)).get();
     if (!asset) throw new LessonError("Recording not found.", "রেকর্ডিংটি পাওয়া যায়নি।", 404);
     const now = new Date().toISOString();
@@ -253,6 +255,35 @@ export async function reviewRecording(actorId: string, raw: Record<string, unkno
     const updated = tx.update(mediaAssets).set({ reviewStatus, notes, reviewedBy: actorId, reviewedAt: now, updatedAt: now }).where(eq(mediaAssets.id, id)).returning().get();
     audit(tx, actorId, asset.lessonId, `lesson-audio-${reviewStatus}`, { recordingId: id, slot: asset.slot });
     return updated;
+  });
+}
+
+/** An administrator's video decision and its audit record are committed together. */
+export async function saveVideoReview(actorId: string, raw: Record<string, unknown>) {
+  const db = await getDb();
+  return db.transaction((tx) => {
+    const actor = requirePublisher(tx, actorId);
+    const value = (input: unknown, maxLength: number) => typeof input === "string" ? input.trim().slice(0, maxLength) : "";
+    const lessonId = value(raw.lessonId, 60);
+    const lesson = lessonById.get(lessonId);
+    if (!lesson) throw new LessonError("Unknown lesson.", "পাঠটি পাওয়া যায়নি।");
+    const status = value(raw.status, 30);
+    const captionsStatus = value(raw.captionsStatus, 30);
+    const suitabilityStatus = value(raw.suitabilityStatus, 30);
+    const notes = value(raw.notes, 1500);
+    if (!["pending", "approved", "replace", "unavailable"].includes(status)) throw new LessonError("Invalid video status.", "ভিডিওর অবস্থা ঠিক নেই।");
+    if (!["unchecked", "available", "partial", "missing"].includes(captionsStatus)) throw new LessonError("Invalid captions status.", "ক্যাপশনের অবস্থা ঠিক নেই।");
+    if (!["unchecked", "suitable", "supervision-required", "unsuitable"].includes(suitabilityStatus)) throw new LessonError("Invalid suitability status.", "উপযোগিতার অবস্থা ঠিক নেই।");
+    const replacementUrl = validateReplacementUrl(raw.replacementUrl);
+    const now = new Date().toISOString();
+    const existing = tx.select({ id: videoReviews.id }).from(videoReviews)
+      .where(and(eq(videoReviews.ownerEmail, actor.email), eq(videoReviews.lessonId, lessonId))).get();
+    const values = { videoId: lesson.video.id, status, captionsStatus, suitabilityStatus, replacementUrl, notes, checkedAt: now, updatedAt: now, adminDecidedAt: now };
+    const review = existing
+      ? tx.update(videoReviews).set(values).where(eq(videoReviews.id, existing.id)).returning().get()
+      : tx.insert(videoReviews).values({ id: crypto.randomUUID(), ownerEmail: actor.email, lessonId, ...values }).returning().get();
+    audit(tx, actorId, lessonId, "lesson-video-checked", { status, suitabilityStatus, takenDown: videoTakenDown(review), replacementUrl });
+    return { review, created: !existing };
   });
 }
 

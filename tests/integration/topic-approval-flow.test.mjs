@@ -9,8 +9,8 @@ import Database from "better-sqlite3";
 
 /**
  * Teacher-written topics and the approval gate against the production server:
- * a teacher writes a topic, students and parents cannot see or use it, another
- * teacher previews and approves it, and only then does it reach learners. Edits
+ * a teacher writes a topic, students and parents cannot see or use it, an
+ * administrator previews and approves it, and only then does it reach learners. Edits
  * of approved topics stay hidden until approved, and rejected edits never reach
  * students. Finishing a topic quiz counts as reading and reaches the teacher.
  */
@@ -77,7 +77,7 @@ after(async () => {
   rmSync(stateDir, { recursive: true, force: true });
 });
 
-test("a teacher's new topic stays hidden from learners until another teacher previews and approves it", async () => {
+test("a teacher's new topic stays hidden from learners until an administrator previews and approves it", async () => {
   const missingBangla = await send("/api/topics", "POST", { ...newTopic, title: pair("Tea", "") }, authorCookie);
   assert.equal(missingBangla.status, 400);
   const refusal = await missingBangla.json();
@@ -112,11 +112,23 @@ test("a teacher's new topic stays hidden from learners until another teacher pre
   assert.equal(preview.version.content.sections[0].body.bn, "সিলেটের পাহাড়ে চা-গাছ জন্মায়।");
   assert.match(preview.changes[0].en, /New topic/);
 
-  const unconfirmed = await send(`/api/topics/${newTopicId}/versions/1`, "POST", { decision: "approve" }, reviewerCookie);
+  const beforeTeacherReviews = fixture((db) => db.prepare("SELECT * FROM topic_versions WHERE topic_id = ?").all(newTopicId));
+  for (const cookie of [authorCookie, reviewerCookie]) {
+    for (const decision of ["approve", "reject"]) {
+      assert.equal((await send(`/api/topics/${newTopicId}/versions/1`, "POST", { decision, confirmedRead: true, note: "Teacher forged review" }, cookie)).status, 403);
+    }
+    for (const decision of ["confirm", "withdraw", "approve"]) {
+      assert.equal((await send("/api/topics/national-symbols", "POST", { decision, confirmedRead: true, note: "Teacher forged decision" }, cookie)).status, 403);
+    }
+  }
+  assert.deepEqual(fixture((db) => db.prepare("SELECT * FROM topic_versions WHERE topic_id = ?").all(newTopicId)), beforeTeacherReviews);
+  assert.equal((await curriculum(authorCookie)).canReview, false, "teachers can author and preview but cannot publish");
+
+  const unconfirmed = await send(`/api/topics/${newTopicId}/versions/1`, "POST", { decision: "approve" }, adminCookie);
   assert.equal(unconfirmed.status, 400);
   assert.match((await unconfirmed.json()).error, /read the whole topic, including its quiz, in English and Bangla/);
   assert.equal((await send(`/api/topics/${newTopicId}/versions/1`, "POST", { decision: "approve", confirmedRead: true }, parentCookie)).status, 403);
-  const approved = await send(`/api/topics/${newTopicId}/versions/1`, "POST", { decision: "approve", confirmedRead: true }, reviewerCookie);
+  const approved = await send(`/api/topics/${newTopicId}/versions/1`, "POST", { decision: "approve", confirmedRead: true }, adminCookie);
   assert.equal(approved.status, 200);
   assert.equal((await approved.json()).status, "approved");
 
@@ -124,10 +136,10 @@ test("a teacher's new topic stays hidden from learners until another teacher pre
   const forStudent = (await curriculum(studentCookie)).topics.find((topic) => topic.id === newTopicId);
   assert.equal(forStudent.theme, "our-country");
   assert.equal(forStudent.approval, undefined, "students never receive review records");
-  const forStaff = await curriculum(reviewerCookie);
+  const forStaff = await curriculum(adminCookie);
   assert.equal(forStaff.canReview, true);
   const staffTopic = forStaff.topics.find((topic) => topic.id === newTopicId);
-  assert.equal(staffTopic.approval.reviewerName, "topics-reviewer");
+  assert.equal(staffTopic.approval.reviewerName, "topics-admin");
   assert.equal(staffTopic.approval.baseline, false);
   assert.equal(forStaff.topics.find((topic) => topic.id === "amar-ekushey").approval.baseline, true);
   assert.equal((await (await send("/api/curriculum?summary=1", "GET", undefined, studentCookie)).json()).topicCount, shippedCount + 1);
@@ -160,13 +172,13 @@ test("an edit of an approved topic stays hidden until approved, and a rejected e
   assert.equal((await titles(studentCookie))[id], original, "students keep the approved version");
   assert.equal((await send(`/api/topics/${id}`, "PUT", edit, reviewerCookie)).status, 409, "a stale editor cannot overwrite the waiting version");
 
-  assert.equal((await send(`/api/topics/${id}/versions/1`, "POST", { decision: "reject" }, reviewerCookie)).status, 400, "sending back needs a note");
-  assert.equal((await send(`/api/topics/${id}/versions/1`, "POST", { decision: "reject", note: "Please update the Bangla title as well." }, reviewerCookie)).status, 200);
+  assert.equal((await send(`/api/topics/${id}/versions/1`, "POST", { decision: "reject" }, adminCookie)).status, 400, "sending back needs a note");
+  assert.equal((await send(`/api/topics/${id}/versions/1`, "POST", { decision: "reject", note: "Please update the Bangla title as well." }, adminCookie)).status, 200);
   assert.equal((await titles(studentCookie))[id], original);
   const afterReject = (await (await send(`/api/topics/${id}`, "GET", undefined, authorCookie)).json()).topic;
   assert.equal(afterReject.head.status, "rejected");
   assert.equal(afterReject.versions.at(-1).reviewNote, "Please update the Bangla title as well.");
-  assert.equal(afterReject.versions.at(-1).reviewerName, "topics-reviewer");
+  assert.equal(afterReject.versions.at(-1).reviewerName, "topics-admin");
   assert.equal(afterReject.canStartFromApproved, true, "the next editor may start again from what students see");
   assert.equal(afterReject.approved.version, 0);
   assert.equal(afterReject.approved.content.title.en, original);
@@ -185,19 +197,19 @@ test("an edit of an approved topic stays hidden until approved, and a rejected e
   assert.deepEqual(audit, ["topic-edit-submitted", "topic-version-rejected", "topic-edit-submitted", "topic-version-approved"]);
 });
 
-test("a teacher withdraws a topic from every learner, approves it again, and records a review of a baseline topic", async () => {
+test("an administrator withdraws a topic from every learner, approves it again, and records a review of a baseline topic", async () => {
   const id = "national-symbols";
   assert.ok((await titles(studentCookie))[id], "students read the baseline topic");
-  const decide = (body, cookie = reviewerCookie) => send(`/api/topics/${id}`, "POST", body, cookie);
+  const decide = (body, cookie = adminCookie) => send(`/api/topics/${id}`, "POST", body, cookie);
 
   // A review of the baseline topic is recorded under the reviewer's name; students keep it as it is.
   assert.equal((await decide({ decision: "confirm" })).status, 400, "the read tick is needed");
   assert.equal((await decide({ decision: "confirm", confirmedRead: true }, parentCookie)).status, 403);
   assert.equal((await decide({ decision: "confirm", confirmedRead: true })).status, 200);
   const reviewed = (await (await send(`/api/topics/${id}`, "GET", undefined, authorCookie)).json()).topic;
-  assert.equal(reviewed.baselineReview.changedByName, "topics-reviewer");
+  assert.equal(reviewed.baselineReview.changedByName, "topics-admin");
   assert.equal(reviewed.withdrawn, false);
-  assert.equal((await decide({ decision: "confirm", confirmedRead: true }, authorCookie)).status, 409, "already reviewed");
+  assert.equal((await decide({ decision: "confirm", confirmedRead: true }, adminCookie)).status, 409, "already reviewed");
 
   // Withdrawn: gone from every learner path at once.
   const noReason = await decide({ decision: "withdraw" });
@@ -215,11 +227,11 @@ test("a teacher withdraws a topic from every learner, approves it again, and rec
   assert.equal((await decide({ decision: "withdraw", note: "Again" })).status, 409);
 
   // Approved again after a full read: learners see it once more, and the history lists each decision.
-  assert.equal((await decide({ decision: "approve" }, authorCookie)).status, 400);
-  assert.equal((await decide({ decision: "approve", confirmedRead: true }, authorCookie)).status, 200);
+  assert.equal((await decide({ decision: "approve" }, adminCookie)).status, 400);
+  assert.equal((await decide({ decision: "approve", confirmedRead: true }, adminCookie)).status, 200);
   for (const cookie of [studentCookie, parentCookie]) assert.ok((await titles(cookie))[id]);
   const history = (await (await send(`/api/topics/${id}`, "GET", undefined, adminCookie)).json()).topic;
-  assert.deepEqual(history.decisions.map((item) => [item.kind, item.changedByName]), [["confirmed", "topics-reviewer"], ["withdrawn", "topics-reviewer"], ["restored", "topics-author"]]);
+  assert.deepEqual(history.decisions.map((item) => [item.kind, item.changedByName]), [["confirmed", "topics-admin"], ["withdrawn", "topics-admin"], ["restored", "topics-admin"]]);
   const audit = fixture((db) => db.prepare("SELECT action, actor_id IS NOT NULL AS actor FROM user_audit_events WHERE target_id = ? ORDER BY rowid").all(id));
   assert.deepEqual(audit.map((row) => [row.action, row.actor]), [["topic-review-confirmed", 1], ["topic-withdrawn", 1], ["topic-restored", 1]]);
 });
