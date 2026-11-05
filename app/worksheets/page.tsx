@@ -2,8 +2,7 @@ import Link from "next/link";
 import { lessons, levelBands } from "../curriculum";
 import { getSessionAdult } from "@/lib/auth";
 import { canTeach } from "@/lib/roles";
-import { approvedLessonIds } from "@/lib/lesson-approval";
-import { visibleLessons } from "@/lib/lesson-model";
+import { getCandidateLessonSnapshot, learnerLessonView } from "@/lib/lesson-approval";
 import { localNumber } from "@/lib/local-format";
 import { Labelled, PageTitle, Say } from "../components/PortalText";
 
@@ -22,7 +21,18 @@ function durationBn(duration: string) {
 
 /** Learners and parents get worksheets for approved lessons only; staff see every lesson. */
 export default async function WorksheetsIndexPage() {
-  const shown = canTeach(await getSessionAdult()) ? lessons : visibleLessons(lessons, await approvedLessonIds());
+  const staff = canTeach(await getSessionAdult());
+  const shown = staff
+    ? (await Promise.all(lessons.map((lesson) => getCandidateLessonSnapshot(lesson.id)))).flatMap((snapshot) => snapshot ? [snapshot.lesson] : [])
+    : Object.values((await learnerLessonView()).snapshots).map((snapshot) => snapshot.lesson);
+  const descriptorsBn: Record<string, string> = {
+    "pre-a1": "ছবি আর সহায়তা নিয়ে কয়েকটি পরিচিত বাংলা শব্দ চিনতে ও বলতে পারি।",
+    a1: "নিজের পরিচয়, খাবার, পরিবার আর দৈনন্দিন কাজ নিয়ে ছোট, অনুশীলিত বাক্য বলতে পারি।",
+    a2: "সহজ দৈনন্দিন কথাবার্তায় অংশ নিতে এবং কয়েকটি বাক্য জুড়তে পারি।",
+    b1: "পরিচিত বিষয়ের মূল কথা বুঝে স্পষ্টভাবে গল্প বলতে ও কারণ জানাতে পারি।",
+    b2: "ধারণা তুলনা করতে, সাংস্কৃতিক বিষয় ব্যাখ্যা করতে এবং বিস্তারিত বিষয়বস্তু বুঝতে পারি।",
+    "c1-c2": "ভিন্ন শ্রোতার জন্য বাংলায় ব্যাখ্যা, গবেষণা, আলোচনা ও সৃজনশীল কাজ করতে পারি।",
+  };
   return (
     <main className="adult-app worksheets-app">
       <PageTitle title={["Printable worksheets | Bangla Adventures", "প্রিন্ট করার ওয়ার্কশিট | Bangla Adventures"]} />
@@ -39,12 +49,14 @@ export default async function WorksheetsIndexPage() {
             <h1><Say en="One printable worksheet for every lesson." bn="প্রতিটি পাঠের জন্য একটি প্রিন্ট করার ওয়ার্কশিট।" /></h1>
             <p>
               <Say
-                en="Each sheet mirrors its on-screen lesson: the six vocabulary words with space to write, both sentence patterns, a short bilingual reading with a comprehension check, a guided writing task and the family mission. Made for kitchen tables and community-school classrooms — no login, no ink-heavy artwork."
-                bn="প্রতিটি শিট তার অনলাইন পাঠের মতোই: লেখার জায়গাসহ ছয়টি শব্দ, দুটি বাক্যের ধাঁচ, বোঝার প্রশ্নসহ দুই ভাষায় ছোট একটি পড়া, ধাপে ধাপে লেখার কাজ আর পরিবারের সঙ্গে করার কাজ। বাড়ির টেবিল আর কমিউনিটি স্কুলের ক্লাসের জন্য বানানো — লগইন লাগে না, বেশি কালিও খরচ হয় না।"
+                en="Each available sheet uses its approved lesson version: vocabulary writing practice, sentence patterns, bilingual reading, writing and a family mission. Staff can preview the versions waiting for Admin review."
+                bn="প্রতিটি উপলভ্য শিটে অনুমোদিত পাঠের সংস্করণ থাকে: শব্দ লেখা, বাক্যের ধাঁচ, দুই ভাষায় পড়া, লেখার কাজ আর পরিবারের সঙ্গে করার কাজ। কর্মীরা প্রশাসকের পর্যালোচনার অপেক্ষায় থাকা সংস্করণও দেখতে পারেন।"
               />
             </p>
           </div>
         </section>
+
+        {shown.length === 0 && <p role="status"><Say en="Worksheets will appear after an Admin approves the lessons." bn="প্রশাসক পাঠগুলো অনুমোদন করলে ওয়ার্কশিট এখানে দেখা যাবে।" /></p>}
 
         {levelBands.map((band) => {
           const bandLessons = shown.filter((lesson) => lesson.level === band.id);
@@ -54,7 +66,7 @@ export default async function WorksheetsIndexPage() {
               <h2>
                 <span className="worksheet-band-code">{band.code}</span> <span lang="en">{band.title}</span> · <span lang="bn">{band.titleBn}</span>
               </h2>
-              <p lang="en">{band.descriptor}</p>
+              <p><Say en={band.descriptor} bn={descriptorsBn[band.id]} /></p>
               <ul className="worksheet-list">
                 {bandLessons.map((lesson) => (
                   <li key={lesson.id}>

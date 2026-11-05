@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test, { after, before } from "node:test";
 import Database from "better-sqlite3";
+import { approveShippedFixtureContent } from "./content-fixture.mjs";
 
 /**
  * Sources and references against the production server: only an administrator
@@ -68,6 +69,7 @@ before(async () => {
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
   adminCookie = await adult("sources-admin@example.com", "admin");
+  await approveShippedFixtureContent(BASE, adminCookie, { lessons: false });
   teacherCookie = await adult("sources-teacher@example.com", "teacher");
   otherTeacherCookie = await adult("sources-other@example.com", "teacher");
   parentCookie = await adult("sources-parent@example.com", "parent");

@@ -5,9 +5,11 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import Database from "better-sqlite3";
 import { eq } from "drizzle-orm";
+import { createLegacyContentFixture, legacyContent } from "./helpers/publish-shipped-fixture.mjs";
 
 const dir = mkdtempSync(path.join(tmpdir(), "bangla-lesson-approval-"));
 process.env.DATABASE_PATH = path.join(dir, "test.db");
+createLegacyContentFixture(process.env.DATABASE_PATH);
 const { getDb } = await import("../db/index.ts");
 const { adults, contentApprovals, mediaAssets, userAuditEvents, videoReviews } = await import("../db/schema.ts");
 const { migrateContent } = await import("../db/content-migration.ts");
@@ -26,6 +28,7 @@ after(() => rmSync(dir, { recursive: true, force: true }));
 
 const ids = lessons.map((lesson) => lesson.id);
 const confirmRead = { decision: "approve", confirmedRead: true };
+const reviewOf = async (id, raw = confirmRead) => ({ ...raw, contentFingerprint: (await approval.lessonStudioDetail(id)).contentFingerprint });
 
 test("every lesson has a bilingual category, grouped in category order with General conversation first", () => {
   assert.equal(lessons.length, 18);
@@ -102,7 +105,7 @@ test("video checks: a taken-down video is hidden from learners unless a YouTube 
   assert.equal(model.learnerVideo(original, check("replace", "unchecked", "https://example.com/x")), null, "an old non-YouTube link is never shown");
 });
 
-test("all 18 lessons start approved as a baseline, once, and the migration is safe to repeat", async () => {
+test("an existing installation retains its 18 frozen baselines while new lesson revisions wait for review, once", async () => {
   assert.deepEqual(await approval.approvedLessonIds(), ids);
   const rows = db.select().from(contentApprovals).all();
   assert.equal(rows.length, 18);
@@ -118,6 +121,12 @@ test("all 18 lessons start approved as a baseline, once, and the migration is sa
   const list = await approval.lessonStudioList();
   assert.equal(list.lessons.length, 18);
   assert.ok(list.lessons.every((row) => row.status === "approved" && row.baseline));
+  for (const snapshot of legacyContent.lessons) {
+    const detail = await approval.lessonStudioDetail(snapshot.lesson.id);
+    assert.deepEqual(detail.approvedSnapshot, snapshot, "the legacy baseline cannot acquire unreviewed Bangla content");
+    assert.equal(detail.pendingRevision.version, 1);
+    assert.deepEqual(detail.revisions.map(({ version, status }) => [version, status]), [[0, "approved"], [1, "pending"]]);
+  }
 });
 
 test("an administrator withdraws a lesson for everyone and restores it after review", async () => {
@@ -145,11 +154,11 @@ test("an administrator withdraws a lesson for everyone and restores it after rev
   const listed = (await approval.lessonStudioList()).lessons.find((row) => row.lessonId === "six-seasons");
   assert.deepEqual([listed.status, listed.changedByName, listed.note], ["withdrawn", "Admin Ayesha", "The Bangla season names need checking."]);
 
-  await assert.rejects(approval.decideLesson("admin", "six-seasons", { decision: "approve" }), (error) => error.status === 400);
-  const back = await approval.decideLesson("admin", "six-seasons", { ...confirmRead, note: "Season names checked." });
+  await assert.rejects(approval.decideLesson("admin", "six-seasons", await reviewOf("six-seasons", { decision: "approve" })), (error) => error.status === 400);
+  const back = await approval.decideLesson("admin", "six-seasons", await reviewOf("six-seasons", { ...confirmRead, note: "Season names checked." }));
   assert.deepEqual([back.status, back.changedByName], ["approved", "Admin Ayesha"]);
   assert.equal(await approval.isLessonApproved("six-seasons"), true);
-  await assert.rejects(approval.decideLesson("admin", "six-seasons", confirmRead), (error) => error.status === 409);
+  await assert.rejects(approval.decideLesson("admin", "six-seasons", await reviewOf("six-seasons")), (error) => error.status === 409);
 
   const detail = await approval.lessonStudioDetail("six-seasons");
   assert.deepEqual(detail.history.map((entry) => [entry.status, entry.baseline, entry.changedByName]), [["approved", false, "Admin Ayesha"], ["withdrawn", false, "Admin Ayesha"], ["approved", true, null]]);
@@ -158,13 +167,13 @@ test("an administrator withdraws a lesson for everyone and restores it after rev
   assert.equal(JSON.parse(audit[0].detailsJson).note, "The Bangla season names need checking.");
 });
 
-test("an administrator confirms a full review of a baseline lesson without hiding it from students", async () => {
-  await assert.rejects(approval.decideLesson("admin", "food-please", { decision: "approve" }), (error) => error.status === 400);
-  const reviewed = await approval.decideLesson("admin", "food-please", { ...confirmRead, note: "Read every part in both languages." });
+test("an administrator reviews the current bilingual revision while the inherited baseline remains visible", async () => {
+  await assert.rejects(approval.decideLesson("admin", "food-please", await reviewOf("food-please", { decision: "approve" })), (error) => error.status === 400);
+  const reviewed = await approval.decideLesson("admin", "food-please", await reviewOf("food-please", { ...confirmRead, note: "Read every part in both languages." }));
   assert.deepEqual([reviewed.status, reviewed.baseline, reviewed.changedByName, reviewed.note], ["approved", false, "Admin Ayesha", "Read every part in both languages."]);
   assert.equal(await approval.isLessonApproved("food-please"), true, "students keep the lesson throughout");
   // Once reviewed, a second approval is stale.
-  await assert.rejects(approval.decideLesson("admin", "food-please", confirmRead), (error) => error.status === 409);
+  await assert.rejects(approval.decideLesson("admin", "food-please", await reviewOf("food-please")), (error) => error.status === 409);
   const detail = await approval.lessonStudioDetail("food-please");
   assert.deepEqual(detail.history.map((entry) => [entry.status, entry.baseline, entry.changedByName]), [["approved", false, "Admin Ayesha"], ["approved", true, null]]);
   const listed = (await approval.lessonStudioList()).lessons.find((row) => row.lessonId === "food-please");
@@ -244,7 +253,7 @@ test("the Studio preview plays the recording learners hear, even when older data
 test("the newest administrator video check decides the video learners get", async () => {
   const check = (id, ownerEmail, status, suitabilityStatus, replacementUrl, updatedAt) => ({ id, ownerEmail, lessonId: "my-family", videoId: "uHTorwKsVFg", status, suitabilityStatus, replacementUrl, captionsStatus: "available", updatedAt, adminDecidedAt: updatedAt });
   db.insert(videoReviews).values(check("first", "admin@example.com", "approved", "suitable", "", "2026-10-01T00:00:00.000Z")).run();
-  assert.equal((await approval.learnerLessonView()).videos["my-family"], undefined, "an approved video is unchanged");
+  assert.deepEqual((await approval.learnerLessonView()).videos["my-family"], legacyContent.lessons.find(({ lesson }) => lesson.id === "my-family").lesson.video, "an approved video keeps its inherited metadata");
   db.insert(videoReviews).values(check("second", "second-admin@example.com", "approved", "unsuitable", "", "2026-10-02T00:00:00.000Z")).run();
   assert.equal((await approval.learnerLessonView()).videos["my-family"], null);
   db.update(videoReviews).set({ status: "replace", replacementUrl: "https://youtu.be/h-egsGh_VbQ", updatedAt: "2026-10-03T00:00:00.000Z" }).where(eq(videoReviews.id, "second")).run();

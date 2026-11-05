@@ -8,6 +8,7 @@ import { topicSourceLinks, type TopicReference } from "@/lib/library-links";
 import SourceLinks from "../references/SourceLinks";
 import ContentNarration from "../components/ContentNarration";
 import { topicNarrationText } from "@/lib/narration-model";
+import { presentQuizOptions } from "@/lib/quiz-option-order";
 
 /**
  * One topic as students read it: heading, sections, facts, sources and the quiz.
@@ -37,6 +38,10 @@ export default function TopicReader({ topic, language, titleLevel = 1, best, onQ
   const n = (value: number) => formatNumber(value, language);
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [checked, setChecked] = useState(false);
+  // A deterministic initial order keeps server/client rendering identical. A retry
+  // rotates the presentation without changing the canonical answer indexes sent
+  // to the server. Language changes never change the current attempt's order.
+  const [attempt, setAttempt] = useState(0);
   const Title = titleLevel === 1 ? "h1" : "h2";
   const score = topic.quiz.reduce((total, question, index) => total + (answers[index] === question.answer ? 1 : 0), 0);
   const allAnswered = topic.quiz.every((_, index) => answers[index] !== undefined);
@@ -67,11 +72,11 @@ export default function TopicReader({ topic, language, titleLevel = 1, best, onQ
         </section>
       )}
 
-      <section className="topic-sources" aria-label={s("Trusted source", "নির্ভরযোগ্য উৎস")}>
-        <h2>📖 {references.length ? s("From the government textbooks", "সরকারি পাঠ্যবই থেকে") : s("Where this comes from", "এই লেখার উৎস")}</h2>
+      <section className="topic-sources" aria-label={s("Learning references", "শেখার তথ্যসূত্র")}>
+        <h2>📖 {s("Learning references", "শেখার তথ্যসূত্র")}</h2>
         {topic.sourceNote && <p className="topic-sources-note">{topic.sourceNote[language]}</p>}
         {references.length > 0 && <>
-          <p className="topic-sources-note">{s("This topic is linked to these NCTB government textbooks:", "এই বিষয়টি এনসিটিবির এই সরকারি পাঠ্যবইগুলোর সঙ্গে যুক্ত:")}</p>
+          <p className="topic-sources-note">{s("These NCTB textbooks are related reading. An administrator must verify the relevant edition and page or section.", "সম্পর্কিত এনসিটিবির পাঠ্যবই এখানে দেওয়া হলো। প্রাসঙ্গিক সংস্করণ এবং পৃষ্ঠা বা অংশ প্রশাসককে যাচাই করতে হবে।")}</p>
           <ul>
             {references.map((reference) => (
               <li key={reference.bookId}>
@@ -97,7 +102,7 @@ export default function TopicReader({ topic, language, titleLevel = 1, best, onQ
             <fieldset className="topic-question" key={questionIndex}>
               <legend>{n(questionIndex + 1)}. {question.question[language]}</legend>
               <div className="topic-options">
-                {question.options.map((option, optionIndex) => {
+                {presentQuizOptions(question.options, `topic:${topic.id}`, questionIndex + attempt).map(({ text: option, originalIndex: optionIndex }) => {
                   const selected = answers[questionIndex] === optionIndex;
                   const isRight = checked && optionIndex === question.answer;
                   const isWrong = checked && selected && optionIndex !== question.answer;
@@ -126,7 +131,7 @@ export default function TopicReader({ topic, language, titleLevel = 1, best, onQ
                 "এই পর্দাটি শিক্ষক বা পরিবারকে দেখাও — অথবা আবার পড়ে পুরো নম্বরের চেষ্টা করো।",
               )}</p>
               <div className="topic-result-actions">
-                <button type="button" onClick={() => { setAnswers({}); setChecked(false); }}>{s("Try again", "আবার চেষ্টা")}</button>
+                <button type="button" onClick={() => { setAnswers({}); setChecked(false); setAttempt((current) => current + 1); }}>{s("Try again", "আবার চেষ্টা")}</button>
                 {onPickAnother && <button type="button" onClick={onPickAnother}>{s("Pick another topic", "অন্য বিষয় বেছে নাও")}</button>}
               </div>
             </div>

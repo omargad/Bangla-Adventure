@@ -1,10 +1,11 @@
 // The NCTB textbook library. Per the client's direction (meeting, 10 Aug 2026),
 // textbooks published by Bangladesh's National Curriculum and Textbook Board
 // (NCTB) are the platform's approved source of truth for culture, history and
-// literature content. This catalog lists the relevant books, which classes use
-// them, and where to download the official PDFs. It is reviewed once per
-// academic year — NCTB refreshes textbooks each January — and any non-NCTB
-// source must be approved by the client before use.
+// literature content. This catalog lists related books and class-level links;
+// entries and chapter maps retain their explicit listed/confirm/verified states.
+// Check the current edition and relevant pages before relying on a topic's
+// references. Review this catalogue each academic year; non-NCTB classroom
+// sources still require the client's approval before use.
 
 import type { Bilingual } from "./topics-content";
 

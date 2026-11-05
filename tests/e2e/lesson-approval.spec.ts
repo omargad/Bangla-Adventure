@@ -73,7 +73,7 @@ test("a teacher can preview a lesson, but only an administrator can withdraw and
     await teacher.getByRole("navigation", { name: "Portal navigation" }).getByRole("link", { name: "Lessons", exact: true }).click();
     await expect(teacher).toHaveURL(/\/studio$/);
     const category = teacher.getByRole("region", { name: "Places and nature" });
-    await expect(category).toContainText("Available · review pending");
+    await expect(category).toContainText("Approved");
     await category.getByRole("button", { name: `Preview lesson: ${lessonTitle}`, exact: true }).click();
     await expect(teacher).toHaveURL(/\/studio\?lesson=six-seasons$/);
     await expect(teacher.getByRole("heading", { level: 2, name: lessonTitle, exact: true }).first()).toBeVisible();
@@ -101,8 +101,9 @@ test("a teacher can preview a lesson, but only an administrator can withdraw and
 
     // Withdrawing needs a reason and hides the lesson from the student at once.
     const decision = admin.getByRole("region", { name: "Your decision" });
-    // A lesson approved only as a baseline can also take a real review without being hidden first.
-    await expect(decision.getByRole("button", { name: "Confirm my review", exact: true })).toBeDisabled();
+    // The setup Admin reviewed this exact content fixture before publication.
+    await expect(admin.getByRole("region", { name: "Lesson details" })).toContainText("Approved by FixtureSetup admin");
+    await expect(decision.getByRole("button", { name: "Confirm my review", exact: true })).toHaveCount(0);
     const withdraw = decision.getByRole("button", { name: "Withdraw from students", exact: true });
     await expect(withdraw).toBeDisabled();
     await decision.getByLabel("Why are you withdrawing it? (needed)").fill("The Bangla season names need a native speaker's check.");
