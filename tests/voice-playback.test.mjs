@@ -25,11 +25,13 @@ test("an approved human recording plays first, then the device's Bangla voice, t
   assert.deepEqual(sources(steps), ["human", "device", "computer"]);
   assert.equal(steps[0].url, "/api/audio/hello-me/word-1?v=rec-1", "word recordings go through /api/audio, versioned by the recording");
   assert.equal(steps[1].voice, banglaBangladesh);
-  assert.equal(steps[2].url, "/audio/lesson-hello-me-word-1.ogg", "the bundled clip comes straight from public/audio");
+  assert.equal(steps[2].url, "/api/audio/hello-me/word-1?v=bundled", "the bundled lesson clip is asked for as such, through the approval check");
   const plain = playbackPlan({ lang: "bn-BD", voices: [], clip: lessonClip("hello-me", "word-1"), files: espeakFiles });
-  assert.deepEqual(plain, [{ source: "computer", url: "/audio/lesson-hello-me-word-1.ogg" }], "without a known recording, the computer voice step can only play the bundled clip, so its label is true");
+  assert.deepEqual(plain, [{ source: "computer", url: "/api/audio/hello-me/word-1?v=bundled" }], "without a known recording, the computer voice step can only play the bundled clip, so its label is true");
   const neural = playbackPlan({ lang: "bn-BD", voices: [], clip: lessonClip("hello-me", "word-1"), files: neuralFiles });
-  assert.deepEqual(neural, [{ source: "provider", url: "/audio/lesson-hello-me-word-1.ogg" }]);
+  assert.deepEqual(neural, [{ source: "provider", url: "/api/audio/hello-me/word-1?v=bundled" }]);
+  // No step anywhere points at the static lesson clip, which proxy.ts refuses.
+  for (const step of [...steps, ...plain, ...neural]) assert.doesNotMatch(step.url ?? "", /^\/audio\/lesson-/);
 });
 
 test("a page learns of recordings approved or retired after it loaded, one lesson at a time", () => {
@@ -68,7 +70,7 @@ test("Bangla is never read by an English voice: the bundled clip plays, or nothi
 
 test("a recording for another lesson part does not apply", () => {
   const steps = playbackPlan({ lang: "bn-BD", voices: [], clip: lessonClip("hello-me", "word-2"), recordings: { "hello-me/word-1": "rec-1", "my-day/word-2": "rec-2" }, files: espeakFiles });
-  assert.deepEqual(steps, [{ source: "computer", url: "/audio/lesson-hello-me-word-2.ogg" }]);
+  assert.deepEqual(steps, [{ source: "computer", url: "/api/audio/hello-me/word-2?v=bundled" }]);
 });
 
 test("the device voice is a bn-BD voice when there is one, then bn-IN, then any Bangla voice", () => {

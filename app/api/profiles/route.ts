@@ -5,14 +5,14 @@ import { getSessionAdult } from "@/lib/auth";
 import { canTeach } from "@/lib/roles";
 import { approvedLessonIds } from "@/lib/lesson-approval";
 import { learnerAssignments } from "@/lib/lesson-model";
+import { isAgeBand } from "@/lib/profile-fields";
+import { readJsonObject, serverError } from "@/lib/request-security";
 
 export const dynamic = "force-dynamic";
 
-const ageBands = new Set(["6-8", "9-12", "13-15", "16+", "not-specified"]);
-
 export async function GET() {
   const user = await getSessionAdult();
-  if (!user) return Response.json({ error: "Sign in as a grown-up to view learner profiles." }, { status: 401 });
+  if (!user) return Response.json({ error: "Sign in as a grown-up to view learner profiles.", errorBn: "শিক্ষার্থীর প্রোফাইল দেখতে বড়দের অ্যাকাউন্টে সাইন ইন করুন।" }, { status: 401 });
 
   try {
     const db = await getDb();
@@ -36,17 +36,18 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const user = await getSessionAdult();
-  if (!user) return Response.json({ error: "Sign in as a grown-up to create a learner profile." }, { status: 401 });
-  if (!canTeach(user)) return Response.json({ error: "Parent accounts have read-only access to learning records." }, { status: 403 });
+  if (!user) return Response.json({ error: "Sign in as a grown-up to create a learner profile.", errorBn: "শিক্ষার্থীর প্রোফাইল তৈরি করতে বড়দের অ্যাকাউন্টে সাইন ইন করুন।" }, { status: 401 });
+  if (!canTeach(user)) return Response.json({ error: "Parent accounts have read-only access to learning records.", errorBn: "অভিভাবকের অ্যাকাউন্ট থেকে শেখার রেকর্ড শুধু দেখা যায়।" }, { status: 403 });
+  const body = await readJsonObject(request);
+  if (body instanceof Response) return body;
 
   try {
-    const body = (await request.json()) as { displayName?: unknown; ageBand?: unknown; homeLanguages?: unknown };
     const displayName = typeof body.displayName === "string" ? body.displayName.trim().slice(0, 40) : "";
-    const ageBand = typeof body.ageBand === "string" && ageBands.has(body.ageBand) ? body.ageBand : "not-specified";
+    const ageBand = isAgeBand(body.ageBand) ? body.ageBand : "not-specified";
     const homeLanguages = Array.isArray(body.homeLanguages)
       ? body.homeLanguages.filter((item): item is string => typeof item === "string").map((item) => item.trim().slice(0, 30)).filter(Boolean).slice(0, 5)
       : [];
-    if (!displayName) return Response.json({ error: "A display name is required." }, { status: 400 });
+    if (!displayName) return Response.json({ error: "A display name is required.", errorBn: "একটি প্রদর্শন নাম দিন।" }, { status: 400 });
 
     const db = await getDb();
     // ISO like PATCH writes, so the list's updated_at order compares like with like.
@@ -75,8 +76,10 @@ function safeJsonArray(value: string): string[] {
   }
 }
 
+/** The detail stays in the server log; the browser gets a fixed message in both languages. */
 function databaseError(error: unknown) {
-  const message = error instanceof Error ? error.message : "Unexpected database error";
-  const unavailable = message.includes("no such table") || message.includes("SQLITE");
-  return Response.json({ error: unavailable ? "Saved progress is being set up. Local learning still works." : message }, { status: 500 });
+  return serverError("Learner profiles", error, {
+    error: "Saved progress is unavailable right now. Local learning still works.",
+    errorBn: "সংরক্ষিত অগ্রগতি এখন পাওয়া যাচ্ছে না। এই ডিভাইসে শেখা চালিয়ে যেতে পারবেন।",
+  });
 }

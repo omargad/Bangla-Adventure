@@ -96,7 +96,7 @@ test("fresh shipped lessons require an Admin review of the current snapshot befo
   assert.equal((await send("/api/progress", "POST", { profileId, lessonId: "hello-me", sessionId: "session-hello-me-reading", skill: "reading" }, teacherCookie)).status, 400);
   assert.equal(fixture((db) => db.prepare("SELECT COUNT(*) AS n FROM content_approvals WHERE content_type = 'lesson'").get().n), 0, "failed reviews leave every lesson unpublished");
   await approveShippedFixtureContent(BASE, adminCookie, { topics: false, excludeLessons: ["food-please"] });
-  assert.equal((await send("/api/audio/hello-me/dialogue", "GET", undefined, studentCookie)).status, 307);
+  assert.equal((await send("/api/audio/hello-me/dialogue", "GET", undefined, studentCookie)).status, 200);
 });
 
 test("a withdrawn lesson disappears for students and parents everywhere, and re-approval brings it back", async () => {
@@ -151,8 +151,10 @@ test("a withdrawn lesson disappears for students and parents everywhere, and re-
   assert.doesNotMatch(deepLink, new RegExp(seasonsTitle));
   assert.equal((await send("/api/audio/six-seasons/dialogue", "GET", undefined, studentCookie)).status, 404);
   assert.equal((await send("/api/audio/six-seasons/dialogue", "GET", undefined, parentCookie)).status, 404);
-  assert.equal((await send("/api/audio/hello-me/dialogue", "GET", undefined, studentCookie)).status, 307);
-  assert.equal((await send("/api/audio/six-seasons/dialogue", "GET", undefined, teacherCookie)).status, 307, "staff still preview it");
+  // Nor by the bundled clip's own address.
+  for (const cookie of [studentCookie, parentCookie]) assert.equal((await send("/audio/lesson-six-seasons-dialogue.ogg", "GET", undefined, cookie)).status, 404);
+  assert.equal((await send("/api/audio/hello-me/dialogue", "GET", undefined, studentCookie)).status, 200);
+  assert.equal((await send("/api/audio/six-seasons/dialogue", "GET", undefined, teacherCookie)).status, 200, "staff still preview it");
   assert.equal((await send("/worksheets/six-seasons", "GET", undefined, studentCookie)).status, 404);
   assert.equal((await send("/worksheets/six-seasons", "GET", undefined, parentCookie)).status, 404);
   assert.equal((await send("/worksheets/six-seasons", "GET", undefined, teacherCookie)).status, 200);
@@ -181,7 +183,7 @@ test("a withdrawn lesson disappears for students and parents everywhere, and re-
   const restored = await html("/adventure?module=six-seasons", studentCookie);
   assert.match(restored, new RegExp(seasonsTitle));
   assert.doesNotMatch(restored, /That lesson is not available at the moment/);
-  assert.equal((await send("/api/audio/six-seasons/dialogue", "GET", undefined, studentCookie)).status, 307);
+  assert.equal((await send("/api/audio/six-seasons/dialogue", "GET", undefined, studentCookie)).status, 200);
   assert.equal((await send("/worksheets/six-seasons", "GET", undefined, studentCookie)).status, 200);
   assert.equal((await send("/api/assignments", "POST", { profileId, lessonId: "six-seasons" }, teacherCookie)).status, 201);
   assert.deepEqual(await parentAssignments(), ["hello-me", "six-seasons"]);
@@ -229,7 +231,7 @@ test("a recording waiting for review plays for staff only, and an administrator 
   assert.equal((await send(`/api/studio/media/${asset.id}`, "GET", undefined, parentCookie)).status, 403);
   assert.equal((await send(`/api/studio/media/${asset.id}`)).status, 401);
   assert.equal((await send("/api/studio/media/not-a-recording", "GET", undefined, colleagueCookie)).status, 404);
-  assert.equal((await send("/api/audio/hello-me/dialogue", "GET", undefined, studentCookie)).status, 307, "learners do not get a pending recording");
+  assert.equal((await send("/api/audio/hello-me/dialogue", "GET", undefined, studentCookie)).status, 200, "learners do not get a pending recording");
 
   assert.equal((await send("/api/studio/media", "PATCH", { id: asset.id, reviewStatus: "approved" }, parentCookie)).status, 403);
   for (const cookie of [teacherCookie, colleagueCookie]) {
@@ -339,5 +341,5 @@ test("teacher specialist checks and draft statuses cannot bypass administrator p
   assert.equal((await send("/api/studio/drafts", "POST", { ...draftBody, status: "approved-for-release" }, adminCookie)).status, 201);
   assert.equal((await send(`/api/audio/${lessonId}/dialogue`, "GET", undefined, studentCookie)).status, 404, "an archived Studio draft flag is not a lesson publication decision");
   assert.equal((await decide(lessonId, { decision: "approve", confirmedRead: true }, adminCookie)).status, 200);
-  assert.equal((await send(`/api/audio/${lessonId}/dialogue`, "GET", undefined, studentCookie)).status, 307);
+  assert.equal((await send(`/api/audio/${lessonId}/dialogue`, "GET", undefined, studentCookie)).status, 200);
 });

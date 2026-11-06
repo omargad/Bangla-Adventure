@@ -4,12 +4,15 @@ import { adults, contentReviews, curriculumDrafts, mediaAssets, videoReviews } f
 import { lessons } from "../../../curriculum";
 import { getSessionAdult } from "@/lib/auth";
 import { canTeach } from "@/lib/roles";
+import { readJsonObject, serverError } from "@/lib/request-security";
 
 export const dynamic = "force-dynamic";
 
 const lessonIds = new Set(lessons.map((lesson) => lesson.id));
 const reviewTypes = new Set(["language", "culture", "child-development", "accessibility", "video", "legal-privacy"]);
 const statuses = new Set(["not-started", "in-review", "changes-requested", "approved"]);
+const teacherRequired = () => Response.json({ error: "An approved teacher account is required.", errorBn: "অনুমোদিত শিক্ষকের অ্যাকাউন্ট প্রয়োজন।" }, { status: 403 });
+const signInRequired = () => Response.json({ error: "Sign in required.", errorBn: "সাইন ইন করা প্রয়োজন।" }, { status: 401 });
 
 /**
  * Every staff member's optional specialist checks, recordings and video checks
@@ -18,8 +21,8 @@ const statuses = new Set(["not-started", "in-review", "changes-requested", "appr
  */
 export async function GET() {
   const user = await getSessionAdult();
-  if (user && !canTeach(user)) return Response.json({ error: "An approved teacher account is required." }, { status: 403 });
-  if (!user) return Response.json({ error: "Sign in required." }, { status: 401 });
+  if (user && !canTeach(user)) return teacherRequired();
+  if (!user) return signInRequired();
   try {
     const db = await getDb();
     const [reviews, media, videos, drafts, staff] = await Promise.all([
@@ -33,16 +36,16 @@ export async function GET() {
     const shared = <T extends { ownerEmail: string }>({ ownerEmail, ...row }: T) => ({ ...row, recordedBy: names.get(ownerEmail) ?? null, mine: ownerEmail === user.email });
     return Response.json({ reviews: reviews.map(shared), media: media.map(shared), videos: videos.map(shared), drafts });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Content review data is unavailable.";
-    return Response.json({ error: message }, { status: 500 });
+    return serverError("GET /api/studio/reviews", error, { error: "Content review data is unavailable. Please try again.", errorBn: "বিষয়বস্তু পর্যালোচনার তথ্য এখন পাওয়া যাচ্ছে না। আবার চেষ্টা করুন।" });
   }
 }
 
 export async function POST(request: Request) {
   const user = await getSessionAdult();
-  if (user && !canTeach(user)) return Response.json({ error: "An approved teacher account is required." }, { status: 403 });
-  if (!user) return Response.json({ error: "Sign in required." }, { status: 401 });
-  const body = (await request.json()) as Record<string, unknown>;
+  if (user && !canTeach(user)) return teacherRequired();
+  if (!user) return signInRequired();
+  const body = await readJsonObject(request);
+  if (body instanceof Response) return body;
   const lessonId = value(body.lessonId, 60);
   const reviewType = value(body.reviewType, 30);
   const status = value(body.status, 30);

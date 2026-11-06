@@ -94,6 +94,11 @@ async function stubVoices(page: Page, voices: Array<{ lang: string; name: string
   }, voices);
 }
 
+/** Bundled lesson clips play only through /api/audio, which checks the lesson is approved. */
+const bundledClipUrl = (href: string, lessonId: string, slot: string) => {
+  const url = new URL(href);
+  return url.pathname === `/api/audio/${lessonId}/${slot}` && url.searchParams.get("v") === "bundled";
+};
 /** Browsers fetch media in ranges, so a served clip answers 200 or 206. */
 const served = (status: number) => status === 200 || status === 206;
 const spoken = (page: Page) => page.evaluate(() => (window as unknown as { __spoken: Array<{ text: string; voice: string | null }> }).__spoken);
@@ -120,14 +125,14 @@ test("with no Bangla voice on the device, lessons play the bundled clip and Bang
     await stubVoices(page, [{ lang: "en-US", name: "English (US)" }, { lang: "en-GB", name: "English (UK)" }]);
     const lesson = await openListen(page);
 
-    const bundled = page.waitForResponse((response) => response.url().endsWith("/audio/lesson-hello-me-dialogue.ogg") && served(response.status()));
+    const bundled = page.waitForResponse((response) => bundledClipUrl(response.url(), "hello-me", "dialogue") && served(response.status()));
     await lesson.getByRole("button", { name: /Play complete dialogue/ }).click();
     await bundled;
     const expected = bundledExpectation("lesson-hello-me-dialogue");
     await expect(lesson.locator(".audio-source-note")).toContainText(expected.label);
     await expect(page.locator(".voice-note")).toHaveAttribute("data-voice-source", expected.source);
     // The label identifies the provider that actually made the bundled clip.
-    expect(await played(page)).toContain("/audio/lesson-hello-me-dialogue.ogg");
+    expect(await played(page)).toContain("/api/audio/hello-me/dialogue?v=bundled");
 
     // A single line has no bundled clip: nothing plays, and the page says why.
     await lesson.getByRole("button", { name: "Reveal transcript after listening" }).click();
@@ -136,15 +141,15 @@ test("with no Bangla voice on the device, lessons play the bundled clip and Bang
 
     // Words in the Read word bank have a bundled clip too (an approved recording would come first: see below).
     await lesson.getByRole("navigation", { name: "Lesson sections" }).getByRole("button", { name: /Read$/ }).click();
-    const word = page.waitForResponse((response) => response.url().endsWith("/audio/lesson-hello-me-word-1.ogg") && served(response.status()));
+    const word = page.waitForResponse((response) => bundledClipUrl(response.url(), "hello-me", "word-1") && served(response.status()));
     await lesson.getByRole("button", { name: /^Listen: হ্যালো/ }).click();
     await word;
-    expect(await played(page)).toContain("/audio/lesson-hello-me-word-1.ogg");
+    expect(await played(page)).toContain("/api/audio/hello-me/word-1?v=bundled");
 
     expect(await spoken(page), "no text was handed to an English voice").toEqual([]);
 
     // If the bundled clip also fails, an English device voice must still never read Bangla.
-    await page.route("**/audio/lesson-hello-me-dialogue.ogg", (route) => route.abort("failed"));
+    await page.route((url) => bundledClipUrl(url.href, "hello-me", "dialogue"), (route) => route.abort("failed"));
     await lesson.getByRole("navigation", { name: "Lesson sections" }).getByRole("button", { name: /Listen$/ }).click();
     await lesson.getByRole("button", { name: /Play complete dialogue/ }).click();
     await expect(page.locator(".voice-note")).toHaveAttribute("data-voice-source", "failed");
@@ -171,12 +176,12 @@ test("a neural provider clip plays before an available Bangla device voice and n
     const expected = bundledExpectation("lesson-hello-me-dialogue");
     expect(expected.source, "this regression needs a bundled neural-provider clip").toBe("provider");
     const lesson = await openListen(page);
-    const bundled = page.waitForResponse((response) => response.url().endsWith("/audio/lesson-hello-me-dialogue.ogg") && served(response.status()));
+    const bundled = page.waitForResponse((response) => bundledClipUrl(response.url(), "hello-me", "dialogue") && served(response.status()));
     await lesson.getByRole("button", { name: /Play complete dialogue/ }).click();
     await bundled;
     await expect(lesson.locator(".audio-source-note")).toContainText(expected.label);
     await expect(page.locator(".voice-note")).toHaveAttribute("data-voice-source", "provider");
-    expect(await played(page)).toEqual(["/audio/lesson-hello-me-dialogue.ogg"]);
+    expect(await played(page)).toEqual(["/api/audio/hello-me/dialogue?v=bundled"]);
     expect(await spoken(page), "a working provider clip must not also invoke the device voice").toEqual([]);
     await lesson.screenshot({ path: testInfo.outputPath("bundled-provider-dialogue.png") });
   } finally {
@@ -192,7 +197,7 @@ test("when the bundled dialogue fails, the Bangla device voice speaks without th
     page.setDefaultTimeout(15000);
     await stubVoices(page, [{ lang: "en-US", name: "English (US)" }, { lang: "bn-IN", name: "Bangla (India)" }, { lang: "bn-BD", name: "Bangla (Bangladesh)" }]);
     let failedClips = 0;
-    await page.route("**/audio/lesson-hello-me-dialogue.ogg", async (route) => { failedClips += 1; await route.abort("failed"); });
+    await page.route((url) => bundledClipUrl(url.href, "hello-me", "dialogue"), async (route) => { failedClips += 1; await route.abort("failed"); });
     const lesson = await openListen(page);
     await lesson.getByRole("button", { name: /Play complete dialogue/ }).click();
     await expect(lesson.locator(".audio-source-note")).toContainText("Device voice");
@@ -200,7 +205,7 @@ test("when the bundled dialogue fails, the Bangla device voice speaks without th
     expect(await spoken(page)).toEqual([{ text: dialogue, voice: "bn-BD" }]);
     if (bundledExpectation("lesson-hello-me-dialogue").source === "provider") {
       expect(failedClips).toBeGreaterThan(0);
-      expect(await played(page)).toEqual(["/audio/lesson-hello-me-dialogue.ogg"]);
+      expect(await played(page)).toEqual(["/api/audio/hello-me/dialogue?v=bundled"]);
     } else {
       // With an eSpeak bundle, a matching device voice takes priority without fetching it.
       expect(failedClips).toBe(0);
@@ -237,7 +242,7 @@ test("a recording a teacher approves while a learner's page is open plays, label
     const expected = bundledExpectation("lesson-food-please-word-1");
     await expect(page.locator(".voice-note")).toHaveAttribute("data-voice-source", expected.source);
     await expect(page.locator(".voice-note")).toContainText(expected.label);
-    expect(await played(page)).toEqual(["/audio/lesson-food-please-word-1.ogg"]);
+    expect(await played(page)).toEqual(["/api/audio/food-please/word-1?v=bundled"]);
 
     await page.locator(".modal-close").click();
     const askedAgain = lessonRecordingsAsked(page, "food-please");
@@ -251,7 +256,7 @@ test("a recording a teacher approves while a learner's page is open plays, label
     await recording;
     await expect(page.locator(".voice-note")).toHaveAttribute("data-voice-source", "human");
     await expect(page.locator(".voice-note")).toContainText("Recorded voice");
-    expect(await played(page)).toEqual(["/audio/lesson-food-please-word-1.ogg", `/api/audio/food-please/word-1?v=${recordingId}`]);
+    expect(await played(page)).toEqual(["/api/audio/food-please/word-1?v=bundled", `/api/audio/food-please/word-1?v=${recordingId}`]);
     expect(await spoken(page)).toEqual([]);
   } finally {
     await context.close().catch(() => undefined);

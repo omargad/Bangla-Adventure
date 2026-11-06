@@ -68,11 +68,13 @@ export function deviceVoiceFor<V extends VoiceLike>(voices: readonly V[], lang: 
 
 const lessonAudioUrl = (clip: Clip) => `/api/audio/${encodeURIComponent(clip.lessonId!)}/${encodeURIComponent(clip.slot!)}`;
 /**
- * The bundled clip always comes straight from public/audio, so its label is
- * true: a recording only ever plays as the human step, asked for by id. Pages
- * learn of a recording approved after they loaded from lessonRecordingsUrl.
+ * The bundled clip, asked for as such, so its label is true: a recording only
+ * ever plays as the human step, asked for by id. A lesson part's clip comes
+ * through /api/audio (?v=bundled), which checks the lesson is approved; other
+ * clips come straight from public/audio. Pages learn of a recording approved
+ * after they loaded from lessonRecordingsUrl.
  */
-const bundledUrl = (clip: Clip) => `/audio/${clip.file}.ogg`;
+const bundledUrl = (clip: Clip) => (clip.lessonId && clip.slot ? `${lessonAudioUrl(clip)}?v=bundled` : `/audio/${clip.file}.ogg`);
 
 /** Where a learner page asks which parts of one lesson have an approved human recording now. */
 export const lessonRecordingsUrl = (lessonId: string) => `/api/audio/${encodeURIComponent(lessonId)}`;

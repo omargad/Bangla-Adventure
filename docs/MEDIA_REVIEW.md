@@ -73,8 +73,12 @@ stories pages) plays the best sound it has, in this order
 2. a **neural provider clip**, when `public/audio/voice-manifest.json` says the
    bundled clip was made by a neural provider (ElevenLabs, or Azure);
 3. the **device's own Bangla voice** (bn-BD first, then bn-IN);
-4. the **bundled eSpeak clip**, fetched straight from `public/audio` so the
-   "Computer voice" label is always true;
+4. the **bundled eSpeak clip**, asked for as the bundled clip so the
+   "Computer voice" label is always true. A lesson part's bundled clip (steps 2
+   and 4) comes through `/api/audio/<lesson>/<part>?v=bundled`, which checks the
+   lesson is approved like its recordings; the files themselves
+   (`/audio/lesson-*.ogg`) are not served. Other bundled clips come straight from
+   `public/audio`;
 5. nothing: the page shows "No Bangla voice on this device". Bangla text is
    never handed to a voice for another language.
 
@@ -264,7 +268,11 @@ provider credits. Revoking the key leaves saved clips playable but prevents new
 clips from being made. Keep `MEDIA_ROOT` on the persistent application volume.
 
 The default generation budget is 20,000 new Unicode characters per UTC day,
-configured with `ELEVENLABS_DAILY_CHARACTER_LIMIT`. Reservations are saved before
+configured with `ELEVENLABS_DAILY_CHARACTER_LIMIT`. Each account may use at most its own
+share of that each day, a quarter of it by default (5,000 characters), configured with
+`ELEVENLABS_ACCOUNT_DAILY_CHARACTER_LIMIT`, so one account cannot use up narration for
+everyone; after that the account hears saved audio only until the next UTC day. The
+daily usage file records accounts only as hashes. Reservations are saved before
 provider requests, including unsuccessful requests, to bound repeated failures.
 Concurrent requests for the same clip share one generation. Only two provider
 requests run at once; provider errors are sanitized before returning to users.

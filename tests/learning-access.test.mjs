@@ -62,3 +62,19 @@ test("the change form returns only to safe pages, never to itself or an API", ()
   assert.equal(passwordChangeReturnPath(undefined), "/");
   assert.equal(passwordChangeReturnPath("/family"), "/family");
 });
+
+test("bundled lesson clips are recognised however their address is spelled; other audio is not", async () => {
+  const { isBundledLessonClip } = await import("../lib/learning-policy.ts");
+  for (const path of ["/audio/lesson-hello-me-word-1.ogg", "/audio/%6Cesson-hello-me-word-1.ogg", "//audio//lesson-hello-me-dialogue.ogg", "/AUDIO/Lesson-hello-me-reading.ogg", "/audio/lesson-%zz"]) {
+    assert.equal(isBundledLessonClip(path), true, path);
+  }
+  for (const path of ["/audio/hello-bn.ogg", "/audio/story-1-bn.ogg", "/api/audio/hello-me/word-1", "/lesson-hello-me", "/audio/voice-manifest.json"]) {
+    assert.equal(isBundledLessonClip(path), false, path);
+  }
+});
+
+test("only the files in public/ are public files; dotted page and API paths are not", async () => {
+  const { isPublicFile } = await import("../lib/public-assets.ts");
+  for (const path of ["/audio/hello-bn.ogg", "/river-story.webp", "/robots.txt", "/audio/voice-manifest.json", "/audio/lesson-hello-me-word-1.ogg"]) assert.equal(isPublicFile(path), true, path);
+  for (const path of ["/api/profiles/x.json", "/learn.json", "/teach/notes.txt", "/hero-quest-map.png", "/audio", "/audio/", "/audio/../robots.txt", "/%zz.png"]) assert.equal(isPublicFile(path), false, path);
+});

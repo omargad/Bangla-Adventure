@@ -315,3 +315,27 @@ test("a stored record that is not an object (a hand-edited null, say) is left ou
     db.delete(knowledgeSources).where(eq(knowledgeSources.id, "geography-9-10")).run();
   }
 });
+
+test("each catalogue change re-reads the administrator inside its transaction", async () => {
+  const before = db.select().from(knowledgeSources).all().length;
+  const auditsBefore = db.select().from(userAuditEvents).all().length;
+  const source = { titleEn: "Re-check reader", titleBn: "পুনঃযাচাই পাঠ", classes: { en: "Class 7", bn: "৭ম শ্রেণি" }, downloadUrl: "https://nctb.gov.bd/re-check" };
+  const refused = (error) => error.status === 403 && error.message === "Administrator access required." && Boolean(error.messageBn);
+  const changes = [
+    () => catalog.updateLibrarySource(admin, "arts-crafts", { hidden: true }),
+    () => catalog.addLibrarySource(admin, source),
+    () => catalog.resetLibrarySource(admin, "bgs-primary"),
+  ];
+  // The session check passed earlier; since then the account was demoted, suspended or given a temporary password.
+  for (const change of [{ role: "teacher", teacherStatus: "approved" }, { status: "suspended" }, { mustChangePassword: true }, { approvalStatus: "pending" }]) {
+    db.update(adults).set(change).where(eq(adults.id, "admin")).run();
+    try {
+      for (const attempt of changes) await assert.rejects(attempt(), refused, JSON.stringify(change));
+    } finally {
+      db.update(adults).set({ role: "admin", teacherStatus: "none", status: "active", mustChangePassword: false, approvalStatus: "approved" }).where(eq(adults.id, "admin")).run();
+    }
+  }
+  await assert.rejects(catalog.updateLibrarySource({ ...admin, id: "teacher" }, "arts-crafts", { hidden: true }), refused, "a teacher passed off as an administrator");
+  assert.equal(db.select().from(knowledgeSources).all().length, before, "nothing was stored");
+  assert.equal(db.select().from(userAuditEvents).all().length, auditsBefore, "nothing was audited");
+});

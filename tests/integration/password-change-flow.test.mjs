@@ -55,13 +55,15 @@ async function expectHeldAtForm(cookie) {
     ["/api/topics", "GET"], ["/api/topics", "POST", {}], ["/api/topics/pohela-boishakh", "GET"], ["/api/studio/lessons", "GET"],
     ["/api/studio/lessons/hello-me", "POST", { decision: "withdraw" }], ["/api/studio/media", "GET"], ["/api/classes/x/sources", "GET"],
     ["/api/classes/x/topic-progress", "GET"], ["/api/family/sources", "GET"], ["/api/library", "PUT", { id: "bgs-primary", data: {} }],
+    // A dot in an API path does not make it a file that skips the gate.
+    ["/api/profiles/x.json", "GET"], ["/api/audio/hello-me.json", "GET"],
   ]) {
     const response = await send(route, method, body, cookie);
     assert.equal(response.status, 403, `${method} ${route}`);
     const payload = await response.json();
     assert.equal(payload.mustChangePassword, true, `${method} ${route}`);
   }
-  for (const page of ["/teach", "/admin", "/admin/classes", "/admin/sources", "/family", "/account", "/studio", "/teach/topics", "/learn", "/topics", "/references", "/", "/teach?class=1"]) {
+  for (const page of ["/teach", "/admin", "/admin/classes", "/admin/sources", "/family", "/account", "/studio", "/teach/topics", "/learn", "/topics", "/references", "/", "/teach?class=1", "/teach/notes.txt"]) {
     const response = await send(page, "GET", undefined, cookie);
     assert.equal(response.status, 307, page);
     const location = new URL(response.headers.get("location"), BASE);
@@ -201,7 +203,7 @@ test("an administrator-created student must choose a password before learning", 
   assert.equal((await send("/api/student/feed", "GET", undefined, cookie)).status, 200);
   assert.equal((await send("/api/library", "GET", undefined, cookie)).status, 200);
   assert.equal((await send("/api/audio/hello-me", "GET", undefined, cookie)).status, 200);
-  assert.equal((await send("/api/audio/hello-me/word-1", "GET", undefined, cookie)).status, 307);
+  assert.equal((await send("/api/audio/hello-me/word-1", "GET", undefined, cookie)).status, 200, "the bundled clip, streamed by the route");
 });
 
 test("an administrator resets a forgotten student password: sessions end and the new one must be replaced", async () => {
