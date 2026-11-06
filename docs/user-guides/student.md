@@ -243,6 +243,10 @@ Either way, **Topics read** goes up by one.
 - **Try again** lets you do the quiz again. **Pick another topic** takes you back to the list.
 - From then on, the quiz shows *"Your best so far:"* with your best score. On My Learning,
   the topic card shows **quiz best** and your best score.
+- Only your first 3 tries at a topic's quiz each day can change your saved best score. After
+  that the quiz is still marked, so you can keep practising, but it says *"This try was practice,
+  so its score was not saved: only the first 3 tries at a quiz each day count. Your teacher sees
+  your best saved score. Try again tomorrow to improve it."*
 
 ## Class activities
 
@@ -286,8 +290,13 @@ your classes.
 **What you'll see:** your score, for example *"You got 3 out of 3."*, and *"Your teacher can now
 see your saved result."* Select **Back to activities** to return to the list.
 
-**Doing an activity again:** until your teacher closes the activity, you can select its card
-again and submit new answers. Your newest result replaces the earlier one.
+After you submit, the page also lists your answers, for example *"Your answer: Poush · Correct
+answer: Boishakh"* or *"Right: Halkhata"*.
+
+**Each activity is handed in once.** The card then shows **Submitted** with your result. If you
+open it again you see *"You handed this in on … Your first answers are kept, and your teacher can
+see your result."* The page says *"Each activity is handed in once. Ask your teacher if you need
+another try."* Only your teacher can let you try again.
 
 The **Listen to instructions** and **Listen to question** buttons are for hearing the text read
 aloud. See [Troubleshooting](#troubleshooting) if they show a message instead.
@@ -357,10 +366,9 @@ At the bottom of My Learning, select **More language activities**. This opens a 
 ### The Bangla lessons
 
 1. On the **More language activities** page, select **Guided language practice** (the button
-   near the top).
-2. The lessons page opens. On a computer, it may scroll down to the very bottom of the page
-   by itself. Select **Lessons** in the bar at the top of the page to jump to
-   **Your complete Bangla learning path**. (On a phone, scroll down to it.)
+   near the top), or the **The 18 lessons** card.
+2. The lessons page opens at the top. Select **Lessons** in the bar at the top of the page to
+   jump to **Your complete Bangla learning path**. (On a phone, scroll down to it.)
 3. **Pre-A1** is chosen at first. Choose **All levels** to see every open lesson, or choose
    another level.
 4. On a lesson, select **Open six-session lesson →**.
@@ -382,10 +390,8 @@ At the bottom of My Learning, select **More language activities**. This opens a 
   is never uploaded and disappears when you close or delete it."*
 - In **Watch**, if there is no approved video you will see *"This lesson's video is
   unavailable. Talk through the three prompts below with a grown-up instead."*
-- To go back to My Learning from the lessons page, select **Student** at the top of the page.
-
-The lessons page has a yellow **Sign in** button at the top. That button is for grown-ups.
-Students are already signed in, so you do not need it.
+- To go back to My Learning from the lessons page, select **My Learning** at the top of the page.
+  The **My classroom** card on the lessons page opens your class activities.
 
 ### Other learning pages
 
@@ -396,18 +402,18 @@ in.
 | --- | --- |
 | **Classroom topics** | The same approved topics as **Learning topics**. |
 | **NCTB textbook library** | The government textbooks behind the topics, with links. |
-| **My classroom** | Opens My Learning. The card mentions a class code, but you do not need one: your teacher adds you to classes. |
+| **My classroom** | Opens your class activities on My Learning. You do not need a class code: your teacher adds you to classes. |
 | **Poetry corner** | Well-known Bangla poems, exactly as the poets wrote them. |
 | **Explore Bangladesh** | Quick facts, a history timeline, landmarks, festivals, food and music of Bangladesh. |
 | **Story time** | Folk tales and stories, page by page in Bangla and English. |
 | **Days & seasons** | The days of the week, the twelve Bengali months and the six seasons. |
 | **More ways to learn** | Outside courses and tools. This page is **for grown-ups** to review first. |
-| **The 18 lessons** | Use the **Guided language practice** button instead: at the moment this card opens My Learning. |
+| **The 18 lessons** | The Bangla lessons page, the same as the **Guided language practice** button. |
 | **Bornomala — the alphabet** | All the Bangla letters. Tap a letter to hear it with its word. |
 | **First phrases** | Everyday Bangla phrases for home and play. |
 | **Numbers & counting** | Numbers one to one hundred, and a counting game. |
 | **How Bangla works** | A friendly look-it-up guide to Bangla grammar. |
-| **Word practice** | The lesson words, coming back for practice. The page says your practice is *"saved only on this device"*. |
+| **Word practice** | The lesson words, coming back for practice. The page says this word practice is *"kept on this device only"*, while the topics you read, your topic quiz scores and your class activity results are saved to your account. |
 | **Printable worksheets** | A practice sheet to print for each available lesson. |
 | **Make a certificate** | A printable certificate to celebrate a milestone. |
 
@@ -503,7 +509,10 @@ page.
 | *"That username and password do not match."* | The username or password is wrong. | Check the spelling. Capitals matter in the password. If you still cannot sign in, ask your teacher or grown-up to ask the Administrator for a new password. |
 | *"Your account is waiting for an administrator to approve it. You can sign in once it is approved."* | You created your own account and it has not been approved yet. | Wait, and ask your teacher or grown-up to tell the school's Administrator. |
 | *"An administrator has not approved this account. Ask your teacher or a grown-up for help."* | The Administrator declined the account. | Ask your teacher or grown-up to contact the school's Administrator. |
-| *"Too many attempts. Please wait a moment and try again."* | The wrong password was typed many times. | Wait up to 15 minutes before trying again. Do not keep guessing. Ask for a new password if you have forgotten it. |
+| *"Too many attempts. Please wait 15 minutes and try again."* (the time can differ) | The wrong password was typed many times, or something was tried many times in a row. | Wait for the time it says before trying again. Do not keep guessing. Ask for a new password if you have forgotten it. |
+| *"This account is suspended. Ask a grown-up to contact the administrator."* | The school's Administrator has paused your account. Your password was right. | Ask your teacher or grown-up to contact the Administrator. |
+| *"This try was practice, so its score was not saved …"* after a topic quiz | You have already had 3 saved tries at this quiz today. | Keep practising if you like. Try again tomorrow to raise your saved score. |
+| *"You have already handed in this activity, so your first answers are kept. Ask your teacher if you need another try."* | Each activity is handed in once. | Ask your teacher if you need another try. |
 | The **Choose your own password** page keeps coming back. | You are still using a temporary password. | Fill in the form and select **Save my new password**. |
 | *"Your current password is incorrect."* | On the password form, the temporary or current password was typed wrongly. | Type it again carefully. |
 | *"The two new passwords do not match."* | The two new password boxes are different. | Type the same new password in both boxes. |
@@ -516,7 +525,6 @@ page.
 | The activity card says **Closed**. | Your teacher has closed the activity. | Ask your teacher if you still need to do it. |
 | *"No topics have been approved yet."*, or no topic cards under **Choose a topic** | The Administrator has not approved any topics yet. | Ask your teacher or the Administrator. |
 | *"Please select one of these options."* when you select **Submit answers** | A question in the activity has no answer yet. | Choose an answer for that question, then select **Submit answers** again. |
-| The lessons page opens at the very bottom, not at the lessons. | A known problem when you open it from **Guided language practice** on a computer. | Select **Lessons** in the bar at the top of the page. |
 | *"No lessons are open at this level right now. Try another level."* | No approved lesson at that level. | Choose **All levels** or another level. |
 | *"New narration is not configured. Saved audio is still available."* after a **Listen** button | The read-aloud voice is not switched on for your school's site. | Read the text with a grown-up, and tell the Administrator. |
 | *"This lesson's video is unavailable. Talk through the three prompts below with a grown-up instead."* | The lesson has no approved video. | Use the three prompts with a grown-up. |

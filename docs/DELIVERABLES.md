@@ -172,20 +172,21 @@ backup storage and recovery keys.
 
 ### Known issues recorded in the user guides
 
-The user guides describe the application as it behaves at commit `c4cb7ae` on `main`. They
-note these user-visible issues:
+The user guides were written against commit `c4cb7ae` and have been updated for the
+access-control and guide fixes made since. The issues they first recorded are fixed: the
+**The 18 lessons** card opens the lessons, attendance saves and who made each change appear in
+**Recent changes**, the gradebook counts only published activities, the teacher-request page
+warns that approval ends a parent's view of linked children, and a suspended account is told it
+is suspended (once the right password is entered). Behaviour that changed and that the guides
+now describe:
 
-- The **The 18 lessons** card on the **More language activities** page opens My Learning
-  instead of the lessons; the **Guided language practice** button opens them
-  ([Student guide](user-guides/student.md#other-learning-pages)).
-- Attendance saves and corrections do not appear in **Recent changes**; only the sheet's
-  "Last saved by" line is kept. Recent changes also does not show who made each change
-  ([Administrator guide](user-guides/administrator.md#recent-changes-the-record-of-actions)).
-  The README's Features table says every change to results and attendance is audited.
-- An activity still waiting for approval gets a gradebook column and counts in each
-  student's **Done** total ([Teacher guide](user-guides/teacher.md#reading-results-the-gradebook)).
-- When an Administrator approves a parent's teacher request, the account becomes a teacher
-  account and its linked children no longer show
-  ([Parent guide](user-guides/parent.md#if-you-also-teach-at-the-school)).
-- A suspended account is told *"That email and password do not match."*, the same as a
-  wrong password ([Administrator guide](user-guides/administrator.md#troubleshooting)).
+- a class activity is handed in once; the teacher can reset a submission
+  ([Student guide](user-guides/student.md#class-activities));
+- only the first 3 tries at a topic quiz each day can raise the saved best score
+  ([Student guide](user-guides/student.md#do-the-topic-quiz));
+- a parent is told when a linked child's account is not active
+  ([Parent guide](user-guides/parent.md#reading-results-and-attendance));
+- 429 messages say how long to wait.
+
+Screenshots taken before these changes that still show old text: the parent results panel had its
+status badge removed by hand; the others do not show the changed text.

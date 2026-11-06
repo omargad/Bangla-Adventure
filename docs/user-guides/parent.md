@@ -157,6 +157,10 @@ Every other page sends you back to this page until you have chosen your own pass
 
 To sign out on every device at once, see [Sign out everywhere](#sign-out-everywhere).
 
+On a family computer, your child can sign in to their own student account from the learning
+pages: the Bangla lessons page keeps its **Student login** button at the top while you are
+signed in. Signing in as the student signs your grown-up account out on that browser.
+
 ### If you forget your password
 
 You need your email address and one unused recovery code.
@@ -232,6 +236,10 @@ Select **My children** in the menu.
 - **Announcements** from your children's teachers (see
   [Reading announcements](#reading-announcements)).
 - One panel for each child, with their classes, activities and results.
+- If a linked child's student account is suspended or not yet approved, that child has no
+  panel and is not counted. Instead a box says *"A linked child's account is not active"* and
+  *"An account that is suspended or not yet approved is not shown here, and its records come
+  back when it is active again. Please contact the administrator."*
 - At the bottom: *"Updates automatically every 30 seconds while this page is visible. Only
   linked children are shown."*
 
@@ -245,7 +253,6 @@ Scroll down to your child's panel.
 
 - Your child's name, then **Student:** with their username, and how many classes they are
   enrolled in (for example **Enrolled in 1 class**).
-- A status badge, such as **Active**.
 - **Average result**: the average score of the activities your child has submitted. It says
   **Not graded yet** until they submit one.
 - **Activities submitted**, for example **1 / 2**, with a bar.
@@ -328,7 +335,7 @@ on **My children**.
 Select **Account & recovery** in the menu. The page is headed **Your data, in your hands.**
 and shows **Signed in as** with your name and email.
 
-![The Account & recovery page with Change password, Your family's data, Sessions and Recovery codes](images/parent/10-account-page.jpg)
+![The Account & recovery page with Change password, Your data, Sessions and Recovery codes](images/parent/10-account-page.jpg)
 
 ### Change your password
 
@@ -352,10 +359,11 @@ Every older code stops working.
 
 ### Download your account's data
 
-Under **Your family’s data**, select **Download data export (JSON)**. Your browser saves a file
-called `bangla-adventures-export.json`. It holds what is stored for your own account, such as
-your name and email. It does not contain your children's class results; those stay with the
-school.
+Under **Your data**, select **Download data export (JSON)**. Your browser saves a file
+called `bangla-adventures-export.json`. It holds what is stored for your own account: your name
+and email, the names of the children an administrator linked to you, any home learner profiles
+with their progress, and a history of the changes made to your account. It does not contain your
+children's class results or attendance; those stay with the school.
 
 ### Sign out everywhere
 
@@ -468,9 +476,11 @@ choice on this device, including the next time you sign in.
 | --- | --- | --- |
 | *"Your account is waiting for an administrator to approve it. You can sign in once it is approved."* | Your account is new. | Ask the school's Administrator to approve it, then sign in again. |
 | *"An administrator has not approved this account. Please contact your administrator."* | The Administrator declined the account. | Contact them. They can approve it later. |
-| *"That email and password do not match."* | The email or password is wrong. This message also appears if your account has been suspended or deleted. | Check the email address for typing mistakes, and check Caps Lock. If you forgot your password, use a recovery code. If you are sure your details are right, contact the Administrator. |
-| *"Too many attempts. Please wait a moment and try again."* when signing in | Too many wrong passwords in a row. | Wait up to 15 minutes, then try again with the right password, or use a recovery code. |
-| *"Too many attempts. Please wait a moment and try again."* when creating an account | Several accounts were created from the same internet connection in the last hour, for example on the school Wi-Fi. | Try again in an hour, or from a different connection (such as home or mobile data). Or ask the Administrator to create the account for you. |
+| *"That email and password do not match."* | The email or password is wrong, or the account has been deleted. | Check the email address for typing mistakes, and check Caps Lock. If you forgot your password, use a recovery code. If you are sure your details are right, contact the Administrator. |
+| *"This account is suspended. Please contact the administrator."* | Your password was right, but the Administrator has suspended the account. | Contact the Administrator. |
+| *"Too many attempts. Please wait 15 minutes and try again."* when signing in or using a recovery code (the time can differ) | Too many wrong passwords or recovery codes in a row. | Wait for the time it says, then try again with the right password, or use a recovery code. |
+| *"Too many attempts. Please wait 59 minutes and try again."* (or another time) when creating an account | Many accounts (30 in an hour) were created from the same internet connection, for example on the school Wi-Fi. | Try again after the time it says, or from a different connection (such as home or mobile data). Or ask the Administrator to create the account for you. |
+| A child you expect is missing from **My children**, with *"A linked child's account is not active"* | That child's student account is suspended or waiting for approval. | Contact the Administrator. |
 | *"An account with this email already exists. Sign in instead."* | You already have an account. | Use **Sign in**, or **Forgot your password? Use a recovery code**. |
 | *"That email and recovery code do not match, or the code was already used."* | The email or the code is wrong, or the code was used before. Each code works once. | Check the email and the code. Try another unused code, or ask the Administrator to reset your password. |
 | *"The two new passwords do not match."* | When choosing your own password, the two new password boxes are different. | Type exactly the same new password in both boxes. |

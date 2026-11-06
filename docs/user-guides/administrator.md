@@ -540,9 +540,10 @@ with an **Open** button to look at that day.
 
 ![The attendance sheet for one class date, with one student unticked](images/admin/08-attendance.jpg)
 
-Please note: attendance corrections are **not** listed under **Recent changes**. The sheet
-shows only who saved that date last and when. If a correction matters, keep your own note
-of what you changed and why.
+Each save, including a correction, is listed under **Recent changes** as "Attendance saved",
+with the class and who saved it. The entry does not say which students changed: the sheet
+shows only the latest marks. If a correction matters, keep your own note of what you changed
+and why.
 
 ## Approving content before students see it
 
@@ -614,8 +615,16 @@ topic once more."*
 6. Select **Approve revision for students** (for a lesson that was approved before and
    withdrawn, the button says **Approve for students**).
 
-**What you'll see:** *"Approved. Students can open this lesson again."* The
-**Approval history** records your name and the date.
+**What you'll see:** a message that depends on what students could open before:
+
+- a lesson approved for the first time: *"Approved. Students can now open this lesson."*;
+- a lesson approved before and withdrawn: *"Approved. Students can open this lesson again."*;
+- a new revision of a lesson students already see: *"Approved. Students now see revision 2 of
+  this lesson."* (with its revision number);
+- a review of a lesson students already see: *"Review recorded. Students keep seeing this
+  lesson, now approved under your name."*
+
+The **Approval history** records your name and the date.
 
 ![The Your decision box for a lesson, showing 7 of 7 parts opened and the review tick box](images/admin/10-lesson-decision.jpg)
 
@@ -719,10 +728,13 @@ most recent actions. Each entry says what happened (for example "Parent linked",
 "Added to a class", "Quiz answers reset", "Textbook hidden", "Topic withdrawn from students"
 or "Class deleted"), which account or item it was about, and when.
 
-The list does not show who made each change, and attendance corrections are not included.
-A deleted class is shown by a short code (for example "Class · 686f7740") instead of its
-name, and a few entries about recordings have no capital letter, such as
-"lesson audio approved". Older actions drop off the list as new ones are added.
+Each entry also says who made the change: **By:** with the account's name, **By: Server
+operator** for a command run on the server, or **By: Deleted account** for an account deleted
+since. A deleted class or account is still named, with the name it had when the change was
+made. Class events include classes created, activities added, reviewed, opened and closed,
+announcements posted and attendance saved; account events include passwords recovered,
+recovery codes replaced, signing out everywhere and accounts deleted. Older actions drop off
+the list as new ones are added.
 
 ## Other pages in your menu
 
@@ -805,7 +817,9 @@ Your actions on the **Users** page show *"The action has been recorded."* and ap
 | --- | --- | --- |
 | *"Your account is waiting for an administrator to approve it. You can sign in once it is approved."* | The person created their own account and is in your **Waiting for approval** box. | Approve them on the **Users** page. |
 | *"An administrator has not approved this account. Please contact your administrator."* | The account was declined. | If that was a mistake, filter the accounts list by **Declined** and select **Approve** (for a teacher request, **Approve as teacher**). |
-| *"That email and password do not match."* | The email or password is wrong. The same message appears for a suspended account. | Check for typing mistakes and try again. If the details are right, check whether the person's row says **Suspended** and select **Reactivate** if they should have access again. For a forgotten password, see [Resetting a password](#resetting-a-password). |
+| *"That email and password do not match."* | The email or password is wrong, or the account was deleted. | Check for typing mistakes and try again. For a forgotten password, see [Resetting a password](#resetting-a-password). |
+| *"This account is suspended. Please contact the administrator."* (a student sees *"This account is suspended. Ask a grown-up to contact the administrator."*) | The password was right, but the account is suspended. | If they should have access again, find their row (it says **Suspended**) and select **Reactivate**. |
+| *"Too many attempts. Please wait 15 minutes and try again."* (the time can differ) | Too many wrong passwords or recovery codes, or many sign-ups from one connection (30 an hour). | Wait for the time it says, or create the accounts yourself. |
 | *"This account does not have administrator access. Sign in with your administrator account."* | You used the Administrator sign-in page with a parent or teacher account. | Sign in with your Administrator account. |
 | A page says **Administrator access required** | You are signed in with an account that is not an Administrator, for example a teacher account. | Select **Sign in as administrator** and use your Administrator account. |
 | *"There are no approved teachers yet. Approve a teacher account in Users first."* | You can only make a class for an approved teacher. | Approve their teacher request on the **Users** page, or create their account with **Approved teacher**. |

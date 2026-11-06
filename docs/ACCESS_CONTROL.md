@@ -24,8 +24,11 @@ Roles and states are read from the database on every request. A suspension, a ro
 decline therefore takes effect on the next request, and those changes also delete the account's
 existing sessions (`lib/user-management.ts:144,179`).
 
-This document describes the code at commit `c4cb7aec031e3d1104709a5ae154e449c94c5ab5`. Evidence is
-given as `file:line`.
+This document was first written against commit `c4cb7aec031e3d1104709a5ae154e449c94c5ab5` and has since
+been brought up to date with the access-control fixes made after it (the review of `2add1fa` and the
+fixes that followed it). The tables describe the behaviour now; each gap in [Known gaps](#known-gaps)
+says whether it is fixed, partly fixed, open or a product decision. Evidence is given as `file:line`;
+the line numbers were taken at `c4cb7ae` and can be a few lines off in files changed since.
 
 **Contents:** [Roles and account states](#roles-and-account-states) ·
 [RBAC table](#role-based-access-control-rbac-table) · [Page access](#page-access) ·
@@ -69,7 +72,7 @@ document they are in the **Parent** column (with home page `/teach` while the re
 | --- | --- | --- |
 | **Pending approval** (`approvalStatus` pending) | Self-registered adults and students | No session can be created or used (`lib/auth.ts:155-156`, `lib/student-auth.ts:76-77`, `lib/learning-session.ts:21-28`). Sign-in with the right password answers 403 with an approval notice; with a wrong password, the usual 401. Listed in the administrator's approval queue. |
 | **Declined** (`approvalStatus` declined) | Adults and students | Same as pending: no session, 403 notice after the correct password. An administrator can approve the account later. A declined teacher applicant is approved as a teacher (`lib/user-management.ts:159-167`). |
-| **Suspended** (`status` suspended) | Adults and students | No session. Sign-in answers the same 401 as a wrong password, so the state is not revealed. Suspending deletes live sessions (`lib/user-management.ts:179`). Must be reactivated before it can be approved or declined (409). |
+| **Suspended** (`status` suspended) | Adults and students | No session. With the **correct** password, sign-in answers 403 "This account is suspended. Please contact the administrator." (students: "This account is suspended. Ask a grown-up to contact the administrator.", in informal Bangla); a wrong password still gets the usual 401, so only someone who knows the password learns the state (`lib/auth.ts` `ACCOUNT_SUSPENDED`, `lib/student-auth.ts` `STUDENT_ACCOUNT_SUSPENDED`). Suspending deletes live sessions (`lib/user-management.ts:179`). Must be reactivated before it can be approved or declined (409). A linked parent no longer sees the child's records, and is told that a linked child's account is not active. |
 | **Teacher request pending** (`teacherStatus` pending, role parent) | Parents | Parent access only. `/teach` shows "Your teacher request is with us" (`app/teach/page.tsx:10`); every class and studio API answers 403 "An approved teacher account is required." (`lib/auth.ts:101-104`, `app/api/classes/route.ts:15`). |
 | **Teacher request rejected** (`teacherStatus` rejected, role parent) | Parents | Parent access only. `/teach` says the earlier request was not approved and offers to ask again, at most 3 times per 24 hours (`app/api/auth/teacher-request/route.ts:12-13`). |
 | **Temporary password must be changed** (`mustChangePassword`) | Accounts created or reset by an administrator (adults and students), or created by an import | **Adults:** the proxy lets them reach only `/account/password`, `/api/account/password`, public paths and static files. Other APIs answer 403 `{error:"Choose your own password before you continue.", mustChangePassword:true}`, other pages redirect to `/account/password?returnTo=…` (`proxy.ts:53-56`). Cleared by changing the password or by recovery. **Students:** every student data API answers the same 403 (`lib/student-auth.ts:114-119`) and learner pages redirect to `/student/password` (`lib/student-auth.ts:122-124`). |
@@ -97,9 +100,10 @@ adult with a temporary password can only change it (and use public pages) until 
 | Hear approved recordings of a lesson (`/api/audio/…`) | ❌ | approved lessons | approved lessons | any lesson | any lesson |
 | Print worksheets (`/worksheets`) | ❌ | approved lessons | approved lessons | every lesson's newest draft | every lesson's newest draft |
 | Print a certificate (`/certificate`) | ❌ | ✅ | ✅ | ✅ | ✅ |
-| Record own topic reading and topic-quiz results | ❌ | own record | ❌ | ❌ | ❌ |
+| Record own topic reading and topic-quiz results (the day's first 3 tries at a quiz can raise the saved best score) | ❌ | own record | ❌ | ❌ | ❌ |
+| Have a topic quiz marked without saving it (`POST /api/curriculum/quiz`) | ❌ | ❌ | ✅ | ✅ | ✅ |
 | Hear generated narration of an approved topic | ❌ | ✅ | ✅ | ✅ | ✅ |
-| Hear generated narration of a class activity | ❌ | own classes, approved and open | linked children's classes, approved and open | own classes, any state | all |
+| Hear generated narration of a class activity | ❌ | own classes, approved and open | linked children's classes, approved and open | own classes, any state (not approved or not open: saved audio only) | all (same) |
 | Keep home learner profiles, progress and lesson assignments (`/family` "Home learners") | ❌ | ❌ | view own only (read-only) | own | own |
 
 ### Classes
@@ -118,7 +122,7 @@ adult with a temporary password can only change it (and use public pages) until 
 | Import students by CSV (creates student accounts with temporary passwords) | ❌ | ❌ | ❌ | own classes | all |
 | Create, open, close or remove an activity | ❌ | ❌ | ❌ | own classes (new activities wait for approval) | all (approved at once) |
 | Approve or reject a class activity | ❌ | ❌ | ❌ | ❌ | ✅ |
-| Submit answers to an activity | ❌ | own classes, approved and open | ❌ | ❌ | ❌ |
+| Submit answers to an activity (once; the teacher can reset it) | ❌ | own classes, approved and open | ❌ | ❌ | ❌ |
 
 ### Results and attendance
 
@@ -185,7 +189,7 @@ adult with a temporary password can only change it (and use public pages) until 
 | Replace own recovery codes | ❌ | ❌ | ✅ | ✅ | ✅ |
 | Sign out on every device | ❌ | ❌ | ✅ | ✅ | ✅ |
 | Download own data (JSON export) | ❌ | ❌ | ✅ | ✅ | ✅ |
-| Delete own account | ❌ | ❌ | ✅ | ✅ (also deletes the classes they teach; see [Known gaps](#known-gaps)) | ❌ (another administrator must change the role first) |
+| Delete own account | ❌ | ❌ | ✅ | ✅ once they teach no class (409 "You still teach classes…" until an administrator moves them) | ❌ (another administrator must change the role first) |
 
 ## Page access
 
@@ -202,7 +206,7 @@ learner pages to `/student/password` (`app/components/LearningLayout.tsx:10`,
 | `/` | → `/welcome` | → `/student` | → `/family` (→ `/teach` while a teacher request is pending) | → `/teach` | → `/admin` | `proxy.ts:61-63`; `app/page.tsx:7-15` |
 | `/welcome`, `/safety` | ✅ | ✅ | ✅ | ✅ | ✅ | `lib/learning-policy.ts:4` |
 | `/grown-ups` | ✅ sign-in form | ✅ adult sign-in form | → `returnTo` or home | → `returnTo` or home | → `returnTo` or home | `app/grown-ups/page.tsx:16-28` |
-| `/student` | ✅ sign-in form | ✅ portal (→ `returnTo` if given) | ✅ student sign-in form | ✅ student sign-in form | ✅ student sign-in form | `app/student/page.tsx:25-32` |
+| `/student` | ✅ sign-in form | ✅ portal (→ `returnTo` if given) | ✅ student sign-in form | ✅ student sign-in form | ✅ student sign-in form | `app/student/page.tsx:25-32`; an adult with a temporary password → `/account/password?returnTo=…` |
 | `/student/password` | → `/welcome?returnTo=…` | ✅ own | → `/student?returnTo=…` | → `/student?returnTo=…` | → `/student?returnTo=…` | `app/student/password/page.tsx:13-17` |
 | `/classroom` (retired) | → `/student` | → `/student` | → `/student` | → `/student` | → `/student` | `proxy.ts:48` |
 | `/account` | → `/grown-ups?returnTo=…` | → `/grown-ups?returnTo=…` | ✅ own | ✅ own | ✅ own | `app/account/page.tsx:13`; `lib/auth.ts:77-84` |
@@ -211,7 +215,7 @@ learner pages to `/student/password` (`app/components/LearningLayout.tsx:10`,
 | `/teach` | → `/grown-ups?returnTo=…` | → `/grown-ups?returnTo=…` | 200 "Request teacher access" screen (or request status) | ✅ "My classes" | ✅ "All classes" | `app/teach/page.tsx:9-11` |
 | `/teach/topics`, `/studio` | → `/grown-ups?returnTo=…` | → `/grown-ups?returnTo=…` | → `/teach` | ✅ (cannot approve) | ✅ (can approve) | `app/teach/topics/page.tsx:10-11`; `app/studio/page.tsx:10-11`; `lib/auth.ts:86-90` |
 | `/admin` | → `/grown-ups?returnTo=…` | → `/grown-ups?returnTo=…` | 200 "Administrator access required" panel | 200 same panel | ✅ users and approvals | `app/admin/page.tsx:10-12` |
-| `/admin/classes` | → `/grown-ups?returnTo=…` | → `/grown-ups?returnTo=…` | → `/family` | → `/family` | ✅ | `app/admin/classes/page.tsx:7-8` |
+| `/admin/classes` | → `/grown-ups?returnTo=…` | → `/grown-ups?returnTo=…` | → `/family` (or `/teach`) | → `/teach` | ✅ (lists classes that need a new teacher) | `app/admin/classes/page.tsx:7-8` |
 | `/admin/results`, `/admin/sources` | → `/grown-ups?returnTo=…` | → `/grown-ups?returnTo=…` | → `/family` (or `/teach`) | → `/teach` | ✅ | `app/admin/results/page.tsx:8-9`; `app/admin/sources/page.tsx:10-11` |
 | `/admin/curriculum` (retired) | → `/grown-ups?returnTo=…` | → `/grown-ups?returnTo=%2Fteach%2Ftopics` | → `/teach` | → `/teach/topics` | → `/teach/topics` | `app/admin/curriculum/page.tsx:6-7` |
 | `/topics`, `/learn`, `/library`, `/references`, `/books`, `/resources`, `/alphabet`, `/calendar`, `/explore`, `/grammar`, `/numbers`, `/phrasebook`, `/poems`, `/stories` | → `/welcome?returnTo=…` | ✅ | ✅ | ✅ | ✅ | `app/components/LearningLayout.tsx:6-12` and each page's `layout.tsx` |
@@ -224,10 +228,14 @@ Notes:
 - `/references` adds the class sources of the student's own classes only for a student with no adult
   session and no temporary password (`app/references/page.tsx:15`).
 - `/grown-ups` keeps a signed-in adult on the form with `?switchAccount=1`, or when `returnTo` is an
-  `/admin` path and the adult is not an administrator. An adult with a temporary password is sent to
-  the password form only when the page would otherwise redirect (`app/grown-ups/page.tsx:23-25`).
-- `/student` looks only at the student session, so an adult with a temporary password sees the
-  student sign-in form there (observed in the probe; `app/student/page.tsx:27-30`).
+  `/admin` path and the adult is not an administrator. An adult with a temporary password is always
+  sent to the password form (`app/grown-ups/page.tsx`). Its heading is "Grown-up sign in" for every
+  adult.
+- `/student` sends an adult with a temporary password to the password form; otherwise it shows the
+  student sign-in form to adults (`app/student/page.tsx`).
+- On `/adventure`, a signed-in student sees a **My Learning** link; a signed-in grown-up sees their own
+  home link and still the **Student login** link, so a child can sign in on a shared family device
+  (signing in as the student ends the adult session in that browser).
 - When a browser holds both cookies, pages and the proxy prefer the adult session
   (`lib/learning-session.ts:20-29`, `app/components/LearningLayout.tsx:7-11`); `/student` and
   `/student/password` still use the student session.
@@ -243,8 +251,9 @@ table and are not repeated in it:
 
 | Code | Status and body | When |
 | --- | --- | --- |
-| `ORIGIN403` | 403 `{error}`: "Cross-site requests are not allowed." / "The request origin could not be verified." / "Send JSON or a same-origin upload." | Any POST, PUT, PATCH or DELETE (and GET on a `/sign-out` path) from another site, before anything else (`proxy.ts:36-37`). |
-| `JSON400` | 400 `{error:"Send a valid JSON object with the required fields."}` | A POST, PUT, PATCH or DELETE whose `Content-Type` starts with `application/json` and whose body is not a JSON object, before sign-in is checked (`proxy.ts:39-46`). Not on `/api/narration`. |
+| `ORIGIN403` | 403 `{error, errorBn}`: "Cross-site requests are not allowed." / "The request origin could not be verified." / "Send JSON or a same-origin upload." | Any POST, PUT, PATCH or DELETE (and GET on a `/sign-out` path) from another site, before anything else (`proxy.ts:36-37`). A sent `Origin` must match an expected address even when `Sec-Fetch-Site` says same-origin. |
+| `JSON400` | 400 `{error:"Send a valid JSON object with the required fields.", errorBn}` | A POST, PUT, PATCH or DELETE whose `Content-Type` is `application/json` in any letter case and whose body is not a JSON object, before sign-in is checked (`proxy.ts:39-46`). Not on `/api/narration`. |
+| `BODY413` | 413 `{error:"This request is too large.", errorBn}` | Such a JSON body over 1.2 MB (the largest route limit), refused before it is read in full (`lib/request-security.ts` `MAX_JSON_BODY_BYTES`). |
 | `P401` | 401 `{error:"Sign in to access learning content."}` | No usable session on a non-public API (`proxy.ts:58-60`). |
 | `PW403` | 403 `{error:"Choose your own password before you continue.", mustChangePassword:true}` | Adult with a temporary password, on any API except `/api/account/password` and public ones (`proxy.ts:53-54`). |
 
@@ -259,7 +268,7 @@ Route-level answers used in the table:
 | `SPW403` | 403 "Choose your own password before you continue." with `mustChangePassword:true` (student temporary password) | `lib/student-auth.ts:105-106` |
 | `RO403` | 403 "Parent accounts have read-only access to learning records." | `app/api/assignments/route.ts:27,56` |
 | `C404` | 404 "Class not found." Also for a class that exists but is not the caller's, so other teachers' classes are not revealed. | `lib/class-access.ts:12-21` |
-| `429` | 429 "Too many attempts. Please wait a moment and try again." with `Retry-After` | `lib/rate-limit.ts:59-64` |
+| `429` | 429 "Too many attempts. Please wait 15 minutes and try again." (the real wait, in seconds, minutes or hours) with `errorBn` (polite for adults, informal for students), `retryAfterSeconds` and `Retry-After` | `lib/rate-limit-reply.ts` |
 
 "Teacher" in the *Who* column means `canTeach` (approved teacher or administrator). Denials are listed in
 the order the route checks them; a **400 before a 403/404** is called out because a validation error
@@ -269,20 +278,20 @@ can then appear before the access decision.
 
 | Route | Method | Who | Scope | Denials (in order) | Evidence |
 | --- | --- | --- | --- | --- | --- |
-| `/api/auth/sign-in` | POST | Anyone (public) | Own credentials; with `requireAdmin:true`, administrators only | 400 "Signing in needs a secure https:// address." (production, plain-http origin on another host); 429 (100 per 15 min per address); 400 "Enter your email and password."; 429 (failures: 10 per address and account, 50 per account, per 15 min); 401 "That email and password do not match." (also for suspended accounts); 403 approval notice with `approvalStatus` (pending or declined, correct password only); 403 not an administrator with `requireAdmin` | `app/api/auth/sign-in/route.ts:16-60` |
-| `/api/auth/sign-up` | POST | Anyone (public) | Creates role parent, `approvalStatus` pending; `accountType` teacher adds a pending teacher request; returns 8 recovery codes once | 429 (5 per hour per address, counted before validation); 400 validation ("Choose a parent or teacher account." for anything else, including admin); 409 "An account with this email already exists. Sign in instead." | `app/api/auth/sign-up/route.ts:14-48`; `lib/auth.ts:114-137` |
-| `/api/auth/recover` | POST | Anyone (public), adult accounts | Own account by e-mail and one unused recovery code | 400 insecure origin; 429 (5 per 15 min per address); 400 "Enter your email and one recovery code."; 400 password not 10–200 characters; 401 "That email and recovery code do not match, or the code was already used."; 403 approval notice (the code is not used up) | `app/api/auth/recover/route.ts:16-56`; `lib/auth.ts:237-247` |
+| `/api/auth/sign-in` | POST | Anyone (public) | Own credentials; with `requireAdmin:true`, administrators only | 400 "Signing in needs a secure https:// address." (production, plain-http origin on another host); 429 (100 per 15 min per address); 400 "Enter your email and password."; 429 (failures: 10 per address and account, 50 per account, per 15 min); 401 "That email and password do not match."; 403 "This account is suspended. Please contact the administrator." (suspended, correct password only); 403 approval notice with `approvalStatus` (pending or declined, correct password only); 403 not an administrator with `requireAdmin` | `app/api/auth/sign-in/route.ts:16-60` |
+| `/api/auth/sign-up` | POST | Anyone (public) | Creates role parent, `approvalStatus` pending; `accountType` teacher adds a pending teacher request; returns 8 recovery codes once | 429 (30 per hour per address, counted before validation); 400 validation ("Choose a parent or teacher account." for anything else, including admin); 409 "An account with this email already exists. Sign in instead." | `app/api/auth/sign-up/route.ts:14-48`; `lib/auth.ts:114-137` |
+| `/api/auth/recover` | POST | Anyone (public), adult accounts | Own account by e-mail and one unused recovery code | 400 insecure origin; 429 (5 per 15 min per address); 400 "Enter your email and one recovery code."; 400 password not 10–200 characters; 429 (10 wrong codes per account per 15 min, from any address); 401 "That email and recovery code do not match, or the code was already used."; 403 approval notice (the code is not used up). Success ends the sessions this browser held and is audited (`password-recovered`) | `app/api/auth/recover/route.ts`; `lib/auth.ts:237-247` |
 | `/api/auth/sign-out` | GET | Anyone (public) | Ends this browser's adult and student sessions; 303 to a safe `returnTo` with `Clear-Site-Data: "cache"` | `ORIGIN403` when cross-site; other methods 405 | `app/api/auth/sign-out/route.ts:6-15`; `lib/browser-logout.ts:9-25` |
 | `/api/auth/session` | GET | Anyone (public) | Own session: key, role, home. Visitors get `authenticated:false`, home `/welcome`; temporary-password adults get home `/account/password` | none (always 200) | `app/api/auth/session/route.ts:6-8`; `lib/session-status.ts:6-12` |
 | `/api/auth/teacher-request` | POST | Parent (teacher, administrator and a parent whose request is already pending: 200, no change) | Own account: `teacherStatus` none or rejected → pending | `P401`, `PW403`; `R401`; 429 (3 per 24 h per adult); 403 "Account unavailable. Sign in again." Needs a JSON body `{}` | `app/api/auth/teacher-request/route.ts:9-25` |
 | `/api/account/password` | POST | Any adult, also with a temporary password | Own account; keeps this session, ends the others; replaces recovery codes after a temporary password | `P401`; `R401`; 429 (`account:<id>`, 10 per 15 min, shared with recovery codes and delete); 400 password not 10–200 characters; 400 same as current; 403 "Your current password is incorrect." (400 before 403) | `app/api/account/password/route.ts:12-42`; `lib/auth.ts:216-230` |
 | `/api/account/recovery-codes` | POST | Any adult | Own account; 8 new codes, the old ones stop working | `P401`, `PW403`; `R401`; 429 (shared); 403 incorrect password | `app/api/account/recovery-codes/route.ts:8-25` |
-| `/api/account/delete` | POST | Parent, teacher | Own account and the records it owns; a teacher's classes are deleted too | `P401`, `PW403`; `R401`; 429 (shared); 409 "Ask another administrator to change your role before deleting this account." (administrators, before the password check); 403 "Enter your current password to confirm deletion." | `app/api/account/delete/route.ts:32-75`; `db/schema.ts:184` |
-| `/api/account/sessions` | DELETE | Any adult | All of the caller's adult sessions, this one included | `P401`, `PW403`; `R401`; GET and POST 405 | `app/api/account/sessions/route.ts:7-15` |
-| `/api/account/export` | GET | Any adult | Own records (matched by owner e-mail); administrators get only their own | `P401`, `PW403`; `R401` | `app/api/account/export/route.ts:17-61` |
-| `/api/student/sign-in` | POST | Anyone (public) | Own username and password; clears the adult cookie | 400 insecure origin; 429 (200 per 15 min per address); 400 "Enter your username and password."; 429 (failures: 10 per address and username, 50 per username); 401 "That username and password do not match." (also suspended); 403 approval notice | `app/api/student/sign-in/route.ts:17-56` |
-| `/api/student/sign-up` | POST | Anyone (public) | New student, `approvalStatus` pending, no session | 429 (8 per hour per address); 400 for every validation error, including "That username is already taken." | `app/api/student/sign-up/route.ts:9-21`; `lib/student-auth.ts:42-63` |
-| `/api/student/sign-out` | GET | Anyone (public) | This browser's student and adult sessions; 303 to `returnTo` (default `/student`) | `ORIGIN403` when cross-site | `app/api/student/sign-out/route.ts:6-11` |
+| `/api/account/delete` | POST | Parent, teacher with no classes | Own account and the records it owns, in one transaction; recording files are removed after it commits; audited (`account-deleted`) | `P401`, `PW403`; `R401`; 429 (shared); 409 "Ask another administrator to change your role before deleting this account." (administrators, before the password check); 409 "You still teach classes. Ask an administrator to move them to another teacher before deleting this account."; 403 "Enter your current password to confirm deletion." | `app/api/account/delete/route.ts`; `lib/user-management.ts` `accountDeletionBlocker`, `deleteOwnAccount` |
+| `/api/account/sessions` | DELETE | Any adult | All of the caller's adult sessions, this one included; audited (`signed-out-everywhere`) | `P401`, `PW403`; `R401`; GET and POST 405 | `app/api/account/sessions/route.ts:7-15` |
+| `/api/account/export` | GET | Any adult | Own records: name, e-mail, role and status, linked children's names (parents), names of classes taught, home learner profiles, studio records and the account's own audit events; administrators get only their own | `P401`, `PW403`; `R401` | `app/api/account/export/route.ts`; `lib/user-management.ts` `exportAccountData` |
+| `/api/student/sign-in` | POST | Anyone (public) | Own username and password; clears the adult cookie | 400 insecure origin; 429 (200 per 15 min per address); 400 "Enter your username and password."; 429 (failures: 10 per address and username, 50 per username); 401 "That username and password do not match."; 403 "This account is suspended. Ask a grown-up to contact the administrator." (correct password only); 403 approval notice | `app/api/student/sign-in/route.ts:17-56` |
+| `/api/student/sign-up` | POST | Anyone (public) | New student, `approvalStatus` pending, no session | 429 (30 per hour per address); 400 for every validation error, including "That username is already taken." (also for two sign-ups racing for one name) | `app/api/student/sign-up/route.ts:9-21`; `lib/student-auth.ts:42-63` |
+| `/api/student/sign-out` | GET | Anyone (public) | This browser's student and adult sessions; 303 to `returnTo` (default `/student`). The cookies are cleared even if the session store fails | `ORIGIN403` when cross-site | `app/api/student/sign-out/route.ts` |
 | `/api/student/session` | GET | Student, also with a temporary password | Own record | `S401` (adults too) | `app/api/student/session/route.ts:5-9` |
 | `/api/student/password` | POST | Student, also with a temporary password | Own account; keeps this session, ends the other student sessions | `P401`, `PW403`; `S401`; 429 (10 per 15 min per student); 400 password not 8–200 characters; 400 same as current; 403 incorrect (400 before 403) | `app/api/student/password/route.ts:7-32` |
 | `/api/student/join`, `/api/classroom/*` | any | Nobody (retired) | — | 410 "Staff allocate classes. Use your student account; class-code access is retired." (after `ORIGIN403` and `JSON400`) | `proxy.ts:47` |
@@ -293,12 +302,11 @@ can then appear before the access decision.
 
 All of these use `getStaffAccess("admin")`: `P401`/`PW403` from the proxy, then `R401` (for example a
 student), then `A403` for parents and teachers (`lib/auth.ts:97-107`). The library then re-checks the
-administrator inside the transaction (403), except `listUsers` (`GET /api/admin/users`) and
-`listClassResults` (`GET /api/admin/results`).
+administrator inside the transaction (403), `listUsers` and `listClassResults` included.
 
 | Route | Method | Who | Scope | Denials after the role check | Evidence |
 | --- | --- | --- | --- | --- | --- |
-| `/api/admin/users` | GET | Administrator | All adults or students (25 per page, filters), the approval queue, the latest 15 audit events | 400 "Invalid user filter." / "Invalid student filter."; 503 (no re-check inside the library) | `app/api/admin/users/route.ts:7-17`; `lib/user-management.ts:68-119` |
+| `/api/admin/users` | GET | Administrator | All adults or students (25 per page, filters), the approval queue, the latest 15 audit events | 400 "Invalid user filter." / "Invalid student filter."; 403 re-check; 503. Each audit event names who made it and the target (the stored name when the target is gone) | `app/api/admin/users/route.ts:7-17`; `lib/user-management.ts:68-119` |
 | `/api/admin/users` | POST | Administrator | Creates an approved parent, teacher or student with a temporary password (adults also get 8 recovery codes); never an administrator | 429 (30 per hour per administrator); 400 "Provide account details." and field errors; 403 re-check; 409 "That username is already taken." / "That email is already registered." | `app/api/admin/users/route.ts:19-33`; `lib/user-management.ts:189-218` |
 | `/api/admin/users/[id]` | PATCH | Administrator | Any adult or student: name, status, role (adults), `approve`/`reject`, `revoke-sessions` | 400 field errors ("Provide the user changes.", account type, name, status, role, action); 403 re-check; 400 "Student accounts cannot be promoted to staff." (a role on a student, after the re-check); 404 "User not found."; 409 "Reactivate this account before approving or declining it.", "This request is no longer awaiting approval." (teacher request on an account that is no longer role parent), "This account is no longer awaiting approval.", "You cannot change your own role or suspend your own account.", "At least one active administrator must remain." | `app/api/admin/users/[id]/route.ts:6-19`; `lib/user-management.ts:121-183` |
 | `/api/admin/users/[id]/password` | POST | Administrator | Any other account, other administrators included; any state | 429 (30 per hour); 400 "Choose an account type."; 409 "You cannot reset your own password here. Change it from My account."; 403 re-check; 404 | `app/api/admin/users/[id]/password/route.ts:8-23`; `lib/user-management.ts:230-264` |
@@ -307,7 +315,7 @@ administrator inside the transaction (403), except `listUsers` (`GET /api/admin/
 | `/api/admin/family-links` | GET | Administrator | Any student's linked parents | 400 "Choose a student account."; 404 "Student not found."; 503 | `app/api/admin/family-links/route.ts:13-20`; `lib/parent-access.ts:12-26` |
 | `/api/admin/family-links` | POST | Administrator | Links an active, approved parent (role parent) to an approved student, after `confirmed:true` | 400 (body, before the re-check); 403; 404 "No active parent account matches that email." / "Student not found."; 409 "Approve this student account before linking a parent." | `app/api/admin/family-links/route.ts:22-31`; `lib/parent-access.ts:28-44` |
 | `/api/admin/family-links` | DELETE | Administrator | One link | 400 "Choose the family link to remove."; 404 "Parent link not found." | `app/api/admin/family-links/route.ts:33-42`; `lib/parent-access.ts:46-55` |
-| `/api/admin/results` | GET | Administrator | Every class with its teacher and summary results | 503 (no re-check inside the library) | `app/api/admin/results/route.ts:7-12`; `lib/grades.ts:56-86` |
+| `/api/admin/results` | GET | Administrator | Every class with its teacher and summary results | 403 re-check; 503 | `app/api/admin/results/route.ts:7-12`; `lib/grades.ts:56-86` |
 
 ### Classes
 
@@ -315,7 +323,10 @@ Two styles of check are used. Routes on `getSessionAdult` answer `T403` **before
 message (for example "Sign in to manage your classes."), which is what a student gets. Routes on
 `getStaffAccess("teach")` answer `R401` then `T403`. Either way a parent (including one with a pending
 or rejected teacher request) gets `T403` and a student a 401 (`app/api/classes/route.ts:15-16`;
-`lib/auth.ts:97-107`).
+`lib/auth.ts:97-107`). A 500 from these routes carries a fixed bilingual message; the database's own
+text goes only to the server log (`lib/class-errors.ts`). The library functions re-check the acting
+account inside their transaction: an approved, active teacher or administrator without a temporary
+password (`lib/enrollments.ts` `authorize`, `lib/class-activities.ts`, `lib/class-sources.ts`).
 
 | Route | Method | Who | Scope | Denials after the role check | Evidence |
 | --- | --- | --- | --- | --- | --- |
@@ -347,7 +358,8 @@ or rejected teacher request) gets `T403` and a student a 401 (`app/api/classes/r
 
 | Route | Method | Who | Scope | Denials after the role check | Evidence |
 | --- | --- | --- | --- | --- | --- |
-| `/api/curriculum` | GET | Any signed-in account | Approved topics; a student also gets own progress; staff also get approval records | 401 "Sign in to view learning topics."; `SPW403`; 503 | `app/api/curriculum/route.ts:12-34` |
+| `/api/curriculum` | GET | Any signed-in account | Approved topics **without quiz answers** (staff too); a student also gets own progress; staff also get approval records | 401 "Sign in to view learning topics."; `SPW403`; 503 | `app/api/curriculum/route.ts:12-34`; `lib/learner-topic.ts` |
+| `/api/curriculum/quiz` | POST | Any adult | Marks an approved topic's quiz and saves nothing; answers the score and whether each pick was right, never which option is | 401 "Sign in as a grown-up to check this quiz."; 429 (120 per 10 min per adult, polite Bangla); 400 "Choose a valid learning topic." / "Answer every quiz question first."; 503 | `app/api/curriculum/quiz/route.ts` |
 | `/api/topics` | GET, POST | Teacher | Every topic; POST makes a new topic waiting for approval | `R401`, `T403`; 413 over 400 KB; 400; 403 re-check | `app/api/topics/route.ts:7-24`; `lib/curriculum-catalog.ts:238-252` |
 | `/api/topics/[id]` | GET, PUT | Teacher | Any topic; PUT adds a new version waiting for approval | `R401`, `T403`; 404; 413/400; 409 "Someone saved a newer version…" | `app/api/topics/[id]/route.ts:10-29` |
 | `/api/topics/[id]` | POST | Administrator | Withdraw, restore or confirm a topic | `R401`, `A403`; 404 bad id; 413/400 body; 403 re-check; 404; 400 or 409 decision | `app/api/topics/[id]/route.ts:35-44`; `lib/curriculum-catalog.ts:329-350` |
@@ -362,21 +374,21 @@ or rejected teacher request) gets `T403` and a student a 401 (`app/api/classes/r
 | `/api/studio/media/[id]` | GET | Teacher | Any recording, pending ones included | `R401`, `T403`; 404 | `app/api/studio/media/[id]/route.ts:15-33` |
 | `/api/studio/reviews` | GET, POST | Teacher | Shared checks plus own drafts; POST saves the caller's own check | `R401`, `T403`; 400 | `app/api/studio/reviews/route.ts:19-63` |
 | `/api/studio/video-reviews` | POST | Administrator | Video decision for a lesson | `R401`, `A403`; 413/400 body; 403 re-check; 400 unknown lesson; 409 preview changed; 400 status fields | `app/api/studio/video-reviews/route.ts:7-16`; `lib/lesson-approval.ts:345-375` |
-| `/api/audio/[lessonId]`, `/api/audio/[lessonId]/[slot]` | GET | Any signed-in account | Learners: approved lessons; staff: any lesson; always only approved, consented recordings | 404 bad lesson; `SPW403`; 404 "That lesson is not available to learners right now."; `[slot]` without a recording: 307 to the bundled clip | `app/api/audio/[lessonId]/route.ts:17-26`; `app/api/audio/[lessonId]/[slot]/route.ts:21-54` |
-| `/api/narration` | POST | Any signed-in account | Topics: published only, for everyone. Activities: student own classes (approved, open); parent linked children's classes (approved, open; the child active and approved); teacher own classes, any state; administrator all | 401 "Sign in to listen to this content."; 403 temporary password; 429 (120 per minute); 413 over 2 KB; 400; 404 "This content is no longer available."; 409 content changed; 503 | `app/api/narration/route.ts:9-14`; `lib/narration-handler.ts:22-95`; `lib/narration-source.ts:22-90` |
+| `/api/audio/[lessonId]`, `/api/audio/[lessonId]/[slot]` | GET | Any signed-in account (checked by the route as well as the proxy) | Learners: approved lessons; staff: any lesson; always only approved, consented recordings | 401; 404 bad lesson; `SPW403`; 404 "That lesson is not available to learners right now."; `[slot]` without a recording streams the bundled clip itself (private, never cached). The static `/audio/lesson-*` files answer 404 to everyone | `app/api/audio/[lessonId]/route.ts`; `app/api/audio/[lessonId]/[slot]/route.ts`; `lib/lesson-audio.ts` |
+| `/api/narration` | POST | Any signed-in account | Topics: published only, for everyone. Activities: student own classes (approved, open); parent linked children's classes (approved, open; the child active and approved); teacher own classes and administrator all, but an activity that is not approved and open plays only audio saved earlier | 401 "Sign in to listen to this content."; 403 temporary password; 429 (120 per minute); 413 over 2 KB; 400; 404 "This content is no longer available."; 409 content changed; 409 "New narration is made only for approved, open activities. Saved audio still plays."; 429 the account's or the site's daily share used up; 503 | `app/api/narration/route.ts`; `lib/narration-handler.ts`; `lib/narration-source.ts` `resolveNarration`; `lib/generated-narration.ts` |
 | `/api/library` | GET | Any signed-in account; `?scope=admin`: administrator | The reader catalogue | 401 "Sign in to view the textbook library."; `SPW403`; `A403` for `?scope=admin` | `app/api/library/route.ts:29-41` |
 | `/api/library` | POST, PUT, DELETE | Administrator | Add, change or reset a book | `R401`, `A403`; 413; 400; 404 | `app/api/library/route.ts:44-79` |
 | `/api/profiles`, `/api/profiles/[id]` | GET | Any adult | Own home learner profiles | 401 "Sign in as a grown-up to view learner profiles." / `R401`; 404 | `app/api/profiles/route.ts:13-35`; `app/api/profiles/[id]/route.ts:13-23` |
-| `/api/profiles`, `/api/profiles/[id]` | POST, PATCH, DELETE | Teacher | Own profiles | 401; `RO403`; 400; 404 "Learner profile not found."; a body that is not JSON gives 500 (gaps 14 and 15) | `app/api/profiles/route.ts:37-67`; `app/api/profiles/[id]/route.ts:25-55` |
+| `/api/profiles`, `/api/profiles/[id]` | POST, PATCH, DELETE | Teacher | Own profiles | 401; `RO403`; 400 (also for a body of the wrong type); 404 "Learner profile not found."; 500 with a fixed message | `app/api/profiles/route.ts:37-67`; `app/api/profiles/[id]/route.ts:25-55` |
 | `/api/progress` | GET | Any adult | One own profile | `R401`; 404 | `app/api/progress/route.ts:14-23` |
 | `/api/progress` | POST | Teacher | Own profile, approved lessons | `R401`; `RO403`; 400 (**before** the 404 ownership check); 404 | `app/api/progress/route.ts:25-58` |
 | `/api/assignments` | GET | Any adult | Own assignments; parents see approved lessons only | `R401` | `app/api/assignments/route.ts:13-22` |
 | `/api/assignments` | POST, PATCH | Teacher | Own learner profiles and assignments | `R401`; `RO403`; 400; 404 | `app/api/assignments/route.ts:24-65` |
-| `/api/family`, `/api/family/sources` | GET | Parent | Linked children: their active classes, approved activities, own submissions, attendance, announcements for parents, approved sources | 401 "Parent sign in required."; 403 "Parent access required." (teachers and administrators); 503 | `app/api/family/route.ts:7-15`; `app/api/family/sources/route.ts:7-13`; `lib/parent-access.ts:57-105` |
-| `/api/student/feed` | GET | Student | Own active classes, approved activities (no answers), own submissions, attendance, announcements for students, approved sources | `S401`; `SPW403`; 500 | `app/api/student/feed/route.ts:19-99` |
-| `/api/student/results` | GET | Student | Own submissions on approved activities | `S401`; `SPW403` | `app/api/student/results/route.ts:8-57` |
-| `/api/student/submit` | POST | Student | Approved, open activity in an own class | `S401`; `SPW403`; 429 (60 per 10 min); 400 "Choose an activity."; 404 "Activity not found."; 409 "This activity is closed."; 403 "Your teacher must allocate you to this class before you can submit."; 400 answers (**after** the 403) | `app/api/student/submit/route.ts:11-68` |
-| `/api/student/topic-progress` | POST | Student | Own progress on approved topics | `S401`; `SPW403`; 400; 503 | `app/api/student/topic-progress/route.ts:8-15`; `lib/curriculum-catalog.ts:377-396` |
+| `/api/family`, `/api/family/sources` | GET | Parent | Linked children whose accounts are active and approved: their active classes, approved activities, own submissions, attendance, announcements for parents, approved sources; `unavailableChildren` counts the linked children left out (no names or records) | 401 "Parent sign in required."; 403 "Parent access required." (teachers and administrators); 503 | `app/api/family/route.ts:7-15`; `app/api/family/sources/route.ts:7-13`; `lib/parent-access.ts` `getParentOverview` |
+| `/api/student/feed` | GET | Student | Own active classes (the roster row must belong to the allocated class), approved activities (no answers), own submissions, attendance, announcements for students, approved sources | `S401`; `SPW403`; 500 with a fixed informal message | `app/api/student/feed/route.ts`; `lib/student-errors.ts` |
+| `/api/student/results` | GET | Student | Own submissions on approved activities | `S401`; `SPW403`; 500 with a fixed informal message | `app/api/student/results/route.ts`; `lib/student-work.ts` |
+| `/api/student/submit` | POST | Student | Approved, open activity in an own class, handed in **once**; the correct answers come back only with that submission | `S401`; `SPW403`; 429 (60 per 10 min per student); 400 "Choose an activity."; 404 "Activity not found."; 409 "This activity is closed."; 403 "Your teacher must allocate you to this class before you can submit."; 400 answers (**after** the 403); 409 `{alreadySubmitted:true, submission}` "You have already handed in this activity, so your first answers are kept. Ask your teacher if you need another try." until the teacher resets it; 500 with a fixed informal message | `app/api/student/submit/route.ts`; `lib/student-work.ts` `submitActivityWork` |
+| `/api/student/topic-progress` | POST | Student | Own progress on approved topics; quiz answers are marked here and the best score is kept, but only the day's first 3 tries at a topic can raise it (later tries answer `saved:false`) | `S401`; `SPW403`; 429 (60 per 10 min per student, informal Bangla); 400; 503 | `app/api/student/topic-progress/route.ts`; `lib/curriculum-catalog.ts` `recordTopicProgress` |
 
 A method that a route file does not export answers 405 once the proxy lets the request through
 (visitors get `P401` first).
@@ -401,8 +413,11 @@ What learners receive is limited to approved content in every learner path, for 
   `lib/parent-access.ts:75`; `lib/class-sources.ts:59`).
 - Narration of a topic uses only the published version, even for staff
   (`lib/narration-source.ts:50-57`). The one exception is narration of class activities, where the
-  owning teacher or an administrator can hear an unapproved or closed activity
-  (`lib/narration-source.ts:64-68`).
+  owning teacher or an administrator can hear an unapproved or closed activity, but only from audio
+  saved earlier: new narration is generated only for approved, open activities
+  (`lib/narration-source.ts` `resolveNarration`, `savedOnly`).
+- Topic quizzes reach every reader without their answers; marking is done on the server
+  (`lib/learner-topic.ts`).
 
 Who drafts and who publishes is described in [CONTENT_APPROVAL.md](CONTENT_APPROVAL.md): teachers write,
 administrators with `canPublishContent` approve.
@@ -420,16 +435,21 @@ administrators with `canPublishContent` approve.
 | Reset someone's password | Administrator, for any other account (other administrators included). The server operator can reset an administrator with `npm run admin:reset-password`. | Never their own (409). Sets a temporary password shown once, deletes the target's sessions. Rate limit 30 per hour. | `password-reset` | `lib/user-management.ts:230-264`; [HANDOVER.md](HANDOVER.md#administrator-and-role-handover) |
 | Link or unlink a parent and a student | Administrator | Parent must be active, approved and role parent; student must be approved; the administrator confirms the parent's authorization. | `parent-linked` / `parent-unlinked` | `lib/parent-access.ts:28-55` |
 | Import families | Administrator | All or nothing; at most 200 rows and 64 KB; reuses only active, approved accounts. | each creation, link and allocation | `lib/families.ts:58-191` |
-| Delete an account | The account owner (parent or teacher), with their password | Administrators cannot delete themselves (409). Students have no self-delete; there is no administrator delete endpoint. | no | `app/api/account/delete/route.ts:32-75` |
+| Delete an account | The account owner (parent, or teacher who teaches no class), with their password | Administrators cannot delete themselves (409), nor can a teacher who still teaches a class (409). One transaction. Students have no self-delete; there is no administrator delete endpoint. | `account-deleted` | `app/api/account/delete/route.ts`; `lib/user-management.ts` `deleteOwnAccount` |
 
 **Audit log.** Every administrator write and most class changes insert a `user_audit_events` row with
 the actor: account approvals, updates, session revocation, password resets, family links, class
 allocation, class creation for a teacher, class moves and deletion, activity and source changes and
 reviews, announcement removal, submission resets, student provisioning, own password changes and
-teacher requests. `GET /api/admin/users` shows the latest 15 events (`lib/user-management.ts:40-42,
-114-117`). Not audited: password recovery, recovery-code replacement, sign out everywhere, account
-deletion, a teacher creating a class for themselves, posting an announcement, opening or closing an
-activity and routine attendance saves (see [Known gaps](#known-gaps)).
+teacher requests. Also recorded: a teacher creating a class (`class-created`), posting an announcement
+(`announcement-posted`), opening or closing an activity (`class-activity-opened`,
+`class-activity-closed`), every attendance save (`attendance-saved`), password recovery
+(`password-recovered`), recovery-code replacement (`recovery-codes-replaced`), sign out everywhere
+(`signed-out-everywhere`) and account deletion (`account-deleted`). Each row stores the target's name,
+so Recent changes still names a deleted class or account (older class rows by their stored `name`).
+`GET /api/admin/users` shows the latest 15 events with who made each one (`lib/user-management.ts`
+`listUsers`); `tests/audit-labels.test.mjs` checks that every code written has a label in both
+languages.
 
 **Temporary passwords.** Accounts made by an administrator or by an import, and every administrator
 reset, get a temporary password shown once (responses carry `Cache-Control: no-store`,
@@ -440,8 +460,10 @@ sheet (`lib/auth.ts:216-247`).
 **Sessions.** A session is a random token stored hashed, in an httpOnly, SameSite Lax cookie that is
 Secure in production and lasts 30 days (`lib/auth.ts:36,274-281`; `lib/student-auth.ts:19,31-39`).
 Changing a password keeps the current session and ends all others; recovery ends all and starts one new
-session; sign-out ends this browser's sessions; `DELETE /api/account/sessions` ends all of an adult's
-sessions (`lib/auth.ts:174-177,216-247`; `lib/browser-logout.ts:9-19`).
+session; signing in (adult or student) deletes the sessions the browser held before; sign-out ends this
+browser's sessions; `DELETE /api/account/sessions` ends all of an adult's sessions
+(`lib/auth.ts:174-177,216-247`; `lib/browser-logout.ts:9-19`). There is no session list, no
+per-session revoke and no student "sign out everywhere" (gap 11).
 
 **Recovery codes.** Adults get 8 one-time codes of 10 characters, shown once and stored hashed, at
 sign-up and at administrator creation. They can be replaced with the current password. Students have no
@@ -451,14 +473,15 @@ recovery codes: an administrator resets their password (`lib/auth.ts:189-209`; `
 
 | Protection | What it does | Evidence |
 | --- | --- | --- |
-| Origin check on changes | Every POST, PUT, PATCH and DELETE, and every `/sign-out` request, must come from the site itself: `Sec-Fetch-Site` must be `same-origin` or `none`, a sent `Origin` must match (`PUBLIC_ORIGIN` when set), and POST/PUT/PATCH must be JSON or a same-origin multipart upload. Runs first, before sign-in, for every account state. | `proxy.ts:36-37`; `lib/request-security.ts:25-41` |
-| JSON body check | A POST, PUT, PATCH or DELETE body sent as `application/json` (lower case) that does not parse to an object is refused with 400 before sign-in is checked (so a signed-out caller can get 400 rather than 401). `/api/narration` reads its own body with a 2 KB limit. Bodies up to 13 MB are accepted by the server. | `proxy.ts:39-46`; `next.config.ts:17` |
+| Origin check on changes | Every POST, PUT, PATCH and DELETE, and every `/sign-out` request, must come from the site itself: `Sec-Fetch-Site` must be `same-origin` or `none`, a sent `Origin` must match an expected address (`PUBLIC_ORIGIN` when set; otherwise the `Host`, or `X-Forwarded-Host`, with `X-Forwarded-Proto`), even when `Sec-Fetch-Site` claims same-origin, and POST/PUT/PATCH must be JSON or a same-origin multipart upload. Runs first, before sign-in, for every account state. Without `PUBLIC_ORIGIN`, a proxy that does not forward those headers makes every change answer 403 ([DEPLOYMENT.md](DEPLOYMENT.md)). | `proxy.ts:36-37`; `lib/request-security.ts` `validateMutation`, `requestOrigins` |
+| JSON body check | A POST, PUT, PATCH or DELETE body sent as `application/json` (any letter case) that does not parse to an object is refused with 400 before sign-in is checked (so a signed-out caller can get 400 rather than 401); one over 1.2 MB is refused with 413 "This request is too large." before it is read in full. `/api/narration` reads its own body with a 2 KB limit. Uploads up to 13 MB are accepted by the server. Routes that read a body of the other type answer 400. | `proxy.ts:39-46`; `lib/request-security.ts` `readBodyWithin`, `readJsonObject`, `readFormData`; `next.config.ts:17` |
+| File paths | Only `/_next/` build files and the files in `public/` count as files; any other dotted path gets the temporary-password gate and the sign-in redirect. The static `/audio/lesson-*` clips are refused (the approval-checked audio route serves them). | `proxy.ts`; `lib/public-assets.ts` |
 | Sign-in required | Everything not public needs an unexpired session of an active, approved account (adult cookie checked first, then student). Tokens over 100 characters and database errors count as signed out. | `proxy.ts:49-64`; `lib/learning-session.ts:13-32` |
 | Temporary-password gate | Adults with an administrator-issued password reach only the change form and public paths. | `proxy.ts:53-56`; `lib/learning-policy.ts:63-66` |
 | Secure sign-in | In production, sign-in and recovery from a plain-http page on another host answer 400 (the Secure cookie would be dropped). | `lib/request-security.ts:47-56` |
 | Safe redirects | `returnTo` values are reduced to same-site paths; backslashes, control characters and `//` are refused. | `lib/safe-redirect.ts:19-31`; `lib/learning-policy.ts:41-52` |
-| Rate limits | In-memory, per process, fixed window. By address: sign-up 5/h, recovery 5/15 min, adult sign-in 100/15 min, student sign-up 8/h, student sign-in 200/15 min. Failures only: 10 per address and account, 50 per account per 15 min (adults and students). By account: `account:<id>` 10/15 min (password, recovery codes, delete), teacher request 3/24 h, student password 10/15 min, student submit 60/10 min, narration 120/min. By administrator: create 30/h, reset 30/h, family import 20/h; student import 20/h per teacher. The address is the first `X-Forwarded-For` value; the shipped Nginx configuration overwrites that header. | `lib/rate-limit.ts:1-64`; `deploy/nginx/bangla-adventures.conf.example:81-84` |
-| Retired class-code access | `/api/student/join` and `/api/classroom/*` answer 410 for everyone; `/classroom` redirects to `/student`. Staff allocate classes instead. | `proxy.ts:47-48` |
+| Rate limits | In-memory, per process, fixed window; the 429 says how long to wait. By address: sign-up 30/h, recovery 5/15 min, adult sign-in 100/15 min, student sign-up 30/h, student sign-in 200/15 min. Failures only: 10 per address and account, 50 per account per 15 min (adults and students); wrong recovery codes 10 per account per 15 min. By account: `account:<id>` 10/15 min (password, recovery codes, delete), teacher request 3/24 h, student password 10/15 min, student submit 60/10 min, student topic progress 60/10 min, scored tries at one topic quiz 3/day, grown-up quiz checks 120/10 min, narration 120/min plus a daily character share. By administrator: create 30/h, reset 30/h, family import 20/h; student import 20/h per teacher. The address is the platform's client-address header where it has one (`X-Real-IP` on Railway, `Fly-Client-IP` on Fly.io, or `CLIENT_IP_HEADER`), else the `X-Forwarded-For` value `TRUSTED_PROXY_HOPS` from the right (1 by default, 2 on Render); a value the client sends cannot change it while the app port is reachable only through the proxy. | `lib/rate-limit.ts` `clientKey`; `lib/rate-limit-reply.ts`; [DEPLOYMENT.md](DEPLOYMENT.md#client-addresses-on-each-host) |
+| Retired class-code access | `/api/student/join` and `/api/classroom/*` answer 410 for everyone; `/classroom` redirects to `/student`. Staff allocate classes instead. The old handlers are deleted. | `proxy.ts:47-48` |
 | Cache headers | Pages and API data: `private, no-store`. Public files: `public, max-age=86400`; hashed build files: a year (`private` when only signed-in pages use them); the service worker: `no-cache`. Every proxy response also gets `X-Content-Type-Options: nosniff`. Sign-out sends `Clear-Site-Data: "cache"`. | `lib/learning-policy.ts:29-39`; `proxy.ts:8-12`; `lib/browser-logout.ts:21-25` |
 | Security headers | `X-Frame-Options: DENY`, HSTS, `Referrer-Policy`, `Permissions-Policy` and a CSP with `frame-ancestors`, `object-src`, `base-uri` and `form-action` on every response. | `next.config.ts` (`headers()`) |
 | Cookies | `ba_adult_session` and `ba_student_session`: httpOnly, SameSite Lax, Secure in production, 30 days, token stored hashed. The `ba_language` cookie holds only the language choice. | `lib/auth.ts:274-281`; `lib/student-auth.ts:31-39`; `proxy.ts:18-25` |
@@ -486,14 +509,59 @@ and server accounts are kept out of the repository on purpose
 
 ## Known gaps
 
-These were found in the code and, where marked, confirmed by the behavioural probe or the independent
-re-check. Apart from gap 4 (a teacher can pull any student into an own class, by design), none of them
-lets a person read or change another class's, family's or account's data: every cross-scope request
-(another teacher's class, an unlinked child, another student's class or results) answered 404 or 403, or
-returned only the caller's own records. They are listed so they can be fixed or accepted on purpose.
-Application code was not changed.
+These were found in the code at `c4cb7ae` and, where marked, confirmed by the behavioural probe or the
+independent re-check. Apart from gap 4 (a teacher can pull any student into an own class, by design),
+none of them let a person read or change another class's, family's or account's data: every
+cross-scope request (another teacher's class, an unlinked child, another student's class or results)
+answered 404 or 403, or returned only the caller's own records.
 
-### Medium
+### Status after the fixes
+
+**Fixed** means the behaviour in the original row below no longer happens and a test covers it.
+**Decision** means the behaviour is deliberate or needs the product owner's choice, and was left as it is.
+
+| # | Status | Now |
+| --- | --- | --- |
+| 1 | Fixed | A submission is final: a second one answers 409 `{alreadySubmitted:true, submission}` and keeps the first score; the answers come back only with the first submission; the teacher can reset it. |
+| 2 | Fixed | Topics reach every reader without quiz answers; students are marked by `/api/student/topic-progress`, grown-ups by `/api/curriculum/quiz` (saves nothing). A reply still says which picks were right, so only the day's first 3 tries at a topic can raise the saved best score, later tries are practice (`saved:false`), and topic saves are limited to 60 per student in 10 minutes. Whether teachers should see the best or the first score is a decision. |
+| 3 | Fixed | A teacher who still teaches a class gets 409 "You still teach classes…" and must ask an administrator to move them. |
+| 4 | Decision | Unchanged: the picker lists every active, approved student. |
+| 5 | Decision | Unchanged: a teacher's class CSV import creates approved students with temporary passwords. |
+| 6 | Partly fixed | Posting is audited (`announcement-posted`). There is still no approval step (decision). |
+| 7 | Fixed (deployment caveat) | Per-address keys come from the platform's client-address header or the right-most trusted `X-Forwarded-For` value ([DEPLOYMENT.md](DEPLOYMENT.md#client-addresses-on-each-host)); recovery has a per-account limit (10 wrong codes per 15 minutes). A client that reaches the app port directly still chooses its own address key, so the port must stay private; the store is still per process. |
+| 8 | Fixed | `/audio/lesson-*` answers 404; the audio route streams bundled clips after its approval check. |
+| 9 | Fixed | A role sent with approve or reject brings the matching teacher status; only approved accounts can become administrators; the last-administrator guard counts active, approved administrators. |
+| 10 | Fixed | Deletion runs in one transaction; files are removed after it commits. |
+| 11 | Partly fixed | Signing in now deletes the session the browser held. There is still no session list, no per-session revoke and no student "sign out everywhere" (product follow-up). |
+| 12 | Partly fixed | The adult export adds role and status, linked children's names, classes taught and the account's audit events. Students still have no export (product follow-up). |
+| 13 | Fixed | Student sign-in verifies against a stand-in hash; sign-up still says a username is taken, which is needed to choose one. |
+| 14 | Fixed | Wrong body types answer 400; the proxy's JSON check ignores letter case; racing student sign-ups get "That username is already taken."; the student sign-out clears its cookies even when the session store fails. |
+| 15 | Fixed | Class routes (`lib/class-errors.ts`), student feed, results and submit (`lib/student-errors.ts`), profiles and studio reviews log the detail and answer a fixed bilingual message. |
+| 16 | Fixed | All the listed events are audited (see [Account management rules](#account-management-rules)). |
+| 17 | Decision | Unchanged. |
+| 18 | Fixed | Suspended or unapproved children are left out of `/api/family` and the parent's class sources, and cannot be newly linked (409). The parent is told how many linked children are not shown. |
+| 19 | Fixed | `/admin/classes` lists classes that need a new teacher. |
+| 20 | Decision | Unchanged (by design). |
+| 21 | Fixed | A foreign `Origin` is refused even with `Sec-Fetch-Site: same-origin`. Without `PUBLIC_ORIGIN` the proxy in front must forward `Host`/`X-Forwarded-Host` and `X-Forwarded-Proto`. |
+| 22 | Fixed | `listUsers`, `listClassResults`, the library writes and the enrolment functions re-check the acting account in their transaction (the enrolment check also requires an approved account without a temporary password); the audio routes check the session; the student routes check the roster row. |
+| 23 | Fixed | Only `/_next/` and `public/` files count as files. |
+| 24 | Fixed | The retired handlers, `lib/classroom-server.ts` and the classroom page are deleted. |
+| 25 | Fixed | The proxy refuses a JSON body over 1.2 MB with 413 before reading it in full. |
+| 26 | Fixed | Each account has its own daily share (a quarter of the site's allowance by default), and an activity that is not approved and open plays only saved audio, so staff drafts cannot spend the allowance. |
+| 27 | Fixed | `/admin/classes` sends non-administrators to their own home, as the other `/admin` pages do. |
+| 28 | Fixed | `/student` and `/grown-ups` send an adult with a temporary password to the password form. |
+| 29 | Open (informational) | Unchanged. |
+| 30 | Fixed | `/books` is worded for every reader; worksheet pages link each role to its own home. |
+| 31 | Partly fixed | `PATCH /api/profiles/[id]` accepts only the allowed age bands; `getSessionStudent` still relies on the proxy's token-length cap. |
+
+**Changed on purpose, for the product owner to confirm.** A suspended account that enters the correct
+password is now told it is suspended (403), as the user guides asked; before, it got the same 401 as a
+wrong password. A wrong password still answers 401, so the state is revealed only to someone who knows
+the password. Reverting is a two-line change in the two sign-in routes.
+
+### As found at `c4cb7ae`
+
+#### Medium
 
 | # | Gap | Evidence | Suggested fix |
 | --- | --- | --- | --- |
@@ -507,7 +575,7 @@ Application code was not changed.
 | 8 | **Bundled lesson clips skip the lesson approval check.** `/api/audio/[lessonId]/[slot]` checks approval and then redirects to `/audio/lesson-<id>-<slot>.ogg`, but those static files are served to any signed-in account directly, so clips of withdrawn or unapproved lessons are reachable by URL. Confirmed by the re-check (200 for a student, 401 signed out). | `app/api/audio/[lessonId]/[slot]/route.ts:53`; `proxy.ts:51,57` | Serve bundled clips through the approved route, or block `/audio/lesson-*` in the proxy for learners. |
 | 9 | **Role changes during approve or reject skip the `teacherStatus` fix-up.** `PATCH /api/admin/users/[id]` with `action:"approve", role:"teacher"` on a parent sign-up gives role teacher with `teacherStatus` none (cannot teach, home `/family`). A pending or declined account can be given role admin, and the last-administrator count ignores `approvalStatus`. The no-self-change rule means an acting administrator always remains, so the 409 "At least one active administrator must remain." cannot be triggered through the API (probe). | `lib/user-management.ts:153,168-177` | Reject a `role` field together with `action`, and count only approved administrators. |
 
-### Low
+#### Low
 
 | # | Gap | Evidence | Suggested fix |
 | --- | --- | --- | --- |
@@ -529,7 +597,7 @@ Application code was not changed.
 | 25 | The proxy parses JSON bodies up to 13 MB before the routes' own size limits apply. | `proxy.ts:43`; `next.config.ts:17` | Check `Content-Length` in the proxy before parsing. |
 | 26 | One staff account can use up the whole site's daily narration allowance (`ELEVENLABS_DAILY_CHARACTER_LIMIT`, 20,000 characters by default, shared by everyone). A teacher can narrate their own unapproved activities, whose text they write freely, at 120 requests a minute, after which every reader gets 429 for new narration until the next day. Read in the code only; the re-check had no narration key. | `lib/narration-source.ts:64`; `lib/narration-handler.ts:69`; `lib/generated-narration.ts:117-131,163` | Give each account its own daily share, and narrate unapproved activities only from saved audio or not at all. |
 
-### Informational
+#### Informational
 
 | # | Note | Evidence |
 | --- | --- | --- |
@@ -615,4 +683,24 @@ requests.
   [`tests/e2e/admin-classes.spec.ts`](../tests/e2e/admin-classes.spec.ts),
   [`tests/e2e/public-pages.spec.ts`](../tests/e2e/public-pages.spec.ts).
 
-The gaps above are not covered by tests yet; a fix for any of them should add one.
+Each fixed gap has a test: among others [`tests/student-work.test.mjs`](../tests/student-work.test.mjs)
+and [`tests/e2e/learner-integrity.spec.ts`](../tests/e2e/learner-integrity.spec.ts) (gaps 1 and 2, the
+quiz try limit and the topic rate limit), [`tests/topic-approval.test.mjs`](../tests/topic-approval.test.mjs)
+(scored quiz tries), [`tests/account-controls.test.mjs`](../tests/account-controls.test.mjs) and
+[`tests/e2e/account-controls.spec.ts`](../tests/e2e/account-controls.spec.ts) (gaps 3, 10–12, 16 and the
+suspended notice), [`tests/student-routes.test.mjs`](../tests/student-routes.test.mjs) (gaps 7, 14 and 15
+for the student routes), [`tests/rate-limit.test.mjs`](../tests/rate-limit.test.mjs) (client addresses),
+[`tests/narration-handler.test.mjs`](../tests/narration-handler.test.mjs) and
+[`tests/generated-narration.test.mjs`](../tests/generated-narration.test.mjs) (gap 26),
+[`tests/class-allocation.test.mjs`](../tests/class-allocation.test.mjs) (gap 22),
+[`tests/parent-access.test.mjs`](../tests/parent-access.test.mjs) (gap 18),
+[`tests/audit-labels.test.mjs`](../tests/audit-labels.test.mjs) and
+[`tests/user-management.test.mjs`](../tests/user-management.test.mjs) (audit codes and labels).
+
+**Re-check after the fixes.** The fixes up to `2add1fa` were reviewed against a running build with the
+same personas (student, parent, two teachers, administrators, suspended accounts and a visitor on the
+direct app port). The review's findings were then fixed on top of it: the topic quiz try limit and
+rate limit, the per-account recovery limit, client addresses per host, the student routes' 500
+messages and sign-out, saved-only narration of unapproved activities, the enrolment re-check, the
+names of classes deleted before labels were stored, and the polite wait message on the grown-up quiz
+route. The tables in this document describe that result.

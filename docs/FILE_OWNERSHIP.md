@@ -925,6 +925,7 @@ Review and test: [@omargad](https://github.com/omargad), until an area reviewer 
 - `lib/lesson-audio.ts`
 - `lib/profile-fields.ts`
 - `lib/rate-limit-reply.ts`
+- `lib/student-errors.ts`
 - `lib/student-work.ts`
 - `tests/account-controls.test.mjs`
 - `tests/audit-labels.test.mjs`
@@ -940,4 +941,65 @@ Review and test: [@omargad](https://github.com/omargad), until an area reviewer 
 - `tests/learner-topic.test.mjs`
 - `tests/lesson-audio.test.mjs`
 - `tests/rate-limit-reply.test.mjs`
+- `tests/student-routes.test.mjs`
 - `tests/student-work.test.mjs`
+
+### Handover documents: user guides and the access document
+
+Review and test: [@omargad](https://github.com/omargad), until an area reviewer is assigned.
+
+- `docs/ACCESS_CONTROL.md`
+- `docs/DELIVERABLES.md`
+- `docs/user-guides/README.md`
+- `docs/user-guides/administrator.md`
+- `docs/user-guides/images/admin/01-admin-sign-in.jpg`
+- `docs/user-guides/images/admin/02-approval-queue.jpg`
+- `docs/user-guides/images/admin/03-account-created.jpg`
+- `docs/user-guides/images/admin/04-family-import.jpg`
+- `docs/user-guides/images/admin/05-class-allocation.jpg`
+- `docs/user-guides/images/admin/06-textbook-link.jpg`
+- `docs/user-guides/images/admin/07-grades-results.jpg`
+- `docs/user-guides/images/admin/08-attendance.jpg`
+- `docs/user-guides/images/admin/09-topic-decision.jpg`
+- `docs/user-guides/images/admin/10-lesson-decision.jpg`
+- `docs/user-guides/images/admin/11-video-check.jpg`
+- `docs/user-guides/images/admin/12-class-activity-review.jpg`
+- `docs/user-guides/images/parent/01-welcome-parent-card.jpg`
+- `docs/user-guides/images/parent/02-create-account.jpg`
+- `docs/user-guides/images/parent/03-recovery-codes.jpg`
+- `docs/user-guides/images/parent/04-waiting-for-approval.jpg`
+- `docs/user-guides/images/parent/05-family-sign-in-sheet.jpg`
+- `docs/user-guides/images/parent/06-choose-password.jpg`
+- `docs/user-guides/images/parent/07-no-children-linked.jpg`
+- `docs/user-guides/images/parent/08-dashboard-overview.jpg`
+- `docs/user-guides/images/parent/09-child-results.jpg`
+- `docs/user-guides/images/parent/10-account-page.jpg`
+- `docs/user-guides/images/parent/11-phone-menu.jpg`
+- `docs/user-guides/images/parent/12-dashboard-bangla.jpg`
+- `docs/user-guides/images/student/01-welcome.jpg`
+- `docs/user-guides/images/student/02-sign-in.jpg`
+- `docs/user-guides/images/student/03-choose-password.jpg`
+- `docs/user-guides/images/student/04-my-learning.jpg`
+- `docs/user-guides/images/student/05-topic-quiz.jpg`
+- `docs/user-guides/images/student/06-my-activities.jpg`
+- `docs/user-guides/images/student/07-activity.jpg`
+- `docs/user-guides/images/student/08-my-results.jpg`
+- `docs/user-guides/images/student/09-sources.jpg`
+- `docs/user-guides/images/student/10-lesson.jpg`
+- `docs/user-guides/images/student/11-phone-menu.jpg`
+- `docs/user-guides/images/student/12-bangla.jpg`
+- `docs/user-guides/images/teacher/01-request-teacher-account.jpg`
+- `docs/user-guides/images/teacher/02-my-classes.jpg`
+- `docs/user-guides/images/teacher/03-add-students-by-ticking.jpg`
+- `docs/user-guides/images/teacher/04-csv-sign-in-sheet.jpg`
+- `docs/user-guides/images/teacher/05-activity-awaiting-approval.jpg`
+- `docs/user-guides/images/teacher/06-gradebook.jpg`
+- `docs/user-guides/images/teacher/07-attendance.jpg`
+- `docs/user-guides/images/teacher/08-announcements.jpg`
+- `docs/user-guides/images/teacher/09-topic-editor.jpg`
+- `docs/user-guides/images/teacher/10-topic-preview.jpg`
+- `docs/user-guides/images/teacher/11-lesson-preview.jpg`
+- `docs/user-guides/images/teacher/12-recording-upload.jpg`
+- `docs/user-guides/parent.md`
+- `docs/user-guides/student.md`
+- `docs/user-guides/teacher.md`

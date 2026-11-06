@@ -112,8 +112,9 @@ password? Ask your administrator to reset it."*
 
 Select **Sign out** at the bottom of the menu on the left. Always sign out on a shared computer.
 
-**What you'll see:** the grown-up sign-in page. The top of the page may say **Parent sign in**.
-That is fine: teachers can sign in there too, and are taken straight to **My classes**.
+**What you'll see:** the grown-up sign-in page. The top of the page says **Grown-up sign in**:
+teachers, parents and administrators all sign in there, and teachers are taken straight to
+**My classes**.
 
 ### If you forget your password
 
@@ -355,11 +356,10 @@ Other buttons on each activity:
 - **One column for each activity**, newest first, showing the score (for example *2/2*).
 - **—** means the student has not submitted that work yet. A real score of zero shows as *0/2*,
   not —.
-- An activity that students cannot see yet also gets a column, with — for everyone, and is
-  counted in each student's **Done** total. This includes activities still waiting for
-  Administrator approval and activities sent back with **Changes requested**. So a student who
-  has done every published activity can still show, for example, *2/3*. Delete a sent-back
-  activity you no longer need, and it stops being counted.
+- An activity that students cannot see yet (still waiting for Administrator approval, or sent
+  back with **Changes requested**) has no column and is not counted in **Done**. A note above
+  the table says so, for example *"1 activity is not published yet (waiting for approval or
+  changes requested). Students cannot see it, so it is not shown here or counted in Done."*
 
 Useful tools:
 
@@ -374,11 +374,13 @@ Further down the **Results** section:
 
 - **Submissions by activity** — select the button on an activity, for example
   **2 of 5 submitted**, to see every student's **Score** and when they **Submitted**. Students who
-  have not submitted show *Not submitted*. **Reset** removes one student's submission, after you
-  confirm, so that it shows — again.
+  have not submitted show *Not submitted*. A student hands in each activity once and cannot
+  change their answers afterwards. **Reset** removes one student's submission, after you
+  confirm, so that it shows — again and the student can do the activity again while it is open.
 - **Topics read** — for each student: **Topics read**, **Topic quizzes done** and
   **Topic quiz average**. A topic counts as read when the student marks it complete or finishes
-  its quiz.
+  its quiz. Quiz results are each student's best score, from at most the first 3 tries at each
+  topic's quiz a day; later tries that day are practice and are not saved.
 
 ## Taking attendance
 
@@ -631,7 +633,8 @@ Select **Account & recovery** in the menu. The page is headed **Your data, in yo
 - **Delete account** — permanently removes your account and everything it owns. It asks for your
   **Current password** and for you to type **DELETE**, then you select
   **Permanently delete account**. It cannot be undone. Talk to your Administrator before you use
-  it.
+  it: while you still teach a class the account cannot be deleted, so the Administrator first
+  gives your classes to another teacher.
 
 ## Switching language
 
@@ -684,7 +687,10 @@ Names you type, such as class names and student names, stay exactly as typed.
 | *"Your account is waiting for an administrator to approve it. You can sign in once it is approved."* | Your teacher request has not been approved yet. | Ask your Administrator to approve it, then sign in again. |
 | *"An administrator has not approved this account. Please contact your administrator."* | Your request was declined. | Contact your Administrator. They can approve the account later. |
 | *"That email and password do not match."* | The email or password is wrong. | Check for typing mistakes and Caps Lock. If you have forgotten your password, use a recovery code. |
-| *"Too many attempts. Please wait a moment and try again."* | There were too many wrong passwords in a row. | Wait up to 15 minutes, then try again carefully. |
+| *"Too many attempts. Please wait 15 minutes and try again."* (the time can differ) | There were too many wrong passwords or recovery codes in a row. | Wait for the time it says, then try again carefully. |
+| *"This account is suspended. Please contact the administrator."* | Your password was right, but the Administrator has suspended the account. | Contact your Administrator. |
+| *"New narration is made only for approved, open activities. Saved audio still plays."* | You selected a listen button on one of your activities that is waiting for approval, sent back or closed, and no audio was saved for it yet. | Listen again once the activity is approved and open. |
+| *"You still teach classes. Ask an administrator to move them to another teacher before deleting this account."* | Your account still teaches one or more classes. | Ask your Administrator to give your classes to another teacher (or delete them) first. |
 | *"That email and recovery code do not match, or the code was already used."* | The recovery code is wrong or already used. | Try another unused code from your list. If none are left, ask your Administrator. |
 | *"The two new passwords do not match."* | The two new passwords are different. | Type the same new password in both boxes. |
 | *"Your current password is incorrect."* | On **Account & recovery**, the current password is wrong. | Type your current password again. |
