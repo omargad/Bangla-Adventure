@@ -4,9 +4,12 @@ name: VPS production status
 # (docs/PRODUCTION_OPERATIONS.md). A failing or stale result fails the run, so GitHub notifies the
 # owner. Skipped unless the repository variable DEPLOY_ENABLED is 'true' (production exists).
 # It uses the "production-status" environment, which has no required reviewers so the daily check
-# never waits for a deploy approval. That environment must allow only main and hold only the
-# STATUS_SSH_KEY secret: a separate key that the server limits to running status. It never
-# receives the deploy key.
+# never waits for a deploy approval. That environment must allow only main and holds the
+# STATUS_SSH_KEY secret: a separate key whose public line, the repository variable
+# STATUS_SSH_PUBLIC_KEY, the reviewer-approved install restricts to running status. It never
+# receives the deploy key. An environment sees only its own and the repository's settings, so
+# DEPLOY_HOST, DEPLOY_USER (secrets) and DEPLOY_KNOWN_HOSTS (variable) kept on the production
+# environment must be added to production-status too.
 
 on:
   schedule:
@@ -44,5 +47,5 @@ jobs:
           DEPLOY_DOCKER_CONTEXT: ${{ vars.DEPLOY_DOCKER_CONTEXT }}
           DEPLOY_KNOWN_HOSTS: ${{ vars.DEPLOY_KNOWN_HOSTS }}
           STATUS_SSH_KEY: ${{ secrets.STATUS_SSH_KEY }}
-          STATUS_KEY_FINGERPRINT: ${{ vars.STATUS_KEY_FINGERPRINT }}
+          STATUS_SSH_PUBLIC_KEY: ${{ vars.STATUS_SSH_PUBLIC_KEY }}
         run: bash scripts/production-ops-controller.sh scheduled-status

@@ -1,11 +1,17 @@
 #!/usr/bin/env python3
-"""Install or update the production operations user units and tools; no root or system units."""
+"""Install or update the production operations user units and tools; no root or system units.
+
+Also keeps the status key's single restricted line in the deployment user's ~/.ssh/authorized_keys.
+"""
 from __future__ import annotations
 
+import base64
+import binascii
 import hashlib
 import importlib.util
 import json
 import os
+import pathlib
 from pathlib import Path
 import re
 import secrets
@@ -23,6 +29,15 @@ UNIT_PARTS = ("home", "config", "systemd", "user")
 SERVICE_TIMEOUT = {"backup": 45 * 60, "offsite": 4 * 3600, "monitor": 10 * 60}
 # A rollback waits this long for a running deploy (its health wait is minutes) before giving up on the lock.
 ROLLBACK_LOCK_WAIT = 20 * 60
+# The controller's key request: public halves only, never a private key.
+KEY_REQUEST = "status-key.json"
+# The status key's managed line: this exact start and comment, whatever the key's own comment was.
+STATUS_PREFIX = b'restrict,command="bash /opt/bangla-adventures/ops/tools/production-ops.sh status" ssh-ed25519 '
+STATUS_COMMENT = b" bangla-adventures-status"
+ED25519 = re.compile(r"ssh-ed25519 ([A-Za-z0-9+/]{68})")
+PUBLIC_KEY = re.compile(r"([a-z0-9][a-z0-9@.-]{0,63}) ([A-Za-z0-9+/]{16,16384}={0,2})")
+KEY_TYPE = re.compile(rb"[a-z0-9][a-z0-9@.-]{0,63}")
+MAX_AUTHORIZED_KEYS = 1024 * 1024
 
 
 class InstallFailed(ops.Refused):
@@ -105,6 +120,213 @@ def fresh_service_result(prod, action: str, started: float) -> dict:
     return report
 
 
+# The status key's line in ~/.ssh/authorized_keys -------------------------------------------
+
+def decoded(text: str | bytes) -> bytes | None:
+    try:
+        return base64.b64decode(text, validate=True)
+    except (binascii.Error, ValueError):
+        return None
+
+
+def blob_type(blob: bytes) -> bytes | None:
+    """The key type named by a public key blob's first field."""
+    size = int.from_bytes(blob[:4], "big") if len(blob) >= 4 else 0
+    return blob[4:4 + size] if 0 < size <= 64 and len(blob) >= 4 + size else None
+
+
+def public_key(text, *, ed25519: bool = False) -> tuple[bytes, bytes]:
+    """A request's 'TYPE BASE64' as (type, blob); the status key must be a plain ed25519 key."""
+    match = (ED25519 if ed25519 else PUBLIC_KEY).fullmatch(text) if isinstance(text, str) else None
+    ops.require(match is not None, "status-key-request-invalid")
+    kind, encoded = ("ssh-ed25519", match.group(1)) if ed25519 else match.groups()
+    blob = decoded(encoded)
+    ops.require(blob is not None and blob_type(blob) == kind.encode(), "status-key-request-invalid")
+    # ed25519: the type field, then one 32-byte key and nothing else.
+    ops.require(not ed25519 or (len(blob) == 51 and blob[15:19] == (32).to_bytes(4, "big")), "status-key-request-invalid")
+    return kind.encode(), blob
+
+
+def key_request(path: Path) -> dict:
+    """What this install does with the status key: unchanged, install or remove."""
+    try:
+        ops.require(path.stat().st_size <= 65536, "status-key-request-invalid")
+        value = json.loads(path.read_bytes())
+    except (OSError, ValueError) as exc:
+        raise ops.Refused("status-key-request-invalid") from exc
+    ops.require(isinstance(value, dict) and set(value) == {"deployKey", "statusKey"}, "status-key-request-invalid")
+    deploy = public_key(value["deployKey"])
+    if value["statusKey"] is None:
+        return {"action": "unchanged", "deploy": deploy}
+    if value["statusKey"] == "remove":
+        return {"action": "remove", "deploy": deploy}
+    _, blob = public_key(value["statusKey"], ed25519=True)
+    ops.require(blob != deploy[1], "status-key-is-deploy-key")
+    return {"action": "install", "deploy": deploy, "status": blob, "line": STATUS_PREFIX + base64.b64encode(blob) + STATUS_COMMENT}
+
+
+def lines_of(data: bytes) -> list[bytes]:
+    """Each line with its own ending; the last one may have none."""
+    parts = data.split(b"\n")
+    return [part + b"\n" for part in parts[:-1]] + ([parts[-1]] if parts[-1] else [])
+
+
+def text_of(line: bytes) -> bytes:
+    line = line[:-1] if line.endswith(b"\n") else line
+    return line[:-1] if line.endswith(b"\r") else line
+
+
+def managed(line: bytes) -> bool:
+    text = text_of(line)
+    return text.startswith(STATUS_PREFIX) and text.endswith(STATUS_COMMENT)
+
+
+def key_at(text: bytes) -> tuple[bytes, bytes] | None:
+    fields = text.split(None, 2)
+    if len(fields) < 2 or KEY_TYPE.fullmatch(fields[0]) is None:
+        return None
+    blob = decoded(fields[1])
+    return (fields[0], blob) if blob is not None and blob_type(blob) == fields[0] else None
+
+
+def line_key(line: bytes) -> tuple[bytes, bytes] | None:
+    """The key on an authorized_keys line, read as sshd does: a key, or options and then a key."""
+    text = text_of(line).lstrip(b" \t")
+    if not text or text.startswith(b"#"):
+        return None
+    found = key_at(text)
+    if found is not None:
+        return found
+    # Options end at the first blank outside double quotes; \" does not end a quoted value.
+    quoted, index = False, 0
+    while index < len(text) and (quoted or text[index] not in b" \t"):
+        if text[index:index + 2] == b'\\"':
+            index += 1
+        elif text[index] == ord('"'):
+            quoted = not quoted
+        index += 1
+    return None if quoted else key_at(text[index:].lstrip(b" \t"))
+
+
+def plan_status_key(current: bytes, request: dict) -> tuple[str, bytes | None]:
+    """The outcome and the new file, or None when the file already holds what was asked."""
+    lines = lines_of(current)
+    unmanaged = [line for line in lines if not managed(line)]
+    found = [line for line in lines if managed(line)]
+    # The deploy key on a line of its own proves sshd reads this file, and deploy access stays as it is.
+    ops.require(any(line_key(line) == request["deploy"] for line in unmanaged), "authorized-keys-not-in-use")
+    if request["action"] == "remove":
+        return ("removed", b"".join(unmanaged)) if found else ("already-absent", None)
+    # Never restrict or duplicate a key someone else authorized.
+    encoded = base64.b64encode(request["status"])
+    ops.require(not any(encoded in line or (line_key(line) or (b"", b""))[1] == request["status"] for line in unmanaged),
+                "status-key-already-authorized")
+    if [text_of(line) for line in found] == [request["line"]]:
+        return "already-present", None
+    terminated = [line for line in unmanaged if line.endswith(b"\n")]
+    ending = b"\r\n" if terminated and terminated[-1].endswith(b"\r\n") else b"\n"
+    body = b"".join(unmanaged)
+    if body and not body.endswith(b"\n"):
+        body += b"\n" if body.endswith(b"\r") else ending
+    return ("replaced" if found else "installed"), body + request["line"] + ending
+
+
+def check_written(data: bytes, previous: bytes, expected: bytes, request: dict) -> None:
+    """The file read back holds what was planned: every other line unchanged, the deploy key still there."""
+    ops.require(data == expected, "authorized-keys-verify-failed")
+    before, after = lines_of(previous), lines_of(data)
+    ops.require([text_of(line) for line in after if not managed(line)] == [text_of(line) for line in before if not managed(line)],
+                "authorized-keys-verify-failed")
+    wanted = [request["line"]] if request["action"] == "install" else []
+    ops.require([text_of(line) for line in after if managed(line)] == wanted, "authorized-keys-verify-failed")
+    ops.require(any(line_key(line) == request["deploy"] for line in after if not managed(line)), "authorized-keys-verify-failed")
+
+
+def ssh_folder(prod) -> pathlib.Path:
+    return pathlib.Path(ops.pwd.getpwuid(prod.s.uid).pw_dir) / ".ssh"
+
+
+def read_authorized_keys(folder: pathlib.Path, uid: int) -> bytes:
+    """authorized_keys, only from a folder and file that sshd's StrictModes accepts; never a link."""
+    try:
+        info = folder.lstat()
+    except FileNotFoundError as exc:
+        raise ops.Refused("authorized-keys-not-in-use") from exc
+    ops.require(ops.stat.S_ISDIR(info.st_mode) and info.st_uid == uid and not info.st_mode & 0o022 and folder.resolve() == folder,
+                "unsafe-ssh-directory")
+    path = folder / "authorized_keys"
+    try:
+        info = path.lstat()
+    except FileNotFoundError as exc:
+        raise ops.Refused("authorized-keys-not-in-use") from exc
+    ops.require(ops.stat.S_ISREG(info.st_mode) and info.st_uid == uid and not info.st_mode & 0o022 and info.st_size <= MAX_AUTHORIZED_KEYS,
+                "unsafe-authorized-keys")
+    with os.fdopen(os.open(path, os.O_RDONLY | os.O_NOFOLLOW), "rb") as handle:
+        opened = os.fstat(handle.fileno())
+        ops.require((opened.st_dev, opened.st_ino) == (info.st_dev, info.st_ino), "unsafe-authorized-keys")
+        data = handle.read(MAX_AUTHORIZED_KEYS + 1)
+    ops.require(len(data) <= MAX_AUTHORIZED_KEYS, "unsafe-authorized-keys")
+    return data
+
+
+def write_authorized_keys(folder: pathlib.Path, data: bytes) -> None:
+    """Atomic replacement: a private temporary file in ~/.ssh, fsync, rename, then fsync of the folder."""
+    temporary = folder / (".authorized_keys.ba-" + secrets.token_hex(12))
+    fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+    try:
+        with os.fdopen(fd, "wb") as output:
+            os.fchmod(output.fileno(), 0o600)
+            output.write(data)
+            output.flush()
+            os.fsync(output.fileno())
+        os.replace(temporary, folder / "authorized_keys")
+    except BaseException:
+        temporary.unlink(missing_ok=True)
+        raise
+    directory = os.open(folder, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        os.fsync(directory)
+    finally:
+        os.close(directory)
+
+
+class StatusKey:
+    """The status key's managed line: planned before anything changes, written once, restorable."""
+
+    def __init__(self, prod, request: dict):
+        self.uid = prod.s.uid
+        self.folder = ssh_folder(prod)
+        self.request = request
+        self.previous = read_authorized_keys(self.folder, self.uid)
+        self.outcome, self.planned = plan_status_key(self.previous, request)
+        self.written = None
+
+    def apply(self) -> str:
+        if self.planned is None:
+            return self.outcome
+        ops.require(read_authorized_keys(self.folder, self.uid) == self.previous, "authorized-keys-changed")
+        self.written = self.planned
+        write_authorized_keys(self.folder, self.planned)
+        try:
+            check_written(read_authorized_keys(self.folder, self.uid), self.previous, self.planned, self.request)
+        except (ops.Refused, OSError) as exc:
+            write_authorized_keys(self.folder, self.previous)
+            self.written = None
+            raise ops.Refused("authorized-keys-verify-failed") from exc
+        return self.outcome
+
+    def restore(self) -> None:
+        """The previous bytes again, unless someone else has changed the file since this install wrote it."""
+        if self.written is None:
+            return
+        current = read_authorized_keys(self.folder, self.uid)
+        if current != self.previous:
+            ops.require(current == self.written, "authorized-keys-changed")
+            write_authorized_keys(self.folder, self.previous)
+            ops.require(read_authorized_keys(self.folder, self.uid) == self.previous, "authorized-keys-verify-failed")
+        self.written = None
+
+
 def main(argv: list[str]) -> int:
     ops.require(len(argv) == 2, "invalid-install-arguments")
     settings = ops.Settings()
@@ -116,10 +338,11 @@ def main(argv: list[str]) -> int:
     prod.check_user()
     ops.private_dir(settings.ops, settings.uid)
     ops.private_dir(payload, settings.uid)
-    for name in (*ops.TOOLS, *ops.UNITS):
+    for name in (*ops.TOOLS, *ops.UNITS, KEY_REQUEST):
         ops.regular(payload / name, settings.uid)
     for name in ops.UNITS:
         ops.require((payload / name).read_bytes().startswith(MARKER), "unit-marker")
+    request = key_request(payload / KEY_REQUEST)
     prod.check_docker()
     cfg = prod.env_settings()
     running, healthy = prod.serving_state(prod.app(prod.containers(cfg)))
@@ -137,6 +360,8 @@ def main(argv: list[str]) -> int:
     previous = {}
     previous_receipt = None
     timer_states = {}
+    status_key = None
+    status_outcome = "unchanged"
 
     def stop_new_timers():
         for name in ops.TIMERS.values():
@@ -165,6 +390,8 @@ def main(argv: list[str]) -> int:
             atomic(receipt_path, previous_receipt, settings.uid)
         userctl(prod, "daemon-reload", okay=True)
         start_previous_timers()
+        if status_key is not None:
+            status_key.restore()
 
     def rollback(held: int | None) -> str:
         """Put the previous files and timer states back; once started, stop requests wait for it."""
@@ -198,6 +425,9 @@ def main(argv: list[str]) -> int:
             for path in destinations:
                 ops.require(not os.path.lexists(path), "unmanaged-file")
         previous = {path: path.read_bytes() if os.path.lexists(path) else None for path in destinations}
+        # Unset STATUS_SSH_PUBLIC_KEY never reads authorized_keys; a refusal here changes nothing.
+        if request["action"] != "unchanged":
+            status_key = StatusKey(prod, request)
         for name in ops.TIMERS.values():
             timer_states[name] = {
                 "enabled": userctl(prod, "is-enabled", "--quiet", name, okay=True).returncode == 0,
@@ -214,6 +444,8 @@ def main(argv: list[str]) -> int:
                    "tools": {name: hashlib.sha256((payload / name).read_bytes()).hexdigest() for name in ops.TOOLS},
                    "units": {name: hashlib.sha256((payload / name).read_bytes()).hexdigest() for name in ops.UNITS}}
         atomic(receipt_path, (json.dumps(receipt, sort_keys=True) + "\n").encode(), settings.uid)
+        if status_key is not None:
+            status_outcome = status_key.apply()
         userctl(prod, "daemon-reload")
         for name in ops.UNITS:
             loaded = userctl(prod, "show", name, "--property=FragmentPath", "--value").stdout.strip()
@@ -253,7 +485,7 @@ def main(argv: list[str]) -> int:
     result = {"scope": ops.SCOPE, "action": "install", "verified": True, "status": "passed", "codes": [],
               "timers": {name: True for name in ops.TIMERS}, "offsiteConfigured": offsite, "initialRuns": initial,
               "retentionCount": ops.KEEP, "backupSchedule": "16:30 UTC daily", "offsiteSchedule": "17:15 UTC daily",
-              "monitorIntervalSeconds": 300, "resticImage": ops.RESTIC_IMAGE}
+              "monitorIntervalSeconds": 300, "resticImage": ops.RESTIC_IMAGE, "statusKey": status_outcome}
     print(json.dumps(result, separators=(",", ":")))
     return 0
 
