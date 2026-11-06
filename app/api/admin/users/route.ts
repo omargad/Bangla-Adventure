@@ -8,7 +8,7 @@ export async function GET(request: Request) {
   const actor = await getStaffAccess("admin");
   if (actor instanceof Response) return actor;
   try {
-    return Response.json(await listUsers(new URL(request.url).searchParams));
+    return Response.json(await listUsers(actor.id, new URL(request.url).searchParams));
   } catch (error) {
     return error instanceof UserManagementError
       ? Response.json({ error: error.message, errorBn: error.messageBn }, { status: error.status })

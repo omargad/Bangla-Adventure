@@ -70,13 +70,13 @@ test("student accounts cannot be promoted and their sessions can be revoked", as
 });
 
 test("listing is paginated and contains no session, password or recovery secrets", async () => {
-  const result = await listUsers(new URLSearchParams({ q: "Teacher", kind: "adult" }));
+  const result = await listUsers("admin", new URLSearchParams({ q: "Teacher", kind: "adult" }));
   assert.equal(result.users.length, 1);
   assert.equal(result.pageSize, 25);
   assert.equal(result.users[0].passwordHash, undefined);
   assert.equal(result.users[0].recoveryCodes, undefined);
   assert.ok(!JSON.stringify(result).includes("test-password-strong"));
-  await assert.rejects(listUsers(new URLSearchParams({ filter: "unknown" })), /Invalid/);
+  await assert.rejects(listUsers("admin", new URLSearchParams({ filter: "unknown" })), /Invalid/);
 });
 
 const temporaryPattern = /^[a-z2-9]{4}-[a-z2-9]{4}-[a-z2-9]{2}$/;
@@ -109,16 +109,16 @@ test("the approval queue lists waiting students, parents and teacher requests, o
     { id: "declined-parent", email: "declined@example.com", displayName: "Declined Parent", passwordHash: "test-only", approvalStatus: "declined", createdAt: "2026-10-04 09:00:00" },
   ]).run();
   db.insert(students).values({ id: "self-child", username: "self-child", displayName: "Self Child", passwordHash: "test-only", approvalStatus: "pending", createdAt: "2026-10-02 09:00:00" }).run();
-  const result = await listUsers(new URLSearchParams());
+  const result = await listUsers("admin", new URLSearchParams());
   assert.deepEqual(result.approvals.users.map((user) => [user.id, user.kind]), [["self-parent", "adult"], ["self-child", "student"], ["self-teacher", "adult"]]);
   assert.equal(result.approvals.total, 3);
   assert.equal(result.stats.pending, 3);
   assert.ok(!JSON.stringify(result.approvals).includes("test-only"), "no password hashes");
-  const ids = async (params) => (await listUsers(new URLSearchParams(params))).users.map((user) => user.id).sort();
+  const ids = async (params) => (await listUsers("admin", new URLSearchParams(params))).users.map((user) => user.id).sort();
   assert.deepEqual(await ids({ kind: "adult", filter: "pending" }), ["self-parent", "self-teacher"]);
   assert.deepEqual(await ids({ kind: "student", filter: "pending" }), ["self-child"]);
   assert.deepEqual(await ids({ kind: "adult", filter: "declined" }), ["declined-parent"]);
-  await assert.rejects(listUsers(new URLSearchParams({ kind: "student", filter: "teacher" })), /Invalid student filter/);
+  await assert.rejects(listUsers("admin", new URLSearchParams({ kind: "student", filter: "teacher" })), /Invalid student filter/);
 });
 
 test("approving and declining self sign-ups is audited, and a declined account can be approved later", async () => {
@@ -152,11 +152,11 @@ test("a teacher request made at sign-up decides the account; an existing parent'
   assert.deepEqual([kept.role, kept.teacherStatus, kept.approvalStatus], ["parent", "rejected", "approved"], "an existing parent keeps their account");
   const refused = await updateUser("admin", "refused-applicant", { kind: "adult", action: "reject" });
   assert.deepEqual([refused.role, refused.teacherStatus, refused.approvalStatus], ["parent", "rejected", "declined"]);
-  assert.equal((await listUsers(new URLSearchParams())).approvals.total, 0);
+  assert.equal((await listUsers("admin", new URLSearchParams())).approvals.total, 0);
 });
 
 test("approving a teacher applicant declined at sign-up grants the request it was declined with", async () => {
-  const declined = (await listUsers(new URLSearchParams({ kind: "adult", filter: "declined" }))).users.find((user) => user.id === "refused-applicant");
+  const declined = (await listUsers("admin", new URLSearchParams({ kind: "adult", filter: "declined" }))).users.find((user) => user.id === "refused-applicant");
   assert.deepEqual([declined.role, declined.teacherStatus], ["parent", "rejected"]);
   const approved = await updateUser("admin", "refused-applicant", { kind: "adult", action: "approve" });
   assert.deepEqual([approved.role, approved.teacherStatus, approved.approvalStatus], ["teacher", "approved", "approved"]);
@@ -171,9 +171,9 @@ test("suspended accounts leave the approval queue and are decided only once reac
   db.insert(adults).values({ id: "suspended-applicant", email: "suspended-applicant@example.com", displayName: "Suspended Applicant", passwordHash: "test-only", teacherStatus: "pending", approvalStatus: "pending", status: "suspended" }).run();
   db.insert(students).values({ id: "suspended-child", username: "suspended-child", displayName: "Suspended Child", passwordHash: "test-only", approvalStatus: "pending", status: "suspended" }).run();
   const waiting = async () => {
-    const result = await listUsers(new URLSearchParams());
-    const pendingAdults = (await listUsers(new URLSearchParams({ kind: "adult", filter: "pending" }))).users.map((user) => user.id);
-    const pendingStudents = (await listUsers(new URLSearchParams({ kind: "student", filter: "pending" }))).users.map((user) => user.id);
+    const result = await listUsers("admin", new URLSearchParams());
+    const pendingAdults = (await listUsers("admin", new URLSearchParams({ kind: "adult", filter: "pending" }))).users.map((user) => user.id);
+    const pendingStudents = (await listUsers("admin", new URLSearchParams({ kind: "student", filter: "pending" }))).users.map((user) => user.id);
     assert.equal(result.stats.pending, result.approvals.total);
     return [result.approvals.users.map((user) => user.id).sort(), [...pendingAdults, ...pendingStudents].sort()];
   };
@@ -230,7 +230,7 @@ test("recent changes made within the same second are listed newest first", async
     { id: "same-second-m", actorId: "admin", targetId: "my-family", targetType: "lesson", action: "lesson-approved", detailsJson: "{}", createdAt: second },
     { id: "same-second-a", actorId: "admin", targetId: "food-please", targetType: "lesson", action: "lesson-approved", detailsJson: "{}", createdAt: second },
   ]).run();
-  const { audit } = await listUsers(new URLSearchParams());
+  const { audit } = await listUsers("admin", new URLSearchParams());
   assert.deepEqual(audit.filter((event) => event.id.startsWith("same-second-")).map((event) => event.id), ["same-second-a", "same-second-m", "same-second-z"]);
 });
 
@@ -243,7 +243,7 @@ test("recent changes name what each change was about, in both languages, without
     { id: "label-book", actorId: "admin", targetId: "history-9-10", targetType: "library-source", action: "library-link-updated", detailsJson: "{}", createdAt: later },
     { id: "label-gone", actorId: "admin", targetId: "deleted-class", targetType: "class", action: "class-deleted", detailsJson: JSON.stringify({ name: "Old class" }), createdAt: later },
   ]).run();
-  const { audit } = await listUsers(new URLSearchParams());
+  const { audit } = await listUsers("admin", new URLSearchParams());
   const label = (predicate) => audit.find(predicate)?.targetLabel;
   assert.deepEqual(label((event) => event.targetId === user.id && event.action === "created"), { en: "Labelled Child (labelled-child)", bn: "Labelled Child (labelled-child)" });
   assert.deepEqual(label((event) => event.id === "label-lesson"), { en: "Hello, this is me", bn: "হ্যালো, এই আমি" });
@@ -268,15 +268,84 @@ test("accounts created in the same second are listed in the order they were crea
   const names = (users) => users.map((user) => user.displayName);
   const studentName = (i) => `Same Second ${pad(i)}`;
   const newestFirst = Array.from({ length: 30 }, (_, i) => studentName(29 - i));
-  const pageOf = async (page) => names((await listUsers(new URLSearchParams({ kind: "student", q: "Same Second", page: String(page) }))).users);
+  const pageOf = async (page) => names((await listUsers("admin", new URLSearchParams({ kind: "student", q: "Same Second", page: String(page) }))).users);
   assert.deepEqual(await pageOf(1), newestFirst.slice(0, 25));
   assert.deepEqual(await pageOf(2), newestFirst.slice(25));
-  const adultsListed = names((await listUsers(new URLSearchParams({ kind: "adult", q: "Same Second Adult" }))).users);
+  const adultsListed = names((await listUsers("admin", new URLSearchParams({ kind: "adult", q: "Same Second Adult" }))).users);
   assert.deepEqual(adultsListed, ["Same Second Adult 3", "Same Second Adult 2", "Same Second Adult 1", "Same Second Adult 0"]);
 
-  const queue = (await listUsers(new URLSearchParams())).approvals.users.filter((user) => user.displayName.startsWith("Same Second"));
+  const queue = (await listUsers("admin", new URLSearchParams())).approvals.users.filter((user) => user.displayName.startsWith("Same Second"));
   assert.deepEqual(names(queue.filter((user) => user.kind === "student")), Array.from({ length: 30 }, (_, i) => studentName(i)), "the queue is oldest first");
   assert.deepEqual(names(queue.filter((user) => user.kind === "adult")), ["Same Second Adult 0", "Same Second Adult 1", "Same Second Adult 2", "Same Second Adult 3"]);
   db.delete(students).where(like(students.username, "same-second-%")).run();
   db.delete(adults).where(like(adults.email, "same-second-%")).run();
+});
+
+test("only an administrator can list users or read recent changes, re-checked with the reads", async () => {
+  await assert.rejects(listUsers("parent", new URLSearchParams()), (error) => error.status === 403 && /Administrator access required/.test(error.message));
+  await assert.rejects(listUsers("missing-account", new URLSearchParams()), (error) => error.status === 403);
+  db.insert(adults).values({ id: "suspended-admin", email: "suspended-admin@example.com", displayName: "Suspended Admin", passwordHash: "test-only", role: "admin", status: "suspended" }).run();
+  await assert.rejects(listUsers("suspended-admin", new URLSearchParams()), (error) => error.status === 403);
+});
+
+test("a role given with an approval decision brings the matching teacher status", async () => {
+  db.insert(adults).values([
+    { id: "role-parent", email: "role-parent@example.com", displayName: "Role Parent", passwordHash: "test-only", approvalStatus: "pending" },
+    { id: "role-teacher", email: "role-teacher@example.com", displayName: "Role Teacher", passwordHash: "test-only", approvalStatus: "pending" },
+  ]).run();
+  const teacher = await updateUser("admin", "role-teacher", { kind: "adult", action: "approve", role: "teacher" });
+  assert.deepEqual([teacher.role, teacher.teacherStatus, teacher.approvalStatus], ["teacher", "approved", "approved"], "an approved teacher can teach at once");
+  const row = db.select().from(adults).where(eq(adults.id, "role-teacher")).get();
+  assert.deepEqual([row.role, row.teacherStatus], ["teacher", "approved"]);
+  assert.equal((await updateUser("admin", "role-teacher", { kind: "adult", role: "parent" })).teacherStatus, "none");
+  const declined = await updateUser("admin", "role-parent", { kind: "adult", action: "reject", role: "teacher" });
+  assert.deepEqual([declined.role, declined.teacherStatus, declined.approvalStatus], ["teacher", "approved", "declined"], "the teacher status always matches the role");
+});
+
+test("only an approved account can be made an administrator", async () => {
+  db.insert(adults).values([
+    { id: "waiting-for-admin", email: "waiting-for-admin@example.com", displayName: "Waiting", passwordHash: "test-only", approvalStatus: "pending" },
+    { id: "declined-for-admin", email: "declined-for-admin@example.com", displayName: "Declined", passwordHash: "test-only", approvalStatus: "declined" },
+  ]).run();
+  const refused = (error) => error.status === 409 && /Approve this account before making it an administrator/.test(error.message) && Boolean(error.messageBn);
+  await assert.rejects(updateUser("admin", "waiting-for-admin", { kind: "adult", role: "admin" }), refused);
+  await assert.rejects(updateUser("admin", "waiting-for-admin", { kind: "adult", action: "approve", role: "admin" }), refused, "approve first, then change the role");
+  await assert.rejects(updateUser("admin", "declined-for-admin", { kind: "adult", role: "admin" }), refused);
+  assert.equal(db.select().from(adults).where(eq(adults.id, "waiting-for-admin")).get().role, "parent");
+  await updateUser("admin", "waiting-for-admin", { kind: "adult", action: "approve" });
+  assert.equal((await updateUser("admin", "waiting-for-admin", { kind: "adult", role: "admin" })).role, "admin");
+  await updateUser("admin", "waiting-for-admin", { kind: "adult", role: "parent" });
+});
+
+test("an administrator role on an account that is not approved does not count as an administrator", async () => {
+  db.insert(adults).values({ id: "unapproved-admin", email: "unapproved-admin@example.com", displayName: "Unapproved Admin", passwordHash: "test-only", role: "admin", approvalStatus: "pending" }).run();
+  // Not a usable administrator, so taking the role away needs no other administrator to remain.
+  assert.equal((await updateUser("admin", "unapproved-admin", { kind: "adult", role: "parent" })).role, "parent");
+  // A usable one can be demoted only while another usable one (the acting administrator) remains.
+  assert.equal((await updateUser("admin", "second-admin", { kind: "adult", role: "teacher" })).teacherStatus, "approved");
+});
+
+test("recent changes say who made each change, and keep the stored name of a target that is gone", async () => {
+  db.insert(adults).values({ id: "named-actor", email: "named-actor@example.com", displayName: "Named Actor", passwordHash: "test-only", role: "teacher", teacherStatus: "approved" }).run();
+  db.insert(students).values({ id: "acting-child", username: "acting-child", displayName: "Acting Child", passwordHash: "test-only" }).run();
+  const latest = "2099-12-31 23:00:00";
+  db.insert(userAuditEvents).values([
+    { id: "actor-adult", actorId: "named-actor", targetId: "gone-class", targetType: "class", action: "class-deleted", detailsJson: JSON.stringify({ targetLabel: { en: "Friday Class", bn: "শুক্রবারের ক্লাস" } }), createdAt: latest },
+    { id: "actor-student", actorId: "acting-child", targetId: "acting-child", targetType: "student", action: "student-password-changed", detailsJson: "{}", createdAt: latest },
+    { id: "actor-server", actorId: null, targetId: "named-actor", targetType: "adult", action: "password-reset-by-server-operator", detailsJson: "{}", createdAt: latest },
+    { id: "actor-deleted", actorId: "deleted-account", targetId: "deleted-account", targetType: "adult", action: "account-deleted", detailsJson: JSON.stringify({ targetLabel: { en: "Former Parent", bn: "Former Parent" } }), createdAt: latest },
+    { id: "actor-unreadable", actorId: "admin", targetId: "gone-thing", targetType: "class", action: "class-deleted", detailsJson: "not json", createdAt: latest },
+  ]).run();
+  const { audit } = await listUsers("admin", new URLSearchParams());
+  const event = (id) => audit.find((item) => item.id === id);
+  assert.deepEqual(event("actor-adult").actor, { kind: "account", name: "Named Actor" });
+  assert.deepEqual(event("actor-adult").targetLabel, { en: "Friday Class", bn: "শুক্রবারের ক্লাস" }, "a deleted class keeps its name");
+  assert.deepEqual(event("actor-student").actor, { kind: "account", name: "Acting Child" });
+  assert.deepEqual(event("actor-server").actor, { kind: "server" });
+  assert.deepEqual(event("actor-server").targetLabel, { en: "Named Actor", bn: "Named Actor" }, "a target still present is named as it is now");
+  assert.deepEqual(event("actor-deleted").actor, { kind: "deleted" });
+  assert.deepEqual(event("actor-deleted").targetLabel, { en: "Former Parent", bn: "Former Parent" });
+  assert.equal(event("actor-unreadable").targetLabel, null);
+  assert.equal(event("actor-unreadable").actor.kind, "account");
+  db.delete(userAuditEvents).where(like(userAuditEvents.id, "actor-%")).run();
 });

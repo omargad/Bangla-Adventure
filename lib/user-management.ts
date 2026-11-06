@@ -37,6 +37,9 @@ function authorize(tx: Transaction, actorId: string) {
   if (!actor || !canManageUsers(actor)) throw refuse(["Administrator access required.", "প্রশাসকের অনুমতি প্রয়োজন।"], 403);
 }
 
+/** An administrator who can sign in and act: active and approved. Only these count towards the last one. */
+const usableAdministrator = (account: { role: string; status: string; approvalStatus: string }) => account.role === "admin" && account.status === "active" && account.approvalStatus === "approved";
+
 function record(tx: Transaction, actorId: string | null, targetId: string, targetType: string, action: string, details: object = {}) {
   tx.insert(userAuditEvents).values({ id: crypto.randomUUID(), actorId, targetId, targetType, action, detailsJson: JSON.stringify(details) }).run();
 }
@@ -65,57 +68,91 @@ async function auditTargetLabels(db: Db, events: Array<{ targetType: string; tar
   return labels;
 }
 
-export async function listUsers(params: URLSearchParams) {
-  const db = await getDb();
+/**
+ * One page of users, the approval queue and the latest audit events, for an administrator. The actor is
+ * re-checked inside the same transaction as the reads, like every other administrator function.
+ */
+export async function listUsers(actorId: string, params: URLSearchParams) {
   const kind = params.get("kind") ?? "adult";
   const filter = params.get("filter") ?? "all";
   const search = params.get("q")?.trim().slice(0, 120) ?? "";
   const page = Math.max(1, Math.min(10000, Number.parseInt(params.get("page") ?? "1", 10) || 1));
   const pageSize = 25;
   if (!["adult", "student"].includes(kind) || !["all", "pending", "declined", "parent", "teacher", "admin", "suspended"].includes(filter)) throw refuse(["Invalid user filter.", "ব্যবহারকারী বাছাইটি সঠিক নয়।"]);
-  const conditions: SQL[] = [];
-  let users;
-  let total;
-  if (kind === "student") {
-    if (!["all", "pending", "declined", "suspended"].includes(filter)) throw refuse(["Invalid student filter.", "শিক্ষার্থী বাছাইটি সঠিক নয়।"]);
-    if (search) conditions.push(or(like(students.displayName, `%${search}%`), like(students.username, `%${search}%`))!);
-    if (filter === "suspended") conditions.push(eq(students.status, "suspended"));
-    else if (filter === "pending") conditions.push(studentAwaitingApproval);
-    else if (filter === "declined") conditions.push(eq(students.approvalStatus, "declined"));
-    users = db.select(studentFields).from(students).where(and(...conditions)).orderBy(desc(students.createdAt), desc(sql`${students}.rowid`)).limit(pageSize).offset((page - 1) * pageSize).all().map((user) => ({ ...user, role: "student", teacherStatus: "none", kind }));
-    total = db.select({ value: count() }).from(students).where(and(...conditions)).get()!.value;
-  } else {
-    if (search) conditions.push(or(like(adults.displayName, `%${search}%`), like(adults.email, `%${search}%`))!);
-    if (filter === "pending") conditions.push(adultAwaitingApproval);
-    else if (filter === "declined") conditions.push(eq(adults.approvalStatus, "declined"));
-    else if (filter === "suspended") conditions.push(eq(adults.status, "suspended"));
-    else if (isRole(filter)) conditions.push(eq(adults.role, filter));
-    users = db.select(adultFields).from(adults).where(and(...conditions)).orderBy(desc(adults.createdAt), desc(sql`${adults}.rowid`)).limit(pageSize).offset((page - 1) * pageSize).all().map((user) => ({ ...user, kind }));
-    total = db.select({ value: count() }).from(adults).where(and(...conditions)).get()!.value;
-  }
-  const pendingAdults = db.select({ value: count() }).from(adults).where(adultAwaitingApproval).get()!.value;
-  const pendingStudents = db.select({ value: count() }).from(students).where(studentAwaitingApproval).get()!.value;
-  const stats = {
-    adults: db.select({ value: count() }).from(adults).get()!.value,
-    students: db.select({ value: count() }).from(students).get()!.value,
-    teachers: db.select({ value: count() }).from(adults).where(and(eq(adults.role, "teacher"), eq(adults.status, "active"), eq(adults.teacherStatus, "approved"))).get()!.value,
-    pending: pendingAdults + pendingStudents,
-  };
-  // One queue for students, parents and teacher requests, oldest first. rowid keeps sign-ups from the same
-  // second in the order they arrived; the stable sort keeps that order (adults, then students) when merging.
-  const approvals = {
-    users: [
-      ...db.select(adultFields).from(adults).where(adultAwaitingApproval).orderBy(asc(adults.createdAt), asc(sql`${adults}.rowid`)).limit(APPROVAL_QUEUE_LIMIT).all().map((user) => ({ ...user, kind: "adult" as const })),
-      ...db.select(studentFields).from(students).where(studentAwaitingApproval).orderBy(asc(students.createdAt), asc(sql`${students}.rowid`)).limit(APPROVAL_QUEUE_LIMIT).all().map((user) => ({ ...user, role: "student", teacherStatus: "none", kind: "student" as const })),
-    ].sort((a, b) => a.createdAt.localeCompare(b.createdAt)).slice(0, APPROVAL_QUEUE_LIMIT),
-    total: stats.pending,
-  };
-  // Newest first; rowid orders changes made within the same second by when they were recorded.
-  const events = db.select({ id: userAuditEvents.id, action: userAuditEvents.action, targetType: userAuditEvents.targetType, targetId: userAuditEvents.targetId, createdAt: userAuditEvents.createdAt })
-    .from(userAuditEvents).orderBy(desc(userAuditEvents.createdAt), desc(sql`${userAuditEvents}.rowid`)).limit(15).all();
+  if (kind === "student" && !["all", "pending", "declined", "suspended"].includes(filter)) throw refuse(["Invalid student filter.", "শিক্ষার্থী বাছাইটি সঠিক নয়।"]);
+  const db = await getDb();
+  const listing = db.transaction((tx) => {
+    authorize(tx, actorId);
+    const conditions: SQL[] = [];
+    let users;
+    let total;
+    if (kind === "student") {
+      if (search) conditions.push(or(like(students.displayName, `%${search}%`), like(students.username, `%${search}%`))!);
+      if (filter === "suspended") conditions.push(eq(students.status, "suspended"));
+      else if (filter === "pending") conditions.push(studentAwaitingApproval);
+      else if (filter === "declined") conditions.push(eq(students.approvalStatus, "declined"));
+      users = tx.select(studentFields).from(students).where(and(...conditions)).orderBy(desc(students.createdAt), desc(sql`${students}.rowid`)).limit(pageSize).offset((page - 1) * pageSize).all().map((user) => ({ ...user, role: "student", teacherStatus: "none", kind }));
+      total = tx.select({ value: count() }).from(students).where(and(...conditions)).get()!.value;
+    } else {
+      if (search) conditions.push(or(like(adults.displayName, `%${search}%`), like(adults.email, `%${search}%`))!);
+      if (filter === "pending") conditions.push(adultAwaitingApproval);
+      else if (filter === "declined") conditions.push(eq(adults.approvalStatus, "declined"));
+      else if (filter === "suspended") conditions.push(eq(adults.status, "suspended"));
+      else if (isRole(filter)) conditions.push(eq(adults.role, filter));
+      users = tx.select(adultFields).from(adults).where(and(...conditions)).orderBy(desc(adults.createdAt), desc(sql`${adults}.rowid`)).limit(pageSize).offset((page - 1) * pageSize).all().map((user) => ({ ...user, kind }));
+      total = tx.select({ value: count() }).from(adults).where(and(...conditions)).get()!.value;
+    }
+    const pendingAdults = tx.select({ value: count() }).from(adults).where(adultAwaitingApproval).get()!.value;
+    const pendingStudents = tx.select({ value: count() }).from(students).where(studentAwaitingApproval).get()!.value;
+    const stats = {
+      adults: tx.select({ value: count() }).from(adults).get()!.value,
+      students: tx.select({ value: count() }).from(students).get()!.value,
+      teachers: tx.select({ value: count() }).from(adults).where(and(eq(adults.role, "teacher"), eq(adults.status, "active"), eq(adults.teacherStatus, "approved"))).get()!.value,
+      pending: pendingAdults + pendingStudents,
+    };
+    // One queue for students, parents and teacher requests, oldest first. rowid keeps sign-ups from the same
+    // second in the order they arrived; the stable sort keeps that order (adults, then students) when merging.
+    const approvals = {
+      users: [
+        ...tx.select(adultFields).from(adults).where(adultAwaitingApproval).orderBy(asc(adults.createdAt), asc(sql`${adults}.rowid`)).limit(APPROVAL_QUEUE_LIMIT).all().map((user) => ({ ...user, kind: "adult" as const })),
+        ...tx.select(studentFields).from(students).where(studentAwaitingApproval).orderBy(asc(students.createdAt), asc(sql`${students}.rowid`)).limit(APPROVAL_QUEUE_LIMIT).all().map((user) => ({ ...user, role: "student", teacherStatus: "none", kind: "student" as const })),
+      ].sort((a, b) => a.createdAt.localeCompare(b.createdAt)).slice(0, APPROVAL_QUEUE_LIMIT),
+      total: stats.pending,
+    };
+    // Newest first; rowid orders changes made within the same second by when they were recorded.
+    const events = tx.select({ id: userAuditEvents.id, actorId: userAuditEvents.actorId, action: userAuditEvents.action, targetType: userAuditEvents.targetType, targetId: userAuditEvents.targetId, detailsJson: userAuditEvents.detailsJson, createdAt: userAuditEvents.createdAt })
+      .from(userAuditEvents).orderBy(desc(userAuditEvents.createdAt), desc(sql`${userAuditEvents}.rowid`)).limit(15).all();
+    return { users, total, stats, approvals, events, actors: auditActorNames(tx, events) };
+  });
+  const { events, actors, ...rest } = listing;
   const labels = await auditTargetLabels(db, events);
-  const audit = events.map((event) => ({ ...event, targetLabel: labels.get(`${event.targetType}:${event.targetId}`) ?? null }));
-  return { users, total, page, pageSize, stats, approvals, audit };
+  const audit = events.map(({ detailsJson, actorId: eventActor, ...event }) => ({
+    ...event,
+    // The target's name now, or the one stored with the event when the target is gone (a deleted class, say).
+    targetLabel: labels.get(`${event.targetType}:${event.targetId}`) ?? storedTargetLabel(detailsJson),
+    // Who made the change: an account still here, the server operator (no actor), or an account deleted since.
+    actor: eventActor === null ? { kind: "server" as const } : actors.has(eventActor) ? { kind: "account" as const, name: actors.get(eventActor)! } : { kind: "deleted" as const },
+  }));
+  return { ...rest, page, pageSize, audit };
+}
+
+/** The display name of each adult or student account that made one of these changes, keyed by id. A deleted account has none. */
+function auditActorNames(tx: Transaction, events: Array<{ actorId: string | null }>): Map<string, string> {
+  const ids = [...new Set(events.map((event) => event.actorId).filter((id): id is string => Boolean(id)))];
+  const names = new Map<string, string>();
+  if (!ids.length) return names;
+  for (const row of tx.select({ id: students.id, name: students.displayName }).from(students).where(inArray(students.id, ids)).all()) names.set(row.id, row.name);
+  for (const row of tx.select({ id: adults.id, name: adults.displayName }).from(adults).where(inArray(adults.id, ids)).all()) names.set(row.id, row.name);
+  return names;
+}
+
+/** The target's name as it was when the change was recorded (`targetLabel` in the details), if one was stored. */
+function storedTargetLabel(detailsJson: string): Bilingual | null {
+  try {
+    const label = (JSON.parse(detailsJson) as { targetLabel?: Partial<Bilingual> }).targetLabel;
+    if (label && typeof label.en === "string" && label.en) return { en: label.en, bn: typeof label.bn === "string" && label.bn ? label.bn : label.en };
+  } catch { /* unreadable details carry no label */ }
+  return null;
 }
 
 export async function updateUser(actorId: string, id: string, input: Record<string, unknown>) {
@@ -165,14 +202,20 @@ export async function updateUser(actorId: string, id: string, input: Record<stri
       next.teacherStatus = action === "approve" ? "approved" : "rejected";
       // A teacher request made at sign-up is also the account's approval; an existing parent's account is unaffected.
       if (current.approvalStatus !== "approved") next.approvalStatus = action === "approve" ? "approved" : "declined";
-    } else if (deciding) {
-      if (action === "approve" ? current.approvalStatus === "approved" : current.approvalStatus !== "pending") throw refuse(NOT_AWAITING, 409);
-      next.approvalStatus = action === "approve" ? "approved" : "declined";
-      audited = `account-${action === "approve" ? "approved" : "declined"}`;
-    } else if (next.role !== current.role) next.teacherStatus = next.role === "teacher" ? "approved" : "none";
+    } else {
+      if (deciding) {
+        if (action === "approve" ? current.approvalStatus === "approved" : current.approvalStatus !== "pending") throw refuse(NOT_AWAITING, 409);
+        next.approvalStatus = action === "approve" ? "approved" : "declined";
+        audited = `account-${action === "approve" ? "approved" : "declined"}`;
+      }
+      // A role given here, with or without an approval decision, brings the teacher status that goes with it.
+      if (next.role !== current.role) next.teacherStatus = next.role === "teacher" ? "approved" : "none";
+    }
     if (id === actorId && (next.role !== current.role || next.status !== current.status)) throw refuse(["You cannot change your own role or suspend your own account.", "নিজের ভূমিকা বদলানো বা নিজের অ্যাকাউন্ট স্থগিত করা যায় না।"], 409);
-    if (current.role === "admin" && current.status === "active" && (next.role !== "admin" || next.status !== "active")) {
-      const remaining = tx.select({ value: count() }).from(adults).where(and(eq(adults.role, "admin"), eq(adults.status, "active"))).get()!.value;
+    // Only an account an administrator has already approved can become one; approve it first, then change the role.
+    if (next.role === "admin" && current.role !== "admin" && current.approvalStatus !== "approved") throw refuse(["Approve this account before making it an administrator.", "প্রশাসক করার আগে অ্যাকাউন্টটি অনুমোদন করুন।"], 409);
+    if (usableAdministrator(current) && !usableAdministrator(next)) {
+      const remaining = tx.select({ value: count() }).from(adults).where(and(eq(adults.role, "admin"), eq(adults.status, "active"), eq(adults.approvalStatus, "approved"))).get()!.value;
       if (remaining <= 1) throw refuse(["At least one active administrator must remain.", "অন্তত একজন সক্রিয় প্রশাসক থাকতে হবে।"], 409);
     }
     tx.update(adults).set(next).where(eq(adults.id, id)).run();

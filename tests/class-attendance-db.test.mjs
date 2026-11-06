@@ -112,12 +112,12 @@ test("a removed student leaves the sheet, roster, counts and averages but keeps 
   assert.equal(classAttendanceSummaries(db, "class-a").has("nadia"), false);
   assert.deepEqual(classAttendanceTotals(db).get("class-a"), { attended: 2, recorded: 4 });
 
-  const listing = (await listClassResults()).find((item) => item.id === "class-a");
+  const listing = (await listClassResults("admin")).find((item) => item.id === "class-a");
   assert.equal(listing.studentCount, 3, "Arif, Maya and the class-code learner");
   assert.equal(listing.submissionCount, 1);
   assert.equal(listing.averagePercent, 50, "Nadia's 2/2 no longer counts");
   assert.equal(listing.attendancePercent, 50);
-  assert.equal((await listClassResults()).find((item) => item.id === "class-b").attendancePercent, null);
+  assert.equal((await listClassResults("admin")).find((item) => item.id === "class-b").attendancePercent, null);
   assert.equal(db.select().from(classAttendance).where(eq(classAttendance.studentId, "nadia")).all().length, 2, "her marks are kept");
   assert.ok(db.select().from(activitySubmissions).where(eq(activitySubmissions.id, "s-nadia")).get(), "and her work");
 });
