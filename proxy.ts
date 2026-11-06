@@ -3,7 +3,7 @@ import {
   BODY_TOO_LARGE, INVALID_JSON, MAX_JSON_BODY_BYTES, mediaType, MUTATION_ERRORS_BN, publicOrigin, readBodyWithin, requestOrigins, validateMutation,
 } from "./lib/request-security";
 import {
-  allowedDuringPasswordChange, cacheControl, isPublicPath, loginDestination, PASSWORD_CHANGE_ERROR, PASSWORD_CHANGE_ERROR_BN, passwordChangeDestination,
+  allowedDuringPasswordChange, cacheControl, isBundledLessonClip, isPublicPath, loginDestination, PASSWORD_CHANGE_ERROR, PASSWORD_CHANGE_ERROR_BN, passwordChangeDestination,
 } from "./lib/learning-policy";
 import { learningSession } from "./lib/learning-session";
 import { isPublicFile, isPublicScript } from "./lib/public-assets";
@@ -67,6 +67,8 @@ export async function proxy(request: NextRequest) {
     }, { status: 410 }));
   }
   if (pathname === "/classroom") return withHeaders(redirect(request, "/student"));
+  // Lesson clips play only through /api/audio, which checks that the lesson is approved.
+  if (isBundledLessonClip(pathname)) return withHeaders(NextResponse.json({ error: "Audio not found.", errorBn: "অডিওটি পাওয়া যায়নি।" }, { status: 404 }));
   if (isPublicPath(request.nextUrl) || isPublicScript(pathname)) return withHeaders(NextResponse.next(), cacheControl(pathname, "public"));
   const session = await learningSession(request.cookies.get("ba_adult_session")?.value, request.cookies.get("ba_student_session")?.value);
   // Only build files and the files in public/ are files: a page or API path with a dot in it gets their checks.

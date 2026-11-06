@@ -78,7 +78,7 @@ test("hashed build files are cached for a year, gated ones only in the signed-in
   const signedOut = await send(gated);
   assert.equal(signedOut.status, 401);
   assert.equal(signedOut.headers.get("cache-control"), "private, no-store");
-  assert.deepEqual(await signedOut.json(), { error: "Sign in to access learning content." });
+  assert.deepEqual(await signedOut.json(), { error: "Sign in to access learning content.", errorBn: "শেখার বিষয়বস্তু দেখতে সাইন ইন করুন।" });
 
   const missing = await send("/_next/static/chunks/app/adventure/page-0000000000000000.js", studentCookie);
   assert.equal(missing.status, 404);
@@ -91,7 +91,9 @@ test("public images keep for a day, the service worker is rechecked and pages, d
   assert.equal(hero.headers.get("content-type"), "image/webp");
   assert.equal(hero.headers.get("cache-control"), "public, max-age=86400");
   assert.ok(Number(hero.headers.get("content-length")) <= 300_000, "the hero image stays small");
-  assert.equal((await send("/hero-quest-map.png")).status, 401, "the old 2.9 MB image is gone");
+  // Not a file in public/ any more, so a signed-out request is treated as a page and sent to sign in.
+  assert.equal((await send("/hero-quest-map.png")).status, 307, "the old 2.9 MB image is gone");
+  assert.equal((await send("/hero-quest-map.png", studentCookie)).status, 404, "the old 2.9 MB image is gone");
   for (const html of [await (await send("/welcome")).text(), await (await send("/adventure", studentCookie)).text()]) {
     assert.ok(html.includes('src="/hero-quest-map.webp"'), "the hero uses the WebP image");
   }
@@ -184,6 +186,49 @@ test("pages, API data, proxy errors and proxy redirects carry the security heade
   }
 });
 
+test("the proxy checks JSON bodies whatever the letter case of their type, and refuses large ones unread", async () => {
+  const invalid = { error: "Send a valid JSON object with the required fields.", errorBn: "প্রয়োজনীয় তথ্যসহ একটি সঠিক JSON অবজেক্ট পাঠান।" };
+  for (const type of ["application/json", "Application/JSON", "APPLICATION/JSON; charset=utf-8"]) {
+    for (const body of ["{not json", "[1, 2]", "null"]) {
+      const response = await send("/api/auth/sign-in", undefined, { method: "POST", headers: { "Content-Type": type, "x-forwarded-for": "serving-json" }, body });
+      assert.equal(response.status, 400, `${type} ${body}`);
+      assert.deepEqual(await response.json(), invalid, `${type} ${body}`);
+    }
+  }
+  const tooLarge = { error: "This request is too large.", errorBn: "অনুরোধটি খুব বড়।" };
+  const large = JSON.stringify({ padding: "x".repeat(1_300_000) });
+  const declared = await send("/api/auth/sign-in", undefined, { method: "POST", headers: { "Content-Type": "application/json", "x-forwarded-for": "serving-json" }, body: large });
+  assert.equal(declared.status, 413);
+  assert.deepEqual(await declared.json(), tooLarge);
+  // Without a Content-Length the proxy counts while reading and stops at the limit.
+  const chunked = await proxied("/api/auth/sign-in", { "transfer-encoding": "chunked", "x-forwarded-for": "serving-json" }, { padding: "x".repeat(1_300_000) });
+  assert.equal(chunked.status, 413);
+  assert.deepEqual(JSON.parse(chunked.text), tooLarge);
+  // The largest real body (a topic of nearly 400,000 Bangla characters) passes the size check, then needs sign-in.
+  const topic = await send("/api/topics", undefined, { method: "POST", headers: { "Content-Type": "application/json", "x-forwarded-for": "serving-json" }, body: JSON.stringify({ text: "ক".repeat(390_000) }) });
+  assert.equal(topic.status, 401);
+});
+
+test("only build files and files in public/ count as files: other dotted paths are pages or APIs", async () => {
+  for (const page of ["/learn.json", "/teach/notes.txt", "/hero-quest-map.png"]) {
+    const response = await send(page);
+    assert.equal(response.status, 307, page);
+    assert.match(response.headers.get("location"), /^\/(welcome|grown-ups)\?returnTo=/, page);
+  }
+  for (const route of ["/api/profiles/x.json", "/audio/hello-bn.ogg", "/river-story.webp"]) assert.equal((await send(route)).status, 401, route);
+});
+
+test("bundled lesson clips are only served through /api/audio, however the address is spelled", async () => {
+  for (const route of ["/audio/lesson-hello-me-word-1.ogg", "/audio/%6Cesson-hello-me-word-1.ogg", "//audio/lesson-hello-me-word-1.ogg", "/audio/lesson-hello-me-dialogue.ogg"]) {
+    let response = await send(route, studentCookie);
+    // Next answers a doubled slash with a redirect to the single-slash address, which is then refused.
+    if (response.status === 308) response = await send(response.headers.get("location"), studentCookie);
+    assert.equal(response.status, 404, route);
+    assert.deepEqual(await response.json(), { error: "Audio not found.", errorBn: "অডিওটি পাওয়া যায়নি।" }, route);
+  }
+  assert.equal((await send("/audio/hello-bn.ogg", studentCookie)).status, 200, "other bundled audio still loads for signed-in readers");
+});
+
 test("the release is the build id, the same in /api/auth/session and in every page", async () => {
   const buildId = readFileSync(path.join(ROOT, process.env.NEXT_DIST_DIR ?? ".next", "BUILD_ID"), "utf8").trim();
   assert.notEqual(buildId, "development");
@@ -210,14 +255,20 @@ test("behind a proxy that keeps no Host or protocol, redirects stay on the addre
   }
 });
 
-test("without PUBLIC_ORIGIN, a browser's same-origin answer gets through a proxy that rewrote Host", async () => {
+test("without PUBLIC_ORIGIN, a browser gets through a proxy that rewrote Host when the proxy names the address", async () => {
   const signIn = { email: "nobody@example.com", password: "not-the-password" };
   const behindProxy = { host: "app-svc:3000", origin: "https://learn.example.org", "x-forwarded-for": "serving-proxy" };
-  const accepted = await proxied("/api/auth/sign-in", { ...behindProxy, "sec-fetch-site": "same-origin" }, signIn);
-  assert.equal(accepted.status, 401, "the sign-in route answered, not the origin check");
-  const unverified = await proxied("/api/auth/sign-in", behindProxy, signIn);
-  assert.equal(unverified.status, 403, "a browser without Sec-Fetch-Site is checked on Origin alone");
-  assert.equal(JSON.parse(unverified.text).error, "The request origin could not be verified.");
+  const named = { ...behindProxy, "x-forwarded-host": "learn.example.org", "x-forwarded-proto": "https" };
+  for (const site of [{ "sec-fetch-site": "same-origin" }, {}]) {
+    const accepted = await proxied("/api/auth/sign-in", { ...named, ...site }, signIn);
+    assert.equal(accepted.status, 401, `the sign-in route answered, not the origin check (${JSON.stringify(site)})`);
+  }
+  // Claiming same-origin no longer makes up for an Origin that matches no address the request arrived on.
+  for (const site of [{ "sec-fetch-site": "same-origin" }, {}]) {
+    const unverified = await proxied("/api/auth/sign-in", { ...behindProxy, ...site }, signIn);
+    assert.equal(unverified.status, 403, JSON.stringify(site));
+    assert.deepEqual(JSON.parse(unverified.text), { error: "The request origin could not be verified.", errorBn: "অনুরোধটি কোথা থেকে এসেছে তা যাচাই করা যায়নি।" });
+  }
   for (const site of ["same-site", "cross-site"]) {
     const refused = await proxied("/api/auth/sign-in", { ...behindProxy, "sec-fetch-site": site }, signIn);
     assert.equal(refused.status, 403, site);

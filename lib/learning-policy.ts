@@ -15,6 +15,17 @@ export function isPublicPath(url: URL): boolean {
 }
 
 /**
+ * The bundled lesson clips in public/audio/lesson-*.ogg. Learners hear them only through
+ * /api/audio/<lesson>/<slot>, which checks the lesson is approved, so proxy.ts refuses the files
+ * themselves. Encoded, doubled-slash and capitalised spellings count too.
+ */
+export function isBundledLessonClip(pathname: string): boolean {
+  let path = pathname;
+  try { path = decodeURIComponent(pathname); } catch { /* an undecodable path is checked as it is */ }
+  return path.replace(/\/{2,}/g, "/").toLowerCase().startsWith("/audio/lesson-");
+}
+
+/**
  * Pictures only signed-in pages show. Like the gated build files they are kept only in the signed-in
  * browser, whose cache sign-out clears; they hold no personal data, so a day is safe.
  */

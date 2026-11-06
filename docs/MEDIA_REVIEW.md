@@ -73,8 +73,12 @@ stories pages) plays the best sound it has, in this order
 2. a **neural provider clip**, when `public/audio/voice-manifest.json` says the
    bundled clip was made by a neural provider (ElevenLabs, or Azure);
 3. the **device's own Bangla voice** (bn-BD first, then bn-IN);
-4. the **bundled eSpeak clip**, fetched straight from `public/audio` so the
-   "Computer voice" label is always true;
+4. the **bundled eSpeak clip**, asked for as the bundled clip so the
+   "Computer voice" label is always true. A lesson part's bundled clip (steps 2
+   and 4) comes through `/api/audio/<lesson>/<part>?v=bundled`, which checks the
+   lesson is approved like its recordings; the files themselves
+   (`/audio/lesson-*.ogg`) are not served. Other bundled clips come straight from
+   `public/audio`;
 5. nothing: the page shows "No Bangla voice on this device". Bangla text is
    never handed to a voice for another language.
 
