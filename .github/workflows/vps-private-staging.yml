@@ -1,5 +1,6 @@
 name: VPS private staging
 # The disposable identity document uses the existing text/plain robots asset.
+# Inspect secure loopback cookies directly, retaining strict origin and session checks.
 
 on:
   push:

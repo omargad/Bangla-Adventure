@@ -92,12 +92,13 @@ async function loginAndCapture({ context, page }, role, password) {
   else await page.getByRole("heading", { name: "My Learning", exact: true }).waitFor();
   await authenticated(page, role);
   const name = adult ? "ba_adult_session" : "ba_student_session";
-  const cookie = (await context.cookies(BASE)).find((item) => item.name === name);
+  // Inspect the isolated jar directly: Playwright's HTTP URL filter excludes Secure 127.0.0.1 cookies.
+  const cookie = (await context.cookies()).find((item) => item.name === name && item.domain === "127.0.0.1");
   check(cookie?.secure === true && cookie.httpOnly === true && cookie.sameSite === "Lax" && cookie.domain === "127.0.0.1" && cookie.path === "/", "secure-session-cookie-required");
   check(await page.evaluate((name) => !document.cookie.split(";").some((part) => part.trim().startsWith(`${name}=`)), name), "session-cookie-readable-by-script");
   await page.reload({ waitUntil: "domcontentloaded" });
   await authenticated(page, role);
-  check((await context.cookies(BASE)).find((item) => item.name === name)?.value === cookie.value, "session-cookie-lost-on-reload");
+  check((await context.cookies()).find((item) => item.name === name && item.domain === "127.0.0.1")?.value === cookie.value, "session-cookie-lost-on-reload");
   check(await page.locator('input[type="password"]').count() === 0, "credentials-form-still-visible");
   await page.evaluate((role) => {
     const banner = document.createElement("div");

@@ -391,6 +391,23 @@ mkdir "$work/qa-evidence"
 attempt_phase=qa-browser
 if ! PRIVATE_QA_ID="$qa_id" PRIVATE_QA_CONTROLLER="$qa_hook" PRIVATE_QA_BASE_URL="$origin" PRIVATE_QA_ARTIFACTS="$work/qa-evidence" \
   node "$root/tests/staging/browser-auth-smoke.mjs" > "$work/qa-browser.log" 2>&1; then
+  python3 - "$work/qa-browser.log" "$evidence/qa-browser-failure.json" <<'BROWSER_FAILURE'
+import json,pathlib,sys
+allowed={"configuration","verify-clean-clone","browser-start","guarded-fixture-signups","fixture-approval","parent-browser-login","student-browser-login","final-clone-counts","cleanup"}
+try:
+ data=pathlib.Path(sys.argv[1]).read_bytes()
+ if len(data)>65536: raise ValueError("bounded report required")
+ for line in reversed(data.decode("utf-8").splitlines()):
+  try: report=json.loads(line)
+  except ValueError: continue
+  if not isinstance(report,dict) or report.get("kind")!="disposable-qa-browser-auth": continue
+  if report.get("passed") is not False or report.get("failedStep") not in allowed or type(report.get("cleanupVerified")) is not bool: break
+  safe={key:report[key] for key in ("passed","failedStep","cleanupVerified")}
+  pathlib.Path(sys.argv[2]).write_text(json.dumps(safe)+"\n")
+  print("Private QA browser report: failedStep="+safe["failedStep"]+"; cleanupVerified="+str(safe["cleanupVerified"]).lower()+".",file=sys.stderr)
+  break
+except (OSError,ValueError,TypeError): pass
+BROWSER_FAILURE
   fail 'Disposable QA browser sign-in validation failed; raw logs are withheld.'
 fi
 attempt_phase=qa-cleanup

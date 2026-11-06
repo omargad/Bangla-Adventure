@@ -52,6 +52,10 @@ elif tool=="node":
  for action in ["verify","approve-fixtures","cleanup"]:
   p=subprocess.run([hook,action,qid],capture_output=True,text=True)
   if p.returncode: sys.exit(1)
+ if os.environ.get("FIXTURE_BROWSER_FAIL"):
+  step="REGISTRY_TOKEN_MUST_NOT_LEAK" if os.environ.get("FIXTURE_BROWSER_UNKNOWN_STEP") else "parent-browser-login"
+  print(json.dumps({"kind":"disposable-qa-browser-auth","passed":False,"failedStep":step,"cleanupVerified":True,"secret":"REGISTRY_TOKEN_MUST_NOT_LEAK"}))
+  sys.exit(1)
  out=Path(os.environ["PRIVATE_QA_ARTIFACTS"])/f"qa-browser-{qid}"
  out.mkdir();(out/"result.json").write_text('{"fixtureBrowser":true}')
 elif tool=="ssh":
@@ -199,6 +203,25 @@ elif tool=="ssh":
         self.assertNotEqual(result.returncode,0)
         self.assertNotIn("tunnel",[call["kind"] for call in self.calls()])
         self.assertFalse((self.root / "evidence").exists())
+
+    def test_browser_failure_exports_only_fixed_report_fields(self):
+        result=self.run_controller(FIXTURE_BROWSER_FAIL="1")
+        self.assertNotEqual(result.returncode,0)
+        self.assertIn("failedStep=parent-browser-login; cleanupVerified=true",result.stderr)
+        evidence=self.root/"evidence"
+        report=json.loads((evidence/"qa-browser-failure.json").read_text())
+        self.assertEqual(report,{"passed":False,"failedStep":"parent-browser-login","cleanupVerified":True})
+        self.assertFalse((evidence/"qa-browser").exists())
+        self.assertEqual(json.loads((evidence/"attempt-status.json").read_text())["overall"],"failed")
+
+    def test_unknown_browser_failure_step_is_never_exported(self):
+        result=self.run_controller(FIXTURE_BROWSER_FAIL="1",FIXTURE_BROWSER_UNKNOWN_STEP="1")
+        self.assertNotEqual(result.returncode,0)
+        evidence=self.root/"evidence"
+        self.assertFalse((evidence/"qa-browser-failure.json").exists())
+        self.assertFalse((evidence/"qa-browser").exists())
+        for path in evidence.rglob("*"):
+            if path.is_file(): self.assertNotIn("REGISTRY_TOKEN_MUST_NOT_LEAK",path.read_text())
 
 
 if __name__ == "__main__":
