@@ -225,6 +225,9 @@ export default function UserManagement({ actorId, actorName }: { actorId: string
   const statusLabel = (user: User) => user.status === "active" ? s("Active", "সক্রিয়") : s("Suspended", "স্থগিত");
   const roleOptions = <><option value="parent">{s("Parent", "অভিভাবক")}</option><option value="teacher">{s("Teacher", "শিক্ষক")}</option><option value="admin">{s("Administrator", "প্রশাসক")}</option></>;
   const undecided = (user: User) => user.approvalStatus !== "approved" || user.teacherStatus === "pending";
+  // Approving an approved parent's teacher request turns the account into a teacher account: its view of linked children ends.
+  const parentTeacherWarning = (user: User) => user.kind === "adult" && user.teacherStatus === "pending" && user.approvalStatus === "approved" && user.role === "parent"
+    && <small>{s("Approving makes this a teacher account: its family dashboard and linked children’s classes and results stop showing.", "অনুমোদন দিলে এটি শিক্ষকের অ্যাকাউন্ট হয়ে যাবে: এর পরিবারের ড্যাশবোর্ড এবং যুক্ত সন্তানদের ক্লাস ও ফলাফল আর দেখা যাবে না।")}</small>;
   // A suspended account is reactivated before anyone approves or declines it.
   const decisionButtons = (user: User) => user.status === "active" && <>
     {(user.approvalStatus === "pending" || user.teacherStatus === "pending") && <><button className="outline-button" disabled={busy} onClick={() => void update(user, { action: "approve" })}>{s("Approve", "অনুমোদন")}</button><button className="text-button" disabled={busy} onClick={() => void update(user, { action: "reject" })}>{s("Decline", "প্রত্যাখ্যান")}</button></>}
@@ -289,6 +292,7 @@ export default function UserManagement({ actorId, actorName }: { actorId: string
             <div><strong>{user.displayName}</strong><small>{user.email ?? user.username}</small></div>
             <span className="role-badge">{accountType(user)}</span>
             <small>{s("Created", "তৈরি")} <time dateTime={user.createdAt}>{localTime(user.createdAt, language)}</time></small>
+            {parentTeacherWarning(user)}
             <div className="management-row-actions">{decisionButtons(user)}</div>
           </li>)}</ul>)}
         {data && data.approvals.total > data.approvals.users.length && <p>{s(`Showing the oldest ${number(data.approvals.users.length)} of ${number(data.approvals.total)}. Use the “Waiting for approval” filter below to see the rest.`, `${number(data.approvals.total)}টির মধ্যে সবচেয়ে পুরোনো ${number(data.approvals.users.length)}টি দেখানো হচ্ছে। বাকিগুলো দেখতে নিচে “অনুমোদনের অপেক্ষায়” বাছাই ব্যবহার করুন।`)}</p>}
@@ -308,6 +312,7 @@ export default function UserManagement({ actorId, actorName }: { actorId: string
               {user.approvalStatus === "pending" && <span className="status-badge pending">{s("Waiting for approval", "অনুমোদনের অপেক্ষায়")}</span>}
               {user.approvalStatus === "declined" && <span className="status-badge declined">{s("Declined", "প্রত্যাখ্যাত")}</span>}
               {user.teacherStatus === "pending" && <small>{s("Teacher approval requested", "শিক্ষকের অনুমোদন চাওয়া হয়েছে")}</small>}
+              {parentTeacherWarning(user)}
               {declinedApplicant(user) && <small>{s("Teacher request declined along with the account", "অ্যাকাউন্টের সঙ্গে শিক্ষক হওয়ার আবেদনও প্রত্যাখ্যাত হয়েছে")}</small>}
               {user.status !== "active" && undecided(user) && <small>{s("Reactivate the account to approve or decline it", "অনুমোদন বা প্রত্যাখ্যান করতে আগে অ্যাকাউন্টটি পুনরায় চালু করুন")}</small>}
               {user.mustChangePassword && <small>{s("Temporary password not yet changed", "অস্থায়ী পাসওয়ার্ড এখনও বদলানো হয়নি")}</small>}</td>
