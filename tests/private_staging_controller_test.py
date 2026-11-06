@@ -159,7 +159,8 @@ elif tool=="ssh":
         all_evidence = "".join(path.read_text() for path in evidence.rglob("*") if path.is_file())
         self.assertNotIn("PRIVATE_KEY_MUST_NOT_LEAK", all_evidence)
         self.assertNotIn("REGISTRY_TOKEN_MUST_NOT_LEAK", all_evidence)
-        self.assertEqual((evidence / "staging_known_hosts").read_text(), "192.0.2.10 ssh-ed25519 RklYVFVSRQ==\n")
+        self.assertEqual((evidence / "staging_known_hosts").read_text(), "bangla-adventures-vps ssh-ed25519 RklYVFVSRQ==\n")
+        self.assertNotIn("192.0.2.10", all_evidence)
 
     def test_missing_or_invalid_server_variables_prevent_all_remote_contact(self):
         for overrides in [{"DEPLOY_HOST": ""}, {"DEPLOY_USER": ""}, {"DEPLOY_HOST": "192.0.2.10;id"}, {"DEPLOY_USER": "Example User"}]:

@@ -112,7 +112,7 @@ ssh_options=(-F /dev/null -i "$key" -p "$port" -o BatchMode=yes -o IdentitiesOnl
 # shellcheck disable=SC2029
 on_server() { ssh "${ssh_options[@]}" "$user@$DEPLOY_HOST" "$@"; }
 quoted() { printf '%q' "$1"; }
-echo "deploy: $image to $user@$DEPLOY_HOST:$folder"
+echo "deploy: $image to the configured server at $folder"
 # Uploads never replace live deployment files. Each attempt gets an isolated
 # directory; the remote script promotes it only while holding the deploy lock.
 candidate="$(on_server "umask 077; mkdir -p $(quoted "$folder") && mktemp -d $(quoted "$folder/.deploy-stage.XXXXXXXXXX")")" || fail 'could not create the remote staging directory.'

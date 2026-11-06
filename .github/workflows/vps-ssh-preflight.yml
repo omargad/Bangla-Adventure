@@ -122,6 +122,8 @@ jobs:
           fail() { printf 'preflight: %s\n' "$*" >&2; exit 1; }
           readonly expected_user="${1:?The expected deployment user is required.}"
           [ "$(id -un)" = "$expected_user" ] || fail 'SSH connected as an unexpected user.'
+          # The login name comes from the runner; UID 1002 pins the account itself.
+          [ "$(id -u)" = 1002 ] || fail 'The deployment user does not have the expected UID 1002.'
           test -d /opt/bangla-adventures || fail 'The deployment directory is missing.'
           test -w /opt/bangla-adventures || fail 'The deployment directory is not writable by the deployment user.'
           readonly docker_socket='unix:///run/user/1002/docker.sock'
@@ -134,7 +136,7 @@ jobs:
           printf 'preflight: server architecture %s; online CPUs %s.\n' "$(uname -m)" "$(getconf _NPROCESSORS_ONLN)"
           awk '$1 == "MemTotal:" || $1 == "MemAvailable:" { printf "preflight: %s %s KiB.\n", $1, $2 }' /proc/meminfo
           df -Pk -- /opt/bangla-adventures | awk 'NR == 2 { printf "preflight: deployment filesystem size %s KiB; available %s KiB.\n", $2, $4 }'
-          printf 'preflight: authenticated as the configured deployment user; deployment directory exists and is writable.\n'
+          printf 'preflight: authenticated as the configured deployment user (UID 1002); deployment directory exists and is writable.\n'
           printf 'preflight: the prepared Docker daemon reports rootless mode.\n'
           printf 'preflight: Docker Compose version %s.\n' "$compose_version"
           REMOTE

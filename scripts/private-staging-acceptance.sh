@@ -14,6 +14,8 @@ case "$DEPLOY_KNOWN_HOSTS" in *'PRIVATE KEY'*|*'-----BEGIN'*) fail 'Public known
 [[ "${DEPLOY_HOST:-}" =~ ^[a-zA-Z0-9][a-zA-Z0-9.:-]*$ ]] || fail 'The DEPLOY_HOST repository variable is missing or invalid.'
 [[ "${DEPLOY_USER:-}" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]] || fail 'The DEPLOY_USER repository variable is missing or invalid.'
 readonly host="$DEPLOY_HOST" user="$DEPLOY_USER" port=22
+# Uploaded evidence names this fixed alias, never the server address.
+readonly host_alias=bangla-adventures-vps
 readonly key_pin='SHA256:y1+C6cvcfpJFmO8pfjyMSFERpd5BtcQyDf5SptZXVlQ'
 readonly host_pin='SHA256:79xe+ubCodL2ACAHPNloo7I/K6mvngU88vEiFoEeWL8'
 readonly image='ghcr.io/omargad/bangla-adventure@sha256:fc6f52720d3ecf55998e56a2432ffd5a782d3db231323874daf0b6d0357efca2'
@@ -65,7 +67,7 @@ while IFS= read -r line || [ -n "$line" ]; do
   actual="$(ssh-keygen -l -E sha256 -f "$work/host_line" 2>/dev/null | awk '{print $2}')" || fail 'Server key fingerprint failed.'
   [ "$actual" = "$host_pin" ] || fail 'Server key fingerprint does not match the verified VPS.'
   ssh-keygen -F "$host" -f "$work/host_line" >/dev/null 2>&1 || fail 'The verified public key does not cover the configured VPS address.'
-  # Export only the configured address and verified PUBLIC server key, never comments or a private key.
+  # Keep only the configured address and verified PUBLIC server key, never comments or a private key.
   printf '%s %s %s\n' "$host" "$key_type" "$key_data" >> "$work/known_hosts"
 done < "$work/provided_hosts"
 [ -s "$work/known_hosts" ] || fail 'No pinned server public key was supplied.'
@@ -161,7 +163,8 @@ evidence="${PRIVATE_ACCEPTANCE_EVIDENCE_DIR:?An isolated acceptance evidence dir
 [ ! -e "$evidence" ] && [ ! -L "$evidence" ] || fail 'Acceptance evidence directory must be new.'
 mkdir -m 700 -- "$evidence"
 cp -- "$work/stage-before.json" "$evidence/stage-before.json"
-cp -- "$work/known_hosts" "$evidence/staging_known_hosts"
+read -r _ key_type key_data < "$work/known_hosts"
+printf '%s %s %s\n' "$host_alias" "$key_type" "$key_data" > "$evidence/staging_known_hosts"
 phase=payload
 mkdir "$work/payload"
 sources=(scripts/private-staging-qa.sh scripts/private-staging-rollback.sh scripts/deploy-remote.sh scripts/private-staging-verify.mjs scripts/private-staging-ops.sh scripts/private-staging-ops.py scripts/private-staging-ops-check.py scripts/private-staging-ops-install.sh scripts/private-staging-ops-install.py)

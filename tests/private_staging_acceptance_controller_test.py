@@ -130,7 +130,9 @@ class AcceptanceControllerTests(unittest.TestCase):
         self.assertEqual(len(list((evidence/'synthetic-role-screens').glob('*.png'))),12)
         self.assertEqual(json.loads((evidence/'stage-before.json').read_text()),json.loads((evidence/'stage-after.json').read_text()))
         self.assertEqual(set(p.name for p in evidence.iterdir()),{'stage-before.json','staging_known_hosts','helper-install.json','operations.json','rollback.json','qa-cleanup.json','stage-after.json','synthetic-role-screens','roles.json','attempt-status.json'})
-        self.assertEqual((evidence/'staging_known_hosts').read_text(),'192.0.2.10 ssh-ed25519 RklYVFVSRQ==\n')
+        self.assertEqual((evidence/'staging_known_hosts').read_text(),'bangla-adventures-vps ssh-ed25519 RklYVFVSRQ==\n')
+        for p in evidence.rglob('*'):
+            if p.is_file():self.assertNotIn(b'192.0.2.10',p.read_bytes(),p.name)
         remote=[call for call in self.calls()if call['kind']not in {'http','browser'}];self.assertIn('qa_prepare',[call['kind']for call in remote])
         for call in remote:self.assertIn('example-user@192.0.2.10',call['args'],call['kind'])
 

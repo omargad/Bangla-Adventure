@@ -56,8 +56,8 @@ attestation before creating accounts. Its volume, network and containers are
 removed afterward, and actual staging is checked again for zero users.
 
 Successful-run evidence contains sanitized results, fictional QA screenshots and
-`staging_known_hosts`, which contains only the configured server address and its
-verified public host key.
+`staging_known_hosts`, which contains only the verified public host key, filed
+under the fixed name `bangla-adventures-vps` rather than the server address.
 It never contains the private deployment key, registry token, passwords, session
 values or private backups. A workflow attempt is not deployment success: inspect
 the workflow's actual result and evidence before claiming staging is ready.
@@ -65,7 +65,8 @@ the workflow's actual result and evidence before claiming staging is ready.
 ## Open staging from Windows PowerShell
 
 Download the successful workflow's `private-staging-access` artifact and extract
-it. Use its verified `staging_known_hosts` file without altering the key. The
+it. Use its verified `staging_known_hosts` file without altering the key; the
+`HostKeyAlias` option below makes SSH look the key up under its fixed name. The
 private key remains the existing `bangla_deploy` file on your own laptop. Fill in
 the account and address from the server handover email (the `DEPLOY_USER` and
 `DEPLOY_HOST` repository variables).
@@ -77,6 +78,7 @@ $stagingHosts = "C:\path\to\extracted\staging_known_hosts"
 ssh -F NUL -i "$env:USERPROFILE\bangla_deploy" -p 22 `
   -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes `
   -o GlobalKnownHostsFile=NUL -o "UserKnownHostsFile=$stagingHosts" `
+  -o HostKeyAlias=bangla-adventures-vps `
   -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 `
   -N -L "127.0.0.1:3001:/opt/bangla-adventures/private-staging/runtime/http.sock" `
   "$deployUser@$deployHost"

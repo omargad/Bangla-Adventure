@@ -43,8 +43,8 @@ source, not out of run logs.
 The address is not a trust anchor. Every connection still requires the server
 host key to match the pinned `SHA256:79xe+ubCodL2ACAHPNloo7I/K6mvngU88vEiFoEeWL8`
 fingerprint, so a wrong or altered `DEPLOY_HOST` fails host-key verification
-instead of reaching another machine. The private staging checks and the image
-preflight also require the account to have UID `1002` on the server.
+instead of reaching another machine. The SSH and image preflights and the
+private staging checks also require the account to have UID `1002` on the server.
 
 ## Settings to complete
 
