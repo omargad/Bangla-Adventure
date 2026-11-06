@@ -9,6 +9,8 @@ const hostPin = `SHA256:${"A".repeat(43)}`;
 const keyPin = `SHA256:${"B".repeat(43)}`;
 const liveCompose = "unchanged live compose\n";
 const liveScript = "unchanged live deployment script\n";
+// A fixture value only; never a provider credential.
+const narrationKey = "FIXTURE_NARRATION_KEY_NOT_REAL_0001";
 
 // No command is forwarded to SSH, Docker or a shell. The stub recognizes only
 // frontend staging operations and applies them inside the isolated fixture.
@@ -45,10 +47,14 @@ if ((match = /^rm -rf -- (\S+)$/.exec(command))) {
   record({ operation: 'cleanup', stage: match[1], ...live() }); process.exit(0);
 }
 if ((match = /^bash (\S+) (\S+) /.exec(command))) {
-  const script = match[1], stage = path.dirname(script);
-  if (!stagePath(stage) || path.basename(script) !== 'deploy-remote.sh' || !command.endsWith(' ' + folder + ' ' + stage)) reject('Unexpected staged invocation');
-  fs.readFileSync(0); // Consume the synthetic registry password without recording it.
-  record({ operation: 'dispatch', stage, command, image: match[2], compose: fs.readFileSync(path.join(stage, 'compose.yaml'), 'utf8'), script: fs.readFileSync(script, 'utf8'), ...live() });
+  const script = match[1], stage = path.dirname(script), lines = / ([0-4])$/.exec(command)?.[1];
+  if (!stagePath(stage) || path.basename(script) !== 'deploy-remote.sh' || !lines || !command.endsWith(' ' + folder + ' ' + stage + ' ' + lines)) reject('Unexpected staged invocation');
+  // Consume the synthetic settings and password; only the file names and line count are recorded.
+  const input = fs.readFileSync(0, 'utf8');
+  if (env.MOCK_INPUT) fs.writeFileSync(env.MOCK_INPUT, input);
+  const files = fs.readdirSync(stage).sort();
+  if (env.MOCK_FAIL_DISPATCH) { record({ operation: 'failed-dispatch', stage, files, ...live() }); process.exit(255); }
+  record({ operation: 'dispatch', stage, command, lines: Number(lines), files, image: match[2], compose: fs.readFileSync(path.join(stage, 'compose.yaml'), 'utf8'), script: fs.readFileSync(script, 'utf8'), ...live() });
   if (!env.MOCK_BARRIER) process.exit(0);
   fs.writeFileSync(path.join(env.MOCK_BARRIER, env.MOCK_ATTEMPT), stage);
   const deadline = Date.now() + 5000;
@@ -85,7 +91,7 @@ function fixture(t) {
   writeFileSync(path.join(otherStage, "keep.txt"), "another deployment owns this stage");
   for (const [command, code] of [["ssh", sshStub], ["ssh-keygen", keygenStub]]) writeFileSync(path.join(bin, command), `#!${process.execPath}\n${code}`, { mode: 0o755 });
   const log = path.join(root, "commands.jsonl");
-  const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^(DEPLOY_|REGISTRY_|DOCKER_|MOCK_|PUBLIC_HEALTH_URL$)/.test(key)));
+  const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^(DEPLOY_|REGISTRY_|DOCKER_|MOCK_|ELEVENLABS_|PUBLIC_HEALTH_URL$)/.test(key)));
   Object.assign(env, {
     PATH: `${bin}:${process.env.PATH}`, TMPDIR: temporary, NODE_NO_WARNINGS: "1", MOCK_REMOTE: remote, MOCK_LOG: log,
     MOCK_HOST_PIN: hostPin, MOCK_KEY_PIN: keyPin,
@@ -132,10 +138,34 @@ test("frontend uploads only into its stage and dispatches the staged handler wit
   assert.deepEqual(calls.map((call) => call.operation), ["create", "upload", "upload", "dispatch"]);
   assert.equal(dispatch.compose, "candidate compose one\n");
   assert.equal(dispatch.script, "candidate handler one\n");
-  assert.ok(dispatch.command.endsWith(` ${f.remote} ${dispatch.stage}`));
+  assert.ok(dispatch.command.endsWith(` ${f.remote} ${dispatch.stage} 0`), "no narration lines precede the password");
   assert.ok(existsSync(dispatch.stage), "after dispatch the remote handler owns stage cleanup");
   assert.equal(`${result.stdout}${result.stderr}${JSON.stringify(calls)}`.includes("FIXTURE_PRIVATE_KEY_NOT_A_REAL_CREDENTIAL"), false);
   assert.equal(`${result.stdout}${result.stderr}${JSON.stringify(calls)}`.includes("FIXTURE_REGISTRY_PASSWORD"), false);
+  f.assertLiveUnchanged();
+});
+
+test("narration settings travel ahead of the password on the dispatch's input, never in the stage or on a command line", async (t) => {
+  const f = fixture(t), input = path.join(f.root, "dispatch-input");
+  const result = await f.run("narration", { ELEVENLABS_API_KEY: narrationKey, ELEVENLABS_MODEL_ID: "eleven_v3", ELEVENLABS_VOICE_ID: "", MOCK_INPUT: input });
+  assert.equal(result.status, 0, result.stderr);
+  const calls = f.calls(), dispatch = calls.find((call) => call.operation === "dispatch");
+  assert.deepEqual(calls.map((call) => call.operation), ["create", "upload", "upload", "dispatch"]);
+  assert.deepEqual(dispatch.files, ["compose.yaml", "deploy-remote.sh"]);
+  assert.equal(dispatch.lines, 2, "an empty setting is not sent");
+  assert.equal(readFileSync(input, "utf8"), "ELEVENLABS_API_KEY=" + narrationKey + "\nELEVENLABS_MODEL_ID=eleven_v3\nFIXTURE_REGISTRY_PASSWORD");
+  assert.equal(`${result.stdout}${result.stderr}${JSON.stringify(calls)}`.includes(narrationKey), false);
+  f.assertLiveUnchanged();
+});
+
+test("a dispatch that fails before the handler starts leaves no narration settings on the server", async (t) => {
+  const f = fixture(t), result = await f.run("dropped", { ELEVENLABS_API_KEY: narrationKey, MOCK_FAIL_DISPATCH: "1" });
+  assert.equal(result.status, 255, result.stderr);
+  const calls = f.calls(), dropped = calls.find((call) => call.operation === "failed-dispatch");
+  assert.deepEqual(calls.map((call) => call.operation), ["create", "upload", "upload", "failed-dispatch"]);
+  assert.deepEqual(dropped.files, ["compose.yaml", "deploy-remote.sh"], "the stage holds only release files");
+  const remoteFiles = (folder) => readdirSync(folder, { withFileTypes: true }).flatMap((entry) => entry.isDirectory() ? remoteFiles(path.join(folder, entry.name)) : [path.join(folder, entry.name)]);
+  for (const file of remoteFiles(f.remote)) assert.equal(readFileSync(file, "utf8").includes(narrationKey), false, file);
   f.assertLiveUnchanged();
 });
 
@@ -158,7 +188,7 @@ test("two concurrent frontend attempts keep distinct complete stages without rep
 
 test("a partial upload failure cleans only that attempt's stage and never dispatches or touches another attempt", async (t) => {
   for (const name of ["compose.yaml", "deploy-remote.sh"]) {
-    const f = fixture(t), result = await f.run("failed", { MOCK_FAIL_UPLOAD: name });
+    const f = fixture(t), result = await f.run("failed", { MOCK_FAIL_UPLOAD: name, ELEVENLABS_API_KEY: narrationKey });
     assert.equal(result.status, 23, result.stderr);
     const calls = f.calls(), created = calls.find((call) => call.operation === "create");
     assert.equal(calls.some((call) => call.operation === "dispatch"), false);

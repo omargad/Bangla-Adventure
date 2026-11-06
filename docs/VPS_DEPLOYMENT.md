@@ -64,17 +64,33 @@ image together. A failed first release stops its container and removes its candi
 files; the operator-managed `.env` remains in place. If rollback itself fails, the
 log identifies the private `.deploy-transaction.*` directory retained for recovery.
 
-Runtime narration is optional. If the release includes it, put the client's
-`ELEVENLABS_API_KEY` only in the private server `.env`; Compose also forwards optional
-`ELEVENLABS_VOICE_ID`, `ELEVENLABS_MODEL_ID` and
-`ELEVENLABS_DAILY_CHARACTER_LIMIT`. Leaving the key unset permits bundled audio and
-already cached narration, while new provider generation is unavailable. No provider
-credential belongs in repository variables, source files or screenshots.
-
 The GitHub workflow enforces `DEPLOY_REQUIRE_ROOTLESS=true` and
 `DEPLOY_REQUIRE_PUBLIC_HEALTH=true`; repository variables cannot turn these off.
 Those names are environment settings for portable/manual script use. The server
 also needs `curl` and its system CA certificates for the HTTPS check.
+
+### Narration key
+
+Runtime narration is optional. Add the client's key as the `ELEVENLABS_API_KEY`
+secret: a repository secret (Settings > Secrets and variables > Actions) or a
+`production` environment secret (Settings > Environments). Paste the key alone, on
+one line. Each deploy then writes it into the server `.env` under the deployment
+lock, so nobody pastes it on the server. It travels on the SSH connection's input
+and never appears on a command line, in a staged file or in the log. The optional
+`ELEVENLABS_VOICE_ID`, `ELEVENLABS_MODEL_ID` and `ELEVENLABS_DAILY_CHARACTER_LIMIT`
+are variables, not secrets, written the same way. A deploy that fails puts the
+previous `.env` back.
+
+An empty or missing secret or variable leaves whatever the server `.env` already
+has, so a key set there by hand keeps working; to remove a key, delete its line from
+that file. Without any key, bundled audio and already cached narration still play,
+while new provider generation reports that it is not configured. The daily limit
+defaults to 20 000 characters. No provider credential belongs in repository
+variables, source files or screenshots.
+
+Private staging deliberately never receives the key:
+`scripts/private-staging-remote.sh` refuses a staging configuration that passes any
+`ELEVENLABS_*` setting to the app.
 
 ## First release
 

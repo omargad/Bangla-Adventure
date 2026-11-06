@@ -3,12 +3,14 @@
 #
 #   bash deploy-remote.sh IMAGE [REGISTRY_USER] [BACKUP=1] [HEALTH_TIMEOUT=180]
 #     [DOCKER_HOST] [DOCKER_CONTEXT] [REQUIRE_ROOTLESS=true] [PUBLIC_HEALTH_URL]
-#     [REQUIRE_PUBLIC_HEALTH=false] [DEPLOYMENT_DIRECTORY] [STAGING_DIRECTORY]
+#     [REQUIRE_PUBLIC_HEALTH=false] [DEPLOYMENT_DIRECTORY] [STAGING_DIRECTORY] [NARRATION_LINES=0]
 #
 # With REGISTRY_USER, the registry password is read from standard input. The folder holds
 # compose.yaml and an operator-managed .env (PUBLIC_ORIGIN, optionally APP_PORT); this script
 # records the running image there as APP_IMAGE. Its output is also added to deploy.log there, and
-# it carries on to the end if the SSH session drops.
+# it carries on to the end if the SSH session drops. With NARRATION_LINES, that many ELEVENLABS_*
+# NAME=VALUE lines from scripts/deploy.sh come first on standard input, ahead of the password; they
+# replace those settings in .env, and a failed deployment puts the previous .env back.
 #  1. Pulls IMAGE. Without REGISTRY_USER, an IMAGE already on the server is used as it is.
 #  2. If the app has a database: stops the app and backs up the database and media into backups/
 #     with the current image (scripts/backup.sh, 14 kept). A failed backup restarts the app and
@@ -28,6 +30,7 @@ require_public_health="${9:-${DEPLOY_REQUIRE_PUBLIC_HEALTH:-false}}"
 script_directory="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 deployment_directory="${10:-$script_directory}"
 staging_directory="${11:-}"
+narration_lines="${12:-0}"
 cd "$deployment_directory"
 deployment_directory="$PWD"
 # Only .env decides these: a value left in the operator's shell must not override it.
@@ -43,6 +46,10 @@ previous=""
 original_image=""
 had_compose=false
 had_script=false
+narration_names=()
+narration_values=()
+saved_env=false
+env_temporary=""
 # Staging belongs only to this invocation. Never clean a caller-selected unrelated directory.
 if [ -n "$staging_directory" ]; then
   [ ! -L "$staging_directory" ] && [ -d "$staging_directory" ] || fail 'invalid staging directory.'
@@ -56,6 +63,44 @@ if [ -n "$staging_directory" ]; then
   done
 fi
 setting() { sed -n "s/^$1=//p" .env | tail -n 1; }
+# The shapes scripts/deploy.sh accepts. Compose would expand a $ in .env; quotes, backslashes and
+# spaces never belong in a key.
+valid_narration() {
+  local LC_ALL=C
+  case "$1" in
+    ELEVENLABS_API_KEY) [[ "$2" =~ ^[[:graph:]]{20,200}$ && "$2" != *[\"\'\\\$\`]* ]] ;;
+    ELEVENLABS_VOICE_ID) [[ "$2" =~ ^[A-Za-z0-9]{10,40}$ ]] ;;
+    ELEVENLABS_MODEL_ID) [[ "$2" =~ ^[a-z0-9_]{3,40}$ ]] ;;
+    ELEVENLABS_DAILY_CHARACTER_LIMIT) [[ "$2" =~ ^[1-9][0-9]{0,8}$ ]] ;;
+    *) return 1 ;;
+  esac
+}
+# Replaces every NAME= line of the given names (a later duplicate would otherwise win) and appends
+# the missing ones, keeping all other lines. Values stay inside this shell: no command line holds
+# one. The private new file replaces .env in one rename.
+write_narration() {
+  local line name index content="" replaced=" "
+  while IFS= read -r line || [ -n "$line" ]; do
+    name="${line%%=*}"
+    for index in "${!narration_names[@]}"; do
+      if [ "$name" != "$line" ] && [ "$name" = "${narration_names[$index]}" ]; then
+        line="$name=${narration_values[$index]}"
+        replaced+="$name "
+      fi
+    done
+    content+="$line"$'\n'
+  done < .env
+  for index in "${!narration_names[@]}"; do
+    [[ "$replaced" = *" ${narration_names[$index]} "* ]] || content+="${narration_names[$index]}=${narration_values[$index]}"$'\n'
+  done
+  env_temporary="$(mktemp "$PWD/.env.XXXXXXXXXX")" && printf '%s' "$content" > "$env_temporary" && \
+    chmod 600 "$env_temporary" && mv -f "$env_temporary" .env && env_temporary=""
+}
+# Puts back the .env saved before the narration settings changed it.
+restore_settings() {
+  [ "$saved_env" = true ] || return 0
+  cp -p "$snapshot/.env" .env.restore && mv -f .env.restore .env
+}
 # Adds NAME=VALUE to .env on a line of its own, also when the file's last line has no newline.
 add_setting() {
   if [ -s .env ] && [ -n "$(tail -c 1 .env)" ]; then printf '\n' >> .env; fi
@@ -82,6 +127,7 @@ start() {
 }
 restore_configuration() {
   local artifact existed
+  restore_settings || return 1
   for artifact in compose.yaml deploy-remote.sh; do
     if [ "$artifact" = compose.yaml ]; then existed="$had_compose"; else existed="$had_script"; fi
     if [ "$existed" = true ]; then
@@ -119,7 +165,13 @@ finish() {
       keep_snapshot=true
       say "saved deployment configuration remains in $transaction for recovery." >&2
     fi
+  elif [ "$committed" != true ] && ! restore_settings; then
+    # Failed before the release files were saved: only .env had changed.
+    result=1
+    keep_snapshot=true
+    say "the previous .env could not be restored; it remains in $snapshot for recovery." >&2
   fi
+  [ -z "$env_temporary" ] || rm -f -- "$env_temporary"
   [ -z "$transaction" ] || rm -f -- compose.yaml.incoming deploy-remote.sh.incoming
   [ -z "$login" ] || rm -rf -- "$login"
   [ -z "$snapshot" ] || [ "$keep_snapshot" = true ] || rm -rf -- "$snapshot"
@@ -136,6 +188,7 @@ trap 'exit 143' TERM
 [[ "$backup" = 0 || "$backup" = 1 ]] || fail 'backup must be 0 or 1.'
 [[ "$require_rootless" = true || "$require_rootless" = false ]] || fail 'REQUIRE_ROOTLESS must be true or false.'
 [[ "$require_public_health" = true || "$require_public_health" = false ]] || fail 'REQUIRE_PUBLIC_HEALTH must be true or false.'
+[[ "$narration_lines" =~ ^[0-4]$ ]] || fail 'NARRATION_LINES must be 0 to 4.'
 [ -z "$docker_host" ] || [ -z "$docker_context" ] || fail 'select a Docker socket or context, not both.'
 [ -z "$docker_host" ] || [[ "$docker_host" =~ ^unix:///[-a-zA-Z0-9_./]+$ ]] || fail 'Docker host must be an explicit local Unix socket.'
 [ -z "$docker_context" ] || [[ "$docker_context" =~ ^[a-zA-Z0-9][a-zA-Z0-9_.-]*$ ]] || fail 'invalid Docker context.'
@@ -175,6 +228,17 @@ if [ -n "$health_url" ]; then
   [[ "$health_url" =~ ^https://[^/@?#[:space:]]+([/?][^[:space:]]*)?$ ]] || fail 'PUBLIC_HEALTH_URL must be an HTTPS URL without credentials.'
   command -v curl >/dev/null 2>&1 || fail 'curl is required for the public HTTPS health check.'
 fi
+# Narration settings, read line by line so the password after them stays on standard input:
+# NAME=VALUE lines of known names, each once, every line complete. They are kept only in this shell.
+for ((index = 0; index < narration_lines; index++)); do
+  IFS= read -r line || fail 'the narration settings are invalid.'
+  name="${line%%=*}"
+  [ "$name" != "$line" ] && valid_narration "$name" "${line#*=}" && \
+    [[ " ${narration_names[*]-} " != *" $name "* ]] || fail 'the narration settings are invalid.'
+  narration_names+=("$name")
+  narration_values+=("${line#*=}")
+done
+unset line
 password=""
 [ -z "$registry_user" ] || password="$(cat)"
 # From here the deployment carries on if the SSH session drops (a cancelled job, a lost runner,
@@ -185,6 +249,15 @@ if tee -p </dev/null >/dev/null 2>&1; then exec > >(tee -p -a deploy.log) 2>&1; 
 say "$(date -u +%Y-%m-%dT%H:%M:%SZ) deploying $image"
 # The project name keeps the data volume's name, whatever this folder is called.
 grep -q '^COMPOSE_PROJECT_NAME=' .env || add_setting COMPOSE_PROJECT_NAME bangla-adventures
+# Narration settings change .env only after a private copy is saved, so Compose validates and starts
+# with them. Every failure before the release is committed puts that copy back.
+if [ "${#narration_names[@]}" -gt 0 ]; then
+  snapshot="$(mktemp -d "$PWD/.deploy-transaction.XXXXXXXXXX")"
+  cp -p .env "$snapshot/.env"
+  saved_env=true
+  say "updating ${narration_names[*]} in .env"
+  write_narration || fail 'could not update the narration settings in .env.'
+fi
 candidate_compose="${staging_directory:-$PWD}/compose.yaml"
 docker compose --project-directory "$PWD" -f "$candidate_compose" config --quiet || fail 'the incoming Compose configuration is invalid.'
 if [ -f compose.yaml ]; then
@@ -231,9 +304,10 @@ else
   docker pull "$image"
 fi
 
-# Save configuration only after preflight/pull succeed. The trap restores it on every later
-# failure, including a stopped app, promotion error or failed health check.
-snapshot="$(mktemp -d "$PWD/.deploy-transaction.XXXXXXXXXX")"
+# Save the release files only after preflight/pull succeed (the snapshot may already hold .env).
+# The trap restores them on every later failure, including a stopped app, promotion error or
+# failed health check.
+[ -n "$snapshot" ] || snapshot="$(mktemp -d "$PWD/.deploy-transaction.XXXXXXXXXX")"
 if [ -f compose.yaml ]; then cp -p compose.yaml "$snapshot/compose.yaml"; had_compose=true; fi
 if [ -f deploy-remote.sh ]; then cp -p deploy-remote.sh "$snapshot/deploy-remote.sh"; had_script=true; fi
 transaction="$snapshot"

@@ -3,6 +3,8 @@
 # The VPS defaults below are public connection metadata, never credentials or an enable switch.
 # Key/known_hosts accept text, file variables, or their existing _BASE64 forms. Host keys must be
 # independently verified: this script never accepts ssh-keyscan output without fingerprint checks.
+# Optional ELEVENLABS_API_KEY, ELEVENLABS_VOICE_ID, ELEVENLABS_MODEL_ID and
+# ELEVENLABS_DAILY_CHARACTER_LIMIT are written to the server .env; an empty one leaves it unchanged.
 set -euo pipefail
 if [ "${DEPLOY_ENABLED:-false}" != true ]; then
   echo 'deploy: disabled (set DEPLOY_ENABLED=true explicitly to enable).'
@@ -84,6 +86,29 @@ setting() {
   else decoded "$3"
   fi
 }
+# Narration settings are checked here, before any connection, and reach the server only on the
+# dispatch's standard input: never on a command line, in a trace, in a message or in a staged file.
+(
+  { set +x; } 2>/dev/null
+  umask 077
+  LC_ALL=C
+  for name in ELEVENLABS_API_KEY ELEVENLABS_VOICE_ID ELEVENLABS_MODEL_ID ELEVENLABS_DAILY_CHARACTER_LIMIT; do
+    value="${!name:-}"
+    [ -n "$value" ] || continue
+    case "$name" in
+      # Compose would expand a $ in .env; quotes, backslashes and spaces never belong in a key.
+      ELEVENLABS_API_KEY) [[ "$value" =~ ^[[:graph:]]{20,200}$ && "$value" != *[\"\'\\\$\`]* ]] || \
+        fail 'ELEVENLABS_API_KEY must be the key alone: 20 to 200 printable characters without spaces, quotes, backslashes or $.' ;;
+      ELEVENLABS_VOICE_ID) [[ "$value" =~ ^[A-Za-z0-9]{10,40}$ ]] || fail 'ELEVENLABS_VOICE_ID must be 10 to 40 letters and digits.' ;;
+      ELEVENLABS_MODEL_ID) [[ "$value" =~ ^[a-z0-9_]{3,40}$ ]] || fail 'ELEVENLABS_MODEL_ID must be 3 to 40 lowercase letters, digits or underscores.' ;;
+      ELEVENLABS_DAILY_CHARACTER_LIMIT) [[ "$value" =~ ^[1-9][0-9]{0,8}$ ]] || fail 'ELEVENLABS_DAILY_CHARACTER_LIMIT must be a positive whole number.' ;;
+    esac
+    printf '%s=%s\n' "$name" "$value"
+  done > "$work/narration.env"
+)
+# Child processes such as ssh never need them.
+unset ELEVENLABS_API_KEY ELEVENLABS_VOICE_ID ELEVENLABS_MODEL_ID ELEVENLABS_DAILY_CHARACTER_LIMIT
+narration_lines=$(($(wc -l < "$work/narration.env")))
 key="$work/key"
 (umask 077; setting DEPLOY_SSH_KEY_FILE DEPLOY_SSH_KEY DEPLOY_SSH_KEY_BASE64 > "$key")
 # Derive the public key privately, with no passphrase prompt or private-key diagnostic output.
@@ -124,10 +149,12 @@ upload() {
 }
 upload compose.yaml compose.yaml
 upload deploy-remote.sh scripts/deploy-remote.sh
-# The registry password reaches the server on standard input, never on a command line.
-# The remote script must now clean its stage, including on a refused deployment.
+# The narration lines, then the registry password, reach the server on standard input, never on a
+# command line or in the stage, so a dispatch that fails leaves no secret behind. Only their count
+# is an argument. The remote script must now clean its stage, including on a refused deployment.
 stage_dispatched=true
-printf '%s' "${REGISTRY_PASSWORD:-}" | on_server "bash $(quoted "$stage/deploy-remote.sh") $(quoted "$image") \
+{ cat "$work/narration.env"; printf '%s' "${REGISTRY_PASSWORD:-}"; } | on_server "bash $(quoted "$stage/deploy-remote.sh") $(quoted "$image") \
 $(quoted "${REGISTRY_USER:-}") $(quoted "$backup") $(quoted "$health_timeout") \
 $(quoted "$docker_host") $(quoted "$docker_context") $(quoted "$require_rootless") \
-$(quoted "$health_url") $(quoted "$require_public_health") $(quoted "$folder") $(quoted "$stage")"
+$(quoted "$health_url") $(quoted "$require_public_health") $(quoted "$folder") $(quoted "$stage") \
+$(quoted "$narration_lines")"
