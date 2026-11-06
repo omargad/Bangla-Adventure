@@ -725,18 +725,23 @@ Review and test: [@bahaa11-prog](https://github.com/bahaa11-prog) in [#103](http
 
 Review and test: [@bahaa11-prog](https://github.com/bahaa11-prog) in [#104](https://github.com/omargad/Bangla-Adventure/issues/104).
 
+- `app/api/admin/approval-settings/route.ts`
 - `app/api/classes/[id]/topic-progress/route.ts`
 - `app/api/topics/[id]/route.ts`
 - `app/api/topics/[id]/versions/[version]/route.ts`
 - `app/api/topics/route.ts`
 - `app/references/ReferenceNote.tsx`
+- `app/teach/topics/ApprovalSetting.tsx`
 - `app/teach/topics/TopicEditor.tsx`
 - `app/teach/topics/TopicReview.tsx`
 - `app/teach/topics/TopicStudio.tsx`
 - `app/teach/topics/page.tsx`
 - `app/teach/topics/shared.ts`
 - `app/topics/TopicReader.tsx`
+- `lib/approval-settings.ts`
 - `lib/topic-model.ts`
+- `tests/approval-settings.test.mjs`
+- `tests/e2e/approval-setting.spec.ts`
 - `tests/e2e/topic-approval.spec.ts`
 - `tests/integration/topic-approval-flow.test.mjs`
 - `tests/topic-approval.test.mjs`
@@ -964,6 +969,7 @@ Review and test: [@omargad](https://github.com/omargad), until an area reviewer 
 - `docs/user-guides/images/admin/10-lesson-decision.jpg`
 - `docs/user-guides/images/admin/11-video-check.jpg`
 - `docs/user-guides/images/admin/12-class-activity-review.jpg`
+- `docs/user-guides/images/admin/13-approval-switch.jpg`
 - `docs/user-guides/images/parent/01-welcome-parent-card.jpg`
 - `docs/user-guides/images/parent/02-create-account.jpg`
 - `docs/user-guides/images/parent/03-recovery-codes.jpg`

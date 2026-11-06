@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { topicThemes, type Bilingual, type TopicQuizQuestion, type TopicSection } from "@/app/topics-content";
 import type { VersionSummary } from "@/lib/curriculum-catalog";
 import { formatNumber, TOPIC_LIMITS, type Language, type TopicContent, type TopicVersionStatus } from "@/lib/topic-model";
-import { call, failure, statusLabel, versionLabel } from "./shared";
+import { call, failure, statusLabel, versionLabel, type SaveResult } from "./shared";
 
 type EditableTopic = {
   theme: string; emoji: string; title: Bilingual; tagline: Bilingual; minutes: number;
@@ -12,8 +12,10 @@ type EditableTopic = {
 };
 type StaffTopic = {
   id: string; head: { version: number; status: TopicVersionStatus; content: TopicContent };
-  approved: { version: number; content: TopicContent } | null; canStartFromApproved: boolean; versions: VersionSummary[];
+  approved: { version: number; content: TopicContent } | null; canStartFromApproved: boolean; versions: VersionSummary[]; withdrawn: boolean;
 };
+/** What saving does for this account: published at once ("admin": an administrator's own work; "setting": approval for teachers is off) or waiting ("review"). */
+type SaveMode = "admin" | "setting" | "review";
 type Base = "newest" | "approved";
 
 const blank = (): Bilingual => ({ en: "", bn: "" });
@@ -30,29 +32,34 @@ const editable = (content: TopicContent): EditableTopic => ({
 const baseOf = (topic: StaffTopic, which: Base) => (which === "approved" && topic.approved ? topic.approved : topic.head);
 
 /**
- * Write a new topic or edit one. Saving always creates a version that waits for
- * administrator approval; students see changes only after approval. When every
- * change since the approved version was sent back, editing starts again from the
- * approved version (what students see), with the sent-back version one click away.
+ * Write a new topic or edit one. Saving creates a version that waits for administrator
+ * approval, unless this account's work is published at once (an administrator's own, or
+ * a teacher's while approval for teachers' topics is off): the server decides and the
+ * editor says which. When every change since the approved version was sent back, editing
+ * starts again from the approved version (what students see), with the sent-back version one click away.
  */
-export default function TopicEditor({ topicId, language, onSaved, onCancel }: {
-  topicId: string | null; language: Language; onSaved: (topicId: string, version: number) => void; onCancel: () => void;
+export default function TopicEditor({ topicId, language, onSave, onSaved, onCancel }: {
+  topicId: string | null; language: Language; onSave: SaveMode; onSaved: (saved: SaveResult) => void; onCancel: () => void;
 }) {
   const s = (en: string, bn: string) => (language === "bn" ? bn : en);
   const n = (value: number) => formatNumber(value, language);
   const [draft, setDraft] = useState<EditableTopic | null>(topicId ? null : emptyTopic());
   const [existing, setExisting] = useState<StaffTopic | null>(null);
   const [base, setBase] = useState<Base>("newest");
+  // For an existing topic the server says what saving it does (a withdrawn topic can differ from the page's default).
+  const [topicSave, setTopicSave] = useState<SaveMode | null>(null);
+  const saveMode = topicSave ?? onSave;
+  const direct = saveMode !== "review";
   const [error, setError] = useState<Bilingual | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (!topicId) return;
     const controller = new AbortController();
-    call<{ topic: StaffTopic }>(`/api/topics/${encodeURIComponent(topicId)}`, { signal: controller.signal })
-      .then(({ topic }) => {
+    call<{ topic: StaffTopic; onSave?: SaveMode }>(`/api/topics/${encodeURIComponent(topicId)}`, { signal: controller.signal })
+      .then(({ topic, onSave: mode }) => {
         const start: Base = topic.canStartFromApproved && topic.approved ? "approved" : "newest";
-        setExisting(topic); setBase(start); setDraft(editable(baseOf(topic, start).content));
+        setExisting(topic); setBase(start); setDraft(editable(baseOf(topic, start).content)); setTopicSave(mode ?? null);
       })
       .catch((caught) => { if (!controller.signal.aborted) setError(failure(caught)); });
     return () => controller.abort();
@@ -75,8 +82,8 @@ export default function TopicEditor({ topicId, language, onSaved, onCancel }: {
     const hasNote = Boolean(draft.sourceNote.en.trim() || draft.sourceNote.bn.trim());
     const body = { ...draft, sourceNote: hasNote ? draft.sourceNote : undefined, ...(existing ? { baseVersion: baseOf(existing, base).version } : {}) };
     try {
-      const saved = await call<{ topicId: string; version: number }>(topicId ? `/api/topics/${encodeURIComponent(topicId)}` : "/api/topics", { method: topicId ? "PUT" : "POST", body: JSON.stringify(body) });
-      onSaved(saved.topicId, saved.version);
+      const saved = await call<SaveResult>(topicId ? `/api/topics/${encodeURIComponent(topicId)}` : "/api/topics", { method: topicId ? "PUT" : "POST", body: JSON.stringify(body) });
+      onSaved(saved);
     } catch (caught) { setError(failure(caught)); }
     finally { setBusy(false); }
   }
@@ -103,10 +110,18 @@ export default function TopicEditor({ topicId, language, onSaved, onCancel }: {
     <section className="teach-panel topic-editor" aria-label={topicId ? s("Edit topic", "বিষয় সম্পাদনা") : s("New topic", "নতুন বিষয়")}>
       <h2>{topicId ? s("Edit topic", "বিষয় সম্পাদনা") : s("Write a new topic", "নতুন বিষয় লিখুন")}</h2>
       <p className="teach-note">
-        {s(
+        {saveMode === "admin" ? s(
+          "Fill in every part in English and Bangla. As an administrator, your own topic does not wait for approval: students see it as soon as you save it.",
+          "প্রতিটি অংশ ইংরেজি ও বাংলায় লিখুন। প্রশাসক হিসেবে আপনার নিজের বিষয় অনুমোদনের অপেক্ষায় থাকে না: সংরক্ষণ করলেই শিক্ষার্থীরা এটি দেখবে।",
+        ) : saveMode === "setting" ? s(
+          "Fill in every part in English and Bangla. An administrator has switched off approval for teachers' topics, so students see your topic as soon as you save it.",
+          "প্রতিটি অংশ ইংরেজি ও বাংলায় লিখুন। প্রশাসক শিক্ষকদের বিষয়ের অনুমোদন বন্ধ রেখেছেন, তাই সংরক্ষণ করলেই শিক্ষার্থীরা আপনার বিষয়টি দেখবে।",
+        ) : s(
           "Fill in every part in English and Bangla, then submit it for administrator review. Students see new topics and changes only after an administrator approves them.",
           "প্রতিটি অংশ ইংরেজি ও বাংলায় লিখে প্রশাসকের পর্যালোচনার জন্য জমা দিন। প্রশাসক অনুমোদন দিলেই শিক্ষার্থীরা নতুন বিষয় ও পরিবর্তন দেখতে পাবে।",
         )}
+        {existing?.withdrawn && saveMode === "admin" && <>{" "}{s("This topic is withdrawn: saving publishes your version and shows the topic to students again.", "বিষয়টি সরিয়ে নেওয়া আছে: সংরক্ষণ করলে আপনার সংস্করণ প্রকাশিত হবে এবং বিষয়টি আবার শিক্ষার্থীদের দেখানো হবে।")}</>}
+        {existing?.withdrawn && saveMode === "review" && onSave === "setting" && <>{" "}{s("This topic is withdrawn, so this edit still waits for an administrator, who decides whether students see it again.", "বিষয়টি সরিয়ে নেওয়া আছে, তাই এই সম্পাদনা এখনো প্রশাসকের অপেক্ষায় থাকবে; শিক্ষার্থীরা আবার এটি দেখবে কি না, প্রশাসক ঠিক করবেন।")}</>}
       </p>
       {head && headSummary && <p className="topic-editor-base" role="note">
         {approvedBase && base === "approved" ? <>
@@ -118,7 +133,9 @@ export default function TopicEditor({ topicId, language, onSaved, onCancel }: {
           <button type="button" className="text-button" onClick={() => switchBase("newest")}>{s("Continue from the sent-back version instead", "বরং ফেরত পাঠানো সংস্করণ থেকে চালিয়ে যান")}</button>
         </> : <>
           {s("You are editing", "আপনি সম্পাদনা করছেন")}: {versionLabel(head.version, language)} · {statusLabel(headSummary, language)}.{" "}
-          {head.status === "pending" && s("Your changes build on this waiting version.", "আপনার পরিবর্তন এই অপেক্ষমাণ সংস্করণের ওপর হবে।")}
+          {head.status === "pending" && (direct
+            ? s(`Your changes build on this waiting version, so they include its changes. Saving publishes your version and marks ${versionLabel(head.version, "en").toLowerCase()} as replaced.`, `আপনার পরিবর্তন এই অপেক্ষমাণ সংস্করণের ওপর হবে, তাই এর পরিবর্তনগুলোও এতে থাকবে। সংরক্ষণ করলে আপনার সংস্করণ প্রকাশিত হবে এবং ${versionLabel(head.version, "bn")} প্রতিস্থাপিত হিসেবে চিহ্নিত হবে।`)
+            : s("Your changes build on this waiting version.", "আপনার পরিবর্তন এই অপেক্ষমাণ সংস্করণের ওপর হবে।"))}
           {head.status === "rejected" && headSummary.reviewNote && <>{s(`Sent back by ${reviewer("en")}: `, `${reviewer("bn")} ফেরত পাঠিয়েছেন: `)}<q>{headSummary.reviewNote}</q></>}
           {approvedBase && <>{" "}<button type="button" className="text-button" onClick={() => switchBase("approved")}>{s("Start again from the approved version", "অনুমোদিত সংস্করণ থেকে নতুন করে শুরু করুন")}</button></>}
         </>}
@@ -191,7 +208,9 @@ export default function TopicEditor({ topicId, language, onSaved, onCancel }: {
           {pair(s("Source note", "উৎসের নোট"), draft.sourceNote, (sourceNote) => update({ sourceNote }), TOPIC_LIMITS.sourceNote, { rows: 2, required: Boolean(draft.sourceNote.en.trim() || draft.sourceNote.bn.trim()) })}
 
           <div className="access-actions">
-            <button className="primary-button" disabled={busy}>{busy ? s("Submitting…", "জমা হচ্ছে…") : s("Submit for administrator review", "প্রশাসকের পর্যালোচনার জন্য জমা দিন")}</button>
+            <button className="primary-button" disabled={busy}>{direct
+              ? (busy ? s("Publishing…", "প্রকাশ হচ্ছে…") : s("Save and publish to students", "সংরক্ষণ করে শিক্ষার্থীদের কাছে প্রকাশ করুন"))
+              : (busy ? s("Submitting…", "জমা হচ্ছে…") : s("Submit for administrator review", "প্রশাসকের পর্যালোচনার জন্য জমা দিন"))}</button>
             <button type="button" className="outline-button" onClick={onCancel} disabled={busy}>{s("Cancel", "বাতিল")}</button>
           </div>
         </form>

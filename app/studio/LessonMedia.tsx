@@ -76,12 +76,13 @@ export function LessonRecordings({ lessonId, language, recordings, canApprove, o
       })}</ul>}
       {message && <p className="teach-message" role="status">{message[language]}</p>}
       {error && <p className="auth-error" role="alert">{error[language]}</p>}
-      <RecordingUpload lessonId={lessonId} language={language} onUploaded={onChanged} />
+      <RecordingUpload lessonId={lessonId} language={language} canApprove={canApprove} onUploaded={onChanged} />
     </section>
   );
 }
 
-function RecordingUpload({ lessonId, language, onUploaded }: { lessonId: string; language: Language; onUploaded: () => void }) {
+/** Upload a recording. An administrator's own upload is approved at once; a teacher's waits for an administrator. */
+function RecordingUpload({ lessonId, language, canApprove, onUploaded }: { lessonId: string; language: Language; canApprove: boolean; onUploaded: () => void }) {
   const s = (en: string, bn: string) => (language === "bn" ? bn : en);
   const [slot, setSlot] = useState("dialogue");
   const [speakerName, setSpeakerName] = useState("");
@@ -90,23 +91,23 @@ function RecordingUpload({ lessonId, language, onUploaded }: { lessonId: string;
   const [file, setFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<Bilingual | null>(null);
-  const [done, setDone] = useState(false);
+  const [done, setDone] = useState<"approved" | "pending" | null>(null);
   const [fileKey, setFileKey] = useState(0);
 
   async function upload(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!file) { setError({ en: "Choose an audio file.", bn: "একটি অডিও ফাইল বেছে নিন।" }); return; }
-    setSaving(true); setError(null); setDone(false);
+    setSaving(true); setError(null); setDone(null);
     const form = new FormData();
     form.set("file", file); form.set("lessonId", lessonId); form.set("slot", slot); form.set("speakerName", speakerName); form.set("dialect", dialect); form.set("consentConfirmed", String(consent));
     const response = await fetch("/api/studio/media", { method: "POST", body: form }).catch(() => null);
-    const data = response ? await response.json().catch(() => null) as { error?: string; errorBn?: string } | null : null;
+    const data = response ? await response.json().catch(() => null) as { error?: string; errorBn?: string; asset?: { reviewStatus?: string } } | null : null;
     setSaving(false);
     if (!response?.ok) {
       setError({ en: data?.error ?? "Upload failed. Please try again.", bn: data?.errorBn ?? data?.error ?? "আপলোড হয়নি। আবার চেষ্টা করুন।" });
       return;
     }
-    setFile(null); setConsent(false); setDone(true);
+    setFile(null); setConsent(false); setDone(data?.asset?.reviewStatus === "approved" ? "approved" : "pending");
     setFileKey((key) => key + 1);
     onUploaded();
   }
@@ -122,8 +123,10 @@ function RecordingUpload({ lessonId, language, onUploaded }: { lessonId: string;
         <label>{s("Dialect or way of speaking", "উপভাষা বা বলার ধরন")}<input required maxLength={80} value={dialect} onChange={(event) => setDialect(event.target.value)} /></label>
         <label>{s("Audio file (MP3, WAV, OGG, M4A or WebM, up to 12 MB)", "অডিও ফাইল (MP3, WAV, OGG, M4A বা WebM, সর্বোচ্চ ১২ MB)")}<input key={fileKey} required type="file" accept="audio/*" onChange={(event) => setFile(event.target.files?.[0] ?? null)} /></label>
         <label className="topic-confirm"><input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} /> {s("The speaker (and a guardian, for a child) agreed to this use and credit.", "বক্তা (শিশু হলে অভিভাবকও) এই ব্যবহার ও নাম উল্লেখে সম্মতি দিয়েছেন।")}</label>
-        <div className="access-actions"><button type="submit" className="outline-button" disabled={saving}>{saving ? s("Uploading…", "আপলোড হচ্ছে…") : s("Upload for review", "পর্যালোচনার জন্য আপলোড")}</button></div>
-        {done && <p className="teach-message" role="status">{s("Uploaded for administrator review. Learners will hear it only after an administrator listens and approves it.", "প্রশাসকের পর্যালোচনার জন্য আপলোড হয়েছে। প্রশাসক শুনে অনুমোদন দেওয়ার পরই শিক্ষার্থীরা এটি শুনবে।")}</p>}
+        <div className="access-actions"><button type="submit" className="outline-button" disabled={saving}>{saving ? s("Uploading…", "আপলোড হচ্ছে…") : canApprove ? s("Upload and approve", "আপলোড ও অনুমোদন") : s("Upload for review", "পর্যালোচনার জন্য আপলোড")}</button></div>
+        {canApprove && <p className="teach-note">{s("As an administrator, your own recording is approved when you upload it and replaces the approved recording for that part of the lesson. Listen to the file before you upload it.", "প্রশাসক হিসেবে আপনার নিজের রেকর্ডিং আপলোড করলেই অনুমোদিত হয় এবং পাঠের ওই অংশের অনুমোদিত রেকর্ডিংয়ের জায়গা নেয়। আপলোডের আগে ফাইলটি শুনে নিন।")}</p>}
+        {done === "approved" && <p className="teach-message" role="status">{s("Uploaded and approved. Learners now hear it for this part of the lesson instead of a computer voice.", "আপলোড ও অনুমোদিত হয়েছে। শিক্ষার্থীরা এখন পাঠের এই অংশে কম্পিউটারের কণ্ঠের বদলে এটি শুনবে।")}</p>}
+        {done === "pending" && <p className="teach-message" role="status">{s("Uploaded for administrator review. Learners will hear it only after an administrator listens and approves it.", "প্রশাসকের পর্যালোচনার জন্য আপলোড হয়েছে। প্রশাসক শুনে অনুমোদন দেওয়ার পরই শিক্ষার্থীরা এটি শুনবে।")}</p>}
         {error && <p className="auth-error" role="alert">{error[language]}</p>}
       </form>
     </details>

@@ -12,7 +12,9 @@ blurred.
 One rule runs through everything a teacher does: **students and parents only see new learning
 content after your school's Administrator approves it.** This includes activities, topics,
 recordings and class links. Class lists, attendance and announcements do not need approval. The
-[Administrator guide](administrator.md#approving-content-before-students-see-it) shows the other
+one exception is topics: the Administrator can switch off approval for teachers' topics, and then
+your topics are published as soon as you save them. The **Topics** page always says which applies.
+The [Administrator guide](administrator.md#approving-content-before-students-see-it) shows the other
 side of each approval.
 
 ## Contents
@@ -494,14 +496,19 @@ Every topic is written in English and Bangla. Topics are shared by the whole sch
    languages.
 8. Select **Submit for administrator review**. (Select **Cancel** to leave without saving.)
    If a box that must be filled in is still empty, the page jumps to it and asks you to fill
-   it in.
+   it in. If the Administrator has switched off approval for teachers' topics, the note at the
+   top of the form says *"An administrator has switched off approval for teachers' topics, so
+   students see your topic as soon as you save it."* and the button is **Save and publish to
+   students** instead.
 
 ![The Write a new topic form with English and Bangla boxes side by side](images/teacher/09-topic-editor.jpg)
 
 ### Previewing your topic
 
 **What you'll see** after submitting: *"Submitted as version 1 for administrator review. Students
-will not see this version until an administrator approves it."* Below it is a full preview.
+will not see this version until an administrator approves it."* Below it is a full preview. (With
+approval switched off you see *"Published as version 1. Students see it now: teachers' topics do
+not need an administrator's approval at the moment."* instead.)
 
 1. Scroll down to **Student view preview**.
 2. Choose **English**, **বাংলা** or **Side by side** to check both languages, including the quiz.
@@ -531,7 +538,25 @@ the title tells you where it is:
   box lists your changes.
 
 You can also edit any existing topic with **Edit**, and look at any topic with
-**Preview & history** or **Preview submission**. Teachers cannot approve or publish topics.
+**Preview & history** or **Preview submission**. Teachers cannot approve topics: only the
+Administrator approves.
+
+### Whether your topics wait for approval
+
+The paragraph at the top of the **Topics** page says what happens when you save a topic:
+
+- *"Write or edit a topic, then submit it for administrator review. Your new topics and changes
+  reach students only after an administrator approves them."* This is the normal setting.
+- *"An administrator has switched off approval for teachers' topics, so your new topics and edits
+  are published to students as soon as you save them."* The Administrator has switched off
+  **Teachers' topics need an administrator's approval** (see
+  [Who needs approval](administrator.md#who-needs-approval) in the Administrator guide). Each
+  topic you publish this way is still recorded, and its **Version history** says *"Published at
+  once (teachers' topics did not need approval)"*.
+
+When approval is switched off, topics that were already waiting stay under **Waiting for
+approval** until the Administrator reviews them; the page says how many. An edit of a topic the
+Administrator withdrew always waits for the Administrator.
 
 To see the approved topics exactly as students see them, select **Topics as students see them**
 in the menu.
@@ -665,7 +690,8 @@ Names you type, such as class names and student names, stay exactly as typed.
 **What you cannot do**
 
 - **Publish anything yourself.** Activities, topics, lessons, recordings and class sources all
-  wait for the Administrator. You will not find approve buttons on your pages.
+  wait for the Administrator, except topics while the Administrator has switched off approval for
+  teachers' topics. You will not find approve buttons on your pages.
 - **Open Administrator pages.** If you try, you will see **Administrator access required**.
 - **Reset a student's password.** Temporary passwords from a CSV upload are shown once only. If a
   student loses theirs, ask the Administrator.

@@ -20,7 +20,26 @@ export function migrateContent(sqlite: Database.Database): void {
     migrateLibraryLinks(sqlite);
     migrateAdminContentApproval(sqlite);
     migrateShippedContent(sqlite, legacyKind !== null);
+    migrateApprovalSettings(sqlite);
   })();
+}
+
+/**
+ * Settings an administrator changes in the app (lib/approval-settings.ts), and which topic versions
+ * were published without waiting for a review. Nothing is written: a setting without a row keeps its
+ * default, so an existing installation keeps the approvals it had. Safe to repeat.
+ */
+export function migrateApprovalSettings(sqlite: Database.Database): void {
+  sqlite.exec(`CREATE TABLE IF NOT EXISTS app_settings (
+    key text PRIMARY KEY NOT NULL,
+    value_json text NOT NULL,
+    updated_by text REFERENCES adults(id) ON DELETE SET NULL,
+    updated_at text NOT NULL
+  )`);
+  const columns = new Set((sqlite.prepare("PRAGMA table_info(topic_versions)").all() as Array<{ name: string }>).map((column) => column.name));
+  if (columns.size && !columns.has("published_directly")) {
+    sqlite.exec("ALTER TABLE topic_versions ADD COLUMN published_directly text CHECK (published_directly IN ('admin', 'setting'))");
+  }
 }
 
 function legacyContentAvailability(sqlite: Database.Database): "pre-approval" | "baseline" | null {

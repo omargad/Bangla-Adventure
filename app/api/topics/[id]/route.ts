@@ -1,22 +1,22 @@
 import { getStaffAccess } from "@/lib/auth";
-import { decideTopic, getStaffTopic, readTopicBody, submitTopicEdit, topicErrorResponse } from "@/lib/curriculum-catalog";
+import { decideTopic, getStaffTopic, readTopicBody, submitTopicEdit, topicErrorResponse, topicSaveFor } from "@/lib/curriculum-catalog";
 import { TOPIC_ID_PATTERN } from "@/lib/topic-model";
 
 export const dynamic = "force-dynamic";
 type RouteContext = { params: Promise<{ id: string }> };
 const notFound = () => Response.json({ error: "Topic not found.", errorBn: "বিষয়টি পাওয়া যায়নি।" }, { status: 404 });
 
-/** The newest version (for editing) and the full version history. */
+/** The newest version (for editing), the full version history, and whether this account's save publishes at once (onSave). */
 export async function GET(_request: Request, context: RouteContext) {
   const actor = await getStaffAccess("teach");
   if (actor instanceof Response) return actor;
   const { id } = await context.params;
   if (!TOPIC_ID_PATTERN.test(id)) return notFound();
-  try { return Response.json({ topic: await getStaffTopic(id) }); }
+  try { return Response.json({ topic: await getStaffTopic(id), onSave: await topicSaveFor(actor.id, id) }); }
   catch (error) { return topicErrorResponse(error); }
 }
 
-/** Saves an edit as a new pending version; students keep the approved one. */
+/** Saves an edit as a new version: it waits for approval (students keep the approved one) or is published at once (an administrator's own edit, or a teacher's while their topics need no approval). */
 export async function PUT(request: Request, context: RouteContext) {
   const actor = await getStaffAccess("teach");
   if (actor instanceof Response) return actor;

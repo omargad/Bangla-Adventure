@@ -60,7 +60,7 @@ The role checks used everywhere are in `lib/roles.ts`:
 | --- | --- | --- |
 | `canManageUsers` | Active administrator. | `lib/roles.ts:15-17` |
 | `canTeach` | Active administrator, or active teacher with `teacherStatus` approved. | `lib/roles.ts:19-21` |
-| `canPublishContent` | `canManageUsers`, approved account, and not using a temporary password. Needed to approve or withdraw anything learners see. | `lib/roles.ts:24-26` |
+| `canPublishContent` | `canManageUsers`, approved account, and not using a temporary password. Needed to approve or withdraw anything learners see, and the only accounts whose own topics, recordings, class activities and class sources publish without waiting. | `lib/roles.ts:24-26` |
 | `accountHome` | Administrator: `/admin`. `canTeach` or a pending teacher request: `/teach`. Otherwise `/family`. | `lib/roles.ts:28-31` |
 
 A parent with a pending or rejected teacher request still has role parent, so everywhere in this
@@ -152,11 +152,12 @@ adult with a temporary password can only change it (and use public pages) until 
 | Capability | Visitor | Student | Parent | Teacher | Administrator |
 | --- | :-: | :-: | :-: | :-: | :-: |
 | Open the topic and lesson studios (`/teach/topics`, `/studio`) | ❌ | ❌ | ❌ | ✅ | ✅ |
-| Write a new topic or edit any topic (saved as a new version waiting for approval) | ❌ | ❌ | ❌ | ✅ | ✅ |
+| Write a new topic or edit any topic | ❌ | ❌ | ❌ | ✅ (waits for approval; published at once while **Teachers' topics need an administrator's approval** is off, except an edit of a withdrawn topic) | ✅ (published at once, recorded as their approval) |
 | Preview unapproved topic versions, lesson drafts and recordings | ❌ | ❌ | ❌ | ✅ | ✅ |
 | Approve or send back a topic version; withdraw or restore a topic | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Turn **Teachers' topics need an administrator's approval** on or off (on by default) | ❌ | ❌ | ❌ | ❌ | ✅ |
 | Approve or withdraw a lesson revision; decide on a lesson's video | ❌ | ❌ | ❌ | ❌ | ✅ |
-| Upload a recording for a lesson (waits for approval) | ❌ | ❌ | ❌ | ✅ | ✅ |
+| Upload a recording for a lesson | ❌ | ❌ | ❌ | ✅ (waits for approval) | ✅ (approved at once, recorded as their approval) |
 | Approve, send back or retire a recording | ❌ | ❌ | ❌ | ❌ | ✅ |
 | Keep curriculum drafts | ❌ | ❌ | ❌ | own drafts | own drafts |
 | Mark a curriculum draft "approved for release" | ❌ | ❌ | ❌ | ❌ | own drafts |
@@ -316,6 +317,8 @@ administrator inside the transaction (403), `listUsers` and `listClassResults` i
 | `/api/admin/family-links` | POST | Administrator | Links an active, approved parent (role parent) to an approved student, after `confirmed:true` | 400 (body, before the re-check); 403; 404 "No active parent account matches that email." / "Student not found."; 409 "Approve this student account before linking a parent." | `app/api/admin/family-links/route.ts:22-31`; `lib/parent-access.ts:28-44` |
 | `/api/admin/family-links` | DELETE | Administrator | One link | 400 "Choose the family link to remove."; 404 "Parent link not found." | `app/api/admin/family-links/route.ts:33-42`; `lib/parent-access.ts:46-55` |
 | `/api/admin/results` | GET | Administrator | Every class with its teacher and summary results | 403 re-check; 503 | `app/api/admin/results/route.ts:7-12`; `lib/grades.ts:56-86` |
+| `/api/admin/approval-settings` | GET | Administrator | The approval settings (whether teachers' topics need approval, who changed it and when) | 503 | `app/api/admin/approval-settings/route.ts`; `lib/approval-settings.ts` `getApprovalSettings` |
+| `/api/admin/approval-settings` | PUT | Administrator | `{ teacherTopicsNeedApproval: boolean }`; audited (`approval-setting-changed`, old and new value); the same value again changes and records nothing | 400 "Choose whether teachers' topics need an administrator's approval." (before the re-check); 403 "Only an administrator can change who needs approval." (re-check: `canPublishContent`); 503 | `app/api/admin/approval-settings/route.ts`; `lib/approval-settings.ts` `setTeacherTopicApproval` |
 
 ### Classes
 
@@ -360,8 +363,8 @@ password (`lib/enrollments.ts` `authorize`, `lib/class-activities.ts`, `lib/clas
 | --- | --- | --- | --- | --- | --- |
 | `/api/curriculum` | GET | Any signed-in account | Approved topics **without quiz answers** (staff too); a student also gets own progress; staff also get approval records | 401 "Sign in to view learning topics."; `SPW403`; 503 | `app/api/curriculum/route.ts:12-34`; `lib/learner-topic.ts` |
 | `/api/curriculum/quiz` | POST | Any adult | Marks an approved topic's quiz and saves nothing; answers the score and whether each pick was right, never which option is | 401 "Sign in as a grown-up to check this quiz."; 429 (120 per 10 min per adult, polite Bangla); 400 "Choose a valid learning topic." / "Answer every quiz question first."; 503 | `app/api/curriculum/quiz/route.ts` |
-| `/api/topics` | GET, POST | Teacher | Every topic; POST makes a new topic waiting for approval | `R401`, `T403`; 413 over 400 KB; 400; 403 re-check | `app/api/topics/route.ts:7-24`; `lib/curriculum-catalog.ts:238-252` |
-| `/api/topics/[id]` | GET, PUT | Teacher | Any topic; PUT adds a new version waiting for approval | `R401`, `T403`; 404; 413/400; 409 "Someone saved a newer version…" | `app/api/topics/[id]/route.ts:10-29` |
+| `/api/topics` | GET, POST | Teacher | Every topic, the approval setting and what a save does for the caller (`publishing.onSave`); POST makes a new topic: waiting for approval, or approved at once for an administrator (`{ self: true }`) and for a teacher while teachers' topics need no approval (`{ automatic: true }`) | `R401`, `T403`; 413 over 400 KB; 400; 403 re-check | `app/api/topics/route.ts`; `lib/curriculum-catalog.ts` `createTopic`, `publicationFor` |
+| `/api/topics/[id]` | GET, PUT | Teacher | Any topic and what saving it does for the caller (`onSave`); PUT adds a new version, published at once on the same terms as POST (never a teacher's edit of a withdrawn topic); publishing it supersedes the older versions still waiting | `R401`, `T403`; 404; 413/400; 409 "Someone saved a newer version…" | `app/api/topics/[id]/route.ts`; `lib/curriculum-catalog.ts` `submitTopicEdit` |
 | `/api/topics/[id]` | POST | Administrator | Withdraw, restore or confirm a topic | `R401`, `A403`; 404 bad id; 413/400 body; 403 re-check; 404; 400 or 409 decision | `app/api/topics/[id]/route.ts:35-44`; `lib/curriculum-catalog.ts:329-350` |
 | `/api/topics/[id]/versions/[version]` | GET | Teacher | Any version | `R401`, `T403`; 404 | `app/api/topics/[id]/versions/[version]/route.ts:19-28` |
 | `/api/topics/[id]/versions/[version]` | POST | Administrator | Approve or send back a waiting version | `R401`, `A403`; 400 decision, note or confirmation (before the re-check); 409 already reviewed | `app/api/topics/[id]/versions/[version]/route.ts:31-40`; `lib/curriculum-catalog.ts:291-322` |
@@ -369,7 +372,7 @@ password (`lib/enrollments.ts` `authorize`, `lib/class-activities.ts`, `lib/clas
 | `/api/studio/lessons` | GET | Teacher | Every lesson and every pending recording | `R401`, `T403`; 503 | `app/api/studio/lessons/route.ts:7-12` |
 | `/api/studio/lessons/[id]` | GET | Teacher | One lesson's draft and approved versions | `R401`, `T403`; 404 | `app/api/studio/lessons/[id]/route.ts:10-17` |
 | `/api/studio/lessons/[id]` | POST | Administrator | Approve or withdraw a lesson revision | `R401`, `A403`; 404 bad id; 413/400 body; 403 re-check; 409 revision changed; 400 decision or note | `app/api/studio/lessons/[id]/route.ts:20-31`; `lib/lesson-approval.ts:283-311` |
-| `/api/studio/media` | POST | Teacher | Upload a recording (multipart, audio up to 12 MB, consent required); waits for approval | `R401`, `T403`; 400 | `app/api/studio/media/route.ts:13-48` |
+| `/api/studio/media` | POST | Teacher | Upload a recording (multipart, audio up to 12 MB, consent required); waits for approval, or is approved at once for an administrator (`canPublishContent`, checked inside the transaction), replacing the slot's approved recording | `R401`, `T403`; 400 | `app/api/studio/media/route.ts`; `lib/lesson-approval.ts` `saveUploadedRecording` |
 | `/api/studio/media` | PATCH | Administrator | Approve, send back or retire any recording | `R401`, `A403`; 400 (before the re-check); 404 | `app/api/studio/media/route.ts:51-58`; `lib/lesson-approval.ts:319-342` |
 | `/api/studio/media/[id]` | GET | Teacher | Any recording, pending ones included | `R401`, `T403`; 404 | `app/api/studio/media/[id]/route.ts:15-33` |
 | `/api/studio/reviews` | GET, POST | Teacher | Shared checks plus own drafts; POST saves the caller's own check | `R401`, `T403`; 400 | `app/api/studio/reviews/route.ts:19-63` |
@@ -441,7 +444,11 @@ administrators with `canPublishContent` approve.
 the actor: account approvals, updates, session revocation, password resets, family links, class
 allocation, class creation for a teacher, class moves and deletion, activity and source changes and
 reviews, announcement removal, submission resets, student provisioning, own password changes and
-teacher requests. Also recorded: a teacher creating a class (`class-created`), posting an announcement
+teacher requests, and each change of the approval setting (`approval-setting-changed`). Work that is
+published without a separate review is recorded as an approval by the account that saved it:
+`topic-version-approved` with `{ self: true }` (an administrator's own topic) or
+`{ automatic: true, setting: "teacher-topics-need-approval" }` (a teacher's topic while approval was
+off), and `lesson-audio-approved` with `{ self: true }` (an administrator's own recording). Also recorded: a teacher creating a class (`class-created`), posting an announcement
 (`announcement-posted`), opening or closing an activity (`class-activity-opened`,
 `class-activity-closed`), every attendance save (`attendance-saved`), password recovery
 (`password-recovered`), recovery-code replacement (`recovery-codes-replaced`), sign out everywhere
@@ -696,6 +703,11 @@ for the student routes), [`tests/rate-limit.test.mjs`](../tests/rate-limit.test.
 [`tests/parent-access.test.mjs`](../tests/parent-access.test.mjs) (gap 18),
 [`tests/audit-labels.test.mjs`](../tests/audit-labels.test.mjs) and
 [`tests/user-management.test.mjs`](../tests/user-management.test.mjs) (audit codes and labels).
+Who approves what (an administrator's own work, the teachers' topic approval switch and its
+administrator-only API) is covered by [`tests/approval-settings.test.mjs`](../tests/approval-settings.test.mjs),
+[`tests/e2e/approval-setting.spec.ts`](../tests/e2e/approval-setting.spec.ts) and the administrator
+scenarios in [`tests/e2e/topic-approval.spec.ts`](../tests/e2e/topic-approval.spec.ts) and
+[`tests/e2e/lesson-approval.spec.ts`](../tests/e2e/lesson-approval.spec.ts).
 
 **Re-check after the fixes.** The fixes up to `2add1fa` were reviewed against a running build with the
 same personas (student, parent, two teachers, administrators, suspended accounts and a visitor on the

@@ -35,9 +35,23 @@ export default defineConfig({
       },
     },
     {
-      name: "chromium",
+      // The switch "Teachers' topics need an administrator's approval" is one setting for the whole
+      // installation, so the spec that turns it off runs on its own, before the other browser specs,
+      // and leaves it on as they expect.
+      name: "approval-setting",
       dependencies: ["fixture-publication"],
-      testIgnore: /published-fixtures\.setup\.ts/,
+      testMatch: /approval-setting\.spec\.ts/,
+      use: {
+        ...devices["Desktop Chrome"],
+        launchOptions: process.env.PLAYWRIGHT_CHROMIUM_PATH
+          ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH }
+          : {},
+      },
+    },
+    {
+      name: "chromium",
+      dependencies: ["fixture-publication", "approval-setting"],
+      testIgnore: [/published-fixtures\.setup\.ts/, /approval-setting\.spec\.ts/],
       use: {
         ...devices["Desktop Chrome"],
         // Use the environment's pre-installed Chromium rather than the build

@@ -202,7 +202,8 @@ for (const withMedia of [false, true]) test(`on-disk approval migration and full
     for (const original of before.tables.topic_versions) {
       const row = migrated.tables.topic_versions.find((item) => item.id === original.id);
       assert.equal(row.status, original.reviewed_by === "admin" ? "approved" : "pending");
-      assert.deepEqual({ ...row, status: original.status }, original, "topic content and original reviewer evidence remain intact");
+      // The upgrade adds published_directly empty: none of these versions was published without a review.
+      assert.deepEqual({ ...row, status: original.status }, { ...original, published_directly: null }, "topic content and original reviewer evidence remain intact");
     }
     for (const original of before.tables.content_approvals) assert.deepEqual(migrated.tables.content_approvals.find((row) => row.id === original.id), original);
     const latestLesson = (id) => candidate.prepare("SELECT status,baseline FROM content_approvals WHERE content_type='lesson' AND content_id=? ORDER BY rowid DESC LIMIT 1").get(id);

@@ -215,3 +215,41 @@ test("a teacher's recording stays pending until a separate administrator listens
     await studentContext.close().catch(() => undefined);
   }
 });
+
+test("an administrator's own recording is approved when uploaded and reaches learners at once", async ({ browser, baseURL }) => {
+  test.setTimeout(90000);
+  const suffix = randomUUID().slice(0, 8);
+  const adminContext = await signedInStaff(browser, baseURL, suffix, "admin");
+  const studentContext = await signedInStudent(browser, baseURL, suffix);
+  const speaker = `Admin speaker ${suffix}`;
+  const bytes = readFileSync(new URL("../../public/audio/lesson-my-day-dialogue.ogg", import.meta.url));
+  try {
+    const admin = await adminContext.newPage(), student = await studentContext.newPage();
+    for (const page of [admin, student]) page.setDefaultTimeout(15000);
+    await student.goto("/student");
+    await admin.goto("/studio?lesson=my-day");
+    const recordings = admin.getByRole("region", { name: "Human audio recordings", exact: true });
+    await recordings.getByText("Upload a recording", { exact: true }).click();
+    await expect(recordings).toContainText("As an administrator, your own recording is approved when you upload it");
+    await recordings.getByLabel("Part of the lesson").selectOption("pattern-2");
+    await recordings.getByLabel("Speaker name (for the credit)").fill(speaker);
+    await recordings.getByLabel(/Audio file \(MP3/).setInputFiles({ name: `${suffix}.ogg`, mimeType: "audio/ogg", buffer: bytes });
+    await recordings.getByRole("checkbox", { name: /The speaker \(and a guardian/ }).check();
+    const uploaded = admin.waitForResponse((response) => response.url().endsWith("/api/studio/media") && response.request().method() === "POST");
+    await recordings.getByRole("button", { name: "Upload and approve", exact: true }).click();
+    const upload = await uploaded;
+    expect(upload.status()).toBe(201);
+    const { asset } = await upload.json();
+    expect(asset).toMatchObject({ reviewStatus: "approved", slot: "pattern-2" });
+    await expect(recordings.getByRole("status")).toContainText("Uploaded and approved. Learners now hear it for this part of the lesson");
+    await expect(recordings.getByRole("listitem").filter({ hasText: speaker })).toContainText("Approved · in use");
+    const published = await learnerRecording(student, `/api/audio/my-day/pattern-2?v=${encodeURIComponent(asset.id)}`);
+    expect(published.status).toBe(200);
+    expect(Buffer.from(published.bytes)).toEqual(bytes);
+    // Leave the slot without a recording, as the other scenarios expect.
+    expect((await api(admin, "PATCH", "/api/studio/media", { id: asset.id, reviewStatus: "retired" })).status).toBe(200);
+  } finally {
+    await adminContext.close().catch(() => undefined);
+    await studentContext.close().catch(() => undefined);
+  }
+});

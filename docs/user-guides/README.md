@@ -56,7 +56,10 @@ their names or by uploading a CSV class list. Students do not need a class code.
 Administrator has checked and approved it. This covers topics, the 18 lessons, recordings of
 real voices, lesson videos (a separate decision from the lesson's text), class activities and
 class sources. Class lists, attendance and announcements do not need approval. On a new
-installation all 15 topics and all 18 lessons start as waiting for approval.
+installation all 15 topics and all 18 lessons start as waiting for approval. Only an
+Administrator approves, and what an Administrator writes or uploads is published at once. An
+Administrator can also switch off approval for teachers' topics; teachers then see on their
+**Topics** page that their topics are published as soon as they save them.
 
 **The first Administrator.** The first Administrator account is set up once, on the server, by
 the person who runs it (see

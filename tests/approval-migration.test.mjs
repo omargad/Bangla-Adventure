@@ -153,7 +153,8 @@ test("historical Admin authority requires a role audit before the decision, neve
       const proven = actor === "admin";
       const topic = db.prepare("SELECT * FROM topic_versions WHERE id = ?").get(original.topic.id);
       assert.equal(topic.status, proven ? "approved" : "pending", `${actor}: historical topic approval`);
-      assert.deepEqual({ ...topic, status: original.topic.status }, original.topic, `${actor}: authored topic and original review evidence remain intact`);
+      // The upgrade adds published_directly empty: none of these versions was published without a review.
+      assert.deepEqual({ ...topic, status: original.topic.status }, { ...original.topic, published_directly: null }, `${actor}: authored topic and original review evidence remain intact`);
       assert.deepEqual(db.prepare("SELECT * FROM content_approvals WHERE id = ?").get(original.lesson.id), original.lesson, `${actor}: original lesson decision preserved`);
       const lesson = db.prepare("SELECT * FROM content_approvals WHERE content_type = 'lesson' AND content_id = ? ORDER BY rowid DESC LIMIT 1").get(original.lesson.content_id);
       assert.equal(lesson.status, proven ? "approved" : "withdrawn", `${actor}: historical lesson approval`);

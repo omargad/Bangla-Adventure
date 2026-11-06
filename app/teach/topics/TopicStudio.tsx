@@ -11,7 +11,8 @@ import type { StaffTopicSummary } from "@/lib/curriculum-catalog";
 import { formatNumber, formatWhen, groupByCategory, TOPIC_ID_PATTERN } from "@/lib/topic-model";
 import TopicEditor from "./TopicEditor";
 import TopicReview from "./TopicReview";
-import { authorLabel, call, failure, statusLabel, versionLabel } from "./shared";
+import { authorLabel, call, failure, savedMessage, statusLabel, versionLabel } from "./shared";
+import ApprovalSetting, { stillWaiting, type Publishing } from "./ApprovalSetting";
 import type { Bilingual } from "@/app/topics-content";
 
 type View = { kind: "list" } | { kind: "edit"; topicId: string | null } | { kind: "review"; topicId: string; version: number | null };
@@ -32,8 +33,10 @@ function viewAt(params: URLSearchParams): View {
 }
 
 /**
- * Teachers and administrators write, edit and preview topics. Administrators
- * review submitted versions before they reach students.
+ * Teachers and administrators write, edit and preview topics. Only administrators approve
+ * topics: an administrator's own topics are published when saved, and teachers' topics wait
+ * for an administrator unless an administrator has switched that approval off (the switch is
+ * on this page). The wording follows the setting and the account, as GET /api/topics reports them.
  */
 export default function TopicStudio({ name, role, canApprove }: { name: string; role: "teacher" | "admin"; canApprove: boolean }) {
   const [language, toggleLanguage] = useLanguage({ title: ["Topics | Bangla Adventures", "বিষয় | Bangla Adventures"] });
@@ -42,6 +45,7 @@ export default function TopicStudio({ name, role, canApprove }: { name: string; 
   const params = useSearchParams();
   const [view, setView] = useState<View>(() => viewAt(params));
   const [topics, setTopics] = useState<StaffTopicSummary[] | null>(null);
+  const [publishing, setPublishing] = useState<Publishing | null>(null);
   const [error, setError] = useState<Bilingual | null>(null);
   const [message, setMessage] = useState<Bilingual | null>(null);
   // go() below shows a view in place and gives it its own address with history.replaceState. Next takes that for an address of
@@ -62,19 +66,22 @@ export default function TopicStudio({ name, role, canApprove }: { name: string; 
   }
   useEffect(() => { if (linkedViews) scrollToTop(); }, [linkedViews]);
 
-  const fetchTopics = (signal?: AbortSignal) => call<{ topics: StaffTopicSummary[] }>("/api/topics", { signal }).then((data) => data.topics);
-  const loadTopics = () => fetchTopics().then(setTopics);
+  const fetchTopics = (signal?: AbortSignal) => call<{ topics: StaffTopicSummary[]; publishing: Publishing }>("/api/topics", { signal });
+  const show = (data: { topics: StaffTopicSummary[]; publishing: Publishing }) => { setTopics(data.topics); setPublishing(data.publishing); };
+  const loadTopics = () => fetchTopics().then(show);
   useEffect(() => {
     const controller = new AbortController();
-    fetchTopics(controller.signal).then(setTopics).catch((caught) => { if (!controller.signal.aborted) setError(failure(caught)); });
+    fetchTopics(controller.signal).then(show).catch((caught) => { if (!controller.signal.aborted) setError(failure(caught)); });
     return () => controller.abort();
   }, []);
   // The list is loaded again whenever it is shown again, so it shows what was just saved or decided.
   const listing = view.kind === "list", listed = useRef(listing);
   useEffect(() => {
-    if (listing && !listed.current) void fetchTopics().then(setTopics).catch(() => undefined);
+    if (listing && !listed.current) void fetchTopics().then(show).catch(() => undefined);
     listed.current = listing;
   }, [listing]);
+  // Until the list answers, an administrator's saves publish and a teacher's are assumed to wait; the save's answer is what counts.
+  const onSave = publishing?.onSave ?? (canApprove ? "admin" : "review");
 
   const go = (next: View, note: Bilingual | null = null) => {
     setView(next); setMessage(note); setError(null);
@@ -111,7 +118,7 @@ export default function TopicStudio({ name, role, canApprove }: { name: string; 
       <main className="topic-studio" lang={language}>
         <div className="portal-heading">
           <div>
-            <p className="adult-eyebrow">{canApprove ? s("Create · review · approve", "তৈরি · পর্যালোচনা · অনুমোদন") : s("Create · preview · submit", "তৈরি · প্রিভিউ · জমা")}</p>
+            <p className="adult-eyebrow">{canApprove ? s("Create · review · approve", "তৈরি · পর্যালোচনা · অনুমোদন") : onSave === "setting" ? s("Create · preview · publish", "তৈরি · প্রিভিউ · প্রকাশ") : s("Create · preview · submit", "তৈরি · প্রিভিউ · জমা")}</p>
             <h1>{s("Topics", "বিষয়")}</h1>
           </div>
           {view.kind === "list"
@@ -121,25 +128,33 @@ export default function TopicStudio({ name, role, canApprove }: { name: string; 
         {message && <p className="teach-message" role="status">{message[language]}</p>}
         {error && <p className="auth-error" role="alert">{error[language]}</p>}
 
-        {view.kind === "edit" && <TopicEditor key={view.topicId ?? "new"} topicId={view.topicId} language={language} onCancel={() => go({ kind: "list" })}
-          onSaved={(topicId, version) => go({ kind: "review", topicId, version }, {
-            en: `Submitted as ${versionLabel(version, "en").toLowerCase()} for administrator review. Students will not see this version until an administrator approves it.`,
-            bn: `${versionLabel(version, "bn")} হিসেবে প্রশাসকের পর্যালোচনার জন্য জমা দেওয়া হয়েছে। প্রশাসক অনুমোদন না দেওয়া পর্যন্ত শিক্ষার্থীরা এই সংস্করণটি দেখবে না।`,
-          })} />}
-        {view.kind === "review" && <TopicReview key={`${view.topicId}:${view.version}`} topicId={view.topicId} version={view.version} language={language} canApprove={canApprove}
+        {view.kind === "edit" && <TopicEditor key={view.topicId ?? "new"} topicId={view.topicId} language={language} onSave={onSave} onCancel={() => go({ kind: "list" })}
+          onSaved={(saved) => go({ kind: "review", topicId: saved.topicId, version: saved.version }, savedMessage(saved))} />}
+        {view.kind === "review" && <TopicReview key={`${view.topicId}:${view.version}`} topicId={view.topicId} version={view.version} language={language} canApprove={canApprove} onSave={onSave}
           onOpenVersion={(version) => go({ kind: "review", topicId: view.topicId, version })} onEdit={() => go({ kind: "edit", topicId: view.topicId })}
           onDecided={() => void loadTopics().catch(() => undefined)} />}
 
         {view.kind === "list" && <>
-          <p>{s(
-            "A topic is a short reading lesson with an optional quiz. Teachers write or edit it in English and Bangla, then submit it for administrator review. New topics and changes reach students only after an administrator approves them.",
-            "বিষয় হলো ছোট একটি পড়ার পাঠ, সঙ্গে ঐচ্ছিক কুইজ। শিক্ষকেরা ইংরেজি ও বাংলায় বিষয় লিখে বা সম্পাদনা করে প্রশাসকের পর্যালোচনার জন্য জমা দেন। প্রশাসক অনুমোদন দিলেই নতুন বিষয় ও পরিবর্তন শিক্ষার্থীদের কাছে প্রকাশিত হয়।",
-          )}</p>
+          <p>{s("A topic is a short reading lesson with an optional quiz, written in English and Bangla. Only administrators approve topics.", "বিষয় হলো ছোট একটি পড়ার পাঠ, সঙ্গে ঐচ্ছিক কুইজ, ইংরেজি ও বাংলায় লেখা। শুধু প্রশাসকেরা বিষয় অনুমোদন করেন।")}{" "}
+            {onSave === "admin"
+              ? <>{s("As an administrator, your own new topics and edits are published to students as soon as you save them.", "প্রশাসক হিসেবে আপনার নিজের নতুন বিষয় ও সম্পাদনা সংরক্ষণের সঙ্গে সঙ্গে শিক্ষার্থীদের কাছে প্রকাশিত হয়।")}{" "}
+                {publishing && (publishing.teacherTopicsNeedApproval
+                  ? s("Teachers' new topics and edits wait here until an administrator approves them.", "শিক্ষকদের নতুন বিষয় ও সম্পাদনা প্রশাসক অনুমোদন না দেওয়া পর্যন্ত এখানে অপেক্ষায় থাকে।")
+                  : s("Teachers' new topics and edits are published as soon as they save them, because approval for teachers' topics is off.", "শিক্ষকদের বিষয়ের অনুমোদন বন্ধ, তাই শিক্ষকেরা সংরক্ষণ করলেই নতুন বিষয় ও সম্পাদনা প্রকাশিত হয়।"))}</>
+              : onSave === "setting"
+                ? s("An administrator has switched off approval for teachers' topics, so your new topics and edits are published to students as soon as you save them. An edit of a topic an administrator withdrew still waits for an administrator.", "প্রশাসক শিক্ষকদের বিষয়ের অনুমোদন বন্ধ রেখেছেন, তাই আপনার নতুন বিষয় ও সম্পাদনা সংরক্ষণের সঙ্গে সঙ্গে শিক্ষার্থীদের কাছে প্রকাশিত হয়। প্রশাসক কোনো বিষয় সরিয়ে নিলে তার সম্পাদনা তবুও প্রশাসকের অপেক্ষায় থাকে।")
+                : s("Write or edit a topic, then submit it for administrator review. Your new topics and changes reach students only after an administrator approves them.", "বিষয় লিখে বা সম্পাদনা করে প্রশাসকের পর্যালোচনার জন্য জমা দিন। প্রশাসক অনুমোদন দিলেই আপনার নতুন বিষয় ও পরিবর্তন শিক্ষার্থীদের কাছে প্রকাশিত হয়।")}
+          </p>
+          {canApprove && publishing && <ApprovalSetting publishing={publishing} waiting={pending.length} language={language}
+            onChanged={(note) => { setMessage(note); setError(null); void loadTopics().catch(() => undefined); }} />}
           {!topics && !error && <p role="status">{s("Loading topics…", "বিষয় লোড হচ্ছে…")}</p>}
           {topics && <>
             <section className="teach-panel" aria-label={s("Waiting for approval", "অনুমোদনের অপেক্ষায়")}>
               <h2>{s("Waiting for approval", "অনুমোদনের অপেক্ষায়")} ({n(pending.length)})</h2>
-              {pending.length ? <ul className="topic-admin-list">{pending.map((topic) => row(topic, true))}</ul> : <p>{s("Nothing is waiting. New and edited topics appear here until an administrator reviews them.", "কিছু অপেক্ষায় নেই। প্রশাসকের পর্যালোচনা না হওয়া পর্যন্ত নতুন ও সম্পাদিত বিষয় এখানে থাকবে।")}</p>}
+              {!canApprove && onSave === "setting" && pending.length > 0 && <p className="teach-note" role="note">{stillWaiting(pending.length, language)}</p>}
+              {pending.length ? <ul className="topic-admin-list">{pending.map((topic) => row(topic, true))}</ul> : <p>{publishing && !publishing.teacherTopicsNeedApproval
+                ? s("Nothing is waiting. While approval for teachers' topics is off, only edits of withdrawn topics wait here for an administrator.", "কিছু অপেক্ষায় নেই। শিক্ষকদের বিষয়ের অনুমোদন বন্ধ থাকলে শুধু সরিয়ে নেওয়া বিষয়ের সম্পাদনা এখানে প্রশাসকের অপেক্ষায় থাকে।")
+                : s("Nothing is waiting. Teachers' new and edited topics appear here until an administrator reviews them.", "কিছু অপেক্ষায় নেই। প্রশাসকের পর্যালোচনা না হওয়া পর্যন্ত শিক্ষকদের নতুন ও সম্পাদিত বিষয় এখানে থাকবে।")}</p>}
             </section>
             {groupByCategory(topics).map(({ category, items }) => (
               <section className="teach-panel" key={category.id} aria-label={category.title[language]}>

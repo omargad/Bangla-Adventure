@@ -57,7 +57,8 @@ test("published text narration prepares, cancels, retries and plays; activity re
     const createdTopic = await api(admin, "POST", "/api/topics", content);
     expect(createdTopic.status).toBe(201);
     const topicId = createdTopic.body.topicId as string;
-    expect((await api(admin, "POST", `/api/topics/${topicId}/versions/1`, { decision: "approve", confirmedRead: true })).status).toBe(200);
+    // An administrator's own topic is published as it is saved.
+    expect(createdTopic.body.status).toBe("approved");
     await page.context().setExtraHTTPHeaders({ "x-forwarded-for": `narration-student-${suffix}` });
     const registered = await page.request.post("/api/student/sign-up", { data: { username, displayName: "Narration learner", password } });
     expect(registered.status()).toBe(201);

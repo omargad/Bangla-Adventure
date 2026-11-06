@@ -14,7 +14,9 @@ import type { TopicReference } from "@/lib/library-links";
 const moodleUrl = process.env.NEXT_PUBLIC_MOODLE_URL?.replace(/\/+$/, "");
 const courseHref = moodleUrl || "/learn";
 
-type Approval = { version: number; baseline: boolean; approvedAt: string | null; reviewerName: string | null; pendingVersions: number[] };
+type Approval = { version: number; baseline: boolean; approvedAt: string | null; reviewerName: string | null; publishedDirectly: "admin" | "setting" | null; pendingVersions: number[] };
+/** Whether the signed-in staff member's topics publish at once, and whether teachers' topics need approval. */
+type Publishing = { onSave: "admin" | "setting" | "review"; teacherTopicsNeedApproval: boolean };
 type HubTopic = LearnerTopic & { approval?: Approval; references?: TopicReference[] };
 type QuizScores = Record<string, { best: number; total: number }>;
 
@@ -29,6 +31,7 @@ export default function TopicsHub() {
   const [canRecord, setCanRecord] = useState(false);
   const [canReview, setCanReview] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
+  const [publishing, setPublishing] = useState<Publishing | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState("");
   // After a student's quiz: "saved" when the try could raise their saved best score, "practice" after the day's scored tries.
@@ -55,7 +58,7 @@ export default function TopicsHub() {
     fetch("/api/curriculum", { signal: controller.signal, cache: "no-store" }).then(async (response) => {
       const data = await response.json(); if (!response.ok) throw new Error(data.error);
       setTopics(data.topics); setReadIds(data.readTopicIds); setScores(data.quizScores ?? {}); setCanRecord(data.canRecordProgress);
-      setCanReview(Boolean(data.canReview)); setPendingCount(data.pendingCount ?? 0); setLoaded(true);
+      setCanReview(Boolean(data.canReview)); setPendingCount(data.pendingCount ?? 0); setPublishing(data.publishing ?? null); setLoaded(true);
     }).catch((error) => { if (!controller.signal.aborted) setError(error.message); });
     return () => controller.abort();
   }, []);
@@ -117,6 +120,10 @@ export default function TopicsHub() {
   function approvalLabel(approval: Approval) {
     const who = approval.baseline
       ? s("Teacher view: pre-existing content, approved as a baseline (not individually reviewed).", "শিক্ষকের দৃশ্য: আগে থেকে থাকা বিষয়বস্তু, ভিত্তি হিসেবে অনুমোদিত (আলাদা করে পর্যালোচনা হয়নি)।")
+      : approval.publishedDirectly === "admin"
+        ? s(`Teacher view: published at once by ${approval.reviewerName ?? "a former staff member"} on ${formatWhen(approval.approvedAt, language)} (an administrator's own edit).`, `শিক্ষকের দৃশ্য: ${approval.reviewerName ?? "একজন সাবেক কর্মী"} ${formatWhen(approval.approvedAt, language)}-এ সরাসরি প্রকাশ করেছেন (প্রশাসকের নিজের সম্পাদনা)।`)
+      : approval.publishedDirectly === "setting"
+        ? s(`Teacher view: published at once on ${formatWhen(approval.approvedAt, language)}, without an administrator's review, while teachers' topics did not need approval.`, `শিক্ষকের দৃশ্য: ${formatWhen(approval.approvedAt, language)}-এ প্রশাসকের পর্যালোচনা ছাড়াই সরাসরি প্রকাশিত, কারণ তখন শিক্ষকদের বিষয়ে অনুমোদন লাগত না।`)
       : s(`Teacher view: approved by ${approval.reviewerName ?? "a former staff member"} on ${formatWhen(approval.approvedAt, language)}.`, `শিক্ষকের দৃশ্য: ${approval.reviewerName ?? "একজন সাবেক কর্মী"} ${formatWhen(approval.approvedAt, language)}-এ অনুমোদন করেছেন।`);
     return approval.pendingVersions.length ? `${who} ${s("A newer version is waiting for approval.", "একটি নতুন সংস্করণ অনুমোদনের অপেক্ষায়।")}` : who;
   }
@@ -210,11 +217,20 @@ export default function TopicsHub() {
       ))}
       {loaded && !topics.length && <p>{s("No topics have been approved yet.", "এখনো কোনো বিষয় অনুমোদিত হয়নি।")}</p>}
 
-      {canReview && <section className="topics-teacher-note">
+      {publishing && <section className="topics-teacher-note">
         <span aria-hidden="true">🍎</span>
         <p>
-          {s("Teachers: write new topics, preview them in English and Bangla and approve them in ", "শিক্ষকদের জন্য: নতুন বিষয় লিখুন, ইংরেজি ও বাংলায় দেখে নিন এবং অনুমোদন দিন ")}
+          {publishing?.onSave === "admin"
+            ? s("Administrators: write and edit topics in English and Bangla in ", "প্রশাসকদের জন্য: ইংরেজি ও বাংলায় বিষয় লিখুন ও সম্পাদনা করুন ")
+            : s("Teachers: write new topics and edit them in English and Bangla in ", "শিক্ষকদের জন্য: ইংরেজি ও বাংলায় নতুন বিষয় লিখুন ও সম্পাদনা করুন ")}
           <Link href="/teach/topics">{s("Topics →", "“বিষয়” অংশে →")}</Link>{" "}
+          {publishing?.onSave === "admin"
+            ? <>{s("Your own topics are published as soon as you save them.", "আপনার নিজের বিষয় সংরক্ষণ করলেই প্রকাশিত হয়।")}{" "}{publishing.teacherTopicsNeedApproval
+              ? s("Teachers' topics wait for an administrator to approve them.", "শিক্ষকদের বিষয় প্রশাসকের অনুমোদনের অপেক্ষায় থাকে।")
+              : s("Teachers' topics are published as soon as they save them, because approval for teachers' topics is switched off.", "শিক্ষকদের বিষয়ের অনুমোদন বন্ধ রাখা আছে, তাই তাঁরা সংরক্ষণ করলেই বিষয় প্রকাশিত হয়।")}</>
+            : publishing?.onSave === "setting"
+              ? s("Your topics are published to students as soon as you save them: an administrator has switched off approval for teachers' topics.", "প্রশাসক শিক্ষকদের বিষয়ের অনুমোদন বন্ধ রেখেছেন, তাই আপনি সংরক্ষণ করলেই বিষয় শিক্ষার্থীদের কাছে প্রকাশিত হয়।")
+              : s("An administrator approves each one before students see it.", "শিক্ষার্থীরা দেখার আগে প্রশাসক প্রতিটি বিষয় অনুমোদন করেন।")}{" "}
           {s("Set class quizzes in your ", "ক্লাসের কুইজ দিন ")}
           <Link href="/teach">{s("teacher workspace →", "শিক্ষকের কর্মক্ষেত্রে →")}</Link>
         </p>

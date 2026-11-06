@@ -341,6 +341,34 @@ export async function reviewRecording(actorId: string, raw: Record<string, unkno
   });
 }
 
+/**
+ * A staff member's uploaded recording (the file is already stored). An administrator's own upload is
+ * approved at once (they chose the file and confirmed the speaker's consent), replacing the slot's
+ * previous track as an approval does, and audited as lesson-audio-approved with { self: true }. Anyone
+ * else's waits for an administrator. The account is checked inside the transaction.
+ */
+export async function saveUploadedRecording(actorId: string, recording: Pick<typeof mediaAssets.$inferInsert, "lessonId" | "slot" | "objectKey" | "originalName" | "contentType" | "byteSize" | "speakerName" | "dialect" | "consentConfirmed">) {
+  const db = await getDb();
+  return db.transaction((tx) => {
+    const actor = tx.select({ email: adults.email, role: adults.role, status: adults.status, teacherStatus: adults.teacherStatus, approvalStatus: adults.approvalStatus, mustChangePassword: adults.mustChangePassword }).from(adults).where(eq(adults.id, actorId)).get();
+    if (!actor) throw new LessonError("Sign in required.", "সাইন ইন করা প্রয়োজন।", 401);
+    const publish = canPublishContent(actor) && recording.consentConfirmed === true;
+    const now = new Date().toISOString();
+    if (publish) {
+      tx.update(mediaAssets).set({ reviewStatus: "retired", updatedAt: now })
+        .where(and(eq(mediaAssets.lessonId, recording.lessonId), eq(mediaAssets.slot, recording.slot), eq(mediaAssets.reviewStatus, "approved"))).run();
+    }
+    const asset = tx.insert(mediaAssets).values({
+      id: crypto.randomUUID(), ownerEmail: actor.email, ...recording, reviewStatus: publish ? "approved" : "pending",
+      // As an approval does, the decision time is written (updated_at orders a slot's approved tracks).
+      ...(publish ? { reviewedBy: actorId, reviewedAt: now, updatedAt: now } : {}),
+    }).returning().get();
+    audit(tx, actorId, recording.lessonId, "lesson-audio-uploaded", { recordingId: asset.id, slot: asset.slot });
+    if (publish) audit(tx, actorId, recording.lessonId, "lesson-audio-approved", { recordingId: asset.id, slot: asset.slot, self: true });
+    return asset;
+  });
+}
+
 /** An administrator's video decision and its audit record are committed together. */
 export async function saveVideoReview(actorId: string, raw: Record<string, unknown>) {
   const db = await getDb();

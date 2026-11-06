@@ -30,7 +30,9 @@ test("topic choices vary, retain selection when language changes, and save canon
     });
     expect(response.status).toBe(201);
     topicId = response.body.topicId as string;
-    expect((await browserApi(admin.page, "POST", `/api/topics/${topicId}/versions/1`, { decision: "approve", confirmedRead: true })).status).toBe(200);
+    // An administrator's own topic is published as it is saved: there is nothing left to approve.
+    expect(response.body).toMatchObject({ status: "approved", publishedDirectly: "admin" });
+    expect((await browserApi(admin.page, "POST", `/api/topics/${topicId}/versions/1`, { decision: "approve", confirmedRead: true })).status).toBe(409);
   } finally { await admin.context.close(); }
   expect((await page.request.post("/api/student/sign-up", { data: { username, displayName: "Topic order learner", password } })).status()).toBe(201);
   fixture((db) => { db.prepare("UPDATE students SET approval_status='approved' WHERE username=?").run(username); });

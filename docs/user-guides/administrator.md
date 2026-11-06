@@ -5,7 +5,9 @@ after Bangla Adventures for everyone else. As an Administrator you approve new a
 create accounts and reset passwords, import families, set up classes for teachers, keep the
 NCTB textbook links up to date, and look after results and attendance in every class. You
 also decide what students and parents see: no topic, lesson, recording, video or class
-activity reaches them until an Administrator has checked and approved it.
+activity from a teacher reaches them until an Administrator has checked and approved it.
+What you write or upload yourself is published at once, and you can let teachers' topics
+publish without approval (see [Who needs approval](#who-needs-approval)).
 
 The pictures in this guide use made-up people and example addresses. Passwords, recovery
 codes and the website address are blurred on purpose.
@@ -552,9 +554,14 @@ Administrator approves the exact version. On a new installation, all 15 topics a
 lessons start as waiting for approval, so none of them reaches students until you approve
 it.
 
+You never approve your own work: a topic you write or edit, a recording you upload and a
+class activity or link you add are published as you save them, and **Recent changes**
+records them as approved by you. Only an active Administrator who has chosen their own
+password publishes this way.
+
 | What | Where to review it | What you decide |
 | --- | --- | --- |
-| Topics (short readings with a quiz) | **Topics** | Approve, send back with a note, or withdraw |
+| Topics (short readings with a quiz) | **Topics** | Approve, send back with a note, or withdraw; switch approval for teachers' topics on or off |
 | Lessons (the 18 adventure lessons) | **Lessons** | Approve the revision, or withdraw |
 | Recordings of real voices | **Lessons**, inside the lesson | Approve after listening, or stop using it |
 | Lesson videos | **Lessons**, inside the lesson, **Video check** | A separate video decision |
@@ -598,6 +605,58 @@ is *"Withdrawn. Students and parents no longer see this topic. Approve it again 
 fixed."* To bring it back, tick the reading box again and select
 **Approve again and show to students**. The message is *"Approved again. Students see this
 topic once more."*
+
+### Your own topics
+
+1. On the **Topics** page, select **+ New topic**, or **Edit** beside a topic. The note at
+   the top of the form says *"As an administrator, your own topic does not wait for
+   approval: students see it as soon as you save it."*
+2. Fill in the form as a teacher would (see
+   [Writing a new topic](teacher.md#writing-a-new-topic)).
+3. Select **Save and publish to students**.
+
+**What you'll see:** *"Published as version 1. Students see it now: an administrator's own
+topics do not wait for approval."* (with the version number). The preview says
+*"Published at once by"* your name, and **Version history** says
+*"Published at once (an administrator's own edit)"*.
+
+If a teacher's edit of the topic is still waiting, the form starts from it and says
+*"Your changes build on this waiting version, so they include its changes. Saving publishes
+your version and marks version 2 as replaced."* (with its version number). After saving, the
+message adds *"Version 2, which was waiting for approval, is included in it and is marked as
+replaced."*, and **Version history** shows that version as **Replaced by a newer version**.
+Editing a withdrawn topic shows it to students again when you save: the form warns
+*"This topic is withdrawn: saving publishes your version and shows the topic to students
+again."*
+
+### Who needs approval
+
+At the top of the **Topics** page, the box **Who needs approval** holds the switch
+**Teachers' topics need an administrator's approval**. It is **On** to start with.
+
+- **On:** *"a topic a teacher writes or edits waits on this page until an administrator
+  reads all of it and approves it."*
+- **Off:** *"a topic a teacher writes or edits is published to students as soon as they save
+  it. Each one is still recorded in Recent changes, and you can withdraw a topic at any time.
+  A teacher's edit of a withdrawn topic still waits for an administrator."*
+
+The switch covers teachers' topics only. Teachers' lessons, recordings, videos, class
+activities and class sources always wait for you.
+
+To change it, select the switch. The box shows *"Last changed by"* with the name and date.
+
+**What you'll see** when you turn it off: *"Approval for teachers' topics is off. Teachers'
+new topics and edits are now published to students as soon as they save them."* If topics
+are already waiting, it adds *"2 topics are still waiting for approval: turning approval off
+does not publish them, so an administrator still reviews them below."* (with the number).
+Those topics stay under **Waiting for approval** until you approve them or send them back.
+
+When you turn it on again: *"Approval for teachers' topics is on. Teachers' new topics and
+edits wait for an administrator again."* Each change appears in **Recent changes** as
+"Approval setting changed". Teachers see on their own **Topics** page whether their topics
+wait or are published as they save them.
+
+![The Who needs approval box on the Topics page with the switch Teachers' topics need an administrator's approval turned off](images/admin/13-approval-switch.jpg)
 
 ### Lessons
 
@@ -653,6 +712,13 @@ hear an approved recording instead of the computer voice.
 instead of a computer voice."* The recording now says **Approved · in use**. To stop using
 it later, select **Stop using it**; it then says **Retired**.
 
+**Your own recording** does not wait: under **Upload a recording**, fill in the form as a
+teacher would and select **Upload and approve**. The form notes *"As an administrator, your
+own recording is approved when you upload it and replaces the approved recording for that
+part of the lesson."*, so listen to the file before you upload it. The message is
+*"Uploaded and approved. Learners now hear it for this part of the lesson instead of a
+computer voice."*
+
 ### Lesson videos (a separate decision)
 
 Lessons can include a YouTube video. On a new installation, learners see no video until an
@@ -707,6 +773,9 @@ To take back an approved activity or source, type a **Review note** and select
 **Withdraw and request changes**. It then says **Changes requested · not published**, and
 students and parents no longer see it.
 
+An activity or link you add yourself is approved as you add it and says
+**Approved by Admin · published** straight away.
+
 ## Optional narration (computer voice)
 
 Each class activity has a **Listen to instructions** button, credited
@@ -725,8 +794,11 @@ computer voice. This narration is optional.
 
 At the bottom of the **Users** page, select **Recent changes** to open the list of the 15
 most recent actions. Each entry says what happened (for example "Parent linked",
-"Added to a class", "Quiz answers reset", "Textbook hidden", "Topic withdrawn from students"
-or "Class deleted"), which account or item it was about, and when.
+"Added to a class", "Quiz answers reset", "Textbook hidden", "Topic withdrawn from students",
+"Approval setting changed" or "Class deleted"), which account or item it was about, and when.
+Your own topics and recordings appear as "Topic approved" and "Lesson recording approved"
+under your name, and a teacher's topic published while approval was off appears as
+"Topic approved" under the teacher's name.
 
 Each entry also says who made the change: **By:** with the account's name, **By: Server
 operator** for a command run on the server, or **By: Deleted account** for an account deleted

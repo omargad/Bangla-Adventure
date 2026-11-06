@@ -405,6 +405,10 @@ export const topicVersions = sqliteTable("topic_versions", {
   reviewedBy: text("reviewed_by").references(() => adults.id, { onDelete: "set null" }),
   reviewedAt: text("reviewed_at"),
   reviewNote: text("review_note").notNull().default(""),
+  // Set when the version was published as it was saved instead of waiting for a review: "admin" for an
+  // administrator's own work, "setting" for a teacher's while "Teachers' topics need an administrator's
+  // approval" was off. Null for a version an administrator reviewed. Added by db/content-migration.ts.
+  publishedDirectly: text("published_directly", { enum: ["admin", "setting"] }),
 }, (table) => [
   uniqueIndex("topic_versions_topic_version_unique").on(table.topicId, table.version),
   index("topic_versions_status_idx").on(table.status),
@@ -461,3 +465,12 @@ export const classSources = sqliteTable("class_sources", {
   reviewedAt: text("reviewed_at"),
   reviewNote: text("review_note").notNull().default(""),
 }, (table) => [index("class_sources_class_idx").on(table.classId)]);
+
+// Settings an administrator changes in the app, one row each; a setting without a row has its default
+// (see lib/approval-settings.ts). Created by db/content-migration.ts; every change is audited.
+export const appSettings = sqliteTable("app_settings", {
+  key: text("key").primaryKey(),
+  valueJson: text("value_json").notNull(),
+  updatedBy: text("updated_by").references(() => adults.id, { onDelete: "set null" }),
+  updatedAt: text("updated_at").notNull(),
+});

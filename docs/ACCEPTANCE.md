@@ -59,9 +59,12 @@ and preserve real records.
    family CSV (siblings and an existing parent) and print its sheet (one family per
    page), upload it again to see the repeated rows refused, create a class for a
    teacher and give it to another teacher (the first loses access), manage
-   student/family links and edit a topic in Topics. Verify students keep the approved
-   version until the edit is previewed in English and Bangla and approved, and that
-   existing quizzes and review notices remain. In Sources, replace one book's yearly
+   student/family links and edit a topic in Topics: an administrator's own edit is
+   published at once. Verify that a teacher's edit waits (students keep the approved
+   version until it is previewed in English and Bangla and approved), that existing quizzes
+   and review notices remain, and that turning **Teachers' topics need an administrator's
+   approval** off publishes later teacher edits at once while waiting ones stay waiting;
+   turn it back on. In Sources, replace one book's yearly
    NCTB link (per class where a book covers several), note the warning for an address
    outside nctb.gov.bd, and confirm students' Sources & references and the topic
    sources open the new link. On the first visit after deploying this version, work
@@ -76,7 +79,7 @@ and preserve real records.
    and export, and post announcements to everyone in the class, to students only and to
    parents only (each shows its audience, author and local time; Remove asks first).
    Only that class's students and its students' linked parents receive them. Write a
-   new topic, confirm students cannot see it, then preview and approve it. In Lessons,
+   new topic, confirm students cannot see it, then have an administrator preview and approve it. In Lessons,
    preview a lesson in Bangla, withdraw it with a reason, confirm the student lesson
    list and its link no longer show it, then open every part of the lesson and approve
    it again. In Class sources, add a link for one class and confirm only that class's

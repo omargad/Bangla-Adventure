@@ -54,12 +54,13 @@ const AUDIT_ACTIONS: Record<string, Message> = {
   "class-source-removed": ["Class source removed", "ক্লাসের উৎস সরানো হয়েছে"],
   "class-source-reviewed": ["Class source reviewed", "ক্লাসের উৎস পর্যালোচনা"],
   "topic-created": ["Topic written", "বিষয় লেখা হয়েছে"],
-  "topic-edit-submitted": ["Topic edit sent for approval", "বিষয়ের সম্পাদনা অনুমোদনের জন্য পাঠানো হয়েছে"],
+  "topic-edit-submitted": ["Topic edit saved", "বিষয়ের সম্পাদনা সংরক্ষিত"],
   "topic-version-approved": ["Topic approved", "বিষয় অনুমোদিত"],
   "topic-version-rejected": ["Topic edit sent back", "বিষয়ের সম্পাদনা ফেরত পাঠানো হয়েছে"],
   "topic-withdrawn": ["Topic withdrawn from students", "শিক্ষার্থীদের কাছ থেকে বিষয় সরানো হয়েছে"],
   "topic-review-confirmed": ["Topic review confirmed", "বিষয়ের পর্যালোচনা নিশ্চিত"],
   "topic-restored": ["Topic approved again", "বিষয় আবার অনুমোদিত"],
+  "approval-setting-changed": ["Approval setting changed", "অনুমোদনের সেটিং বদলানো হয়েছে"],
   "lesson-approved": ["Lesson approved", "পাঠ অনুমোদিত"],
   "lesson-withdrawn": ["Lesson withdrawn from students", "শিক্ষার্থীদের কাছ থেকে পাঠ সরানো হয়েছে"],
   "lesson-audio-uploaded": ["Lesson recording uploaded", "পাঠের রেকর্ডিং আপলোড"],
@@ -81,7 +82,7 @@ const AUDIT_ACTIONS: Record<string, Message> = {
 };
 const AUDIT_TARGETS: Record<string, Message> = {
   adult: ["Adult", "বড়দের অ্যাকাউন্ট"], student: ["Student", "শিক্ষার্থী"], "class-student": ["Class list entry", "ক্লাসের তালিকা"],
-  class: ["Class", "ক্লাস"], topic: ["Topic", "বিষয়"], lesson: ["Lesson", "পাঠ"], "library-source": ["Textbook", "পাঠ্যবই"],
+  class: ["Class", "ক্লাস"], topic: ["Topic", "বিষয়"], lesson: ["Lesson", "পাঠ"], "library-source": ["Textbook", "পাঠ্যবই"], setting: ["Setting", "সেটিং"],
 };
 
 /** Who made a change, in both languages. */

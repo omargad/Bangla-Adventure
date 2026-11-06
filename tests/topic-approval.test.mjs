@@ -22,6 +22,7 @@ db.insert(adults).values([
   { id: "admin", email: "admin@example.com", displayName: "Admin Ayesha", role: "admin", passwordHash: "fixture", approvalStatus: "approved" },
   { id: "author", email: "author@example.com", displayName: "Teacher Tania", role: "teacher", teacherStatus: "approved", passwordHash: "fixture", approvalStatus: "approved" },
   { id: "reviewer", email: "reviewer@example.com", displayName: "Admin Rafi", role: "admin", teacherStatus: "none", passwordHash: "fixture", approvalStatus: "approved" },
+  { id: "author2", email: "author2@example.com", displayName: "Teacher Tuhin", role: "teacher", teacherStatus: "approved", passwordHash: "fixture", approvalStatus: "approved" },
   { id: "pending", email: "pending@example.com", displayName: "Pending", role: "parent", teacherStatus: "pending", passwordHash: "fixture", approvalStatus: "approved" },
   { id: "parent", email: "parent@example.com", displayName: "Parent", passwordHash: "fixture", approvalStatus: "approved" },
 ]).run();
@@ -200,7 +201,7 @@ test("an edit of an approved topic stays hidden until approved; a rejected edit 
 test("approving a later version supersedes older pending ones and an older one cannot replace it", async () => {
   const { topicId } = await catalog.createTopic("author", draft({ title: pair("River boats", "নদীর নৌকা") }));
   const base = { ...draft({ title: pair("River boats", "নদীর নৌকা") }) };
-  await catalog.submitTopicEdit("reviewer", topicId, { ...base, minutes: 5, baseVersion: 1 });
+  await catalog.submitTopicEdit("author2", topicId, { ...base, minutes: 5, baseVersion: 1 });
   await catalog.submitTopicEdit("author", topicId, { ...base, minutes: 6, baseVersion: 2 });
   await catalog.reviewTopicVersion("admin", topicId, 3, { decision: "approve", confirmedRead: true });
   assert.deepEqual((await catalog.getStaffTopic(topicId)).versions.map((version) => version.status), ["superseded", "superseded", "approved"]);
@@ -253,8 +254,8 @@ test("after an edit is sent back, the next edit can start again from the approve
 
   // Another teacher fixes a typo starting from what students see, so the rejected title is not carried over.
   const typo = { ...staff.approved.content, tagline: pair(`${start.tagline.en} Fixed.`, start.tagline.bn), baseVersion: 0 };
-  await assert.rejects(catalog.submitTopicEdit("reviewer", id, { ...staff.approved.content, baseVersion: 0 }), /Nothing has changed/, "compared with the approved version");
-  const saved = await catalog.submitTopicEdit("reviewer", id, typo);
+  await assert.rejects(catalog.submitTopicEdit("author2", id, { ...staff.approved.content, baseVersion: 0 }), /Nothing has changed/, "compared with the approved version");
+  const saved = await catalog.submitTopicEdit("author2", id, typo);
   assert.equal(saved.version, 2);
   const preview = await catalog.getTopicVersion(id, 2);
   assert.equal(preview.version.content.title.en, original.title.en);

@@ -7,7 +7,7 @@ import type { TopicDecisionSummary, VersionSummary } from "@/lib/curriculum-cata
 import { categoryTitle, formatWhen, TOPIC_LIMITS, TOPIC_READ_CONFIRMATION, type Language, type TopicContent } from "@/lib/topic-model";
 import TopicReader from "@/app/topics/TopicReader";
 import type { TopicReference } from "@/lib/library-links";
-import { authorLabel, call, failure, statusLabel, versionDecisionMessage, versionLabel, writtenLabel } from "./shared";
+import { authorLabel, call, failure, publishedDirectlyLabel, statusLabel, versionDecisionMessage, versionLabel, writtenLabel } from "./shared";
 
 type VersionDetail = {
   id: string; latestVersion: number;
@@ -36,8 +36,10 @@ async function fetchReview(topicId: string, version: number | null, signal?: Abo
  * as students see it, in English, in Bangla or side by side, with what changed
  * since the approved version, the decision and the topic's history.
  */
-export default function TopicReview({ topicId, version, language, canApprove, onOpenVersion, onEdit, onDecided }: {
+export default function TopicReview({ topicId, version, language, canApprove, onSave, onOpenVersion, onEdit, onDecided }: {
   topicId: string; version: number | null; language: Language; canApprove: boolean;
+  /** What saving an edit does for this account: published at once ("admin", "setting") or waiting ("review"). */
+  onSave: "admin" | "setting" | "review";
   onOpenVersion: (version: number) => void; onEdit: () => void; onDecided: () => void;
 }) {
   const s = (en: string, bn: string) => (language === "bn" ? bn : en);
@@ -133,9 +135,15 @@ export default function TopicReview({ topicId, version, language, canApprove, on
             "Pre-existing content, approved as a baseline: students could already read it before topic approval existed. It has not been individually reviewed.",
             "আগে থেকে থাকা বিষয়বস্তু, ভিত্তি হিসেবে অনুমোদিত: বিষয় অনুমোদন চালুর আগেই শিক্ষার্থীরা এটি পড়তে পারত। এটি আলাদা করে পর্যালোচনা করা হয়নি।",
           )}</p>)}
-        {current.status === "approved" && !current.baseline && <p className="teach-note">{s(`Approved by ${who(current.reviewerName)}, ${formatWhen(current.reviewedAt, language)}.`, `${who(current.reviewerName)} অনুমোদন করেছেন, ${formatWhen(current.reviewedAt, language)}।`)}</p>}
+        {current.status === "approved" && !current.baseline && <p className="teach-note">{current.publishedDirectly === "admin"
+          ? s(`Published at once by ${who(current.reviewerName)}, ${formatWhen(current.reviewedAt, language)}: an administrator's own work does not wait for approval.`, `${who(current.reviewerName)} সরাসরি প্রকাশ করেছেন, ${formatWhen(current.reviewedAt, language)}: প্রশাসকের নিজের কাজ অনুমোদনের অপেক্ষায় থাকে না।`)
+          : current.publishedDirectly === "setting"
+            ? s(`Published at once, ${formatWhen(current.reviewedAt, language)}, without an administrator's review: teachers' topics did not need approval then.`, `প্রশাসকের পর্যালোচনা ছাড়াই সরাসরি প্রকাশিত, ${formatWhen(current.reviewedAt, language)}: তখন শিক্ষকদের বিষয়ে অনুমোদন লাগত না।`)
+            : s(`Approved by ${who(current.reviewerName)}, ${formatWhen(current.reviewedAt, language)}.`, `${who(current.reviewerName)} অনুমোদন করেছেন, ${formatWhen(current.reviewedAt, language)}।`)}</p>}
         {current.status === "rejected" && <p className="teach-note">{s(`Sent back by ${who(current.reviewerName)}, ${formatWhen(current.reviewedAt, language)}: `, `${who(current.reviewerName)} ফেরত পাঠিয়েছেন, ${formatWhen(current.reviewedAt, language)}: `)}<q>{current.reviewNote}</q></p>}
-        {!canApprove && <p className="teach-note">{s("You can preview this topic, view its history and submit edits. An administrator must approve new topics and changes before students see them.", "আপনি বিষয়টির প্রিভিউ ও ইতিহাস দেখতে এবং সম্পাদনা জমা দিতে পারেন। শিক্ষার্থীরা দেখার আগে প্রশাসককে নতুন বিষয় ও পরিবর্তন অনুমোদন করতে হবে।")}</p>}
+        {!canApprove && <p className="teach-note">{onSave === "setting" && !history.withdrawn
+          ? s("You can preview this topic, view its history and edit it. Only administrators approve topics, but an administrator has switched off approval for teachers' topics, so your edits are published to students as soon as you save them.", "আপনি বিষয়টির প্রিভিউ ও ইতিহাস দেখতে এবং সম্পাদনা করতে পারেন। শুধু প্রশাসকেরা বিষয় অনুমোদন করেন, তবে প্রশাসক শিক্ষকদের বিষয়ের অনুমোদন বন্ধ রেখেছেন, তাই আপনি সংরক্ষণ করলেই সম্পাদনা শিক্ষার্থীদের কাছে প্রকাশিত হয়।")
+          : s("You can preview this topic, view its history and submit edits. Only administrators approve topics: an administrator must approve your changes before students see them.", "আপনি বিষয়টির প্রিভিউ ও ইতিহাস দেখতে এবং সম্পাদনা জমা দিতে পারেন। শুধু প্রশাসকেরা বিষয় অনুমোদন করেন: শিক্ষার্থীরা দেখার আগে প্রশাসককে আপনার পরিবর্তন অনুমোদন করতে হবে।")}</p>}
         {current.version < detail.latestVersion && <p className="teach-note">{s("This is not the newest version.", "এটি সবচেয়ে নতুন সংস্করণ নয়।")} <button type="button" className="text-button" onClick={() => onOpenVersion(detail.latestVersion)}>{s("Open the newest version", "সবচেয়ে নতুন সংস্করণ খুলুন")}</button></p>}
         <div className="access-actions">
           <button type="button" className="outline-button" onClick={onEdit}>{s("Edit this topic", "বিষয়টি সম্পাদনা করুন")}</button>
@@ -229,7 +237,7 @@ export default function TopicReview({ topicId, version, language, canApprove, on
               <td>{versionLabel(item.version, language)}</td>
               <td>{statusLabel(item, language)}</td>
               <td>{item.version === 0 ? authorLabel(item, language) : <>{authorLabel(item, language)}<br /><small>{formatWhen(item.createdAt, language)}</small></>}</td>
-              <td>{item.reviewedAt ? <>{item.baseline ? s("Approved as a baseline", "ভিত্তি হিসেবে অনুমোদিত") : who(item.reviewerName)}<br /><small>{formatWhen(item.reviewedAt, language)}</small></> : item.baseline ? s("Approved as a baseline", "ভিত্তি হিসেবে অনুমোদিত") : "—"}</td>
+              <td>{item.reviewedAt ? <>{item.baseline ? s("Approved as a baseline", "ভিত্তি হিসেবে অনুমোদিত") : item.publishedDirectly === "setting" ? publishedDirectlyLabel(item, language) : who(item.reviewerName)}{item.publishedDirectly === "admin" && <><br /><small>{publishedDirectlyLabel(item, language)}</small></>}<br /><small>{formatWhen(item.reviewedAt, language)}</small></> : item.baseline ? s("Approved as a baseline", "ভিত্তি হিসেবে অনুমোদিত") : "—"}</td>
               <td>{item.reviewNote || "—"}</td>
               <td>{item.version !== current.version && <button type="button" className="text-button" onClick={() => onOpenVersion(item.version)}>{s(`Preview ${versionLabel(item.version, "en").toLowerCase()}`, `${versionLabel(item.version, "bn")} দেখুন`)}</button>}</td>
             </tr>

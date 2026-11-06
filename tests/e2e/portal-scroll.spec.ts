@@ -609,7 +609,11 @@ test("on an iPad, Back to a topic the studio opened in place, then the Topics li
   expect(await columnTop(page)).toBe(250);
   await page.locator(".portal-topbar").getByRole("button", { name: "বাংলা" }).evaluate((button) => (button as HTMLButtonElement).click());
   await expect(page.getByRole("heading", { level: 1, name: "বিষয়" })).toBeVisible();
-  expect(await settledTop(page)).toBe(250);
+  // It stays where the reader left it, not at the top. The Bangla text above (the introduction and an administrator's
+  // approval switch) can be a line shorter or longer, and the browser keeps the topics on screen still, so it may move a little.
+  const top = await settledTop(page);
+  expect(top).toBeGreaterThan(200);
+  expect(top).toBeLessThan(300);
 });
 
 test("on an iPad, Back from the Topics link to the topic the studio opened in place shows the topic, and Forward puts the list back", async ({ page, baseURL }) => {

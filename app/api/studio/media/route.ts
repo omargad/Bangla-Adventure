@@ -1,10 +1,8 @@
-import { getDb } from "../../../../db";
-import { mediaAssets, userAuditEvents } from "../../../../db/schema";
 import { lessons } from "../../../curriculum";
 import { getSessionAdult, getStaffAccess } from "@/lib/auth";
 import { canTeach } from "@/lib/roles";
 import { putMediaObject } from "@/lib/storage";
-import { lessonErrorResponse, readLessonBody, reviewRecording } from "@/lib/lesson-approval";
+import { lessonErrorResponse, readLessonBody, reviewRecording, saveUploadedRecording } from "@/lib/lesson-approval";
 import { readFormData } from "@/lib/request-security";
 
 export const dynamic = "force-dynamic";
@@ -30,23 +28,13 @@ export async function POST(request: Request) {
   const extension = safeExtension(file.name, file.type);
   const objectKey = `human-audio/${lessonId}/${slot}/${crypto.randomUUID()}.${extension}`;
   await putMediaObject(objectKey, Buffer.from(await file.arrayBuffer()));
-  const db = await getDb();
-  const [asset] = await db.insert(mediaAssets).values({
-    id: crypto.randomUUID(),
-    ownerEmail: user.email,
-    lessonId,
-    slot,
-    objectKey,
-    originalName: file.name.slice(0, 180),
-    contentType: file.type,
-    byteSize: file.size,
-    speakerName,
-    dialect,
-    consentConfirmed,
-    reviewStatus: "pending",
-  }).returning();
-  await db.insert(userAuditEvents).values({ id: crypto.randomUUID(), actorId: user.id, targetId: lessonId, targetType: "lesson", action: "lesson-audio-uploaded", detailsJson: JSON.stringify({ recordingId: asset.id, slot }) });
-  return Response.json({ asset }, { status: 201 });
+  // An administrator's own recording is approved at once; anyone else's waits for an administrator.
+  try {
+    const asset = await saveUploadedRecording(user.id, {
+      lessonId, slot, objectKey, originalName: file.name.slice(0, 180), contentType: file.type, byteSize: file.size, speakerName, dialect, consentConfirmed,
+    });
+    return Response.json({ asset }, { status: 201 });
+  } catch (error) { return lessonErrorResponse(error); }
 }
 
 /** Only an administrator may approve, send back or retire a shared recording. */

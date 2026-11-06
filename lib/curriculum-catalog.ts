@@ -8,6 +8,7 @@ import { currentMembers } from "./class-roster";
 import { SCORED_QUIZ_TRIES_PER_DAY, markTopicQuiz } from "./learner-topic";
 import { peekRateLimit, recordRateLimit } from "./rate-limit";
 import { canPublishContent, canTeach } from "./roles";
+import { getApprovalSettings, TEACHER_TOPIC_APPROVAL, teacherTopicsNeedApproval, type ApprovalSettings } from "./approval-settings";
 import {
   canRestartFromApproved, checkReview, checkTopicDecision, describeTopicChanges, newTopicId, readConfirmationMissing, statusesAfterApproval,
   topicChanged, TopicError, TOPIC_LIMITS, validateTopicDraft, type TopicContent, type TopicVersionStatus,
@@ -27,6 +28,8 @@ export type VersionSummary = {
   authorName: string | null; createdAt: string | null; reviewerName: string | null; reviewedAt: string | null; reviewNote: string;
   /** The text came with Bangla Adventures (the original shipped topic or a later shipped revision), not from a staff member. */
   shipped: boolean;
+  /** Published as it was saved: an administrator's own work, or a teacher's while their topics did not need approval. */
+  publishedDirectly: "admin" | "setting" | null;
 };
 /** A decision on a topic students read: withdrawn, approved again, or a baseline topic's review confirmed. */
 export type TopicDecisionSummary = { kind: "withdrawn" | "restored" | "confirmed"; changedByName: string | null; changedAt: string; note: string };
@@ -168,12 +171,12 @@ function staffWrittenVersions(db: Reader, states: TopicState[]): Set<string> {
 function summaries(state: TopicState, name: (id: string | null) => string | null, staffWritten: Set<string>): VersionSummary[] {
   const stored = state.rows.map((row): VersionSummary => ({
     version: row.version, status: row.status, baseline: row.baseline, basedOn: row.basedOn, authorName: name(row.createdBy), createdAt: row.createdAt,
-    reviewerName: name(row.reviewedBy), reviewedAt: row.reviewedAt, reviewNote: row.reviewNote,
+    reviewerName: name(row.reviewedBy), reviewedAt: row.reviewedAt, reviewNote: row.reviewNote, publishedDirectly: row.publishedDirectly ?? null,
     shipped: !row.createdBy && !row.baseline && shippedById.has(state.id) && !staffWritten.has(versionKey(state.id, row.version)),
   }));
   if (!state.shipped) return stored;
   // The shipped text: approved as a baseline, superseded once a later version is approved.
-  return [{ version: 0, status: state.approved ? "superseded" : "approved", baseline: true, basedOn: null, authorName: null, createdAt: null, reviewerName: null, reviewedAt: null, reviewNote: "", shipped: true }, ...stored];
+  return [{ version: 0, status: state.approved ? "superseded" : "approved", baseline: true, basedOn: null, authorName: null, createdAt: null, reviewerName: null, reviewedAt: null, reviewNote: "", shipped: true, publishedDirectly: null }, ...stored];
 }
 
 /** Approved topics only, less any an administrator withdrew: what students, parents and every learner page receive. */
@@ -247,9 +250,67 @@ export async function getTopicVersion(topicId: string, version: number) {
   };
 }
 
-function requireStaff(tx: Transaction, actorId: string) {
-  const actor = tx.select({ role: adults.role, status: adults.status, teacherStatus: adults.teacherStatus, approvalStatus: adults.approvalStatus, mustChangePassword: adults.mustChangePassword }).from(adults).where(eq(adults.id, actorId)).get();
+type StaffAccount = { role: string; status: string; teacherStatus: string; approvalStatus: string; mustChangePassword: boolean };
+
+function staffAccount(tx: Reader, actorId: string): StaffAccount | undefined {
+  return tx.select({ role: adults.role, status: adults.status, teacherStatus: adults.teacherStatus, approvalStatus: adults.approvalStatus, mustChangePassword: adults.mustChangePassword }).from(adults).where(eq(adults.id, actorId)).get();
+}
+
+function requireStaff(tx: Transaction, actorId: string): StaffAccount {
+  const actor = staffAccount(tx, actorId);
   if (!actor || !canTeach(actor) || actor.approvalStatus !== "approved" || actor.mustChangePassword) throw new TopicError("An approved teacher or administrator account is required.", "অনুমোদিত শিক্ষক বা প্রশাসকের অ্যাকাউন্ট প্রয়োজন।", 403);
+  return actor;
+}
+
+/**
+ * What happens to a topic this account saves: "admin" (an administrator's own work, published at once),
+ * "setting" (a teacher's, published at once because "Teachers' topics need an administrator's approval" is
+ * off) or "review" (it waits for an administrator). A teacher's edit of a topic an administrator withdrew
+ * always waits: only an administrator shows a withdrawn topic again.
+ */
+export type TopicPublication = "admin" | "setting" | "review";
+function publicationFor(tx: Reader, actor: StaffAccount | undefined, withdrawn = false): TopicPublication {
+  if (actor && canPublishContent(actor)) return "admin";
+  if (actor && canTeach(actor) && !withdrawn && !teacherTopicsNeedApproval(tx)) return "setting";
+  return "review";
+}
+
+/** The approval setting and what a save by this account does, for the Topics page's wording. */
+export async function topicPublishing(actorId: string): Promise<ApprovalSettings & { onSave: TopicPublication }> {
+  const db = await getDb();
+  return { ...(await getApprovalSettings()), onSave: publicationFor(db, staffAccount(db, actorId)) };
+}
+
+/** What saving this topic would do for this account now (a teacher's edit of a withdrawn topic waits, see publicationFor). */
+export async function topicSaveFor(actorId: string, topicId: string): Promise<TopicPublication> {
+  const db = await getDb();
+  return publicationFor(db, staffAccount(db, actorId), decisionRows(db, topicId).at(-1)?.status === "withdrawn");
+}
+
+/**
+ * Publishes a version as it is saved: it becomes the approved version (an earlier approved one, and any
+ * earlier version still waiting, is superseded, as when an administrator approves it) and a withdrawn
+ * topic is shown again. Audited as topic-version-approved, by the account that saved it, with { self: true }
+ * for an administrator's own work or { automatic: true, setting } when the approval setting was off.
+ * Returns the versions it superseded that were waiting and whether the topic was shown again.
+ */
+function publishSaved(tx: Transaction, actorId: string, topicId: string, rows: VersionRow[], version: number, kind: "admin" | "setting") {
+  const superseded: number[] = [];
+  for (const change of statusesAfterApproval(rows, version)) {
+    if (change.version === version) continue;
+    if (rows.find((row) => row.version === change.version)?.status === "pending") superseded.push(change.version);
+    tx.update(topicVersions).set({ status: change.status }).where(and(eq(topicVersions.topicId, topicId), eq(topicVersions.version, change.version))).run();
+  }
+  const restored = decisionRows(tx, topicId).at(-1)?.status === "withdrawn";
+  if (restored) tx.insert(contentApprovals).values({ id: crypto.randomUUID(), contentType: "topic", contentId: topicId, status: "approved", changedBy: actorId, changedAt: new Date().toISOString() }).run();
+  const how = kind === "admin" ? { self: true } : { automatic: true, setting: TEACHER_TOPIC_APPROVAL };
+  audit(tx, actorId, topicId, "topic-version-approved", { version, ...how, ...(superseded.length ? { superseded } : {}), ...(restored ? { restored: true } : {}) });
+  return { superseded, restored };
+}
+
+/** The columns of a version published as it was saved: an administrator's is reviewed by them; a teacher's by nobody. */
+function publishedColumns(actorId: string, kind: "admin" | "setting", at: string) {
+  return { status: "approved" as const, reviewedBy: kind === "admin" ? actorId : null, reviewedAt: at, publishedDirectly: kind };
 }
 
 function requirePublisher(tx: Transaction, actorId: string) {
@@ -262,37 +323,49 @@ function audit(tx: Transaction, actorId: string, topicId: string, action: string
   tx.insert(userAuditEvents).values({ id: crypto.randomUUID(), actorId, targetId: topicId, targetType: "topic", action, detailsJson: JSON.stringify(details) }).run();
 }
 
-/** A new topic, saved as version 1 waiting for approval. */
-export async function createTopic(actorId: string, raw: unknown) {
+/** What a save answers: the new version and whether students see it now or it waits for an administrator. */
+export type SavedTopic = { topicId: string; version: number; status: "approved" | "pending"; publishedDirectly: "admin" | "setting" | null; superseded: number[]; restored: boolean };
+
+/**
+ * A new topic, saved as version 1. It waits for an administrator's approval, unless an administrator
+ * wrote it or teachers' topics do not need approval (see publicationFor), when students see it at once.
+ */
+export async function createTopic(actorId: string, raw: unknown): Promise<SavedTopic> {
   const draft = validateTopicDraft(raw);
   const db = await getDb();
   return db.transaction((tx) => {
-    requireStaff(tx, actorId);
+    const kind = publicationFor(tx, requireStaff(tx, actorId));
     let topicId = "";
     do topicId = newTopicId(draft.title.en, crypto.randomUUID().slice(0, 6));
     while (shippedById.has(topicId) || tx.select({ id: topicVersions.id }).from(topicVersions).where(eq(topicVersions.topicId, topicId)).get());
+    const createdAt = new Date().toISOString();
     tx.insert(topicVersions).values({
-      id: crypto.randomUUID(), topicId, version: 1, dataJson: JSON.stringify({ ...draft, sources: [] }), status: "pending", createdBy: actorId, createdAt: new Date().toISOString(),
+      id: crypto.randomUUID(), topicId, version: 1, dataJson: JSON.stringify({ ...draft, sources: [] }), status: "pending", createdBy: actorId, createdAt,
+      ...(kind === "review" ? {} : publishedColumns(actorId, kind, createdAt)),
     }).run();
     audit(tx, actorId, topicId, "topic-created", { version: 1, theme: draft.theme });
-    return { topicId, version: 1 };
+    if (kind === "review") return { topicId, version: 1, status: "pending", publishedDirectly: null, superseded: [], restored: false };
+    const published = publishSaved(tx, actorId, topicId, [], 1, kind);
+    return { topicId, version: 1, status: "approved", publishedDirectly: kind, ...published };
   });
 }
 
 /**
- * An edit, saved as a new pending version. Students keep the approved version until
- * this one is approved. baseVersion is the version the editor loaded: the newest one,
+ * An edit, saved as a new version. It waits for approval while students keep the approved
+ * version, unless the account's work is published at once (see publicationFor): then it is
+ * approved as it is saved. baseVersion is the version the editor loaded: the newest one,
  * or the approved one when every later version was sent back (so a rejected change is
  * never carried forward unasked). Any other base means someone saved in the meantime,
- * so two people cannot overwrite each other's work unseen.
+ * so two people cannot overwrite each other's work unseen. An edit made on top of a
+ * version still waiting includes it, so publishing the edit supersedes that version.
  */
-export async function submitTopicEdit(actorId: string, topicId: string, raw: unknown) {
+export async function submitTopicEdit(actorId: string, topicId: string, raw: unknown): Promise<SavedTopic> {
   const draft = validateTopicDraft(raw);
   const baseVersion = (raw as { baseVersion?: unknown }).baseVersion;
   if (!Number.isInteger(baseVersion) || Number(baseVersion) < 0) throw new TopicError("Reload the topic before saving.", "সংরক্ষণের আগে বিষয়টি আবার খুলুন।");
   const db = await getDb();
   return db.transaction((tx) => {
-    requireStaff(tx, actorId);
+    const actor = requireStaff(tx, actorId);
     const [state] = topicStates(tx, topicId);
     const head = state ? headOf(state) : null;
     if (!state || !head) throw new TopicError("Topic not found.", "বিষয়টি পাওয়া যায়নি।", 404);
@@ -302,12 +375,17 @@ export async function submitTopicEdit(actorId: string, topicId: string, raw: unk
     const base = restart ? contentOf(approved) : head.content;
     if (!topicChanged(draft, base)) throw new TopicError("Nothing has changed yet. Edit the topic before saving.", "এখনো কিছু বদলায়নি। সংরক্ষণের আগে বিষয়টি সম্পাদনা করুন।");
     const version = head.version + 1, basedOn = Number(baseVersion);
+    const kind = publicationFor(tx, actor, decisionRows(tx, topicId).at(-1)?.status === "withdrawn");
+    const createdAt = new Date().toISOString();
     tx.insert(topicVersions).values({
       id: crypto.randomUUID(), topicId, version, dataJson: JSON.stringify({ ...draft, sources: base.sources ?? [] }), status: "pending",
-      basedOn, createdBy: actorId, createdAt: new Date().toISOString(),
+      basedOn, createdBy: actorId, createdAt, ...(kind === "review" ? {} : publishedColumns(actorId, kind, createdAt)),
     }).run();
     audit(tx, actorId, topicId, "topic-edit-submitted", { version, basedOn });
-    return { topicId, version };
+    if (kind === "review") return { topicId, version, status: "pending", publishedDirectly: null, superseded: [], restored: false };
+    // The shipped text (version 0) is not a stored row: once a stored version is approved it reads as superseded.
+    const published = publishSaved(tx, actorId, topicId, state.rows, version, kind);
+    return { topicId, version, status: "approved", publishedDirectly: kind, ...published };
   });
 }
 

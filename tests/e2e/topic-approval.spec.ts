@@ -237,3 +237,61 @@ test("only an administrator can withdraw and restore a teacher's approved topic"
     await studentContext.close().catch(() => undefined);
   }
 });
+
+test("an administrator's own topic is published when saved, and their edit over a teacher's waiting version replaces it", async ({ browser, baseURL }) => {
+  test.setTimeout(120000);
+  const suffix = randomUUID().slice(0, 8);
+  const title = `Boats of the Padma ${suffix}`;
+  const adminContext = await staff(browser, baseURL, "own-admin", suffix, "admin");
+  const teacherContext = await staff(browser, baseURL, "own-teacher", suffix);
+  const studentContext = await browser.newContext({ baseURL, extraHTTPHeaders: { "x-forwarded-for": `own-student-${suffix}` } });
+  try {
+    const page = await adminContext.newPage(), teacher = await teacherContext.newPage(), student = await studentContext.newPage();
+    for (const each of [page, teacher, student]) each.setDefaultTimeout(15000);
+
+    await page.goto("/teach/topics");
+    await expect(page.getByText("As an administrator, your own new topics and edits are published to students as soon as you save them.", { exact: false })).toBeVisible();
+    await page.getByRole("button", { name: /New topic/ }).click();
+    await expect(page.getByText("As an administrator, your own topic does not wait for approval: students see it as soon as you save it.", { exact: false })).toBeVisible();
+    await page.getByRole("combobox", { name: "Category", exact: true }).selectOption("our-country");
+    await page.getByLabel("Title (English)", { exact: true }).fill(title);
+    await page.getByLabel("Title (Bangla)", { exact: true }).fill(`পদ্মার নৌকা ${suffix}`);
+    await page.getByLabel("Short introduction (English)", { exact: true }).fill("Boats on a great river.");
+    await page.getByLabel("Short introduction (Bangla)", { exact: true }).fill("বড় নদীর নৌকা।");
+    await page.getByLabel("Section 1 heading (English)", { exact: true }).fill("Sails");
+    await page.getByLabel("Section 1 heading (Bangla)", { exact: true }).fill("পাল");
+    await page.getByLabel("Section 1 text (English)", { exact: true }).fill("Boats on the Padma have tall sails.");
+    await page.getByLabel("Section 1 text (Bangla)", { exact: true }).fill("পদ্মার নৌকায় উঁচু পাল থাকে।");
+    await expect(page.getByRole("button", { name: "Submit for administrator review", exact: true })).toHaveCount(0);
+    await page.getByRole("button", { name: "Save and publish to students", exact: true }).click();
+    await expect(page.getByRole("status").filter({ hasText: "Published as version 1. Students see it now: an administrator's own topics do not wait for approval." })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Version details" })).toContainText(`Published at once by own-admin ${suffix}`);
+    await expect(page.getByRole("button", { name: "Approve and publish to students", exact: true })).toHaveCount(0);
+    const id = new URL(page.url()).searchParams.get("topic")!;
+
+    // A teacher's edit waits; the administrator's edit builds on it and is published, replacing it.
+    await teacher.goto("/teach");
+    const { topic } = (await api(teacher, "GET", `/api/topics/${id}`)).body;
+    const edit = await api(teacher, "PUT", `/api/topics/${id}`, { ...topic.head.content, tagline: { ...topic.head.content.tagline, en: "Boats with tall sails." }, baseVersion: 1 });
+    expect(edit.body).toMatchObject({ version: 2, status: "pending" });
+    await page.goto(`/teach/topics?edit=${id}`);
+    await expect(page.getByRole("note")).toContainText("Your changes build on this waiting version, so they include its changes. Saving publishes your version and marks version 2 as replaced.");
+    await page.getByLabel("Reading time (minutes)", { exact: true }).fill("6");
+    await page.getByRole("button", { name: "Save and publish to students", exact: true }).click();
+    await expect(page.getByRole("status").filter({ hasText: "Published as version 3." })).toContainText("Version 2, which was waiting for approval, is included in it and is marked as replaced.");
+    const history = page.getByRole("region", { name: "Version history" });
+    await expect(history.getByRole("row").filter({ hasText: "Version 2" })).toContainText("Replaced by a newer version");
+    await expect(history.getByRole("row").filter({ hasText: "Version 3" })).toContainText("Published at once (an administrator's own edit)");
+
+    expect((await studentContext.request.post("/api/student/sign-up", { data: { username: `own-${suffix}`, displayName: "Boat learner", password } })).status()).toBe(201);
+    fixture("UPDATE students SET approval_status = 'approved' WHERE username = ?", `own-${suffix}`);
+    expect((await studentContext.request.post("/api/student/sign-in", { data: { username: `own-${suffix}`, password } })).status()).toBe(200);
+    await student.goto(`/topics?topic=${id}`);
+    await expect(student.getByRole("heading", { level: 1, name: title, exact: true })).toBeVisible();
+    await expect(student.getByText("Boats with tall sails.", { exact: true })).toBeVisible();
+  } finally {
+    await adminContext.close().catch(() => undefined);
+    await teacherContext.close().catch(() => undefined);
+    await studentContext.close().catch(() => undefined);
+  }
+});
