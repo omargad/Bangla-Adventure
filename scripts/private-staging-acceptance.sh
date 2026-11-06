@@ -7,7 +7,9 @@ fail() { printf 'private acceptance: %s\n' "$*" >&2; exit 1; }
 [ "$#" -eq 0 ] || fail 'This pinned acceptance controller accepts no arguments.'
 [ "${DEPLOY_ENABLED:-false}" = false ] || fail 'Production deployment must remain disabled.'
 [ "${REPOSITORY_GATE_CONFIRMED:-}" = disabled ] || fail 'Repository gate must precede environment credentials.'
-[ "${GITHUB_REPOSITORY:-}" = omargad/Bangla-Adventure ] && [ "${GITHUB_REF:-}" = refs/heads/main ] || fail 'Only the audited repository main branch is allowed.'
+# The production repository is recognised by its numeric ID, which a transfer or rename keeps; only a
+# re-created repository sets PRODUCTION_REPOSITORY_ID (docs/REPOSITORY_TRANSFER.md).
+[ -n "${GITHUB_REPOSITORY_ID:-}" ] && [ "$GITHUB_REPOSITORY_ID" = "${PRODUCTION_REPOSITORY_ID:-1436643374}" ] && [ "${GITHUB_REF:-}" = refs/heads/main ] || fail 'Only the audited repository main branch is allowed.'
 # The address and account come from repository or production environment secrets; the host-key pin below proves identity.
 [[ "${DEPLOY_HOST:-}" =~ ^[a-zA-Z0-9][a-zA-Z0-9.:-]*$ ]] || fail 'The DEPLOY_HOST secret is missing or invalid (set it as a repository secret or a production environment secret, named exactly DEPLOY_HOST).'
 [[ "${DEPLOY_USER:-}" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]] || fail 'The DEPLOY_USER secret is missing or invalid (set it as a repository secret or a production environment secret, named exactly DEPLOY_USER).'
@@ -18,7 +20,12 @@ readonly host="$DEPLOY_HOST" user="$DEPLOY_USER" port=22
 readonly host_alias=bangla-adventures-vps
 readonly key_pin='SHA256:y1+C6cvcfpJFmO8pfjyMSFERpd5BtcQyDf5SptZXVlQ'
 readonly host_pin='SHA256:79xe+ubCodL2ACAHPNloo7I/K6mvngU88vEiFoEeWL8'
-readonly image='ghcr.io/omargad/bangla-adventure@sha256:5f9ac5508771eb97c6b1e4aa4bff8db0fe69569b1f00b08a2e0e02e263d93f13'
+# The reviewed digest and revision never change. Only the registry path may: the repository variable
+# STAGING_IMAGE_REPOSITORY names a byte-identical copy, such as one under the repository's new owner
+# after a transfer (docs/REPOSITORY_TRANSFER.md). It must match the path the stage was last started from.
+readonly image_repository="${STAGING_IMAGE_REPOSITORY:-ghcr.io/omargad/bangla-adventure}"
+[[ "$image_repository" =~ ^ghcr\.io/[a-z0-9]+(-[a-z0-9]+)*/bangla-adventure$ ]] || fail 'STAGING_IMAGE_REPOSITORY must be ghcr.io/<lowercase owner>/bangla-adventure.'
+readonly image="$image_repository@sha256:5f9ac5508771eb97c6b1e4aa4bff8db0fe69569b1f00b08a2e0e02e263d93f13"
 readonly revision=a709cb3d2bc9fb0a271e6814bc96d1f16444c94f
 readonly origin=http://127.0.0.1:3001
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
@@ -91,12 +98,13 @@ PORT
 }
 # Read-only inventory is repeated after every exercise. No Compose up/restart/pull is used here.
 remote_inventory() {
-  ssh "${ssh_options[@]}" -o ClearAllForwardings=yes "$user@$host" 'bash -s' > "$1" 2> "$work/inventory.log" <<'INVENTORY'
+  ssh "${ssh_options[@]}" -o ClearAllForwardings=yes "$user@$host" "bash -s -- $(quote "$image")" > "$1" 2> "$work/inventory.log" <<'INVENTORY'
 set -euo pipefail
 # UID 1002 pins the deployment account whatever its configured name.
 [ "$(id -u)" = 1002 ]
 stage=/opt/bangla-adventures/private-staging
-image=ghcr.io/omargad/bangla-adventure@sha256:5f9ac5508771eb97c6b1e4aa4bff8db0fe69569b1f00b08a2e0e02e263d93f13
+image="${1:?}"
+[[ "$image" =~ ^ghcr\.io/[a-z0-9]+(-[a-z0-9]+)*/bangla-adventure@sha256:5f9ac5508771eb97c6b1e4aa4bff8db0fe69569b1f00b08a2e0e02e263d93f13$ ]]
 revision=a709cb3d2bc9fb0a271e6814bc96d1f16444c94f
 [ -S /run/user/1002/docker.sock ] && [ "$(stat -c %u /run/user/1002/docker.sock)" = 1002 ]
 docker() { command env -u DOCKER_HOST -u DOCKER_CONTEXT docker --host unix:///run/user/1002/docker.sock "$@"; }
@@ -158,7 +166,7 @@ assert all(isinstance(s[k],str) and re.fullmatch('[a-f0-9]{64}',s[k]) for k in (
 VALIDATE_INVENTORY
 }
 phase=inventory
-remote_inventory "$work/stage-before.json" || fail 'Read-only inventory refused; no payload was uploaded.'
+remote_inventory "$work/stage-before.json" || fail "Read-only inventory refused; no payload was uploaded. The stage must be healthy and running exactly $image (if STAGING_IMAGE_REPOSITORY changed, run VPS private staging first)."
 evidence="${PRIVATE_ACCEPTANCE_EVIDENCE_DIR:?An isolated acceptance evidence directory is required.}"
 [ ! -e "$evidence" ] && [ ! -L "$evidence" ] || fail 'Acceptance evidence directory must be new.'
 mkdir -m 700 -- "$evidence"
@@ -181,7 +189,7 @@ tar -C "$work/payload" -cf - -- "${names[@]}" | ssh "${ssh_options[@]}" -o Clear
   "test -d $(quote "$incoming") && test ! -L $(quote "$incoming") && test \"\$(realpath -e -- $(quote "$incoming"))\" = $(quote "$incoming") && test \"\$(stat -c '%u:%a' -- $(quote "$incoming"))\" = 1002:700 && tar --extract --file - --directory $(quote "$incoming") --no-same-owner --no-same-permissions" > "$work/transfer.log" 2> "$work/ssh.log" || fail 'Acceptance helper transfer failed.'
 phase=helper-install
 # Update only the managed QA helper and its manifest hash. Hold the same lock as staging/ops.
-ssh "${ssh_options[@]}" -o ClearAllForwardings=yes "$user@$host" "bash -s -- $(quote "$incoming")" > "$work/install.json" 2> "$work/install.log" <<'INSTALL'
+ssh "${ssh_options[@]}" -o ClearAllForwardings=yes "$user@$host" "bash -s -- $(quote "$incoming") $(quote "$image")" > "$work/install.json" 2> "$work/install.log" <<'INSTALL'
 set -euo pipefail
 [ "$(id -u)" = 1002 ]
 stage=/opt/bangla-adventures/private-staging
@@ -189,13 +197,14 @@ stage=/opt/bangla-adventures/private-staging
 [ -f "$stage/.deploy.lock" ] && [ ! -L "$stage/.deploy.lock" ] && [ "$(stat -c %u "$stage/.deploy.lock")" = 1002 ]
 exec 9> "$stage/.deploy.lock"
 flock -w 120 9
-python3 - "$stage" "$1" <<'INSTALL_PY'
+python3 - "$stage" "$1" "$2" <<'INSTALL_PY'
 import hashlib,json,os,re,signal,stat,sys,tempfile
 from pathlib import Path
 OWNER=1002
-IMAGE='ghcr.io/omargad/bangla-adventure@sha256:5f9ac5508771eb97c6b1e4aa4bff8db0fe69569b1f00b08a2e0e02e263d93f13'
+IMAGE=sys.argv[3]
+assert re.fullmatch(r'ghcr\.io/[a-z0-9]+(?:-[a-z0-9]+)*/bangla-adventure@sha256:5f9ac5508771eb97c6b1e4aa4bff8db0fe69569b1f00b08a2e0e02e263d93f13',IMAGE)
 REVISION='a709cb3d2bc9fb0a271e6814bc96d1f16444c94f'
-root,incoming=map(Path,sys.argv[1:]);helper=root/'tools/private-staging-qa.sh';manifest=root/'release.json'
+root,incoming=map(Path,sys.argv[1:3]);helper=root/'tools/private-staging-qa.sh';manifest=root/'release.json'
 def regular(p):
  assert p.is_file() and not p.is_symlink() and p.resolve()==p and p.stat().st_uid==OWNER
  return p.read_bytes()

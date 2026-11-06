@@ -9,7 +9,9 @@ readonly project='bangla-adventures-staging'
 readonly data_volume='bangla-adventures-staging_bangla-data'
 readonly backup_volume='bangla-adventures-staging-backups'
 readonly socket='unix:///run/user/1002/docker.sock'
-readonly allowed_image='ghcr.io/omargad/bangla-adventure@sha256:5f9ac5508771eb97c6b1e4aa4bff8db0fe69569b1f00b08a2e0e02e263d93f13'
+# Only the registry path of the reviewed digest may differ (STAGING_IMAGE_REPOSITORY on the runner):
+# the same digest is the same image wherever it is pulled from.
+readonly allowed_image_pattern='^ghcr\.io/[a-z0-9]+(-[a-z0-9]+)*/bangla-adventure@sha256:5f9ac5508771eb97c6b1e4aa4bff8db0fe69569b1f00b08a2e0e02e263d93f13$'
 readonly allowed_revision='a709cb3d2bc9fb0a271e6814bc96d1f16444c94f'
 readonly marker='bangla-adventures-private-staging-v1'
 image="${1:?An exact tested image is required.}"
@@ -18,7 +20,7 @@ payload="${3:?An uploaded payload directory is required.}"
 registry_user="${4:-}"
 fail() { printf 'private staging: %s\n' "$*" >&2; exit 1; }
 say() { printf 'private staging: %s\n' "$*"; }
-[ "$image" = "$allowed_image" ] && [ "$revision" = "$allowed_revision" ] || fail 'image and revision are outside this reviewed staging release.'
+[[ "$image" =~ $allowed_image_pattern ]] && [ "$revision" = "$allowed_revision" ] || fail 'image and revision are outside this reviewed staging release.'
 [[ "$registry_user" =~ ^[a-zA-Z0-9][a-zA-Z0-9_-]*(\[bot\])?$ || -z "$registry_user" ]] || fail 'invalid registry user.'
 for command in docker python3 stat realpath flock sha256sum; do command -v "$command" >/dev/null || fail "required command $command is unavailable."; done
 [ "$(id -u)" = 1002 ] || fail 'only the deployment user (UID 1002) may run this transaction.'
@@ -177,9 +179,9 @@ from pathlib import Path
 root=Path(sys.argv[1]);v=json.loads((root/'release.json').read_text())
 assert v.get('scope')=='private-staging' and v.get('project')==sys.argv[2] and v.get('volume')==sys.argv[3]
 assert v.get('origin')=='http://127.0.0.1:3001' and v.get('phase') in ('healthy','failed','prepared')
-assert re.fullmatch(r'ghcr\.io/omargad/bangla-adventure@sha256:[a-f0-9]{64}',v['image'])
+assert re.fullmatch(r'ghcr\.io/[a-z0-9]+(?:-[a-z0-9]+)*/bangla-adventure@sha256:[a-f0-9]{64}',v['image'])
 assert re.fullmatch(r'[a-f0-9]{40}',v['revision']) and v['revision']!='9ca8ac88e3bfe4284d9a8226e044ef808576cdff'
-assert v['image']!='ghcr.io/omargad/bangla-adventure@sha256:b86b438eceef512f2505ddd0817629b52f5e4466231ef4f638df049342b0cee5'
+assert not v['image'].endswith('@sha256:b86b438eceef512f2505ddd0817629b52f5e4466231ef4f638df049342b0cee5')
 expected={'compose.yaml','tools/private-staging-proxy.mjs','tools/private-staging-remote.sh','tools/private-staging-verify.mjs','tools/private-staging-drill.sh','tools/private-staging-qa.sh'}
 assert set(v['files'])==expected
 for name,digest in v['files'].items():

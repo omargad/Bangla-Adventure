@@ -6,7 +6,7 @@ set +x
 umask 077
 readonly stage=/opt/bangla-adventures/private-staging
 readonly daemon=unix:///run/user/1002/docker.sock
-readonly image=ghcr.io/omargad/bangla-adventure@sha256:5f9ac5508771eb97c6b1e4aa4bff8db0fe69569b1f00b08a2e0e02e263d93f13
+readonly digest=sha256:5f9ac5508771eb97c6b1e4aa4bff8db0fe69569b1f00b08a2e0e02e263d93f13
 readonly revision=a709cb3d2bc9fb0a271e6814bc96d1f16444c94f
 phase=platform
 diagnostic() { printf 'PRIVATE_ROLLBACK_DIAGNOSTIC:%s\n' "$phase" >&2; }
@@ -27,6 +27,11 @@ compose() { (cd "$root" && env -u APP_IMAGE -u COMPOSE_PROJECT_NAME -u COMPOSE_F
 [ "$(id -u)" = 1002 ] || fail 'the dedicated deploy user is required.'
 owned_dir "$stage" && [ -f "$stage/.private-staging-marker" ] && [ ! -L "$stage/.private-staging-marker" ] || fail 'the managed private stage is unavailable.'
 [ "$(cat "$stage/.private-staging-marker")" = bangla-adventures-private-staging-v1 ] || fail 'the staging marker changed.'
+# The stage was started from the image its release manifest records. Only the reviewed digest is
+# accepted there; its registry path may name a byte-identical copy (docs/REPOSITORY_TRANSFER.md).
+[ -f "$stage/release.json" ] && [ ! -L "$stage/release.json" ] && [ "$(stat -c %u -- "$stage/release.json")" = 1002 ] || fail 'the staging release manifest is missing or unowned.'
+image="$(python3 -c 'import json,re,sys;v=json.load(open(sys.argv[1]))["image"];assert isinstance(v,str) and re.fullmatch(r"ghcr\.io/[a-z0-9]+(?:-[a-z0-9]+)*/bangla-adventure@"+re.escape(sys.argv[2]),v);print(v)' "$stage/release.json" "$digest")" || fail 'the staging release manifest does not name the tested image digest.'
+readonly image
 [[ "$payload" =~ ^/opt/bangla-adventures/\.private-acceptance-payload\.[a-zA-Z0-9]{12}$ ]] && owned_dir "$payload" || fail 'helpers must come from the owned acceptance payload.'
 for file in deploy-remote.sh private-staging-verify.mjs; do
   [ -f "$payload/$file" ] && [ ! -L "$payload/$file" ] && [ "$(stat -c %u -- "$payload/$file")" = 1002 ] || fail 'a reviewed helper is missing or linked.'

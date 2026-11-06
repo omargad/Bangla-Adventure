@@ -26,7 +26,12 @@ PROJECT = "bangla-adventures-staging"
 DATA = "bangla-adventures-staging_bangla-data"
 BACKUPS = "bangla-adventures-staging-backups"
 SOCKET = Path("/run/user/1002/docker.sock")
-IMAGE = "ghcr.io/omargad/bangla-adventure@sha256:5f9ac5508771eb97c6b1e4aa4bff8db0fe69569b1f00b08a2e0e02e263d93f13"
+IMAGE_DIGEST = "sha256:5f9ac5508771eb97c6b1e4aa4bff8db0fe69569b1f00b08a2e0e02e263d93f13"
+# The digest never changes. The registry path is the one the stage was started from, read from its
+# release manifest by platform(): the original package by default, or a byte-identical copy such as
+# one under the repository's new owner (docs/REPOSITORY_TRANSFER.md).
+IMAGE_PATTERN = re.compile(r"ghcr\.io/[a-z0-9]+(?:-[a-z0-9]+)*/bangla-adventure@" + re.escape(IMAGE_DIGEST))
+IMAGE = "ghcr.io/omargad/bangla-adventure@" + IMAGE_DIGEST
 REVISION = "a709cb3d2bc9fb0a271e6814bc96d1f16444c94f"
 MARKER = "bangla-adventures-private-staging-v1\n"
 SCOPE = "private-staging-operations"
@@ -145,7 +150,15 @@ def validate_installation() -> None:
         require(hashlib.sha256(path.read_bytes()).hexdigest() == digest, "installation-unit-hash")
 
 
+def release_image(release: dict) -> str:
+    """The stage's image: the reviewed digest under the registry path its release manifest records."""
+    value = release.get("image")
+    require(isinstance(value, str) and IMAGE_PATTERN.fullmatch(value) is not None, "image-pin")
+    return value
+
+
 def platform(*, operations: bool = True) -> None:
+    global IMAGE
     require(os.getuid() == 1002, "wrong-user")
     private_dir(STAGE)
     if operations:
@@ -159,6 +172,7 @@ def platform(*, operations: bool = True) -> None:
     require("name=rootless" in security, "non-rootless-daemon")
     regular(STAGE / "release.json")
     release = json.loads((STAGE / "release.json").read_text())
+    IMAGE = release_image(release)
     require(release.get("scope") == "private-staging" and release.get("phase") == "healthy" and release.get("image") == IMAGE and release.get("revision") == REVISION and release.get("project") == PROJECT and release.get("volume") == DATA and release.get("origin") == "http://127.0.0.1:3001", "release-scope")
     expected = {"compose.yaml", "tools/private-staging-proxy.mjs", "tools/private-staging-remote.sh", "tools/private-staging-verify.mjs", "tools/private-staging-drill.sh", "tools/private-staging-qa.sh"}
     require(set(release["files"]) == expected, "release-files")

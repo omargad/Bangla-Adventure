@@ -12,7 +12,10 @@ import { migrateContent } from '../db/content-migration.ts';
 
 const repo = new URL('..', import.meta.url).pathname;
 const qaId = '0123456789abcdef01234567';
-const image = 'ghcr.io/omargad/bangla-adventure@sha256:5f9ac5508771eb97c6b1e4aa4bff8db0fe69569b1f00b08a2e0e02e263d93f13';
+const digest = 'sha256:5f9ac5508771eb97c6b1e4aa4bff8db0fe69569b1f00b08a2e0e02e263d93f13';
+const image = `ghcr.io/omargad/bangla-adventure@${digest}`;
+// The same digest copied to a new owner's package after a repository transfer.
+const transferredImage = `ghcr.io/client-org/bangla-adventure@${digest}`;
 const revision = 'a709cb3d2bc9fb0a271e6814bc96d1f16444c94f';
 const imageId = `sha256:${'c'.repeat(64)}`;
 const realId = 'a'.repeat(64);
@@ -107,10 +110,12 @@ if(kind==='volume'&&op==='rm'){
 fail();
 `;
 
-async function fixture(t) {
+async function fixture(t, stageImage = image) {
   const root=mkdtempSync(path.join(tmpdir(),'bangla-qa-test-')),stage=path.join(root,'private-staging'),bin=path.join(root,'bin'),daemon=path.join(root,'docker.sock');
   mkdirSync(stage,{mode:0o700});mkdirSync(path.join(stage,'tools'));mkdirSync(bin);
   writeFileSync(path.join(stage,'.private-staging-marker'),'bangla-adventures-private-staging-v1\n',{mode:0o600});
+  // The stage's release manifest records the registry path it was started from.
+  writeFileSync(path.join(stage,'release.json'),JSON.stringify({scope:'private-staging',phase:'healthy',image:stageImage,revision}),{mode:0o600});
   copyFileSync(new URL('../scripts/private-staging-proxy.mjs',import.meta.url),path.join(stage,'tools/private-staging-proxy.mjs'));
   const template=path.join(root,'template.db'),db=new Database(template);db.exec(bootstrapSql);migrateAccessControl(db);migrateContent(db);db.close();
   // Offline Docker emulation uses regular sentinel files; production retains strict Unix-socket tests.
@@ -123,7 +128,7 @@ async function fixture(t) {
   writeFileSync(path.join(bin,'docker'),`#!${process.execPath}\n${dockerStub}`,{mode:0o755});
   writeFileSync(path.join(bin,'id'),'#!/bin/sh\ncase "$1" in -un) echo example-user;; -u) echo 1002;; *) exit 99;; esac\n',{mode:0o755});
   writeFileSync(path.join(bin,'stat'),'#!/bin/sh\ncase "$2" in %u) echo 1002;; %u:%a) printf "1002:"; /usr/bin/stat -c %a "${@: -1}";; *) exec /usr/bin/stat "$@";; esac\n'.replace('#!/bin/sh','#!/bin/bash'),{mode:0o755});
-  const env={...process.env,PATH:`${bin}:${process.env.PATH}`,NODE_NO_WARNINGS:'1',MOCK_FOLDER:root,MOCK_STATE:stateFile,MOCK_LOG:log,MOCK_SOCKET:daemon,MOCK_REPO:repo,MOCK_TEMPLATE:template,MOCK_IMAGE:image,MOCK_IMAGE_ID:imageId,MOCK_REAL_ID:realId,MOCK_REVISION:revision,MOCK_COUNTS:JSON.stringify(cleanCounts)};
+  const env={...process.env,PATH:`${bin}:${process.env.PATH}`,NODE_NO_WARNINGS:'1',MOCK_FOLDER:root,MOCK_STATE:stateFile,MOCK_LOG:log,MOCK_SOCKET:daemon,MOCK_REPO:repo,MOCK_TEMPLATE:template,MOCK_IMAGE:stageImage,MOCK_IMAGE_ID:imageId,MOCK_REAL_ID:realId,MOCK_REVISION:revision,MOCK_COUNTS:JSON.stringify(cleanCounts)};
   const state=()=>JSON.parse(readFileSync(stateFile));
   const run=(action,id=qaId,changes={})=>spawnSync('bash',[script,action,id],{env:{...env,...changes},encoding:'utf8',timeout:20000});
   const calls=()=>existsSync(log)?readFileSync(log,'utf8').trim().split('\n').filter(Boolean).map(JSON.parse):[];
@@ -185,6 +190,25 @@ function acceptanceClass(f) {
   writeFileSync(path.join(f.stage,'.private-staging-marker'),'wrong\n');assert.notEqual(f.run('prepare').status,0);assert.equal(f.calls().length,0);
   writeFileSync(path.join(f.stage,'.private-staging-marker'),'bangla-adventures-private-staging-v1\n');assert.notEqual(f.run('prepare',qaId,{MOCK_WRONG_PIN:'1'}).status,0);
   assert.equal(f.calls().some(x=>x[1]==='create'),false);
+ });
+
+ test('disposable QA starts the image path the stage release records, by default the original package',async t=>{
+  for(const stageImage of [image,transferredImage]){
+   const f=await fixture(t,stageImage);okay(f.run('prepare'));
+   const created=Object.values(f.state().containers).filter(x=>x.role);assert.equal(created.length,2);
+   assert.ok(created.every(x=>x.Config.Image===stageImage),stageImage);
+   assert.equal(okay(f.run('cleanup')).removed,true);
+  }
+ });
+
+ test('a stage release naming another digest or package, or none, refuses before resource creation',async t=>{
+  for(const named of [`ghcr.io/omargad/bangla-adventure@sha256:${'0'.repeat(64)}`,`ghcr.io/client-org/other@${digest}`,`docker.io/client-org/bangla-adventure@${digest}`,`ghcr.io/Client-Org/bangla-adventure@${digest}`,null]){
+   const f=await fixture(t,named??image);
+   if(named===null)rmSync(path.join(f.stage,'release.json'));
+   const result=f.run('prepare');assert.notEqual(result.status,0,String(named));
+   assert.match(result.stderr,named===null?/Missing owned staging release manifest/:/does not name the pinned image digest/);
+   assert.equal(f.calls().some(x=>x[1]==='create'),false);
+  }
  });
 
  test('a partial prepare failure removes only its owned ephemeral app, network and volume',async t=>{

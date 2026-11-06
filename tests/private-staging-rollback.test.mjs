@@ -135,6 +135,30 @@ test('the rehearsal invokes the actual unchanged deployment engine and keeps pri
   assert.doesNotMatch(script, /docker (?:system|volume) prune|DEPLOY_ENABLED=true|docker (?:stop|restart) "\$source_id"/);
 });
 
+test('the rehearsal uses the image path the stage release records, with the reviewed digest only', (t) => {
+  const reader = script.match(/^image="\$\(python3 -c '([^']+)' "\$stage\/release\.json" "\$digest"\)"/m)[1];
+  const digest = image.split('@')[1];
+  assert.match(script, new RegExp(`^readonly digest=${digest}$`, 'm'));
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'rollback-release-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const release = path.join(directory, 'release.json');
+  const read = (value) => {
+    fs.writeFileSync(release, JSON.stringify(value));
+    return spawnSync('python3', ['-c', reader, release, digest], { encoding: 'utf8' });
+  };
+  // The original package by default, or a byte-identical copy under the repository's new owner.
+  for (const stageImage of [image, `ghcr.io/client-org/bangla-adventure@${digest}`]) {
+    const result = read({ scope: 'private-staging', image: stageImage });
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stdout, `${stageImage}\n`);
+  }
+  for (const stageImage of [`ghcr.io/omargad/bangla-adventure@sha256:${'0'.repeat(64)}`, `ghcr.io/client-org/other@${digest}`,
+    `docker.io/client-org/bangla-adventure@${digest}`, `ghcr.io/Client-Org/bangla-adventure@${digest}`, 7]) {
+    assert.notEqual(read({ image: stageImage }).status, 0, String(stageImage));
+  }
+  assert.notEqual(read({}).status, 0);
+});
+
 test('bad invocation reports only a fixed rollback phase before any platform or Docker operation', () => {
   const run = spawnSync('bash', ['-s', '--', 'not-a-run-id'], { input: script, encoding: 'utf8' });
   assert.equal(run.status, 1);

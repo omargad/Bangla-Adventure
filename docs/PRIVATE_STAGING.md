@@ -17,7 +17,7 @@ production settings file or existing database is changed by staging.
 | Published VPS TCP ports | None |
 | Socket | `/opt/bangla-adventures/private-staging/runtime/http.sock` |
 | Browser origin through SSH | `http://127.0.0.1:3001` |
-| Image | `ghcr.io/omargad/bangla-adventure@sha256:5f9ac5508771eb97c6b1e4aa4bff8db0fe69569b1f00b08a2e0e02e263d93f13` |
+| Image | `ghcr.io/omargad/bangla-adventure@sha256:5f9ac5508771eb97c6b1e4aa4bff8db0fe69569b1f00b08a2e0e02e263d93f13`; the repository variable `STAGING_IMAGE_REPOSITORY` can name a byte-identical copy of the same digest under another owner ([Repository transfer](REPOSITORY_TRANSFER.md#container-images)) |
 | Expected image revision | `a709cb3d2bc9fb0a271e6814bc96d1f16444c94f` |
 
 The image's revision label keeps the commit id it was built from before the

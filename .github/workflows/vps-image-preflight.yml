@@ -1,10 +1,15 @@
 name: VPS image preflight
 
+# Like every vps-*.yml workflow, it contacts the server only from the production repository, recognised
+# by its numeric ID (github.repository_id): see vps-ssh-preflight.yml and docs/REPOSITORY_TRANSFER.md.
+# When a server job is requested anywhere else, the other-repository job says why nothing ran: a
+# notice in a fork, and an error that fails the run in any other repository.
+
 on:
   workflow_dispatch:
     inputs:
       image_ref:
-        description: Exact tested GHCR image (ghcr.io/omargad/bangla-adventure@sha256 followed by its 64-character digest)
+        description: Exact tested GHCR image (ghcr.io/<repository owner, lowercase>/bangla-adventure@sha256 followed by its 64-character digest)
         required: true
         type: string
       expected_revision:
@@ -17,10 +22,32 @@ permissions:
   packages: read
 
 jobs:
+  other-repository:
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      github.repository_id != (vars.PRODUCTION_REPOSITORY_ID || '1436643374') &&
+      github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    permissions: {}
+    steps:
+      - name: Explain why the server was not contacted
+        env:
+          REPOSITORY_ID: ${{ github.repository_id }}
+          PRODUCTION_ID: ${{ vars.PRODUCTION_REPOSITORY_ID || '1436643374' }}
+          FORK: ${{ github.event.repository.fork }}
+        run: |
+          if [ "$FORK" = true ]; then
+            printf '::notice title=Server jobs skipped in a fork::A fork never contacts the server or loads its credentials. Nothing needs to be set here.\n'
+            exit 0
+          fi
+          printf '::error title=Not the production repository::No server job ran. This repository has ID %s; the server jobs run only in the repository with ID %s. A transfer or rename keeps the ID, and a copy of the project needs nothing. If this is the production repository created again under a new ID, set the repository variable PRODUCTION_REPOSITORY_ID to %s (docs/REPOSITORY_TRANSFER.md).\n' "$REPOSITORY_ID" "$PRODUCTION_ID" "$REPOSITORY_ID"
+          exit 1
+
   repository-settings:
     if: >-
       github.event_name == 'workflow_dispatch' &&
-      github.repository == 'omargad/Bangla-Adventure' &&
+      github.repository_id == (vars.PRODUCTION_REPOSITORY_ID || '1436643374') &&
       github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 1
@@ -45,7 +72,7 @@ jobs:
     needs: repository-settings
     if: >-
       github.event_name == 'workflow_dispatch' &&
-      github.repository == 'omargad/Bangla-Adventure' &&
+      github.repository_id == (vars.PRODUCTION_REPOSITORY_ID || '1436643374') &&
       github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 8
@@ -104,7 +131,9 @@ jobs:
           [ -n "${REGISTRY_PASSWORD:-}" ] || fail 'The temporary GitHub registry token is missing.'
           [[ "${REGISTRY_USER:-}" =~ ^[a-zA-Z0-9][a-zA-Z0-9_-]*(\[bot\])?$ ]] || fail 'The GitHub registry user is invalid.'
 
-          [[ "${PREFLIGHT_IMAGE_REF:-}" =~ ^ghcr\.io/omargad/bangla-adventure@sha256:[0-9a-f]{64}$ ]] || fail 'image_ref must be an immutable digest in this repository GHCR package.'
+          # CI publishes to the repository owner's package (ci.yml), so the accepted package follows the owner.
+          readonly package="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/bangla-adventure"
+          [[ "${PREFLIGHT_IMAGE_REF:-}" =~ ^([^@]+)@sha256:[0-9a-f]{64}$ && "${BASH_REMATCH[1]}" == "$package" ]] || fail "image_ref must be an immutable digest in this repository's GHCR package: $package@sha256:<64 lowercase hexadecimal characters>."
           [[ "${PREFLIGHT_EXPECTED_REVISION:-}" =~ ^[0-9a-f]{40}$ ]] || fail 'expected_revision must be a full lowercase 40-character commit SHA.'
 
           readonly host="$DEPLOY_HOST"
@@ -158,7 +187,8 @@ jobs:
           readonly docker_socket='unix:///run/user/1002/docker.sock'
           readonly image="${2:?An immutable image reference is required.}"
           readonly expected_revision="${3:?The expected image revision is required.}"
-          [[ "$image" =~ ^ghcr\.io/omargad/bangla-adventure@sha256:[0-9a-f]{64}$ ]] || fail 'Invalid immutable image reference.'
+          # The runner has already pinned the owner; here any lowercase GitHub owner name is accepted.
+          [[ "$image" =~ ^ghcr\.io/[a-z0-9]+(-[a-z0-9]+)*/bangla-adventure@sha256:[0-9a-f]{64}$ ]] || fail 'Invalid immutable image reference.'
           [[ "$expected_revision" =~ ^[0-9a-f]{40}$ ]] || fail 'Invalid expected image revision.'
           docker_config="$(mktemp -d /tmp/bangla-ghcr-preflight.XXXXXXXXXX)"
           chmod 700 "$docker_config"

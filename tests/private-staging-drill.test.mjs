@@ -78,14 +78,14 @@ if(args[0]==='run') {
 }
 fail();
 `;
-function shellFixture(t, mode) {
+function shellFixture(t, mode, drillImage = image) {
   const directory = temporary(t), bin = path.join(directory, 'bin'); fs.mkdirSync(bin);
   fs.writeFileSync(path.join(bin, 'docker'), dockerStub, { mode: 0o755 });
   fs.writeFileSync(path.join(bin, 'id'), '#!/bin/sh\nprintf "1002\\n"\n', { mode: 0o755 });
   const log = path.join(directory, 'calls.jsonl'), state = path.join(directory, 'state.json');
-  const result = spawnSync('bash', [script.pathname, image], { encoding: 'utf8', env: {
+  const result = spawnSync('bash', [script.pathname, drillImage], { encoding: 'utf8', env: {
     ...process.env, PATH: `${bin}:${process.env.PATH}`, DOCKER_CONTEXT: 'must-be-cleared',
-    DOCKER_HOST: 'unix:///wrong.sock', DRILL_STATE: state, DRILL_LOG: log, DRILL_IMAGE: image, DRILL_MODE: mode,
+    DOCKER_HOST: 'unix:///wrong.sock', DRILL_STATE: state, DRILL_LOG: log, DRILL_IMAGE: drillImage, DRILL_MODE: mode,
   } });
   return { result, calls: fs.existsSync(log) ? fs.readFileSync(log, 'utf8').trim().split('\n').map(JSON.parse) : [], state: fs.existsSync(state) ? JSON.parse(fs.readFileSync(state)) : {} };
 }
@@ -106,6 +106,19 @@ test('drill mounts source read-only, publishes no port, and removes only its own
   assert.ok(run.includes('--network') && run.includes('none'));
   assert.ok(!run.some((arg) => arg === '-p' || arg.startsWith('--publish')));
   assert.deepEqual(calls.filter(({ args }) => args[0] === 'volume' && args[1] === 'rm').map(({ args }) => args[2]), [state.volume]);
+});
+test('drill runs the digest under any owner\'s bangla-adventure package and refuses other names before Docker', (t) => {
+  // After a repository transfer the stage may run a byte-identical copy under the new owner's package.
+  const copy = shellFixture(t, 'success', image.replace('ghcr.io/omargad/', 'ghcr.io/client-org/'));
+  assert.equal(copy.result.status, 0, copy.result.stderr);
+  assert.ok(copy.calls.find(({ args }) => args.includes('python3')).args.includes(image.replace('ghcr.io/omargad/', 'ghcr.io/client-org/')));
+  for (const other of [image.replace('/bangla-adventure@', '/other@'), image.replace('ghcr.io/', 'docker.io/'),
+    image.replace('ghcr.io/omargad/', 'ghcr.io/Client-Org/'), image.replace('@sha256:', ':latest@sha256:')]) {
+    const { result, calls } = shellFixture(t, 'success', other);
+    assert.notEqual(result.status, 0, other);
+    assert.match(result.stderr, /an immutable application image digest is required/, other);
+    assert.deepEqual(calls, [], other);
+  }
 });
 test('helper failure cleans its owned volume; changed ownership refuses deletion and success reporting', (t) => {
   const failed = shellFixture(t, 'helper-failure');

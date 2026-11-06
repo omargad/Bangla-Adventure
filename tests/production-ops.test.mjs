@@ -45,9 +45,24 @@ test('both production workflows are gated on an enabled production deployment on
   }
   assert.match(read('deploy/vps.github-variables.env.example'), /^STATUS_SSH_PUBLIC_KEY=$/m);
   for (const [file, job] of [['ops', ops.jobs.validate], ['ops', ops.jobs.operate], ['status', status.jobs.status]]) {
-    for (const gate of ["vars.DEPLOY_ENABLED == 'true'", "github.ref == 'refs/heads/main'", "github.repository == 'omargad/Bangla-Adventure'"]) {
+    // The repository is recognised by its numeric ID, which a transfer keeps; no owner name is written.
+    for (const gate of ["vars.DEPLOY_ENABLED == 'true'", "github.ref == 'refs/heads/main'", "github.repository_id == (vars.PRODUCTION_REPOSITORY_ID || '1436643374')"]) {
       assert.ok(job.if.includes(gate), `${file}: ${gate}`);
     }
+    assert.doesNotMatch(job.if, /omargad|github\.repository ==/);
+    for (const step of job.steps.filter((item) => item.run?.startsWith('bash scripts/production-ops-controller.sh'))) {
+      assert.equal(step.env.PRODUCTION_REPOSITORY_ID, '${{ vars.PRODUCTION_REPOSITORY_ID }}', `${file}: ${step.run}`);
+    }
+  }
+  // Elsewhere a requested run fails with an explanation instead of skipping silently, and touches nothing.
+  for (const [file, document] of [['ops', ops], ['status', status]]) {
+    const other = document.jobs['other-repository'];
+    assert.ok(other.if.includes("github.repository_id != (vars.PRODUCTION_REPOSITORY_ID || '1436643374')"), file);
+    assert.ok(other.if.includes("vars.DEPLOY_ENABLED == 'true'"), file);
+    assert.deepEqual(other.permissions, {});
+    assert.equal(other.environment, undefined);
+    assert.match(other.steps.at(-1).run, /PRODUCTION_REPOSITORY_ID[\s\S]*exit 1/);
+    assert.doesNotMatch(JSON.stringify(other), /secrets\./);
   }
   for (const job of [ops.jobs.validate, ops.jobs.operate]) assert.ok(job.if.includes('inputs.confirm == true'));
   for (const document of [ops, status]) assert.deepEqual(document.permissions, { contents: 'read' });
@@ -78,7 +93,7 @@ test('both production workflows are gated on an enabled production deployment on
   const request = ops.jobs.validate.steps.find((item) => item.id === 'status_key');
   assert.equal(request.run, 'bash scripts/production-ops-controller.sh status-key-request');
   assert.equal(request.if, "inputs.action == 'install'");
-  assert.deepEqual(Object.keys(request.env).sort(), ['DEPLOY_ENABLED', 'DEPLOY_KEY_FINGERPRINT', 'STATUS_SSH_PUBLIC_KEY']);
+  assert.deepEqual(Object.keys(request.env).sort(), ['DEPLOY_ENABLED', 'DEPLOY_KEY_FINGERPRINT', 'PRODUCTION_REPOSITORY_ID', 'STATUS_SSH_PUBLIC_KEY']);
   assert.equal(request.env.STATUS_SSH_PUBLIC_KEY, '${{ vars.STATUS_SSH_PUBLIC_KEY }}');
   assert.equal(ops.jobs.validate.environment, undefined, 'validate runs before the approval');
   assert.doesNotMatch(JSON.stringify(ops.jobs.validate), /secrets\./, 'validate holds no credential');
@@ -157,7 +172,7 @@ test('the controller verifies the pinned keys before SSH, prints no address and 
       offsite: { status: 'not-configured', ageSeconds: null, codes: [] }, timers: { backup: true, monitor: true, offsite: true } };
     const base = {
       PATH: `${bin}:${process.env.PATH}`, HOME: folder, STUB_LOG: log, STUB_TAR: path.join(folder, 'payload.tar'),
-      DEPLOY_ENABLED: 'true', GITHUB_REPOSITORY: 'omargad/Bangla-Adventure', GITHUB_REF: 'refs/heads/main',
+      DEPLOY_ENABLED: 'true', GITHUB_REPOSITORY_ID: '1436643374', GITHUB_REF: 'refs/heads/main',
       DEPLOY_HOST: 'vps.example.test', DEPLOY_USER: 'deployer', DEPLOY_SSH_KEY: readFileSync(pair.deploy.file, 'utf8'),
       DEPLOY_KNOWN_HOSTS: `vps.example.test ${pair.host.public}`, DEPLOY_HOST_FINGERPRINT: pair.host.fingerprint,
       DEPLOY_KEY_FINGERPRINT: pair.deploy.fingerprint, STUB_RESULT: JSON.stringify(healthy), APPROVED_STATUS_KEY: 'unchanged',
@@ -181,6 +196,10 @@ test('the controller verifies the pinned keys before SSH, prints no address and 
       assert.ok(options.includes(option), option);
     }
 
+    // The owner name plays no part; only a re-created repository names its own ID.
+    assert.equal(run('status', { GITHUB_REPOSITORY: 'client-org/Bangla-Adventure' }).status, 0);
+    assert.equal(run('status', { GITHUB_REPOSITORY_ID: '1', PRODUCTION_REPOSITORY_ID: '1' }).status, 0);
+
     const failing = run('status', { STUB_RESULT: JSON.stringify({ ...healthy, verified: false, status: 'failed', codes: ['monitor-report-failed'],
       monitor: { status: 'failed', ageSeconds: 60, codes: ['disk-low'] } }), STUB_EXIT: '1' });
     assert.equal(failing.status, 1);
@@ -189,6 +208,7 @@ test('the controller verifies the pinned keys before SSH, prints no address and 
 
     for (const [env, message] of [
       [{ DEPLOY_ENABLED: 'false' }, /not enabled/], [{ GITHUB_REF: 'refs/heads/feature' }, /main branch/],
+      [{ GITHUB_REPOSITORY_ID: '1' }, /main branch/], [{ GITHUB_REPOSITORY_ID: '' }, /main branch/],
       [{ DEPLOY_KEY_FINGERPRINT: pair.other.fingerprint }, /key fingerprint does not match DEPLOY_KEY_FINGERPRINT/],
       [{ DEPLOY_KNOWN_HOSTS: `vps.example.test ${pair.other.public}` }, /known_hosts fingerprint/],
       [{ DEPLOY_KNOWN_HOSTS: `vps.example.test ${pair.host.public}\nvps.example.test ${pair.other.public}` }, /known_hosts fingerprint/],

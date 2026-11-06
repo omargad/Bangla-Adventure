@@ -41,6 +41,13 @@ the repository.
 
 Agree who owns hosting, domain/TLS, support, backup storage and recovery keys.
 
+The repository moves from the personal account `omargad` to the client's GitHub
+organisation by a GitHub transfer. Follow
+[`REPOSITORY_TRANSFER.md`](REPOSITORY_TRANSFER.md): it lists who needs which
+permission, the organisation settings, the secrets, variables and environments to
+note (by name) and check afterwards, the container image copy and the Railway
+relink. The workflows themselves need no change for the move.
+
 The client also owns the ElevenLabs account and API key. Bundled Bangla clips
 play without a runtime key; their offline generation and native-speaker review
 are documented in [`MEDIA_REVIEW.md`](MEDIA_REVIEW.md#a-better-bangla-computer-voice-elevenlabs).

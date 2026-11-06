@@ -5,9 +5,10 @@ set +x
 umask 077
 readonly stage=/opt/bangla-adventures/private-staging
 readonly socketDaemon=/run/user/1002/docker.sock
-readonly image=ghcr.io/omargad/bangla-adventure@sha256:5f9ac5508771eb97c6b1e4aa4bff8db0fe69569b1f00b08a2e0e02e263d93f13
 readonly revision=a709cb3d2bc9fb0a271e6814bc96d1f16444c94f
 readonly digest=sha256:5f9ac5508771eb97c6b1e4aa4bff8db0fe69569b1f00b08a2e0e02e263d93f13
+# Set by platform from the stage's release manifest: the registry path of the pinned digest.
+image=''
 diagnostic_action=arguments diagnostic_phase=arguments
 diagnostic() { printf 'PRIVATE_QA_DIAGNOSTIC:%s:%s\n' "$diagnostic_action" "$diagnostic_phase" >&2; }
 fail() { diagnostic; printf 'private QA refused: %s\n' "$*" >&2; exit 1; }
@@ -28,6 +29,10 @@ platform() {
   owned_dir "$stage" || fail 'The private staging directory is not the expected private directory.'
   [ -f "$stage/.private-staging-marker" ] && [ ! -L "$stage/.private-staging-marker" ] && [ "$(stat -c %u -- "$stage/.private-staging-marker")" = 1002 ] || fail 'Missing owned staging marker.'
   python3 -c 'import pathlib,sys; assert pathlib.Path(sys.argv[1]).read_bytes()==b"bangla-adventures-private-staging-v1\n"' "$stage/.private-staging-marker" || fail 'Staging marker mismatch.'
+  # The stage was started from the image its release manifest records. Only the reviewed digest is
+  # accepted there; its registry path may name a byte-identical copy (docs/REPOSITORY_TRANSFER.md).
+  [ -f "$stage/release.json" ] && [ ! -L "$stage/release.json" ] && [ "$(stat -c %u -- "$stage/release.json")" = 1002 ] || fail 'Missing owned staging release manifest.'
+  image="$(python3 -c 'import json,re,sys; v=json.load(open(sys.argv[1]))["image"]; assert isinstance(v,str) and re.fullmatch(r"ghcr\.io/[a-z0-9]+(?:-[a-z0-9]+)*/bangla-adventure@"+re.escape(sys.argv[2]),v); print(v)' "$stage/release.json" "$digest")" || fail 'The staging release manifest does not name the pinned image digest.'
   [ -S "$socketDaemon" ] && [ "$(stat -c %u -- "$socketDaemon")" = 1002 ] || fail 'The fixed rootless socket is required.'
   [ "$(docker context inspect rootless --format '{{.Endpoints.docker.Host}}')" = "unix://$socketDaemon" ] || fail 'Rootless context mismatch.'
   docker info --format '{{json .SecurityOptions}}' | python3 -c 'import json,sys; assert "name=rootless" in json.load(sys.stdin)' || fail 'The daemon is not rootless.'

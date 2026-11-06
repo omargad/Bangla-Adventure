@@ -5,7 +5,8 @@ set -euo pipefail
 fail() { printf 'private staging drill: %s\n' "$1" >&2; exit 1; }
 [ "$#" = 1 ] || fail 'supply the exact approved image digest.'
 image="$1"
-[[ "$image" =~ ^ghcr\.io/omargad/bangla-adventure@sha256:[a-f0-9]{64}$ ]] || fail 'an immutable application image digest is required.'
+# Any owner's bangla-adventure package: the caller passes the exact digest it verified.
+[[ "$image" =~ ^ghcr\.io/[a-z0-9]+(-[a-z0-9]+)*/bangla-adventure@sha256:[a-f0-9]{64}$ ]] || fail 'an immutable application image digest is required.'
 [ "$(id -u)" = 1002 ] || fail 'run as the prepared rootless deployment user.'
 command -v python3 >/dev/null || fail 'Python 3 is required.'
 command -v docker >/dev/null || fail 'Docker is required.'

@@ -1,4 +1,13 @@
 name: VPS private staging
+
+# Like every vps-*.yml workflow, it contacts the server only from the production repository, recognised
+# by its numeric ID (github.repository_id): see vps-ssh-preflight.yml and docs/REPOSITORY_TRANSFER.md.
+# When a server job is requested anywhere else, the other-repository job says why nothing ran: a
+# notice in a fork, and an error that fails the run in any other repository.
+# The stage runs one reviewed image digest. Its registry path defaults to the original package and
+# can be changed only by the repository variable STAGING_IMAGE_REPOSITORY, for example to a
+# byte-identical copy under the repository's new owner (docs/REPOSITORY_TRANSFER.md).
+
 # The disposable identity document uses the existing text/plain robots asset.
 # Inspect secure loopback cookies directly, retaining strict origin and session checks.
 # Prove client form readiness before filling credentials over the SSH transport.
@@ -23,9 +32,31 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  other-repository:
+    if: >-
+      github.repository_id != (vars.PRODUCTION_REPOSITORY_ID || '1436643374') && github.ref == 'refs/heads/main' &&
+      ((github.event_name == 'workflow_dispatch' && inputs.confirm_private_staging == true) ||
+       (github.event_name == 'push' && contains(github.event.head_commit.message, '[private-staging-start]')))
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    permissions: {}
+    steps:
+      - name: Explain why the server was not contacted
+        env:
+          REPOSITORY_ID: ${{ github.repository_id }}
+          PRODUCTION_ID: ${{ vars.PRODUCTION_REPOSITORY_ID || '1436643374' }}
+          FORK: ${{ github.event.repository.fork }}
+        run: |
+          if [ "$FORK" = true ]; then
+            printf '::notice title=Server jobs skipped in a fork::A fork never contacts the server or loads its credentials. Nothing needs to be set here.\n'
+            exit 0
+          fi
+          printf '::error title=Not the production repository::No server job ran. This repository has ID %s; the server jobs run only in the repository with ID %s. A transfer or rename keeps the ID, and a copy of the project needs nothing. If this is the production repository created again under a new ID, set the repository variable PRODUCTION_REPOSITORY_ID to %s (docs/REPOSITORY_TRANSFER.md).\n' "$REPOSITORY_ID" "$PRODUCTION_ID" "$REPOSITORY_ID"
+          exit 1
+
   validate:
     if: >-
-      github.repository == 'omargad/Bangla-Adventure' && github.ref == 'refs/heads/main' &&
+      github.repository_id == (vars.PRODUCTION_REPOSITORY_ID || '1436643374') && github.ref == 'refs/heads/main' &&
       ((github.event_name == 'workflow_dispatch' && inputs.confirm_private_staging == true) ||
        (github.event_name == 'push' && contains(github.event.head_commit.message, '[private-staging-start]')))
     runs-on: ubuntu-latest
@@ -51,7 +82,9 @@ jobs:
           node --import tsx --test tests/private-staging*.test.mjs
       - name: Validate the actual normalized Compose candidate without pulling or starting containers
         env:
-          STAGING_IMAGE: ghcr.io/omargad/bangla-adventure@sha256:5f9ac5508771eb97c6b1e4aa4bff8db0fe69569b1f00b08a2e0e02e263d93f13
+          # Same digest as scripts/private-staging.sh; only the registry path can be changed, by the
+          # repository variable STAGING_IMAGE_REPOSITORY (docs/REPOSITORY_TRANSFER.md).
+          STAGING_IMAGE: ${{ vars.STAGING_IMAGE_REPOSITORY || 'ghcr.io/omargad/bangla-adventure' }}@sha256:5f9ac5508771eb97c6b1e4aa4bff8db0fe69569b1f00b08a2e0e02e263d93f13
         run: |
           set -euo pipefail
           candidate="$GITHUB_WORKSPACE/deploy"
@@ -88,7 +121,7 @@ jobs:
 
   repository-settings:
     if: >-
-      github.repository == 'omargad/Bangla-Adventure' && github.ref == 'refs/heads/main' &&
+      github.repository_id == (vars.PRODUCTION_REPOSITORY_ID || '1436643374') && github.ref == 'refs/heads/main' &&
       ((github.event_name == 'workflow_dispatch' && inputs.confirm_private_staging == true) ||
        (github.event_name == 'push' && contains(github.event.head_commit.message, '[private-staging-start]')))
     runs-on: ubuntu-latest
@@ -129,6 +162,8 @@ jobs:
       - name: Start and verify only the isolated private staging project
         env:
           REPOSITORY_GATE_CONFIRMED: disabled
+          PRODUCTION_REPOSITORY_ID: ${{ vars.PRODUCTION_REPOSITORY_ID }}
+          STAGING_IMAGE_REPOSITORY: ${{ vars.STAGING_IMAGE_REPOSITORY }}
           DEPLOY_ENABLED: ${{ vars.DEPLOY_ENABLED }}
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}

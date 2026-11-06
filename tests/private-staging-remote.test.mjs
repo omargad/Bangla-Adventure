@@ -90,6 +90,23 @@ test("old or unreviewed image arguments fail before any Docker/SSH or filesystem
   }
 });
 
+test("the reviewed digest is accepted under the original package or another owner's copy, and nowhere else", () => {
+  const digest = image.split("@")[1];
+  // A byte-identical copy under the repository's new owner passes the release check (and then stops at
+  // the next platform check here); other packages, registries, digests or letter cases do not.
+  for (const ref of [image, `ghcr.io/client-org/bangla-adventure@${digest}`]) {
+    const run = spawnSync("bash", ["-c", script, "private-staging-remote.sh", ref, revision, "/nonexistent"], { encoding: "utf8" });
+    assert.equal(run.status, 1, ref);
+    assert.doesNotMatch(run.stderr, /outside this reviewed staging release/, ref);
+  }
+  for (const ref of [`ghcr.io/client-org/other@${digest}`, `docker.io/client-org/bangla-adventure@${digest}`, `ghcr.io/Client-Org/bangla-adventure@${digest}`,
+    `ghcr.io/client-org/bangla-adventure@sha256:${"0".repeat(64)}`, `ghcr.io/-client/bangla-adventure@${digest}`]) {
+    const run = spawnSync("bash", ["-c", script, "private-staging-remote.sh", ref, revision, "/nonexistent"], { encoding: "utf8" });
+    assert.equal(run.status, 1, ref);
+    assert.match(run.stderr, /outside this reviewed staging release/, ref);
+  }
+});
+
 test("rollback restores only saved staging files/image and retains database state", (t) => {
   const root = mkdtempSync(path.join(os.tmpdir(), "bangla-stage-rollback-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));

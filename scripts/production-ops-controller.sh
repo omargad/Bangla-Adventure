@@ -36,7 +36,9 @@ missing() {
   fail "the $kind $name is missing: add it under Settings > Environments > production > Environment ${kind}s, named exactly $name (or make it a repository $kind)."
 }
 [ "${DEPLOY_ENABLED:-false}" = true ] || fail 'production is not enabled (the DEPLOY_ENABLED variable must be true).'
-[ "${GITHUB_REPOSITORY:-}" = omargad/Bangla-Adventure ] && [ "${GITHUB_REF:-}" = refs/heads/main ] || \
+# The production repository is recognised by its numeric ID, which a transfer or rename keeps; only a
+# re-created repository sets PRODUCTION_REPOSITORY_ID (docs/REPOSITORY_TRANSFER.md).
+[ -n "${GITHUB_REPOSITORY_ID:-}" ] && [ "$GITHUB_REPOSITORY_ID" = "${PRODUCTION_REPOSITORY_ID:-1436643374}" ] && [ "${GITHUB_REF:-}" = refs/heads/main ] || \
   fail 'only the main branch of the project repository may run production operations.'
 key_fingerprint="${DEPLOY_KEY_FINGERPRINT:-SHA256:y1+C6cvcfpJFmO8pfjyMSFERpd5BtcQyDf5SptZXVlQ}"
 [[ "$key_fingerprint" =~ ^SHA256:[a-zA-Z0-9+/]{43}$ ]] || fail 'DEPLOY_KEY_FINGERPRINT must be a SHA256 fingerprint.'

@@ -10,7 +10,10 @@ import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-IMAGE = 'ghcr.io/omargad/bangla-adventure@sha256:5f9ac5508771eb97c6b1e4aa4bff8db0fe69569b1f00b08a2e0e02e263d93f13'
+DIGEST = 'sha256:5f9ac5508771eb97c6b1e4aa4bff8db0fe69569b1f00b08a2e0e02e263d93f13'
+IMAGE = 'ghcr.io/omargad/bangla-adventure@' + DIGEST
+# The same digest copied to a new owner's package after a repository transfer.
+TRANSFERRED_IMAGE = 'ghcr.io/client-org/bangla-adventure@' + DIGEST
 REVISION = 'a709cb3d2bc9fb0a271e6814bc96d1f16444c94f'
 SOURCE = (ROOT / 'scripts/private-staging-acceptance.sh').read_text()
 UNITS = ['ba-private-stage-backup.service', 'ba-private-stage-backup.timer', 'ba-private-stage-monitor.service', 'ba-private-stage-monitor.timer']
@@ -60,8 +63,8 @@ if '-L'in args:
  record('tunnel')
  while True:time.sleep(1)
 data=sys.stdin.read()
-if command=='bash -s':
- record('inventory')
+if command.startswith('bash -s -- ')and'.private-acceptance-payload'not in command:
+ record('inventory',image=command.split()[-1].strip("'"))
  if os.environ.get('FIXTURE_INVENTORY_FAIL'):print('SECRET_MUST_NOT_LEAK',file=sys.stderr);sys.exit(7)
  count=sum(json.loads(x)['kind']=='inventory'for x in log.read_text().splitlines())
  digest='b'*64 if os.environ.get('FIXTURE_STATE_CHANGED')and count>=4 else'a'*64
@@ -69,7 +72,7 @@ if command=='bash -s':
 elif 'mktemp -d'in command:record('incoming');print('/opt/bangla-adventures/.private-acceptance-payload.Fixture12ABC')
 elif 'tar --extract'in command:record('upload',hasSecret='SECRET_MUST_NOT_LEAK'in data)
 elif command.startswith('bash -s --'):
- record('install');emit(dict(kind='private-staging-acceptance-install',verified=True,qaHelperUpdated=True,manifestPreserved=True,applicationRecreated=False))
+ record('install',image=command.split()[-1].strip("'"));emit(dict(kind='private-staging-acceptance-install',verified=True,qaHelperUpdated=True,manifestPreserved=True,applicationRecreated=False))
 elif 'private-staging-ops-install.sh'in command:
  record('ops_install')
  if os.environ.get('FIXTURE_OPS_FAIL_CODE'):
@@ -105,10 +108,11 @@ class AcceptanceControllerTests(unittest.TestCase):
         for name in UNITS:(self.root/'deploy/private-staging-ops'/name).write_text('fixture unit\n')
         transport=self.root/'bin/transport';transport.write_text(TRANSPORT);transport.chmod(0o700)
         for name in ['ssh','ssh-keygen','curl','node']:(self.root/'bin'/name).symlink_to(transport)
-        self.env={**os.environ,'PATH':str(self.root/'bin')+':'+os.environ['PATH'],'DEPLOY_ENABLED':'false','REPOSITORY_GATE_CONFIRMED':'disabled','GITHUB_REPOSITORY':'omargad/Bangla-Adventure','GITHUB_REF':'refs/heads/main','DEPLOY_HOST':'192.0.2.10','DEPLOY_USER':'example-user','DEPLOY_SSH_KEY':'SECRET_MUST_NOT_LEAK','DEPLOY_KNOWN_HOSTS':'192.0.2.10 ssh-ed25519 RklYVFVSRQ== public fixture comment','PRIVATE_ACCEPTANCE_EVIDENCE_DIR':str(self.root/'evidence'),'FIXTURE_LOG':str(self.root/'calls.jsonl'),'FIXTURE_IMAGE':IMAGE,'FIXTURE_REVISION':REVISION}
+        self.env={**{k:v for k,v in os.environ.items()if k not in{'PRODUCTION_REPOSITORY_ID','STAGING_IMAGE_REPOSITORY'}},'PATH':str(self.root/'bin')+':'+os.environ['PATH'],'DEPLOY_ENABLED':'false','REPOSITORY_GATE_CONFIRMED':'disabled','GITHUB_REPOSITORY_ID':'1436643374','GITHUB_REF':'refs/heads/main','DEPLOY_HOST':'192.0.2.10','DEPLOY_USER':'example-user','DEPLOY_SSH_KEY':'SECRET_MUST_NOT_LEAK','DEPLOY_KNOWN_HOSTS':'192.0.2.10 ssh-ed25519 RklYVFVSRQ== public fixture comment','PRIVATE_ACCEPTANCE_EVIDENCE_DIR':str(self.root/'evidence'),'FIXTURE_LOG':str(self.root/'calls.jsonl'),'FIXTURE_IMAGE':IMAGE,'FIXTURE_REVISION':REVISION}
 
     def run_controller(self,**changes):
-        result=subprocess.run(['bash',str(self.root/'scripts/private-staging-acceptance.sh')],env={**self.env,**changes},capture_output=True,text=True,timeout=20)
+        env={key:value for key,value in {**self.env,**changes}.items()if value is not None}
+        result=subprocess.run(['bash',str(self.root/'scripts/private-staging-acceptance.sh')],env=env,capture_output=True,text=True,timeout=20)
         self.assertNotIn('SECRET_MUST_NOT_LEAK',result.stdout+result.stderr)
         evidence=self.root/'evidence'
         if evidence.exists():
@@ -156,6 +160,37 @@ class AcceptanceControllerTests(unittest.TestCase):
     def test_repository_gate_and_key_pin_precede_remote_contact(self):
         for changes in [dict(DEPLOY_ENABLED='true'),dict(REPOSITORY_GATE_CONFIRMED='refused'),dict(FIXTURE_BAD_PIN='1')]:
             self.assertNotEqual(self.run_controller(**changes).returncode,0);self.assertEqual(self.kinds(),[])
+
+    def test_repository_is_recognised_by_its_id_whatever_its_owner_name(self):
+        # A transfer keeps the numeric ID, so the gate does not depend on the owner name at all.
+        self.assertEqual(self.run_controller(GITHUB_REPOSITORY='client-org/Bangla-Adventure').returncode,0)
+        for changes in [dict(GITHUB_REPOSITORY_ID=None),dict(GITHUB_REPOSITORY_ID='1'),dict(GITHUB_REF='refs/heads/other')]:
+            (self.root/'calls.jsonl').unlink(missing_ok=True)
+            result=self.run_controller(**changes);self.assertNotEqual(result.returncode,0)
+            self.assertIn('Only the audited repository main branch is allowed.',result.stderr);self.assertEqual(self.kinds(),[])
+        # Only a re-created repository names its own ID, through the repository variable.
+        (self.root/'calls.jsonl').unlink(missing_ok=True);shutil.rmtree(self.root/'evidence',ignore_errors=True)
+        self.assertEqual(self.run_controller(GITHUB_REPOSITORY_ID='1',PRODUCTION_REPOSITORY_ID='1').returncode,0)
+
+    def test_staging_image_defaults_to_the_original_package(self):
+        result=self.run_controller();self.assertEqual(result.returncode,0,result.stderr)
+        sent=[call['image']for call in self.calls()if call['kind']in{'inventory','install'}];self.assertEqual(len(sent),5);self.assertEqual(set(sent),{IMAGE})
+        self.assertEqual(json.loads((self.root/'evidence/stage-before.json').read_text())['image'],IMAGE)
+
+    def test_staging_image_repository_can_name_a_same_digest_copy(self):
+        result=self.run_controller(STAGING_IMAGE_REPOSITORY='ghcr.io/client-org/bangla-adventure',FIXTURE_IMAGE=TRANSFERRED_IMAGE);self.assertEqual(result.returncode,0,result.stderr)
+        sent=[call['image']for call in self.calls()if call['kind']in{'inventory','install'}];self.assertEqual(set(sent),{TRANSFERRED_IMAGE})
+        self.assertEqual(json.loads((self.root/'evidence/rollback.json').read_text())['previousImage'],TRANSFERRED_IMAGE)
+
+    def test_staging_image_repository_must_match_the_stage_and_be_a_bangla_adventure_package(self):
+        # The stage still runs the original path: acceptance refuses rather than mixing the two.
+        result=self.run_controller(STAGING_IMAGE_REPOSITORY='ghcr.io/client-org/bangla-adventure');self.assertNotEqual(result.returncode,0)
+        self.assertIn('running exactly '+TRANSFERRED_IMAGE+' (if STAGING_IMAGE_REPOSITORY changed, run VPS private staging first)',result.stderr)
+        self.assertEqual(self.kinds(),['inventory']);self.assertFalse((self.root/'evidence').exists())
+        for value in ['docker.io/client-org/bangla-adventure','ghcr.io/client-org/other','ghcr.io/Client-Org/bangla-adventure','ghcr.io/client-org/bangla-adventure@sha256:'+'0'*64,'ghcr.io/-client/bangla-adventure']:
+            (self.root/'calls.jsonl').unlink(missing_ok=True)
+            result=self.run_controller(STAGING_IMAGE_REPOSITORY=value);self.assertNotEqual(result.returncode,0,value)
+            self.assertIn('STAGING_IMAGE_REPOSITORY must be ghcr.io/<lowercase owner>/bangla-adventure.',result.stderr);self.assertEqual(self.kinds(),[])
 
     def test_readonly_inventory_refusal_prevents_every_remote_write(self):
         self.assertNotEqual(self.run_controller(FIXTURE_INVENTORY_FAIL='1').returncode,0);self.assertEqual(self.kinds(),['inventory']);self.assertFalse((self.root/'evidence').exists())
@@ -206,8 +241,8 @@ class ManifestTransactionTests(unittest.TestCase):
         (self.stage/'release.json').write_text(json.dumps(self.manifest))
         self.code=SOURCE.split("<<'INSTALL_PY'\n",1)[1].split('\nINSTALL_PY\n',1)[0].replace('OWNER=1002','OWNER=os.getuid()').replace("r'/opt/bangla-adventures/\\.private-acceptance-payload\\.[a-zA-Z0-9]{12}'",repr(str(self.root)+r'/\.private-acceptance-payload\.[a-zA-Z0-9]{12}'))
 
-    def run_installer(self,prefix=''):
-        return subprocess.run(['python3','-c',prefix+self.code,str(self.stage),str(self.incoming)],capture_output=True,text=True)
+    def run_installer(self,prefix='',image=IMAGE):
+        return subprocess.run(['python3','-c',prefix+self.code,str(self.stage),str(self.incoming),image],capture_output=True,text=True)
 
     def test_only_qa_helper_hash_changes_and_other_manifest_fields_are_preserved(self):
         result=self.run_installer();self.assertEqual(result.returncode,0,result.stderr);after=json.loads((self.stage/'release.json').read_text());expected=json.loads(json.dumps(self.manifest));expected['files']['tools/private-staging-qa.sh']=hashlib.sha256((self.incoming/'private-staging-qa.sh').read_bytes()).hexdigest();self.assertEqual(after,expected)
@@ -217,6 +252,14 @@ class ManifestTransactionTests(unittest.TestCase):
         helper=self.stage/'tools/private-staging-qa.sh';old=helper.read_bytes();manifest=(self.stage/'release.json').read_bytes()
         prefix="import os\nreal_replace=os.replace\nfailed=False\ndef fail_once(src,dst):\n global failed\n if str(dst).endswith('/release.json')and not failed:\n  failed=True;raise OSError('fixture transaction failure')\n return real_replace(src,dst)\nos.replace=fail_once\n"
         self.assertNotEqual(self.run_installer(prefix).returncode,0);self.assertEqual(helper.read_bytes(),old);self.assertEqual((self.stage/'release.json').read_bytes(),manifest)
+
+    def test_installer_follows_the_stage_image_path_but_never_another_digest(self):
+        helper=self.stage/'tools/private-staging-qa.sh';old=helper.read_bytes()
+        for image in [TRANSFERRED_IMAGE,'ghcr.io/omargad/bangla-adventure@sha256:'+'0'*64]:
+            self.assertNotEqual(self.run_installer(image=image).returncode,0);self.assertEqual(helper.read_bytes(),old)
+        self.manifest['image']=TRANSFERRED_IMAGE;(self.stage/'release.json').write_text(json.dumps(self.manifest))
+        result=self.run_installer(image=TRANSFERRED_IMAGE);self.assertEqual(result.returncode,0,result.stderr)
+        self.assertEqual(json.loads((self.stage/'release.json').read_text())['image'],TRANSFERRED_IMAGE)
 
     def test_any_preexisting_managed_hash_change_refuses_without_replacing_helper(self):
         helper=self.stage/'tools/private-staging-qa.sh';old=helper.read_bytes();(self.stage/'compose.yaml').write_text('unreviewed change')

@@ -262,7 +262,8 @@ each system. The scripts:
 On the default branch the pipeline then:
 
 1. Publishes the image once its container test passes, under its commit:
-   `ghcr.io/OWNER/REPOSITORY:sha-COMMIT` on GitHub (lowercase), the project's registry on GitLab.
+   `ghcr.io/OWNER/bangla-adventure:sha-COMMIT` on GitHub (the repository owner in lowercase, so it
+   follows a [repository transfer](REPOSITORY_TRANSFER.md)), the project's registry on GitLab.
 2. Tags that same image `latest` once every check has passed. Nothing is rebuilt, so what is
    deployed is exactly what was tested.
 3. Deploys it when the server is configured and `DEPLOY_ENABLED=true`. Until then that step is skipped.

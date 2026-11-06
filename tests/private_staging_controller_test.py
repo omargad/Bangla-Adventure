@@ -8,7 +8,10 @@ import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-IMAGE = "ghcr.io/omargad/bangla-adventure@sha256:5f9ac5508771eb97c6b1e4aa4bff8db0fe69569b1f00b08a2e0e02e263d93f13"
+DIGEST = "sha256:5f9ac5508771eb97c6b1e4aa4bff8db0fe69569b1f00b08a2e0e02e263d93f13"
+IMAGE = "ghcr.io/omargad/bangla-adventure@" + DIGEST
+# The same digest copied to a new owner's package after a repository transfer.
+TRANSFERRED_IMAGE = "ghcr.io/client-org/bangla-adventure@" + DIGEST
 REVISION = "a709cb3d2bc9fb0a271e6814bc96d1f16444c94f"
 
 
@@ -27,7 +30,7 @@ class PrivateStagingControllerTests(unittest.TestCase):
         self.bin.mkdir()
         transport = self.bin / "transport"
         transport.write_text(r'''#!/usr/bin/env python3
-import json,os,subprocess,sys,time
+import json,os,shlex,subprocess,sys,time
 from pathlib import Path
 tool=Path(sys.argv[0]).name
 args=sys.argv[1:]
@@ -94,7 +97,7 @@ elif tool=="ssh":
   elif action=="approve-fixtures": print(json.dumps({"verified":True,"qaId":qid,"approvedAdults":1,"approvedStudents":1,"noContentApprovals":True}))
   else: print(json.dumps({"verified":True,"qaId":qid,"removed":True,"actualStage":clean}))
  elif "private-staging-remote.sh" in command:
-  record("prepare",tokenViaStdin=data.strip()=="REGISTRY_TOKEN_MUST_NOT_LEAK")
+  record("prepare",tokenViaStdin=data.strip()=="REGISTRY_TOKEN_MUST_NOT_LEAK",image=shlex.split(command)[2])
   def verifier(restarted):
    return {"verified":True,"stateDigest":"a"*64,"counts":{"pendingTopics":15,"pendingLessons":18,"shippedStates":33,"users":0,"approvals":0,"baselines":0,"businessRows":0,"mediaFiles":0},"checks":{"integrity":True,"foreignKeys":True,"unpublished":True,"cleanIdentities":True,"expectedStateMatched":True if restarted else None,"databaseWriteRolledBack":None if restarted else True,"mediaWriteRemoved":None if restarted else True}}
   result={"scope":"private-staging","status":"healthy","image":os.environ["FIXTURE_IMAGE"],"revision":"a709cb3d2bc9fb0a271e6814bc96d1f16444c94f","project":"bangla-adventures-staging","origin":"http://127.0.0.1:3001","socket":"/opt/bangla-adventures/private-staging/runtime/http.sock","publishedPorts":0,
@@ -109,9 +112,9 @@ elif tool=="ssh":
         for name in ["ssh", "ssh-keygen", "curl", "node"]:
             (self.bin / name).symlink_to(transport)
         self.env = {
-            **os.environ, "PATH": f"{self.bin}:{os.environ['PATH']}",
+            **{k: v for k, v in os.environ.items() if k not in {"PRODUCTION_REPOSITORY_ID", "STAGING_IMAGE_REPOSITORY"}}, "PATH": f"{self.bin}:{os.environ['PATH']}",
             "DEPLOY_ENABLED": "false", "REPOSITORY_GATE_CONFIRMED": "disabled",
-            "GITHUB_REPOSITORY": "omargad/Bangla-Adventure", "GITHUB_REF": "refs/heads/main",
+            "GITHUB_REPOSITORY_ID": "1436643374", "GITHUB_REF": "refs/heads/main",
             "DEPLOY_HOST": "192.0.2.10", "DEPLOY_USER": "example-user",
             "DEPLOY_SSH_KEY": "PRIVATE_KEY_MUST_NOT_LEAK",
             "DEPLOY_KNOWN_HOSTS": "192.0.2.10 ssh-ed25519 RklYVFVSRQ== fixture public key",
@@ -121,7 +124,8 @@ elif tool=="ssh":
         }
 
     def run_controller(self, **overrides):
-        result = subprocess.run(["bash", str(self.root / "scripts/private-staging.sh")], env={**self.env, **overrides}, text=True, capture_output=True, timeout=15)
+        env = {key: value for key, value in {**self.env, **overrides}.items() if value is not None}
+        result = subprocess.run(["bash", str(self.root / "scripts/private-staging.sh")], env=env, text=True, capture_output=True, timeout=15)
         self.assertNotIn("PRIVATE_KEY_MUST_NOT_LEAK", result.stdout + result.stderr)
         self.assertNotIn("REGISTRY_TOKEN_MUST_NOT_LEAK", result.stdout + result.stderr)
         return result
@@ -196,6 +200,39 @@ elif tool=="ssh":
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual([call["kind"] for call in self.calls()], ["inventory"])
         self.assertFalse((self.root / "evidence").exists())
+
+    def test_repository_is_recognised_by_its_id_whatever_its_owner_name(self):
+        # A transfer keeps the numeric ID, so the gate does not depend on the owner name.
+        self.assertEqual(self.run_controller(GITHUB_REPOSITORY="client-org/Bangla-Adventure").returncode, 0)
+        for overrides in [{"GITHUB_REPOSITORY_ID": None}, {"GITHUB_REPOSITORY_ID": "1"}, {"GITHUB_REF": "refs/heads/other"}]:
+            (self.root / "calls.jsonl").unlink(missing_ok=True)
+            result = self.run_controller(**overrides)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("Private staging runs only from the audited repository main branch.", result.stderr)
+            self.assertEqual(self.calls(), [])
+        # Only a re-created repository names its own ID, through the repository variable.
+        (self.root / "calls.jsonl").unlink(missing_ok=True)
+        shutil.rmtree(self.root / "evidence", ignore_errors=True)
+        self.assertEqual(self.run_controller(GITHUB_REPOSITORY_ID="1", PRODUCTION_REPOSITORY_ID="1").returncode, 0)
+
+    def test_staging_image_defaults_to_the_original_package(self):
+        result = self.run_controller()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(next(call for call in self.calls() if call["kind"] == "prepare")["image"], IMAGE)
+
+    def test_staging_image_repository_changes_only_the_registry_path(self):
+        result = self.run_controller(STAGING_IMAGE_REPOSITORY="ghcr.io/client-org/bangla-adventure", FIXTURE_IMAGE=TRANSFERRED_IMAGE)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(next(call for call in self.calls() if call["kind"] == "prepare")["image"], TRANSFERRED_IMAGE)
+        self.assertEqual(json.loads((self.root / "evidence/staging-result.json").read_text())["image"], TRANSFERRED_IMAGE)
+
+    def test_invalid_staging_image_repository_prevents_all_remote_contact(self):
+        for value in ["docker.io/client-org/bangla-adventure", "ghcr.io/client-org/other", "ghcr.io/Client-Org/bangla-adventure", "ghcr.io/client-org/bangla-adventure@sha256:" + "0" * 64, "ghcr.io/client-org/bangla-adventure:latest", "ghcr.io/client-/bangla-adventure"]:
+            (self.root / "calls.jsonl").unlink(missing_ok=True)
+            result = self.run_controller(STAGING_IMAGE_REPOSITORY=value)
+            self.assertNotEqual(result.returncode, 0, value)
+            self.assertIn("STAGING_IMAGE_REPOSITORY must be ghcr.io/<lowercase owner>/bangla-adventure.", result.stderr)
+            self.assertEqual(self.calls(), [])
 
     def test_wrong_key_pin_prevents_all_remote_contact(self):
         result = self.run_controller(FIXTURE_BAD_PIN="1")

@@ -1,5 +1,15 @@
 name: VPS SSH preflight
 
+# Like every vps-*.yml workflow, it loads the server's credentials and contacts the server, so its
+# jobs run only in the production repository, never in a fork or a copy of it. That repository is
+# recognised by its numeric ID (github.repository_id, 1436643374), not by its name: a transfer to
+# another account or a rename keeps the ID, while a fork or a copy always has a new one, so no owner
+# name is written here and the workflows keep working after the move to the client's organisation
+# with no new setting. Only if the production repository were ever created again (a new ID) would
+# the repository variable PRODUCTION_REPOSITORY_ID name the new ID (docs/REPOSITORY_TRANSFER.md).
+# When a server job is requested anywhere else, the other-repository job says why nothing ran: a
+# notice in a fork, and an error that fails the run in any other repository.
+
 on:
   workflow_dispatch:
 
@@ -7,10 +17,32 @@ permissions:
   contents: read
 
 jobs:
+  other-repository:
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      github.repository_id != (vars.PRODUCTION_REPOSITORY_ID || '1436643374') &&
+      github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    permissions: {}
+    steps:
+      - name: Explain why the server was not contacted
+        env:
+          REPOSITORY_ID: ${{ github.repository_id }}
+          PRODUCTION_ID: ${{ vars.PRODUCTION_REPOSITORY_ID || '1436643374' }}
+          FORK: ${{ github.event.repository.fork }}
+        run: |
+          if [ "$FORK" = true ]; then
+            printf '::notice title=Server jobs skipped in a fork::A fork never contacts the server or loads its credentials. Nothing needs to be set here.\n'
+            exit 0
+          fi
+          printf '::error title=Not the production repository::No server job ran. This repository has ID %s; the server jobs run only in the repository with ID %s. A transfer or rename keeps the ID, and a copy of the project needs nothing. If this is the production repository created again under a new ID, set the repository variable PRODUCTION_REPOSITORY_ID to %s (docs/REPOSITORY_TRANSFER.md).\n' "$REPOSITORY_ID" "$PRODUCTION_ID" "$REPOSITORY_ID"
+          exit 1
+
   repository-settings:
     if: >-
       github.event_name == 'workflow_dispatch' &&
-      github.repository == 'omargad/Bangla-Adventure' &&
+      github.repository_id == (vars.PRODUCTION_REPOSITORY_ID || '1436643374') &&
       github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 1
@@ -35,7 +67,7 @@ jobs:
     needs: repository-settings
     if: >-
       github.event_name == 'workflow_dispatch' &&
-      github.repository == 'omargad/Bangla-Adventure' &&
+      github.repository_id == (vars.PRODUCTION_REPOSITORY_ID || '1436643374') &&
       github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 3

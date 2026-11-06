@@ -17,7 +17,7 @@ custom English–Bangla application (`PLATFORM_MODE=legacy`), with portals for s
 | --- | --- |
 | Repository | <https://github.com/omargad/Bangla-Adventure> |
 | Branch | `main`. Hand over a specific commit or release with its verification evidence ([source handover](HANDOVER.md)). |
-| Container image | `ghcr.io/omargad/bangla-adventure`, published by the CI pipeline |
+| Container image | `ghcr.io/omargad/bangla-adventure`, published by the CI pipeline; it becomes `ghcr.io/ORG/bangla-adventure` once the repository moves to the client's organisation ([Repository transfer](REPOSITORY_TRANSFER.md)) |
 
 **What the repository contains.** The Next.js 16, React 19 and TypeScript application with
 SQLite and local media storage; the Docker and Compose set-up (`Dockerfile`, `compose.yaml`);
@@ -44,8 +44,9 @@ deliberately not in the repository ([Open and run](HANDOVER.md#open-and-run)).
 `ghcr.io/omargad/bangla-adventure:sha-COMMIT` once its container test passes, and tags that
 same image `latest` once every check has passed; nothing is rebuilt between testing and
 deployment ([Automatic deployment](DEPLOYMENT.md#automatic-deployment)). Image names follow the
-current repository owner, so the name changes if the repository moves to another GitHub owner
-([First release](VPS_DEPLOYMENT.md#first-release)). The same `Dockerfile` runs on other
+current repository owner, so the name changes if the repository moves to another GitHub owner;
+[Repository transfer](REPOSITORY_TRANSFER.md#container-images) covers the new package and the
+copy of the private staging image. The same `Dockerfile` runs on other
 container hosts that provide a persistent local disk, one running copy and HTTPS
 ([Other container hosts](DEPLOYMENT.md#other-container-hosts)).
 
@@ -74,6 +75,7 @@ Documents a maintainer or operator needs, in the order they are usually read.
 | [Source handover](HANDOVER.md) | Opening and running the source, deployment ownership, administrator and role handover, verification evidence, backups and release contents |
 | [Deployment guide](DEPLOYMENT.md) | Installing the custom application: prerequisites, release builds, the native service and container options, other container hosts, automatic deployment, the first administrator and recovery, backups, upgrade and rollback, and Bangla audio |
 | [VPS deployment](VPS_DEPLOYMENT.md) | The prepared settings for the client's VPS: server address secrets, settings to complete, the narration key, the first release and the going-live steps |
+| [Repository transfer](REPOSITORY_TRANSFER.md) | Moving the repository to the client's GitHub organisation: permissions and organisation settings, the settings to note and check, the container images, Railway and local clones |
 | [CI/CD systems](CI_CD.md) | Running the same checks, image publishing and deployment on GitHub Actions, which runs on every push today, or on nine other CI/CD systems from the same shared scripts |
 | [Production operations](PRODUCTION_OPERATIONS.md) | The scheduled backup, monitor, encrypted off-site copy and daily status alert for production, installed at go-live; restoring, stale locks and failure codes |
 | [Backup and restore](BACKUP_RESTORE.md) | Creating and verifying database and media backups, restore drills into a new directory, restoring into the Compose deployment, and encrypted off-server copies |
@@ -164,7 +166,7 @@ access and the domain are ready ([CI/CD systems](CI_CD.md#how-every-pipeline-beh
 | First administrator | The agreed person creates an account at `/grown-ups` and keeps the recovery codes; in the deployment directory the operator runs `docker compose exec app npm run admin:grant -- EMAIL`; that person signs in again at `/grown-ups?returnTo=/admin&switchAccount=1`. | [Going live](VPS_DEPLOYMENT.md#going-live), step 10; [Administrator and role handover](HANDOVER.md#administrator-and-role-handover) |
 | Backup destination and retention | The client agrees the off-site destination and its cost, the schedule and retention, and who holds the backup repository's password. The off-site copy stays inert until it is configured, and remote retention stays off until a policy is agreed (proposed: 14 daily, 8 weekly and 6 monthly copies). The 14 local archives kept on the server are a technical default, not agreed retention. A recovery exercise and a rollback exercise follow in an agreed window. | [Going live](VPS_DEPLOYMENT.md#going-live), step 11; [Off-site copies](PRODUCTION_OPERATIONS.md#off-site-copies); [Backups and release contents](HANDOVER.md#backups-and-release-contents) |
 | ElevenLabs key | Optional. The client buys an ElevenLabs plan or obtains nonprofit credits, creates the API key and passes it privately to the repository owner, who adds it as the `ELEVENLABS_API_KEY` secret of the `production` environment; or the server administrator writes it into the server `.env`. Until then the site works with its existing recorded audio. Confirm the spending limit, key rotation owner and persistent audio storage before enabling it. | [Narration key](VPS_DEPLOYMENT.md#narration-key); [Deployment and ownership](HANDOVER.md#deployment-and-ownership) |
-| GitHub organisation and repository transfer | The client confirms the destination GitHub organisation or repository and its permissions for Actions and Packages. The pipeline does not transfer repository ownership. While the repository belongs to the personal account `omargad`, only that account can add Actions secrets; after the move, an administrator of the client's organisation does it. | [First release](VPS_DEPLOYMENT.md#first-release), step 1; [Narration key](VPS_DEPLOYMENT.md#narration-key) |
+| GitHub organisation and repository transfer | The client confirms the destination GitHub organisation or repository and its permissions for Actions and Packages. The pipeline does not transfer repository ownership; the workflows need no change for the move. While the repository belongs to the personal account `omargad`, only that account can add Actions secrets; after the move, an administrator of the client's organisation does it. | [Repository transfer](REPOSITORY_TRANSFER.md); [First release](VPS_DEPLOYMENT.md#first-release), step 1; [Narration key](VPS_DEPLOYMENT.md#narration-key) |
 
 The same documents also list these decisions for the client: whether the new site starts
 empty or receives approved existing data; whether the client wants to approve each release

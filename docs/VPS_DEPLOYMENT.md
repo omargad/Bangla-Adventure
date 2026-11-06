@@ -148,7 +148,8 @@ environment secret, or `gh secret set ELEVENLABS_API_KEY --env production`,
 which asks for the value with hidden input and works in PowerShell too. Paste
 the key alone, on one line. The client rotates the key in their ElevenLabs
 account after handover, and the new key replaces the secret the same way. Once
-the repository moves to the client's organisation, an administrator there adds
+the repository moves to the client's organisation
+([Repository transfer](REPOSITORY_TRANSFER.md)), an administrator there adds
 or replaces it instead.
 
 To keep the key from passing through anyone else, the server administrator can
@@ -181,9 +182,13 @@ Private staging deliberately never receives the key:
 
 Before the domain is confirmed:
 
-1. Confirm the destination GitHub organization/repository and permissions for
-   Actions and Packages. Image names follow the current repository owner; the
-   pipeline does not transfer repository ownership.
+1. Confirm the destination GitHub organisation and its permissions for Actions
+   and Packages, then move the repository with
+   [Repository transfer](REPOSITORY_TRANSFER.md). The workflows need no change:
+   the VPS workflows recognise the repository by its ID, which the transfer
+   keeps, and image names follow the current repository owner. Check the
+   `production` and `production-status` environments, copy the private staging
+   image and relink the Railway demo as that checklist describes.
 2. Confirm the VPS is `linux/amd64`, has Compose 2.17 or later, and has sufficient
    disk and memory. Verify the rootless service persists after logout/reboot and
    that the supplied socket belongs to the deployment user's daemon.
@@ -330,3 +335,4 @@ through the same daemon before accepting the first release.
 - [GitHub Actions secrets](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets)
 - [OpenSSH host-key collection and verification](https://man.openbsd.org/ssh-keyscan)
 - [General deployment and manual recovery](DEPLOYMENT.md)
+- [Moving the repository to the client's organisation](REPOSITORY_TRANSFER.md)

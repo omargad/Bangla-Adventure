@@ -118,6 +118,30 @@ class CheckTests(unittest.TestCase):
             with self.assertRaises(ValueError): checker.evaluate(item)
 
 
+class ReleaseImageTests(unittest.TestCase):
+    DIGEST = 'sha256:5f9ac5508771eb97c6b1e4aa4bff8db0fe69569b1f00b08a2e0e02e263d93f13'
+
+    def test_default_is_the_original_package_and_the_digest_is_fixed(self):
+        self.assertEqual(ops.IMAGE, 'ghcr.io/omargad/bangla-adventure@' + self.DIGEST)
+        self.assertEqual(ops.IMAGE_DIGEST, self.DIGEST)
+        self.assertEqual(ops.REVISION, 'a709cb3d2bc9fb0a271e6814bc96d1f16444c94f')
+
+    def test_the_stage_release_names_the_registry_path_of_the_reviewed_digest(self):
+        # The original package, or a byte-identical copy under the repository's new owner.
+        for image in ['ghcr.io/omargad/bangla-adventure@' + self.DIGEST, 'ghcr.io/client-org/bangla-adventure@' + self.DIGEST]:
+            self.assertEqual(ops.release_image({'image': image}), image)
+
+    def test_another_digest_package_registry_or_case_is_refused(self):
+        for image in ['ghcr.io/omargad/bangla-adventure@sha256:' + '0' * 64, 'ghcr.io/client-org/other@' + self.DIGEST,
+                      'docker.io/client-org/bangla-adventure@' + self.DIGEST, 'ghcr.io/Client-Org/bangla-adventure@' + self.DIGEST,
+                      'ghcr.io/client-org/bangla-adventure:latest', None, 7]:
+            with self.assertRaises(ops.Refused) as raised:
+                ops.release_image({'image': image})
+            self.assertEqual(raised.exception.code, 'image-pin')
+        with self.assertRaises(ops.Refused):
+            ops.release_image({})
+
+
 class RecoveryTests(unittest.TestCase):
     def setUp(self):
         self.events = []

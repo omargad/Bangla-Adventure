@@ -2,8 +2,10 @@ name: CI
 
 # Every job runs one of the shared scripts in scripts/ci, which GitLab (.gitlab-ci.yml) and
 # Jenkins (Jenkinsfile) run too. On the default branch the tested image is published to
-# ghcr.io/<owner>/<repository> and, once the server is configured, deployed to it
-# (docs/DEPLOYMENT.md "Automatic deployment").
+# ghcr.io/<owner>/bangla-adventure, the owner being whichever account holds this repository (lowercased,
+# as GHCR requires), and, once the server is configured, deployed to it (docs/DEPLOYMENT.md "Automatic
+# deployment"). After a transfer the image therefore moves to the new owner's package with no edit here
+# (docs/REPOSITORY_TRANSFER.md).
 
 on:
   push:
@@ -56,7 +58,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - id: name
-        run: echo "image=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+        run: echo "image=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/bangla-adventure" >> "$GITHUB_OUTPUT"
       - name: Build the production image and run the container smoke test
         env:
           IMAGE_SOURCE: ${{ github.server_url }}/${{ github.repository }}

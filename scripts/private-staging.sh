@@ -7,7 +7,9 @@ fail() { printf 'private staging: %s\n' "$*" >&2; exit 1; }
 [ "$#" -eq 0 ] || fail 'This pinned staging controller accepts no arguments.'
 [ "${DEPLOY_ENABLED:-false}" = false ] || fail 'The production deployment gate must remain disabled.'
 [ "${REPOSITORY_GATE_CONFIRMED:-}" = disabled ] || fail 'The repository-context gate must complete before loading production credentials.'
-[ "${GITHUB_REPOSITORY:-}" = omargad/Bangla-Adventure ] && [ "${GITHUB_REF:-}" = refs/heads/main ] || fail 'Private staging runs only from the audited repository main branch.'
+# The production repository is recognised by its numeric ID, which a transfer or rename keeps; only a
+# re-created repository sets PRODUCTION_REPOSITORY_ID (docs/REPOSITORY_TRANSFER.md).
+[ -n "${GITHUB_REPOSITORY_ID:-}" ] && [ "$GITHUB_REPOSITORY_ID" = "${PRODUCTION_REPOSITORY_ID:-1436643374}" ] && [ "${GITHUB_REF:-}" = refs/heads/main ] || fail 'Private staging runs only from the audited repository main branch.'
 # The address and account come from repository or production environment secrets; the host-key pin below proves identity.
 [[ "${DEPLOY_HOST:-}" =~ ^[a-zA-Z0-9][a-zA-Z0-9.:-]*$ ]] || fail 'The DEPLOY_HOST secret is missing or invalid (set it as a repository secret or a production environment secret, named exactly DEPLOY_HOST).'
 [[ "${DEPLOY_USER:-}" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]] || fail 'The DEPLOY_USER secret is missing or invalid (set it as a repository secret or a production environment secret, named exactly DEPLOY_USER).'
@@ -21,7 +23,12 @@ readonly host="$DEPLOY_HOST" user="$DEPLOY_USER" port=22
 readonly host_alias=bangla-adventures-vps
 readonly key_pin='SHA256:y1+C6cvcfpJFmO8pfjyMSFERpd5BtcQyDf5SptZXVlQ'
 readonly host_pin='SHA256:79xe+ubCodL2ACAHPNloo7I/K6mvngU88vEiFoEeWL8'
-readonly image='ghcr.io/omargad/bangla-adventure@sha256:5f9ac5508771eb97c6b1e4aa4bff8db0fe69569b1f00b08a2e0e02e263d93f13'
+# The reviewed digest and revision never change. Only the registry path may: the repository variable
+# STAGING_IMAGE_REPOSITORY names a byte-identical copy, such as one under the repository's new owner
+# after a transfer (docs/REPOSITORY_TRANSFER.md). Unset, the original package is used.
+readonly image_repository="${STAGING_IMAGE_REPOSITORY:-ghcr.io/omargad/bangla-adventure}"
+[[ "$image_repository" =~ ^ghcr\.io/[a-z0-9]+(-[a-z0-9]+)*/bangla-adventure$ ]] || fail 'STAGING_IMAGE_REPOSITORY must be ghcr.io/<lowercase owner>/bangla-adventure.'
+readonly image="$image_repository@sha256:5f9ac5508771eb97c6b1e4aa4bff8db0fe69569b1f00b08a2e0e02e263d93f13"
 readonly revision=a709cb3d2bc9fb0a271e6814bc96d1f16444c94f
 readonly socket=/opt/bangla-adventures/private-staging/runtime/http.sock
 readonly origin=http://127.0.0.1:3001
