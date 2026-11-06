@@ -31,8 +31,10 @@ test('both production workflows are gated on an enabled production deployment on
   assert.deepEqual([].concat(ops.jobs.operate.needs), ['validate']);
   assert.match(status.on.schedule[0].cron, /^([1-9]|[1-5][0-9]) /, 'the schedule avoids minute 0');
   assert.ok('workflow_dispatch' in status.on);
-  // The daily alert never waits for a deploy approval, so it has its own environment.
+  // The daily alert never waits for a deploy approval, so it has its own environment, and with it
+  // its own status key that the server limits to status: it never sees the deploy key.
   assert.equal(status.jobs.status.environment, 'production-status');
+  assert.doesNotMatch(read('.github/workflows/vps-production-status.yml'), /secrets\.DEPLOY_SSH_KEY/);
   for (const [file, job] of [['ops', ops.jobs.validate], ['ops', ops.jobs.operate], ['status', status.jobs.status]]) {
     for (const gate of ["vars.DEPLOY_ENABLED == 'true'", "github.ref == 'refs/heads/main'", "github.repository == 'omargad/Bangla-Adventure'"]) {
       assert.ok(job.if.includes(gate), `${file}: ${gate}`);
@@ -40,12 +42,19 @@ test('both production workflows are gated on an enabled production deployment on
   }
   for (const job of [ops.jobs.validate, ops.jobs.operate]) assert.ok(job.if.includes('inputs.confirm == true'));
   for (const document of [ops, status]) assert.deepEqual(document.permissions, { contents: 'read' });
-  for (const [job, command] of [[ops.jobs.operate, 'bash scripts/production-ops-controller.sh "$OPERATION"'], [status.jobs.status, 'bash scripts/production-ops-controller.sh status']]) {
+  for (const [job, command] of [[ops.jobs.operate, 'bash scripts/production-ops-controller.sh "$OPERATION"'], [status.jobs.status, 'bash scripts/production-ops-controller.sh scheduled-status']]) {
     const step = job.steps.find((item) => item.env?.DEPLOY_HOST);
     assert.equal(step.run, command);
     assert.equal(step.env.DEPLOY_HOST, '${{ secrets.DEPLOY_HOST }}');
     assert.equal(step.env.DEPLOY_USER, '${{ secrets.DEPLOY_USER }}');
-    assert.equal(step.env.DEPLOY_SSH_KEY, '${{ secrets.DEPLOY_SSH_KEY }}');
+    if (job === ops.jobs.operate) {
+      assert.equal(step.env.DEPLOY_SSH_KEY, '${{ secrets.DEPLOY_SSH_KEY }}');
+      assert.equal(step.env.STATUS_SSH_KEY, undefined);
+    } else {
+      assert.equal(step.env.DEPLOY_SSH_KEY, undefined);
+      assert.equal(step.env.STATUS_SSH_KEY, '${{ secrets.STATUS_SSH_KEY }}');
+      assert.equal(step.env.STATUS_KEY_FINGERPRINT, '${{ vars.STATUS_KEY_FINGERPRINT }}');
+    }
     assert.equal(step.env.DEPLOY_KNOWN_HOSTS, '${{ vars.DEPLOY_KNOWN_HOSTS }}');
     assert.equal(step.env.DEPLOY_ENABLED, '${{ vars.DEPLOY_ENABLED }}');
     for (const name of ['DEPLOY_HOST_FINGERPRINT', 'DEPLOY_KEY_FINGERPRINT', 'DEPLOY_PORT', 'DEPLOY_PATH', 'DEPLOY_DOCKER_HOST', 'DEPLOY_DOCKER_CONTEXT']) {
@@ -69,7 +78,7 @@ function keys(folder) {
     const fingerprint = spawnSync('ssh-keygen', ['-l', '-E', 'sha256', '-f', file + '.pub'], { encoding: 'utf8' }).stdout.split(' ')[1];
     return { file, fingerprint, public: readFileSync(file + '.pub', 'utf8').trim() };
   };
-  return { deploy: make('deploy'), host: make('host'), other: make('other') };
+  return { deploy: make('deploy'), host: make('host'), other: make('other'), status: make('status') };
 }
 
 const stub = String.raw`#!/usr/bin/env node
@@ -136,7 +145,7 @@ test('the controller verifies the pinned keys before SSH, prints no address and 
 
     for (const [env, message] of [
       [{ DEPLOY_ENABLED: 'false' }, /not enabled/], [{ GITHUB_REF: 'refs/heads/feature' }, /main branch/],
-      [{ DEPLOY_KEY_FINGERPRINT: pair.other.fingerprint }, /deploy key fingerprint/],
+      [{ DEPLOY_KEY_FINGERPRINT: pair.other.fingerprint }, /key fingerprint does not match DEPLOY_KEY_FINGERPRINT/],
       [{ DEPLOY_KNOWN_HOSTS: `vps.example.test ${pair.other.public}` }, /known_hosts fingerprint/],
       [{ DEPLOY_KNOWN_HOSTS: `vps.example.test ${pair.host.public}\nvps.example.test ${pair.other.public}` }, /known_hosts fingerprint/],
       [{ DEPLOY_KNOWN_HOSTS: `@cert-authority vps.example.test ${pair.host.public}` }, /markers/],
@@ -148,6 +157,39 @@ test('the controller verifies the pinned keys before SSH, prints no address and 
       assert.equal(refused.status, 1, JSON.stringify(env));
       assert.match(refused.output, message);
       assert.equal(refused.calls.length, 0, 'nothing reaches SSH before the pins pass');
+    }
+
+    // The daily alert: its own key, checked against its own pin; the deploy key must not reach it.
+    const statusKey = { DEPLOY_SSH_KEY: '', STATUS_SSH_KEY: readFileSync(pair.status.file, 'utf8'), STATUS_KEY_FINGERPRINT: pair.status.fingerprint };
+    const scheduled = run('scheduled-status', statusKey);
+    assert.equal(scheduled.status, 0, scheduled.output);
+    assert.match(scheduled.output, /status: healthy/);
+    assert.equal(scheduled.calls.length, 1);
+    assert.match(scheduled.calls[0].args.at(-1), /production-ops\.sh status$/);
+    for (const [env, message] of [
+      [{ DEPLOY_SSH_KEY: base.DEPLOY_SSH_KEY }, /must not receive the DEPLOY_SSH_KEY/],
+      [{ STATUS_SSH_KEY: '' }, /STATUS_SSH_KEY secret is missing/],
+      [{ STATUS_KEY_FINGERPRINT: '' }, /STATUS_KEY_FINGERPRINT variable/],
+      [{ STATUS_KEY_FINGERPRINT: pair.deploy.fingerprint }, /must not be the deploy key/],
+      [{ STATUS_KEY_FINGERPRINT: pair.other.fingerprint }, /key fingerprint does not match STATUS_KEY_FINGERPRINT/],
+      [{ STATUS_SSH_KEY: readFileSync(pair.deploy.file, 'utf8'), STATUS_KEY_FINGERPRINT: pair.deploy.fingerprint }, /must not be the deploy key/],
+    ]) {
+      const refused = run('scheduled-status', { ...statusKey, ...env });
+      assert.equal(refused.status, 1, JSON.stringify(env));
+      assert.match(refused.output, message);
+      assert.equal(refused.calls.length, 0, 'nothing reaches SSH before the status key passes');
+    }
+    // The ordinary actions still need the deploy key.
+    assert.match(run('status', { DEPLOY_SSH_KEY: '', STATUS_SSH_KEY: statusKey.STATUS_SSH_KEY }).output, /DEPLOY_SSH_KEY secret is missing/);
+
+    // A failed installation claims restoration only when the installer reports it.
+    for (const [rollback, message] of [['complete', /previous jobs and files were restored/], ['none', /before anything on the server was changed/],
+      ['incomplete', /deployment held the lock/], ['failed', /rollback did not finish/], [undefined, /no usable result/]]) {
+      const result = { scope: 'production-operations', action: 'install', verified: false, status: 'failed', codes: ['initial-backup-deferred'], rollback };
+      const failed = run('install', { STUB_RESULT: rollback === undefined ? 'not json' : JSON.stringify(result), STUB_EXIT: '1' });
+      assert.equal(failed.status, 1, failed.output);
+      assert.match(failed.output, message, String(rollback));
+      if (rollback !== 'complete') assert.doesNotMatch(failed.output, /were restored/);
     }
 
     const installed = run('install', { STUB_RESULT: JSON.stringify({ scope: 'production-operations', action: 'install', verified: true, status: 'passed', codes: [],

@@ -33,7 +33,7 @@ against their installation record and report `installation-invalid`.
 The backup stops only the app container: the site answers `502` from Nginx
 until the app is serving again. In the local end-to-end check that took
 **3.4 seconds** from stopping the app to its first healthy answer. It grows with
-the amount of uploaded media. Each run records its own figure as
+the amount of uploaded media: with 300 MB of media it was about 16 seconds. Each run records its own figure as
 `measures.downtimeSeconds` in `last-backup.json`. The whole run, including
 waiting for Docker to report the restarted container healthy, took 8 seconds.
 
@@ -95,8 +95,21 @@ The installation:
    does not count;
 5. only then enables the three timers.
 
-Any failure puts the previous files, record and timer states back and fails the
-run with fixed codes. Run `install` again whenever these tools or units change.
+Any failure fails the run with fixed codes and a `rollback` state, and the
+workflow's message follows that state:
+
+| `rollback` | Meaning |
+| --- | --- |
+| `none` | The installer stopped before changing anything |
+| `complete` | The previous files, record and timer states are back |
+| `incomplete` | A deploy still held the lock after 20 minutes: the new files stayed, and the earlier timer states were restored (code `rollback-incomplete`); run `install` again after the deploy |
+| `failed` | The rollback itself failed (code `rollback-failed`); check the timers on the server |
+
+A rollback after the initial runs waits up to 20 minutes for the deploy lock,
+because a deploy that starts during those runs, and so defers one of them
+(`initial-backup-deferred`), holds it. Once a rollback has started, a dropped
+connection or cancelled run no longer interrupts it. Run `install` again
+whenever these tools or units change.
 The same workflow also offers `status`, and `backup-now`, which starts the
 installed backup service and waits for its result (the service carries on if
 the connection drops).
@@ -125,7 +138,16 @@ Each run:
    `/api/health` on the loopback port, then for Docker's own health check to
    report it healthy, so the next monitor run never sees a container that is
    still `starting`;
-8. confirms the new `.latest-backup.json` receipt names the archive just made.
+8. if the backup helper had to be killed (a timeout or a stop request), removes
+   the lock and staging copy it left in `backups/` (see
+   [A stale backup lock](#a-stale-backup-lock)), once the app is serving again
+   and still under the deploy lock;
+9. confirms the new `.latest-backup.json` receipt names the archive just made.
+
+A stop request (`systemctl --user stop`, a shutdown, or the unit's own time
+limit) interrupts the running Docker command at once; the job then recovers as
+above before it exits. Later stop requests wait for that recovery. The unit
+allows six minutes for it before systemd kills the job.
 
 A failed backup or a failed restart exits non-zero and records its codes, for
 example `backup-failed` or `resume-failed` (both appear when both happen). A deploy
@@ -134,9 +156,11 @@ run it again a minute later.
 
 ## The monitor
 
-The monitor never holds the deploy lock, so it can never make a deploy fail. It
-only looks at it: when a deploy or backup is running, or starts during the
-checks, the run is deferred (exit `75`) instead of reporting a stopped app.
+The monitor never takes the deploy lock, so it can never make a deploy fail. It
+reads the kernel's lock table (`/proc/locks`) for a lock on `.deploy.lock`:
+when a deploy or backup is running, or starts during the checks, the run is
+deferred (exit `75`) instead of reporting a stopped app. If that table cannot be
+read the run fails with `lock-state-unreadable`.
 
 | Check | Failure code |
 | --- | --- |
@@ -249,9 +273,15 @@ restic_options=(--rm --env-file "$HOME/.config/bangla-adventures/offsite.env"
   --env RESTIC_PASSWORD_FILE=/run/secrets/restic-password
   --mount "type=bind,source=$HOME/.config/bangla-adventures/restic-password,target=/run/secrets/restic-password,readonly"
   --entrypoint /usr/bin/restic)
+# For a gs: repository only: the service-account key, as the job mounts it.
+restic_options+=(--mount "type=bind,source=$HOME/.config/bangla-adventures/gcs-key.json,target=/run/secrets/gcs-key.json,readonly"
+  --env GOOGLE_APPLICATION_CREDENTIALS=/run/secrets/gcs-key.json)
 restic_image=restic/restic:0.19.1@sha256:136600b6ff6843d61d355f7f71f460a166429f35de6fd11b568fece3c9a4d510
 docker --host unix:///run/user/1002/docker.sock run "${restic_options[@]}" "$restic_image" init
 ```
+
+Leave out the `gs:` lines for any other repository: `gcs-key.json` exists only
+for Google Cloud Storage.
 
 Then make the first copy and check it:
 
@@ -278,8 +308,12 @@ restic forget --tag bangla-adventures --host bangla-adventures-production --grou
 
 Each copy has a different file name, so restic's default grouping by path would
 keep every copy; grouping by the fixed host and tag applies the policy to all of
-them. Until there are more copies than the policy keeps, restic also keeps the
-oldest copy ("oldest daily snapshot"), so the first copy stays for a while.
+them. The copy is recorded as a success before retention starts, so a retention
+run that fails, times out (`offsite-retention-timeout`) or is stopped keeps the
+copy's `lastSuccessEpoch`. The whole run, retention included, stays within
+3 hours 45 minutes, inside the unit's 4-hour limit. Until there are more copies
+than the policy keeps, restic also keeps the oldest copy ("oldest daily
+snapshot"), so the first copy stays for a while.
 Setting only some of the three, or a zero, is refused
 (`offsite-retention-invalid`) before anything is sent.
 
@@ -301,7 +335,8 @@ journalctl --user -u ba-production-backup -u ba-production-monitor -u ba-product
 `status` exits non-zero when anything is failing or stale. Its fixed fields are
 `status` (`healthy` or `failed`), `codes`, `installed`, one part each for
 `backup`, `monitor` and `offsite` (each with `status`, `checkedAtEpoch`,
-`ageSeconds` and that job's own `codes`), `timers` and `lingering`. Its codes:
+`ageSeconds` and that job's own `codes`), `timers`, `servicesFailed` and
+`lingering`. Its codes:
 
 | Code | Meaning |
 | --- | --- |
@@ -309,6 +344,7 @@ journalctl --user -u ba-production-backup -u ba-production-monitor -u ba-product
 | `monitor-report-missing`, `-failed`, `-stale` | No monitor result, the last check failed, or none ran for 20 minutes |
 | `offsite-report-missing`, `-failed`, `-stale` | With off-site configured: no copy yet, the last copy failed, or none for 48 hours |
 | `timer-inactive-backup`, `-monitor`, `-offsite` | A timer is not enabled and active |
+| `service-failed-backup`, `-monitor`, `-offsite` | systemd lists the job's last run as failed, including a run it killed, which records no result of its own. A later good run clears it; so does `systemctl --user reset-failed` |
 | `user-linger-disabled` | The timers stop when the deployment user logs out |
 | `installation-invalid` | Installed tools or units differ from the installation record |
 
@@ -318,19 +354,48 @@ keeps its previous `lastSuccessEpoch`.
 ## Alerting
 
 `.github/workflows/vps-production-status.yml` runs daily at 19:41 UTC (and on
-demand), only when `DEPLOY_ENABLED` is `true`. It connects the same way as the
-deploy, runs `status` and fails when status fails; GitHub then emails the owner
-of the schedule (the person who last changed its `cron` line). It changes
-nothing on the server.
+demand), only when `DEPLOY_ENABLED` is `true`. It checks the host key against
+the same pin as the deploy, runs `status` and fails when status fails; GitHub
+then emails the owner of the schedule (the person who last changed its `cron`
+line). It changes nothing on the server.
 
-It uses its own GitHub environment, `production-status`, so the daily check
-never waits for a deploy reviewer. Create it once in **Settings >
-Environments**: no required reviewers, deployment branches limited to `main`,
-and the same `DEPLOY_SSH_KEY` secret (plus `DEPLOY_KNOWN_HOSTS` if that is a
-`production` environment variable rather than a repository variable).
-Repository secrets and variables, such as `DEPLOY_HOST` and `DEPLOY_USER`, are
-available to it already. Until it has the key, the run fails with
-"the DEPLOY_SSH_KEY secret is missing".
+It runs in its own GitHub environment, `production-status`, with no required
+reviewers, so the daily check never waits for a deploy approval. For that
+reason it never receives the deploy key, which can do anything the deployment
+user can. It uses a **status key** instead, which the server allows to run only
+`status`:
+
+1. Create the environment before setting `DEPLOY_ENABLED=true` (go-live step 7),
+   in **Settings > Environments > New environment**, named
+   `production-status`: no required reviewers, and under **Deployment
+   branches and tags** choose **Selected branches and tags** and allow only
+   `main`. If a scheduled run has already created it, it has no rules yet: add
+   them before anything else. Never add `DEPLOY_SSH_KEY` to it.
+2. Make the key pair on your own computer, not the server:
+   `ssh-keygen -t ed25519 -N '' -C bangla-adventures-status -f status_key`.
+3. As the deployment user on the server, add one line to
+   `~/.ssh/authorized_keys`: the forced command, then the public key from
+   `status_key.pub`:
+
+   ```text
+   restrict,command="bash /opt/bangla-adventures/ops/tools/production-ops.sh status" ssh-ed25519 AAAA... bangla-adventures-status
+   ```
+
+   Whatever a connection with this key asks for, the server runs only that
+   status command, with no terminal or forwarding.
+4. In GitHub, add the private key (`status_key`) as the `production-status`
+   environment secret `STATUS_SSH_KEY`, and its fingerprint
+   (`ssh-keygen -lf status_key.pub`, the `SHA256:...` part) as the variable
+   `STATUS_KEY_FINGERPRINT`. Then delete the local private key.
+
+The workflow refuses a status key with the deploy key's fingerprint, and refuses
+to run if the deploy key reaches it. The `DEPLOY_HOST`, `DEPLOY_USER` and host
+key settings come from the repository as for the deploy (add
+`DEPLOY_KNOWN_HOSTS` to this environment too if it is a `production`
+environment variable rather than a repository variable). Until the key is set,
+the run fails with "the STATUS_SSH_KEY secret is missing". Should the status key
+leak, it shows only the fixed status fields; remove its line from
+`authorized_keys` and make a new one.
 
 GitHub disables scheduled workflows in a public repository after 60 days
 without commits, and emails a warning first; re-enable it from the Actions tab.
@@ -363,6 +428,29 @@ docker --host unix:///run/user/1002/docker.sock run "${restic_options[@]}" \
 Then continue with the restore guide from step 2, choosing that archive. Pause
 the timers first, as above: a backup run keeps only the newest 14 archives.
 
+## A stale backup lock
+
+`backup_restore.py` marks a running backup with `backups/.bangla-backup.lock`
+and stages its copy in `backups/.bangla-snapshot-*`. A backup that is killed
+leaves both behind, and then every later backup, including the deploy's own
+before each release, fails with "Backup lock exists". When the scheduled job
+had to kill its own helper it removes them itself (`stale-backup-lock-cleared`).
+If that clean-up fails (`stale-backup-lock`), or a backup was killed some other
+way, remove them by hand. First make sure no backup or deploy is running: the
+deploy lock must be free. `backups/` belongs to the container user, so the
+removal runs in a container, under the same lock:
+
+```sh
+cd /opt/bangla-adventures
+export DOCKER_HOST=unix:///run/user/1002/docker.sock
+image="$(sed -n 's/^APP_IMAGE=//p' .env)"
+flock -n .deploy.lock docker run --rm --network none --user 1000:1000 \
+  --mount type=bind,source=/opt/bangla-adventures/backups,target=/backups \
+  --entrypoint sh "$image" -c 'rm -rf -- /backups/.bangla-backup.lock /backups/.bangla-snapshot-*'
+```
+
+`flock -n` refuses to run while a deploy or backup holds the lock.
+
 ## Failure codes
 
 Every job writes fixed codes, never raw command output. Besides the check codes
@@ -371,17 +459,45 @@ above:
 | Code | Meaning |
 | --- | --- |
 | `transaction-busy` | A deploy or backup holds the lock; the run was deferred (exit `75`) |
+| `interrupted` | A stop request ended the run (`systemctl --user stop`, a shutdown, the unit's time limit, or a dropped connection during `install`); a backup started the app again first |
+| `command-failed` | A Docker or systemd command failed, most often because the rootless Docker daemon is down or unreachable: `systemctl --user status docker` |
+| `command-unavailable-or-timeout` | A command is missing or ran past its time limit |
+| `operation-failed`, `install-failed` | An unexpected error; the journal (`journalctl --user -u 'ba-production-*'`) has the time it happened |
 | `app-unhealthy-before-backup` | The app was not serving, so the backup did not stop it |
 | `app-stop-failed`, `writers-not-stopped`, `source-still-in-use` | The app could not be stopped cleanly; it was started again |
 | `backup-failed`, `backup-timeout`, `backup-unverified` | The backup command failed or took over 30 minutes, or its receipt did not match |
+| `stale-backup-lock-cleared` | A killed backup helper left its lock behind and the job removed it; later backups and deploys can run |
+| `stale-backup-lock` | That lock could not be removed: remove it by hand ([A stale backup lock](#a-stale-backup-lock)) before the next deploy |
 | `resume-failed` | The app did not answer healthy within three minutes of the restart: act now |
-| `helper-cleanup-failed` | A backup helper container could not be removed |
+| `helper-cleanup-failed`, `helper-id`, `helper-identity`, `helper-name-exists` | A helper container could not be identified or removed: `docker ps --all --filter label=io.bangla.scope=production-operations` |
+| `backup-directory-initialization`, `unsafe-backup-directory` | `backups/` could not be prepared, or is not a folder |
 | `backup-receipt-unreadable` | The receipt could not be read through a container |
 | `offsite-file-insecure`, `offsite-file-missing`, `offsite-settings-invalid` | The off-site files are unsafe, missing or contain unsupported names |
 | `offsite-backend-unsupported`, `offsite-retention-invalid` | Unsupported repository, or incomplete retention settings |
 | `offsite-repository-missing`, `offsite-password-wrong`, `offsite-repository-locked` | restic exit codes 10, 12 and 11 |
-| `offsite-copy-failed`, `offsite-unverified`, `offsite-retention-failed` | The copy, its snapshot check or the retention run failed |
+| `offsite-copy-failed`, `offsite-unverified`, `offsite-retention-failed`, `offsite-retention-timeout` | The copy, its snapshot check or the retention run failed; after a retention failure the copy still counts |
+| `lock-state-unreadable` | The monitor could not read `/proc/locks` |
 | `wrong-user`, `unsafe-deployment-directory`, `deployment-missing`, `rootless-socket`, `non-rootless-daemon`, `settings-invalid`, `app-image-missing`, `public-origin-invalid` | The server is not in the expected state |
+| `missing-directory`, `unsafe-directory`, `missing-file`, `unsafe-file`, `lock-owner` | A file or folder the jobs use is missing, or not a plain file or `0700` folder owned by the deployment user (for example `ops/`, `.env` or a result file) |
+| `installation-invalid` | The installed tools or units differ from the installation record: run `install` again |
+| `container-id`, `ambiguous-resource`, `oversize-command-result` | Docker answered in an unexpected form |
+| `invalid-action`, `invalid-override` | The tool was run with an unknown action or an invalid `PRODUCTION_OPS_*` value |
+
+The installer adds these:
+
+| Code | Meaning |
+| --- | --- |
+| `initial-backup-deferred`, `-failed` | The first backup was deferred by a deploy that started meanwhile, or failed; its own codes follow |
+| `initial-offsite-deferred`, `-failed` | The same for the first off-site copy |
+| `initial-monitor-deferred`, `-failed` | The same for the first monitor run |
+| `initial-operations-check` | A first run exited `0` without a fresh, passing result |
+| `timer-not-enabled` | A timer did not start |
+| `rollback-incomplete`, `rollback-failed` | See the `rollback` states under [Switching it on](#switching-it-on) |
+| `app-unhealthy-before-install`, `user-linger-disabled` | Not installed: the app was not healthy, or the account does not linger |
+| `unsafe-unit-directory-PART-PROBLEM` | A folder on the way to `~/.config/systemd/user` is unsafe, for example `unsafe-unit-directory-config-writable` |
+| `user-unit-path`, `loaded-unit-path`, `unit-marker`, `unmanaged-file` | The unit folder or a unit file is not the one this installer manages |
+| `user-runtime`, `user-bus` | The account's user manager is not running (it lingers, but has not started yet) |
+| `payload-path`, `invalid-install-arguments`, `overrides-not-allowed` | The installer was not started by the workflow's upload |
 
 ## Local testing
 

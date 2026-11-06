@@ -1,19 +1,20 @@
 #!/usr/bin/env bash
 # Runs one production operation on the VPS for the vps-production-ops and vps-production-status
-# workflows: install (or update) the user timers and prove them, status, or backup-now.
+# workflows: install (or update) the user timers and prove them, status, or backup-now with the
+# deploy key, or scheduled-status with the status key, which the server limits to status.
 #
-#   bash scripts/production-ops-controller.sh install|status|backup-now
+#   bash scripts/production-ops-controller.sh install|status|backup-now|scheduled-status
 #
 # The server address and account come from the DEPLOY_HOST and DEPLOY_USER secrets and are never
-# printed. The deploy key and the server host key are checked against the same pins, in the same
-# way, as scripts/deploy.sh before any connection. Only fixed status fields and codes are printed.
+# printed. The key and the server host key are checked against their pins, in the same way as
+# scripts/deploy.sh, before any connection. Only fixed status fields and codes are printed.
 set -euo pipefail
 set +x
 umask 077
 fail() { printf 'production operations: %s\n' "$*" >&2; exit 1; }
-[ "$#" -eq 1 ] || fail 'usage: production-ops-controller.sh install|status|backup-now'
+[ "$#" -eq 1 ] || fail 'usage: production-ops-controller.sh install|status|backup-now|scheduled-status'
 action="$1"
-case "$action" in install|status|backup-now) ;; *) fail 'the action must be install, status or backup-now.' ;; esac
+case "$action" in install|status|backup-now|scheduled-status) ;; *) fail 'the action must be install, status, backup-now or scheduled-status.' ;; esac
 [ "${DEPLOY_ENABLED:-false}" = true ] || fail 'production is not enabled (the DEPLOY_ENABLED variable must be true).'
 [ "${GITHUB_REPOSITORY:-}" = omargad/Bangla-Adventure ] && [ "${GITHUB_REF:-}" = refs/heads/main ] || \
   fail 'only the main branch of the project repository may run production operations.'
@@ -30,7 +31,21 @@ host_fingerprint="${DEPLOY_HOST_FINGERPRINT:-SHA256:79xe+ubCodL2ACAHPNloo7I/K6mv
 key_fingerprint="${DEPLOY_KEY_FINGERPRINT:-SHA256:y1+C6cvcfpJFmO8pfjyMSFERpd5BtcQyDf5SptZXVlQ}"
 [[ "$host_fingerprint" =~ ^SHA256:[a-zA-Z0-9+/]{43}$ ]] || fail 'DEPLOY_HOST_FINGERPRINT must be a SHA256 fingerprint.'
 [[ "$key_fingerprint" =~ ^SHA256:[a-zA-Z0-9+/]{43}$ ]] || fail 'DEPLOY_KEY_FINGERPRINT must be a SHA256 fingerprint.'
-[ -n "${DEPLOY_SSH_KEY:-}" ] || fail 'the DEPLOY_SSH_KEY secret is missing.'
+if [ "$action" = scheduled-status ]; then
+  # The daily alert runs without a reviewer, so it never holds the deploy key: its own key is
+  # installed with a forced command that can only run status (docs/PRODUCTION_OPERATIONS.md).
+  [ -z "${DEPLOY_SSH_KEY:-}" ] || fail 'the scheduled status check must not receive the DEPLOY_SSH_KEY secret.'
+  [ -n "${STATUS_SSH_KEY:-}" ] || fail 'the STATUS_SSH_KEY secret is missing.'
+  [[ "${STATUS_KEY_FINGERPRINT:-}" =~ ^SHA256:[a-zA-Z0-9+/]{43}$ ]] || fail 'the STATUS_KEY_FINGERPRINT variable must be the status key SHA256 fingerprint.'
+  [ "$STATUS_KEY_FINGERPRINT" != "$key_fingerprint" ] || fail 'the status key must not be the deploy key.'
+  ssh_key="$STATUS_SSH_KEY"
+  key_fingerprint="$STATUS_KEY_FINGERPRINT"
+  key_name=STATUS_KEY_FINGERPRINT
+else
+  [ -n "${DEPLOY_SSH_KEY:-}" ] || fail 'the DEPLOY_SSH_KEY secret is missing.'
+  ssh_key="$DEPLOY_SSH_KEY"
+  key_name=DEPLOY_KEY_FINGERPRINT
+fi
 [ -n "${DEPLOY_KNOWN_HOSTS:-}" ] || fail 'the DEPLOY_KNOWN_HOSTS variable is missing.'
 case "$DEPLOY_KNOWN_HOSTS" in *'PRIVATE KEY'*|*'-----BEGIN'*) fail 'DEPLOY_KNOWN_HOSTS must hold only public host-key lines.' ;; esac
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
@@ -52,14 +67,14 @@ trap cleanup EXIT
 trap 'exit 129' HUP
 trap 'exit 130' INT
 trap 'exit 143' TERM
-printf '%s\n' "$DEPLOY_SSH_KEY" | tr -d '\r' > "$work/key"
+printf '%s\n' "$ssh_key" | tr -d '\r' > "$work/key"
 printf '%s\n' "$DEPLOY_KNOWN_HOSTS" | tr -d '\r' > "$work/provided_hosts"
-unset DEPLOY_SSH_KEY DEPLOY_KNOWN_HOSTS GITHUB_TOKEN GH_TOKEN
+unset ssh_key DEPLOY_SSH_KEY STATUS_SSH_KEY DEPLOY_KNOWN_HOSTS GITHUB_TOKEN GH_TOKEN
 # The key and host checks of scripts/deploy.sh: the derived public key must match its pin, every
 # retained known_hosts line must match the host pin, and the lines must cover this host and port.
-ssh-keygen -y -P '' -f "$work/key" > "$work/public_key" 2>/dev/null || fail 'the deploy private key could not be read (an unencrypted CI key is required).'
-actual="$(ssh-keygen -l -E sha256 -f "$work/public_key" 2>/dev/null | awk '{print $2}')" || fail 'could not fingerprint the deploy key.'
-[ "$actual" = "$key_fingerprint" ] || fail 'the deploy key fingerprint does not match DEPLOY_KEY_FINGERPRINT.'
+ssh-keygen -y -P '' -f "$work/key" > "$work/public_key" 2>/dev/null || fail 'the private key could not be read (an unencrypted CI key is required).'
+actual="$(ssh-keygen -l -E sha256 -f "$work/public_key" 2>/dev/null | awk '{print $2}')" || fail 'could not fingerprint the private key.'
+[ "$actual" = "$key_fingerprint" ] || fail "the key fingerprint does not match $key_name."
 : > "$work/known_hosts"
 while IFS= read -r line || [ -n "$line" ]; do
   [[ "$line" =~ ^[[:space:]]*(#|$) ]] && continue
@@ -108,6 +123,8 @@ if isinstance(value.get('timers'),dict):
     print('  timers: '+', '.join(f"{k} {'active' if v is True else 'inactive'}" for k,v in value['timers'].items() if k in ('backup','monitor','offsite')))
 if isinstance(value.get('initialRuns'),dict):
     print('  initial runs: '+', '.join(k for k in value['initialRuns'] if k in ('backup','offsite','monitor')))
+if kind=='install' and value.get('verified') is not True:
+    print('  rollback: '+(value.get('rollback') if value.get('rollback') in ('none','complete','incomplete','failed') else 'unknown'))
 raise SystemExit(0 if value.get('verified') is True else 1)
 PY
 }
@@ -132,11 +149,20 @@ tar --extract --file - --directory $(quote "$incoming") --no-same-owner --no-sam
     if on_server "bash $(quote "$incoming/production-ops-install.sh") $(quote "$incoming")" </dev/null > "$work/result.json" 2> "$work/install.log"; then
       summarise install "$work/result.json" || fail 'the installation did not report success.'
     else
-      summarise install "$work/result.json" || true
-      fail 'the installation failed; the previous jobs and files were restored.'
+      summarise install "$work/result.json" > "$work/summary.txt" || true
+      cat "$work/summary.txt"
+      # Restoration is claimed only when the installer reports it.
+      case "$(sed -n 's/^  rollback: //p' "$work/summary.txt")" in
+        none) fail 'the installation failed before anything on the server was changed.' ;;
+        complete) fail 'the installation failed; the previous jobs and files were restored.' ;;
+        incomplete) fail 'the installation failed while a deployment held the lock; the earlier timers were restarted but the new files stayed. Run install again after the deployment.' ;;
+        failed) fail "the installation failed and its rollback did not finish; check the timers on the server (systemctl --user list-timers 'ba-production-*') and run install again." ;;
+        *) fail "the installation gave no usable result; check the timers on the server (systemctl --user list-timers 'ba-production-*') and run install again." ;;
+      esac
     fi
     ;;
-  status)
+  status|scheduled-status)
+    # The status key's forced command runs this same command whatever is sent.
     if on_server "bash $ops/tools/production-ops.sh status" </dev/null > "$work/result.json" 2> "$work/status.log"; then
       summarise status "$work/result.json" || fail 'production operations status is failing.'
     else

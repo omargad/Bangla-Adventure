@@ -1,15 +1,19 @@
 from __future__ import annotations
 
+import ast
 import fcntl
 import importlib.util
 import json
 import os
 from pathlib import Path
+import re
 import signal
 import sqlite3
 import subprocess
 import sys
 import tempfile
+import threading
+import time
 import unittest
 from unittest.mock import patch
 
@@ -32,6 +36,25 @@ ARCHIVE = 'bangla-data-20330518T033000123456Z-0123456789ab.tar.gz'
 
 def completed(stdout='', returncode=0):
     return subprocess.CompletedProcess([], returncode, stdout, '')
+
+
+class StopHandlers:
+    """Installs the entry point's real stop handlers for one test, then puts the previous ones back."""
+
+    def __enter__(self):
+        self.previous = {number: signal.getsignal(number) for number in (signal.SIGTERM, signal.SIGHUP, signal.SIGINT)}
+        for number in (signal.SIGTERM, signal.SIGHUP):
+            signal.signal(number, ops.interrupted)
+        return self
+
+    def stop_after(self, seconds):
+        timer = threading.Timer(seconds, os.kill, (os.getpid(), signal.SIGTERM))
+        timer.start()
+        return timer
+
+    def __exit__(self, *_):
+        for number, handler in self.previous.items():
+            signal.signal(number, handler)
 
 
 def facts(**changes):
@@ -187,6 +210,8 @@ class BackupTests(unittest.TestCase):
         self.healthy_again = True
         self.docker_healthy = True
         self.run_args = None
+        self.helpers_left = 0
+        self.stale_found = True
         self.patches = [
             patch.object(self.prod, 'platform', lambda: None),
             patch.object(self.prod, 'wait_until_serving', lambda cfg, timeout: self.events.append('serving') or container()),
@@ -195,7 +220,8 @@ class BackupTests(unittest.TestCase):
             patch.object(self.prod, 'containers', lambda cfg: [container(running=self.running)]),
             patch.object(self.prod, 'docker', lambda *args, **kwargs: completed()),
             patch.object(self.prod, 'compose', self.compose),
-            patch.object(self.prod, 'remove_owned', lambda token: self.events.append('helpers-gone')),
+            patch.object(self.prod, 'remove_owned', lambda token: self.events.append('helpers-gone') or self.helpers_left),
+            patch.object(self.prod, 'clear_stale_backup', self.clear_stale),
             patch.object(self.prod, 'wait_for_health', lambda port, timeout: self.events.append('health') or self.healthy_again),
             patch.object(self.prod, 'wait_until_healthy', lambda cfg, timeout: self.events.append('docker-healthy') or self.docker_healthy),
             patch.object(self.prod, 'receipt', lambda cfg, verify: {'present': True, 'archive': ARCHIVE, 'sha256': 'b' * 64, 'bytes': 2048, 'createdEpoch': NOW}),
@@ -203,6 +229,12 @@ class BackupTests(unittest.TestCase):
         for item in self.patches:
             item.start()
         self.addCleanup(lambda: [item.stop() for item in reversed(self.patches)])
+
+    def clear_stale(self, cfg):
+        self.events.append('clear-stale')
+        if isinstance(self.stale_found, BaseException):
+            raise self.stale_found
+        return self.stale_found
 
     def compose(self, cfg, *args, image=None, **kwargs):
         if args[0] == 'stop':
@@ -212,6 +244,8 @@ class BackupTests(unittest.TestCase):
             self.events.append('backup')
             self.run_args, self.run_image = args, image
             self.assertFalse(self.running)
+            if callable(self.backup_rc):
+                return self.backup_rc()
             if isinstance(self.backup_rc, BaseException):
                 raise self.backup_rc
             output = json.dumps({'archive': '/backups/' + ARCHIVE, 'sha256': 'b' * 64, 'files': 3, 'verified': True})
@@ -261,7 +295,7 @@ class BackupTests(unittest.TestCase):
         self.assertTrue(self.running)
 
     def test_interrupted_backup_starts_the_app_again(self):
-        for error, code in [(InterruptedError(), 'interrupted'), (KeyboardInterrupt(), 'interrupted'), (ops.Refused('command-unavailable-or-timeout'), 'backup-timeout')]:
+        for error, code in [(ops.Stopped(), 'interrupted'), (KeyboardInterrupt(), 'interrupted'), (ops.Refused('command-unavailable-or-timeout'), 'backup-timeout')]:
             self.events.clear()
             self.running, self.backup_rc = True, error
             with self.assertRaises(ops.Refused) as caught:
@@ -269,6 +303,101 @@ class BackupTests(unittest.TestCase):
             self.assertEqual(caught.exception.codes, [code])
             self.assertIn('up', self.events)
             self.assertTrue(self.running)
+
+    def test_a_real_stop_request_interrupts_a_running_command(self):
+        # Production.command waits in subprocess's selector loop, which swallows InterruptedError.
+        with StopHandlers() as handlers:
+            handlers.stop_after(0.5)
+            began = time.monotonic()
+            with self.assertRaises(ops.Stopped):
+                ops.Production.command(self.prod, ['sleep', '20'], timeout=60)
+            self.assertLess(time.monotonic() - began, 10)
+            # Later stop requests wait for recovery instead of interrupting it.
+            self.assertIs(signal.getsignal(signal.SIGTERM), signal.SIG_IGN)
+
+    def test_a_real_stop_request_during_the_backup_starts_the_app_again(self):
+        # The helper runs through the real Production.command, as `docker compose run` does.
+        self.backup_rc = lambda: ops.Production.command(self.prod, ['sleep', '20'], timeout=60, okay=True)
+        self.helpers_left = 1  # Killing the CLI leaves the helper container, which is then removed.
+        with StopHandlers() as handlers:
+            handlers.stop_after(0.5)
+            began = time.monotonic()
+            with self.assertRaises(ops.Refused) as caught:
+                self.prod.backup()
+            self.assertLess(time.monotonic() - began, 10)
+        self.assertEqual(caught.exception.codes, ['interrupted', 'stale-backup-lock-cleared'])
+        self.assertEqual(self.events[-6:], ['backup', 'helpers-gone', 'up', 'health', 'docker-healthy', 'clear-stale'])
+        self.assertTrue(self.running)
+
+    def test_a_killed_helper_never_leaves_the_backup_lock_behind(self):
+        self.backup_rc = ops.Refused('command-unavailable-or-timeout')
+        self.helpers_left = 1
+        with self.assertRaises(ops.Refused) as caught:
+            self.prod.backup()
+        self.assertEqual(caught.exception.codes, ['backup-timeout', 'stale-backup-lock-cleared'])
+        # The app is serving again before the clean-up, which still runs under the deploy lock.
+        self.assertLess(self.events.index('docker-healthy'), self.events.index('clear-stale'))
+        self.events.clear()
+        self.stale_found = False
+        with self.assertRaises(ops.Refused) as caught:
+            self.prod.backup()
+        self.assertEqual(caught.exception.codes, ['backup-timeout'])
+        self.stale_found = ops.Refused('stale-backup-lock')
+        with self.assertRaises(ops.Refused) as caught:
+            self.prod.backup()
+        self.assertEqual(caught.exception.codes, ['backup-timeout', 'stale-backup-lock'])
+        self.assertTrue(self.running)
+
+    def test_backup_lock_clean_up_needs_a_proven_killed_helper(self):
+        self.backup_rc = 1
+        with self.assertRaises(ops.Refused):
+            self.prod.backup()
+        self.assertNotIn('clear-stale', self.events)
+        self.events.clear()
+        self.helpers_left = 1
+        with patch.object(self.prod, 'remove_owned', side_effect=ops.Refused('helper-cleanup-failed')):
+            with self.assertRaises(ops.Refused) as caught:
+                self.prod.backup()
+        self.assertEqual(caught.exception.codes, ['backup-failed', 'helper-cleanup-failed'])
+        self.assertNotIn('clear-stale', self.events)
+
+    def test_stale_backup_clean_up_runs_as_the_app_user_on_backups_only(self):
+        with patch.object(self.prod, 'isolated_run', return_value=completed('cleared\n')) as run:
+            self.assertTrue(ops.Production.clear_stale_backup(self.prod, {'image': IMAGE}))
+        args = run.call_args.args
+        joined = ' '.join(args)
+        for expected in ['--network none', '--user 1000:1000', '--read-only', '--cap-drop ALL', 'no-new-privileges:true',
+                         f'type=bind,source={self.fx.deployment / "backups"},target=/backups', '--entrypoint sh ' + IMAGE]:
+            self.assertIn(expected, joined)
+        self.assertIn('/backups/.bangla-backup.lock /backups/.bangla-snapshot-*', args[-1])
+        with patch.object(self.prod, 'isolated_run', return_value=completed('clean\n')):
+            self.assertFalse(ops.Production.clear_stale_backup(self.prod, {'image': IMAGE}))
+        for result in [completed('cleared\n', 1), completed('')]:
+            with patch.object(self.prod, 'isolated_run', return_value=result):
+                with self.assertRaisesRegex(ops.Refused, 'stale-backup-lock'):
+                    ops.Production.clear_stale_backup(self.prod, {'image': IMAGE})
+
+    def test_stale_backup_script_removes_only_the_backup_lock_and_staging_copies(self):
+        with tempfile.TemporaryDirectory() as folder:
+            backups = Path(folder)
+            (backups / '.bangla-backup.lock').mkdir()
+            (backups / '.bangla-snapshot-abc' / 'media').mkdir(parents=True)
+            (backups / ARCHIVE).write_bytes(b'archive')
+            (backups / '.latest-backup.json').write_text('{}')
+            script = ops.CLEAR_STALE_SCRIPT.replace('/backups/', str(backups) + '/')
+            self.assertEqual(subprocess.run(['sh', '-c', script], capture_output=True, text=True, check=True).stdout.split(), ['cleared'])
+            self.assertEqual(sorted(path.name for path in backups.iterdir()), ['.latest-backup.json', ARCHIVE])
+            self.assertEqual(subprocess.run(['sh', '-c', script], capture_output=True, text=True, check=True).stdout.split(), ['clean'])
+
+    def test_a_stop_request_is_recorded_as_interrupted_by_the_entry_point(self):
+        self.backup_rc = ops.Stopped()
+        with patch.object(ops, 'Production', return_value=self.prod), patch.object(ops.sys, 'stdout'):
+            self.assertEqual(ops.main(['production-ops.py', 'backup']), 1)
+        self.assertEqual(self.fx.report('backup')['codes'], ['interrupted'])
+        with patch.object(ops, 'Production', return_value=self.prod), patch.object(self.prod, 'backup', side_effect=ops.Stopped()), \
+                patch.object(ops.sys, 'stdout'):
+            self.assertEqual(ops.main(['production-ops.py', 'backup']), 1)
+        self.assertEqual(self.fx.report('backup')['codes'], ['interrupted'])
 
     def test_partial_stop_still_attempts_recovery_without_a_backup(self):
         def stop(cfg, *args, **kwargs):
@@ -528,6 +657,60 @@ class OffsiteTests(unittest.TestCase):
         self.assertEqual((value['status'], value['codes']), ('failed', ['offsite-repository-locked']))
         self.assertIsNotNone(value['lastSuccessEpoch'])
 
+    def test_retention_that_times_out_keeps_the_copys_success(self):
+        self.configure(lines=['RESTIC_REPOSITORY=b2:bucket:bangla', 'RESTIC_KEEP_DAILY=14', 'RESTIC_KEEP_WEEKLY=8', 'RESTIC_KEEP_MONTHLY=6'])
+        seen = []
+
+        def restic(conf, *args, timeout=600):
+            if args[2] == 'forget':
+                # The copy is already recorded as a success before retention starts.
+                seen.append(self.fx.report('offsite'))
+                raise ops.Refused('command-unavailable-or-timeout')
+            return self.restic(conf, *args, timeout=timeout)
+        with patch.object(self.prod, 'restic', restic), patch.object(self.prod, 'env_settings', return_value={'image': IMAGE}):
+            value = self.prod.offsite()
+        self.assertEqual((value['status'], value['codes'], value['copy']['snapshotId']), ('failed', ['offsite-retention-timeout'], 'e' * 64))
+        self.assertEqual(seen[0]['status'], 'passed')
+        self.assertEqual(seen[0]['lastSuccessEpoch'], value['lastSuccessEpoch'])
+        self.assertEqual(self.fx.report('offsite')['lastSuccessEpoch'], value['lastSuccessEpoch'])
+        # A stop request during retention keeps the recorded copy too.
+        with patch.object(self.prod, 'restic', lambda conf, *args, timeout=600: (_ for _ in ()).throw(ops.Stopped()) if args[2] == 'forget' else self.restic(conf, *args)), \
+                patch.object(self.prod, 'env_settings', return_value={'image': IMAGE}), patch.object(ops, 'Production', return_value=self.prod), \
+                patch.object(ops.sys, 'stdout'):
+            self.assertEqual(ops.main(['production-ops.py', 'offsite']), 1)
+        report = self.fx.report('offsite')
+        self.assertEqual(report['codes'], ['interrupted'])
+        self.assertGreaterEqual(report['lastSuccessEpoch'], value['lastSuccessEpoch'])
+
+    def test_the_run_stays_inside_the_units_time_budget(self):
+        self.configure(lines=['RESTIC_REPOSITORY=b2:bucket:bangla', 'RESTIC_KEEP_DAILY=14', 'RESTIC_KEEP_WEEKLY=8', 'RESTIC_KEEP_MONTHLY=6'])
+        clock = [1000.0]
+        timeouts = {}
+
+        def restic(conf, *args, timeout=600):
+            timeouts[args[2]] = timeout
+            clock[0] += {'backup': copying, 'snapshots': 100}.get(args[2], 0)
+            return self.restic(conf, *args, timeout=timeout)
+        # A copy that takes three hours leaves retention only what is left of the budget.
+        copying = 3 * 3600 - 100
+        with patch.object(ops.time, 'monotonic', lambda: clock[0]), patch.object(self.prod, 'restic', restic), \
+                patch.object(self.prod, 'env_settings', return_value={'image': IMAGE}):
+            value = self.prod.offsite()
+        self.assertEqual(timeouts, {'backup': ops.OFFSITE_TIMEOUT, 'snapshots': 600, 'forget': ops.OFFSITE_BUDGET - 3 * 3600})
+        self.assertTrue(value['retention']['applied'])
+        # The budget, which includes the receipt check, leaves ten minutes of TimeoutStartSec=4h for clean-up.
+        self.assertLessEqual(ops.OFFSITE_BUDGET + 10 * 60, 4 * 3600)
+        self.assertIn('TimeoutStartSec=4h\n', (ROOT / 'deploy/production-ops/ba-production-offsite.service').read_text())
+        # With under a minute left, retention is not started at all.
+        clock[0], copying = 1000.0, ops.OFFSITE_BUDGET - 130
+        timeouts.clear()
+        with patch.object(ops.time, 'monotonic', lambda: clock[0]), patch.object(self.prod, 'restic', restic), \
+                patch.object(self.prod, 'env_settings', return_value={'image': IMAGE}):
+            value = self.prod.offsite()
+        self.assertNotIn('forget', timeouts)
+        self.assertEqual(value['codes'], ['offsite-retention-timeout'])
+        self.assertIsNotNone(value['lastSuccessEpoch'])
+
     def test_stale_or_unverified_backups_are_never_sent(self):
         self.configure()
         for created, verified, code in [(ops.time.time() - 37 * 3600, True, 'backup-stale-or-future'),
@@ -558,6 +741,68 @@ class OffsiteTests(unittest.TestCase):
         self.assertEqual(args[args.index('--group-add') + 1], str(os.stat(conf['password']).st_gid))
 
 
+class DeployLockTests(unittest.TestCase):
+    def setUp(self):
+        self.folder = tempfile.TemporaryDirectory()
+        self.addCleanup(self.folder.cleanup)
+        self.fx = Fixture(self.folder.name)
+        self.prod = self.fx.production()
+
+    def test_a_held_deploy_lock_is_seen_without_taking_it(self):
+        self.assertFalse(self.prod.deploy_busy())
+        fd = self.fx.hold_lock()
+        try:
+            with patch.object(ops.fcntl, 'flock', side_effect=AssertionError('the monitor never takes the deploy lock')):
+                self.assertTrue(self.prod.deploy_busy())
+        finally:
+            os.close(fd)
+        self.assertFalse(self.prod.deploy_busy())
+        # The deploy's own shell acquisition, as in deploy-remote.sh.
+        holder = subprocess.Popen(['bash', '-c', 'exec 9> .deploy.lock; flock -n 9; echo held; sleep 30'], cwd=self.fx.deployment,
+                                  stdout=subprocess.PIPE, text=True)
+        try:
+            self.assertEqual(holder.stdout.readline().strip(), 'held')
+            self.assertTrue(self.prod.deploy_busy())
+        finally:
+            holder.kill()
+            holder.wait()
+
+    def test_watching_the_lock_never_makes_a_deploy_fail(self):
+        stop = threading.Event()
+
+        def watch():
+            while not stop.is_set():
+                self.prod.deploy_busy()
+        watcher = threading.Thread(target=watch)
+        watcher.start()
+        refused = 0
+        try:
+            for _ in range(2000):
+                fd = os.open(self.fx.deployment / '.deploy.lock', os.O_RDWR)
+                try:
+                    fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                except BlockingIOError:
+                    refused += 1
+                finally:
+                    os.close(fd)
+        finally:
+            stop.set()
+            watcher.join()
+        self.assertEqual(refused, 0)
+
+    def test_lock_table_parsing(self):
+        info = (self.fx.deployment / '.deploy.lock').stat()
+        key = f'{os.major(info.st_dev):02x}:{os.minor(info.st_dev):02x}:{info.st_ino}'
+        other = f'{os.major(info.st_dev):02x}:{os.minor(info.st_dev):02x}:{info.st_ino + 1}'
+        for table, busy in [(f'1: FLOCK  ADVISORY  WRITE 4242 {key} 0 EOF\n', True), (f'1: POSIX  ADVISORY  WRITE 4242 {key} 0 EOF\n', False),
+                            (f'1: FLOCK  ADVISORY  WRITE 4242 {other} 0 EOF\n', False), (f'1: -> FLOCK  ADVISORY  WRITE 4243 {key} 0 EOF\n', False), ('', False)]:
+            with patch.object(ops.Path, 'read_text', return_value=table):
+                self.assertIs(self.prod.deploy_busy(), busy, table)
+        with patch.object(ops.Path, 'read_text', side_effect=PermissionError()):
+            with self.assertRaisesRegex(ops.Refused, 'lock-state-unreadable'):
+                self.prod.deploy_busy()
+
+
 class StatusTests(unittest.TestCase):
     def reports(self, **changes):
         value = {'backup': {'scope': ops.SCOPE, 'action': 'backup', 'status': 'passed', 'verified': True, 'checkedAtEpoch': NOW - 3600, 'codes': []},
@@ -568,14 +813,16 @@ class StatusTests(unittest.TestCase):
 
     def status(self, **changes):
         value = {'checkedAtEpoch': NOW, 'installed': True, 'offsiteConfigured': True, 'reports': self.reports(),
-                 'timers': {'backup': True, 'monitor': True, 'offsite': True}, 'lingering': True}
+                 'timers': {'backup': True, 'monitor': True, 'offsite': True},
+                 'services': {'backup': False, 'monitor': False, 'offsite': False}, 'lingering': True}
         value.update(changes)
         return ops.evaluate_status(value)
 
     def test_all_fresh_and_passing_is_healthy(self):
         value = self.status()
         self.assertEqual((value['status'], value['verified'], value['codes']), ('healthy', True, []))
-        self.assertEqual(set(value), {'scope', 'action', 'verified', 'status', 'checkedAtEpoch', 'codes', 'installed', 'backup', 'monitor', 'offsite', 'timers', 'lingering'})
+        self.assertEqual(set(value), {'scope', 'action', 'verified', 'status', 'checkedAtEpoch', 'codes', 'installed', 'backup', 'monitor', 'offsite',
+                                      'timers', 'servicesFailed', 'lingering'})
         self.assertEqual(value['offsite']['lastSuccessEpoch'], NOW - 1800)
 
     def test_unconfigured_offsite_is_not_a_failure(self):
@@ -595,6 +842,9 @@ class StatusTests(unittest.TestCase):
             (dict(reports=self.reports(offsite={**self.reports()['offsite'], 'checkedAtEpoch': NOW - 49 * 3600})), 'offsite-report-stale'),
             (dict(timers={'backup': True, 'monitor': True, 'offsite': False}), 'timer-inactive-offsite'),
             (dict(lingering=False), 'user-linger-disabled'), (dict(installed=False), 'installation-invalid'),
+            # A run systemd killed writes nothing; its unit stays failed while the old result still looks good.
+            (dict(services={'backup': True, 'monitor': False, 'offsite': False}), 'service-failed-backup'),
+            (dict(services={'backup': False, 'monitor': False, 'offsite': True}), 'service-failed-offsite'),
         ]
         for change, code in cases:
             value = self.status(**change)
@@ -610,9 +860,16 @@ class StatusTests(unittest.TestCase):
             for name, report in self.reports().items():
                 prod.write_status(name, {**report, 'checkedAtEpoch': ops.time.time()})
             (fx.offsite / 'offsite.env').write_text('RESTIC_REPOSITORY=b2:x:y\n')
-            with patch.object(prod, 'validate_installation'), patch.object(prod, 'timer_active', return_value=True), patch.object(prod, 'lingering', return_value=True):
+            with patch.object(prod, 'validate_installation'), patch.object(prod, 'timer_active', return_value=True), patch.object(prod, 'lingering', return_value=True), \
+                    patch.object(prod, 'service_failed', return_value=False):
                 value = prod.status()
             self.assertEqual(value['status'], 'healthy', value)
+            calls = []
+            with patch.object(prod, 'validate_installation'), patch.object(prod, 'timer_active', return_value=True), patch.object(prod, 'lingering', return_value=True), \
+                    patch.object(prod, 'userctl', lambda *args: calls.append(args) or completed(returncode=0 if args[2] == 'ba-production-backup.service' else 1)):
+                value = prod.status()
+            self.assertEqual(value['codes'], ['service-failed-backup'])
+            self.assertIn(('is-failed', '--quiet', 'ba-production-offsite.service'), calls)
             for name in ('backup', 'monitor', 'offsite'):
                 self.assertEqual(oct((fx.deployment / 'ops' / f'last-{name}.json').stat().st_mode & 0o777), '0o600')
 
@@ -724,6 +981,76 @@ class InstallerTests(unittest.TestCase):
             self.assertEqual(list(config.iterdir()), [])
             self.assertFalse((fx.deployment / 'ops' / 'installation.json').exists())
 
+    def initial_run_failure(self, folder, lock_results):
+        """An update whose initial backup defers because a deploy took the lock after the commit."""
+        fx, settings, config, payload = self.install_fixture(folder)
+        prod, items = self.patches(fx, settings, config, payload)
+        old = {name: b'# old\n' for name in (*installer.ops.TOOLS, *installer.ops.UNITS)}
+        for name in installer.ops.TOOLS:
+            (fx.deployment / 'ops' / 'tools' / name).write_bytes(old[name])
+        for name in installer.ops.UNITS:
+            (config / name).write_bytes(old[name])
+        (fx.deployment / 'ops' / 'installation.json').write_text('{"old": true}\n')
+        calls = []
+        results = iter(lock_results)
+
+        def lock():
+            result = next(results)
+            if isinstance(result, BaseException):
+                raise result
+            return os.open(fx.deployment / '.deploy.lock', os.O_RDWR)
+
+        def ctl(prod, *args, **kwargs):
+            calls.append(args)
+            if args[0] in ('is-enabled', 'is-active'):
+                return completed(returncode=0)
+            if args[0] == 'show' and args[2] == '--property=FragmentPath':
+                return completed(str(config / args[1]))
+            if args[0] == 'show':
+                return completed('75')
+            return completed()
+        items.update(lock=patch.object(prod, 'deploy_lock', lock), userctl=patch.object(installer, 'userctl', ctl),
+                     validate=patch.object(prod, 'validate_installation'), sleep=patch.object(installer.time, 'sleep'),
+                     report=patch.object(prod, 'read_report', return_value=None))
+        for item in items.values():
+            item.start()
+        try:
+            with self.assertRaises(installer.InstallFailed) as caught:
+                installer.main(['install', str(payload)])
+        finally:
+            for item in reversed(list(items.values())):
+                item.stop()
+        return fx, config, old, calls, caught.exception
+
+    def test_rollback_waits_for_a_running_deploy_then_restores_everything(self):
+        busy = installer.ops.Refused('transaction-busy')
+        with tempfile.TemporaryDirectory() as folder:
+            fx, config, old, calls, failure = self.initial_run_failure(folder, [None, busy, busy, None])
+            self.assertEqual((failure.codes, failure.rollback), (['initial-backup-deferred'], 'complete'), repr(failure.__cause__))
+            for name in installer.ops.TOOLS:
+                self.assertEqual((fx.deployment / 'ops' / 'tools' / name).read_bytes(), old[name])
+            for name in installer.ops.UNITS:
+                self.assertEqual((config / name).read_bytes(), old[name])
+            self.assertEqual((fx.deployment / 'ops' / 'installation.json').read_text(), '{"old": true}\n')
+            started = [args[1] for args in calls if args[0] == 'start']
+            self.assertEqual(started[-3:], list(installer.ops.TIMERS.values()), 'the earlier timers run again')
+
+    def test_rollback_restarts_the_earlier_timers_when_a_deploy_keeps_the_lock(self):
+        busy = installer.ops.Refused('transaction-busy')
+        with tempfile.TemporaryDirectory() as folder, patch.object(installer, 'ROLLBACK_LOCK_WAIT', 0):
+            fx, config, old, calls, failure = self.initial_run_failure(folder, [None, busy])
+            self.assertEqual((failure.codes, failure.rollback), (['initial-backup-deferred', 'rollback-incomplete'], 'incomplete'))
+            self.assertEqual((fx.deployment / 'ops' / 'tools' / 'production-ops.py').read_bytes(), installer.MARKER + b'fixture\n')
+            started = [args[1] for args in calls if args[0] == 'start']
+            self.assertEqual(started[-3:], list(installer.ops.TIMERS.values()))
+
+    def test_the_failure_result_says_what_the_rollback_did(self):
+        env = {key: value for key, value in os.environ.items() if key not in installer.ops.OVERRIDES}
+        result = subprocess.run([sys.executable, str(ROOT / 'scripts/production-ops-install.py'), '/tmp/elsewhere'], capture_output=True, text=True, env=env, timeout=60)
+        self.assertEqual(result.returncode, 1)
+        value = json.loads(result.stdout)
+        self.assertEqual((value['codes'], value['rollback']), (['payload-path'], 'none'))
+
     def test_deferred_failed_or_old_results_cannot_satisfy_an_initial_run(self):
         with tempfile.TemporaryDirectory() as folder:
             fx = Fixture(folder)
@@ -792,6 +1119,28 @@ class InstallerTests(unittest.TestCase):
                 (home / '.config').chmod(0o700)
                 with self.assertRaisesRegex(installer.ops.Refused, 'user-unit-path'):
                     installer.owned_config(prod, Path('/etc/systemd/system'))
+
+
+class DocumentationTests(unittest.TestCase):
+    def test_every_fixed_failure_code_is_documented(self):
+        text = (ROOT / 'docs/PRODUCTION_OPERATIONS.md').read_text()
+        documented = set(re.findall(r'`([a-z0-9][a-z0-9-]*)`', text))
+        # A family is written as its first code, then the other endings: `timer-inactive-backup`, `-monitor`.
+        for first, rest in re.findall(r'`([a-z0-9-]+)`((?:, `-[a-z0-9-]+`)+)', text):
+            documented |= {first.rsplit('-', 1)[0] + suffix for suffix in re.findall(r'`(-[a-z0-9-]+)`', rest)}
+        codes = set(ops.MONITOR_CODES.values())
+        for path in ('scripts/production-ops.py', 'scripts/production-ops-install.py'):
+            for node in ast.walk(ast.parse((ROOT / path).read_text())):
+                if isinstance(node, ast.Call):
+                    name = getattr(node.func, 'attr', getattr(node.func, 'id', ''))
+                    values = node.args[1:2] if name == 'require' else node.args if name in ('Refused', 'InstallFailed') else []
+                    codes |= {value.value for value in values if isinstance(value, ast.Constant) and isinstance(value.value, str)}
+                if isinstance(node, ast.Constant) and isinstance(node.value, str) and re.fullmatch(r'(stale-backup-lock(-cleared)?|offsite-retention-\w+|rollback-\w+|interrupted|operation-failed|install-failed)', node.value):
+                    codes.add(node.value)
+        codes |= {f'{name}-report-{kind}' for name in ops.REPORTS for kind in ('missing', 'failed', 'stale')}
+        codes |= {f'{prefix}-{name}' for prefix in ('timer-inactive', 'service-failed') for name in ops.REPORTS}
+        codes |= {f'initial-{name}-{kind}' for name in ops.REPORTS for kind in ('deferred', 'failed')}
+        self.assertEqual(sorted(code for code in codes if code not in documented), [])
 
 
 class UnitTests(unittest.TestCase):

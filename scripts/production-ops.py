@@ -48,6 +48,8 @@ PRECHECK_TIMEOUT = 120
 HEALTH_TIMEOUT = 180
 BACKUP_TIMEOUT = 30 * 60
 OFFSITE_TIMEOUT = 3 * 3600
+# The whole off-site run stays inside the unit's TimeoutStartSec=4h.
+OFFSITE_BUDGET = 3 * 3600 + 45 * 60
 ACTIONS = ("backup", "monitor", "offsite", "status")
 REPORTS = ("backup", "monitor", "offsite")
 TOOLS = ("production-ops.sh", "production-ops.py")
@@ -66,6 +68,10 @@ OFFSITE_NAMES = {
 }
 KEEP_NAMES = ("RESTIC_KEEP_DAILY", "RESTIC_KEEP_WEEKLY", "RESTIC_KEEP_MONTHLY")
 PASS_ENV = ("PATH", "HOME", "USER", "LOGNAME", "LANG", "LC_ALL", "XDG_RUNTIME_DIR", "DBUS_SESSION_BUS_ADDRESS")
+
+
+class Stopped(BaseException):
+    """A stop request (SIGTERM or SIGHUP). Not an OSError, so subprocess and selectors pass it on."""
 
 
 class Refused(Exception):
@@ -215,8 +221,8 @@ class Production:
         require(isinstance(value, list) and len(value) == 1, "ambiguous-resource")
         return value[0]
 
-    def remove_owned(self, token: str) -> None:
-        """Remove this run's helpers by label, and prove they are gone."""
+    def remove_owned(self, token: str) -> int:
+        """Remove this run's helpers by label, prove they are gone, and say how many there were."""
         ids = self.docker("ps", "--all", "--quiet", "--no-trunc", "--filter", "label=io.bangla.ops.id=" + token).stdout.split()
         for cid in ids:
             require(re.fullmatch(r"[a-f0-9]{64}", cid) is not None, "helper-id")
@@ -224,6 +230,7 @@ class Production:
             require(labels.get("io.bangla.scope") == SCOPE and labels.get("io.bangla.ops.id") == token, "helper-identity")
             self.docker("container", "rm", "--force", "--volumes", cid)
         require(not self.docker("ps", "--all", "--quiet", "--filter", "label=io.bangla.ops.id=" + token).stdout.strip(), "helper-cleanup-failed")
+        return len(ids)
 
     def isolated_run(self, *args: str, data: str | None = None, timeout: int = 240) -> subprocess.CompletedProcess:
         """Own a concrete helper ID, and prove it is gone even after a CLI timeout or SIGTERM."""
@@ -344,15 +351,19 @@ class Production:
         return self.lock(self.s.deployment / ".deploy.lock")
 
     def deploy_busy(self) -> bool:
-        """Peek at the deploy lock without holding it, so a monitor never makes a deploy fail."""
+        """Whether a deploy or backup holds the deploy lock, read from /proc/locks without taking it."""
+        path = self.s.deployment / ".deploy.lock"
+        if not os.path.lexists(path):
+            raise Refused("deployment-missing")
+        info = regular(path, self.s.uid)
+        # The kernel's form: "ID: FLOCK ADVISORY WRITE PID MAJ:MIN:INODE START END", device numbers in hex.
+        key = f"{os.major(info.st_dev):02x}:{os.minor(info.st_dev):02x}:{info.st_ino}"
         try:
-            fd = self.deploy_lock()
-        except Refused as exc:
-            if exc.code == "transaction-busy":
-                return True
-            raise
-        os.close(fd)
-        return False
+            table = Path("/proc/locks").read_text(encoding="ascii")
+        except (OSError, ValueError) as exc:
+            raise Refused("lock-state-unreadable") from exc
+        # A "->" line is a waiter, not a holder; flock(1) and Python's flock both appear as FLOCK.
+        return any(len(fields) >= 6 and fields[1] == "FLOCK" and fields[5] == key for fields in map(str.split, table.splitlines()))
 
     def write_status(self, action: str, value: dict) -> None:
         private_dir(self.s.ops, self.s.uid)
@@ -478,6 +489,18 @@ class Production:
                                    "--entrypoint", "sh", cfg["image"], "-c", "chown 0:0 /backups && chmod 0700 /backups && chown 1000:1000 /backups")
         require(result.returncode == 0, "backup-directory-initialization")
 
+    def clear_stale_backup(self, cfg: dict) -> bool:
+        """Remove the lock and staging copy that a killed backup helper leaves in backups/.
+
+        Only after the helper is proven gone and while the deploy lock is held, so no backup can be running.
+        """
+        result = self.isolated_run("--network", "none", "--user", "1000:1000", "--read-only", "--cap-drop", "ALL",
+                                   "--security-opt", "no-new-privileges:true", "--mount", f"type=bind,source={self.s.backups},target=/backups",
+                                   "--entrypoint", "sh", cfg["image"], "-c", CLEAR_STALE_SCRIPT, timeout=300)
+        lines = result.stdout.split()
+        require(result.returncode == 0 and bool(lines) and lines[-1] in ("cleared", "clean"), "stale-backup-lock")
+        return lines[-1] == "cleared"
+
     def receipt(self, cfg: dict, *, verify: bool) -> dict:
         """Read the newest successful-backup receipt in a short-lived container as uid 1000."""
         if not os.path.lexists(self.s.backups):
@@ -522,8 +545,9 @@ class Production:
             require(free >= MIN_FREE_BYTES, "disk-low")
             self.prepare_backups(cfg)
             token = secrets.token_hex(12)
-            stopped = resumed = False
+            stopped = resumed = killed = False
             cleaned = True
+            stale = None
             failure: BaseException | None = None
             output = None
             began = back = 0.0
@@ -553,7 +577,8 @@ class Production:
                     previous = quiet_signals()
                     try:
                         try:
-                            self.remove_owned(token)
+                            # A helper still present was killed mid-run (timeout or stop request).
+                            killed = self.remove_owned(token) > 0
                         except BaseException:
                             cleaned = False
                         try:
@@ -566,13 +591,22 @@ class Production:
                             resumed = resumed and self.wait_until_healthy(cfg, HEALTH_TIMEOUT)
                         except BaseException:
                             resumed = False
+                        if killed and cleaned:
+                            # A killed backup_restore.py never removes its lock, which would make every later
+                            # backup, and the deploy's own, fail. The app is already serving again.
+                            try:
+                                stale = "stale-backup-lock-cleared" if self.clear_stale_backup(cfg) else None
+                            except BaseException:
+                                stale = "stale-backup-lock"
                     finally:
                         restore_signals(previous)
             codes = []
             if failure is not None:
-                codes += failure.codes if isinstance(failure, Refused) else ["interrupted" if isinstance(failure, (InterruptedError, KeyboardInterrupt)) else "backup-failed"]
+                codes += failure.codes if isinstance(failure, Refused) else ["interrupted" if isinstance(failure, (Stopped, KeyboardInterrupt)) else "backup-failed"]
             if not cleaned:
                 codes.append("helper-cleanup-failed")
+            if stale:
+                codes.append(stale)
             if not resumed:
                 codes.append("resume-failed")
             if codes:
@@ -721,6 +755,10 @@ class Production:
             if conf is None:
                 # Inert until the client chooses a destination; nothing is recorded.
                 return {"scope": SCOPE, "action": "offsite", "verified": True, "status": "not-configured", "checkedAtEpoch": time.time(), "codes": []}
+            deadline = time.monotonic() + OFFSITE_BUDGET
+
+            def left(limit: int) -> int:
+                return max(1, min(limit, int(deadline - time.monotonic())))
             self.platform()
             cfg = self.env_settings()
             latest = self.receipt(cfg, verify=True)
@@ -729,10 +767,11 @@ class Production:
             age = time.time() - latest["createdEpoch"]
             require(-FUTURE_SKEW <= age <= MAX_BACKUP_AGE, "backup-stale-or-future")
             target = "/backups/" + latest["archive"]
-            copy = self.restic(conf, "--retry-lock", "10m", "backup", "--json", "--quiet", "--host", RESTIC_HOST, "--tag", RESTIC_TAG, "--", target, timeout=OFFSITE_TIMEOUT)
+            copy = self.restic(conf, "--retry-lock", "10m", "backup", "--json", "--quiet", "--host", RESTIC_HOST, "--tag", RESTIC_TAG, "--", target,
+                               timeout=left(OFFSITE_TIMEOUT))
             require(copy.returncode == 0, restic_code(copy.returncode, "offsite-copy-failed"))
             snapshot = backup_snapshot(copy.stdout)
-            listed = self.restic(conf, "--retry-lock", "10m", "snapshots", "--json", snapshot)
+            listed = self.restic(conf, "--retry-lock", "10m", "snapshots", "--json", snapshot, timeout=left(600))
             require(listed.returncode == 0 and snapshot_matches(listed.stdout, snapshot, target), "offsite-unverified")
             copied = time.time()
             value = {"scope": SCOPE, "action": "offsite", "verified": True, "status": "passed", "checkedAtEpoch": copied,
@@ -744,13 +783,22 @@ class Production:
             if conf["retention"]:
                 daily, weekly, monthly = conf["retention"]
                 value["retention"].update(keepDaily=daily, keepWeekly=weekly, keepMonthly=monthly)
-                forget = self.restic(conf, "--retry-lock", "10m", "forget", "--tag", RESTIC_TAG, "--host", RESTIC_HOST, "--group-by", "host,tags",
-                                     "--keep-daily", str(daily), "--keep-weekly", str(weekly), "--keep-monthly", str(monthly), "--prune",
-                                     timeout=OFFSITE_TIMEOUT)
-                if forget.returncode == 0:
+                # The copy is safe now: record it before retention, which can take long or be stopped.
+                self.write_status("offsite", value)
+                code = "offsite-retention-timeout" if deadline - time.monotonic() < 60 else None
+                try:
+                    if code is None:
+                        forget = self.restic(conf, "--retry-lock", "10m", "forget", "--tag", RESTIC_TAG, "--host", RESTIC_HOST, "--group-by", "host,tags",
+                                             "--keep-daily", str(daily), "--keep-weekly", str(weekly), "--keep-monthly", str(monthly), "--prune",
+                                             timeout=left(OFFSITE_TIMEOUT))
+                        if forget.returncode != 0:
+                            code = restic_code(forget.returncode, "offsite-retention-failed")
+                except Refused as exc:
+                    code = "offsite-retention-timeout" if exc.code == "command-unavailable-or-timeout" else "offsite-retention-failed"
+                if code is None:
                     value["retention"]["applied"] = True
                 else:
-                    value.update(verified=False, status="failed", codes=[restic_code(forget.returncode, "offsite-retention-failed")])
+                    value.update(verified=False, status="failed", codes=[code])
             self.write_status("offsite", value)
             return value
         finally:
@@ -766,6 +814,13 @@ class Production:
     def timer_active(self, unit: str) -> bool:
         try:
             return self.userctl("is-enabled", "--quiet", unit).returncode == 0 and self.userctl("is-active", "--quiet", unit).returncode == 0
+        except Refused:
+            return False
+
+    def service_failed(self, unit: str) -> bool:
+        """A run that systemd killed records no result of its own; its unit stays failed."""
+        try:
+            return self.userctl("is-failed", "--quiet", unit).returncode == 0
         except Refused:
             return False
 
@@ -785,11 +840,22 @@ class Production:
             installed = False
         facts = {"checkedAtEpoch": time.time(), "installed": installed, "offsiteConfigured": self.offsite_configured(),
                  "reports": {name: self.read_report(name) for name in REPORTS},
-                 "timers": {name: self.timer_active(unit) for name, unit in TIMERS.items()}, "lingering": self.lingering()}
+                 "timers": {name: self.timer_active(unit) for name, unit in TIMERS.items()},
+                 "services": {name: self.service_failed(f"ba-production-{name}.service") for name in REPORTS}, "lingering": self.lingering()}
         value = evaluate_status(facts)
         value["overridden"] = self.s.overridden
         return value
 
+
+# backup_restore.py's own names; uid 1000 owns them. Prints "cleared" when anything was left behind.
+CLEAR_STALE_SCRIPT = r'''
+set -eu
+found=clean
+for path in /backups/.bangla-backup.lock /backups/.bangla-snapshot-*; do
+  if [ -e "$path" ] || [ -L "$path" ]; then rm -rf -- "$path"; found=cleared; fi
+done
+echo "$found"
+'''
 
 RECEIPT_SCRIPT = r'''
 import hashlib,json,pathlib,re,subprocess,sys
@@ -972,15 +1038,22 @@ def evaluate_status(facts: dict) -> dict:
     for name, active in facts["timers"].items():
         if active is not True:
             codes.append("timer-inactive-" + name)
+    for name, failed in facts["services"].items():
+        if failed is not False:
+            codes.append("service-failed-" + name)
     if not facts["lingering"]:
         codes.append("user-linger-disabled")
     return {"scope": SCOPE, "action": "status", "verified": not codes, "status": "healthy" if not codes else "failed",
             "checkedAtEpoch": now, "codes": codes, "installed": facts["installed"], **parts,
-            "timers": {name: facts["timers"][name] is True for name in REPORTS}, "lingering": facts["lingering"]}
+            "timers": {name: facts["timers"][name] is True for name in REPORTS},
+            "servicesFailed": {name: facts["services"][name] is not False for name in REPORTS}, "lingering": facts["lingering"]}
 
 
 def interrupted(*_):
-    raise InterruptedError()
+    # The first stop request interrupts the work; later ones must not interrupt its recovery.
+    for number in (signal.SIGTERM, signal.SIGHUP):
+        signal.signal(number, signal.SIG_IGN)
+    raise Stopped()
 
 
 def quiet_signals() -> dict:
@@ -1016,8 +1089,8 @@ def main(argv: list[str]) -> int:
         value = getattr(prod, action)()
         print(json.dumps(value, separators=(",", ":")))
         return 0 if value["verified"] else 1
-    except (Exception, KeyboardInterrupt) as exc:  # Any failure is recorded with a fixed code, never a trace.
-        codes = exc.codes if isinstance(exc, Refused) else ["interrupted" if isinstance(exc, (InterruptedError, KeyboardInterrupt)) else "operation-failed"]
+    except (Exception, KeyboardInterrupt, Stopped) as exc:  # Any failure is recorded with a fixed code, never a trace.
+        codes = exc.codes if isinstance(exc, Refused) else ["interrupted" if isinstance(exc, (Stopped, KeyboardInterrupt)) else "operation-failed"]
         value = failure_value(prod, action, codes)
         if prod is not None and action in REPORTS and value["status"] == "failed":
             try:

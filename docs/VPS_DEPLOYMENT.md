@@ -193,7 +193,11 @@ below is the confirmed name, for example `learn.example.org`.
    ([Server address secrets](#server-address-secrets)), save the verified
    `DEPLOY_KNOWN_HOSTS` line and confirm the `DEPLOY_SSH_KEY` secret is present
    ([Settings to complete](#settings-to-complete)).
-7. **Enable.** Set the repository variable `DEPLOY_ENABLED=true`.
+7. **Enable.** First create the `production-status` GitHub environment, with
+   no reviewers and only `main` allowed to deploy to it
+   ([Alerting](PRODUCTION_OPERATIONS.md#alerting)): this step switches on the
+   daily status check, which runs there. Then set the repository variable
+   `DEPLOY_ENABLED=true`.
 8. **Deploy.** Push to `main`, or run the CI workflow on `main` from the
    Actions tab, and watch its `deploy` job. The run publishes the commit's GHCR
    image and that job deploys it; an older commit is skipped, and inability to
@@ -207,8 +211,10 @@ below is the confirmed name, for example `learn.example.org`.
    health, port exposure, disk, backup age, the public site and its
    certificate, and an off-site copy that stays inert until the client
    configures one. It runs one backup and one monitor before enabling them.
-   Then create the `production-status` environment for the daily status alert.
-   See [Production operations](PRODUCTION_OPERATIONS.md).
+   Then give the daily status alert its own status key, which the server
+   limits to reading status, never the deploy key
+   ([Alerting](PRODUCTION_OPERATIONS.md#alerting)). See
+   [Production operations](PRODUCTION_OPERATIONS.md).
 10. **First administrator.** The agreed person opens `https://DOMAIN/grown-ups`,
    chooses Create account and keeps the recovery codes. In the deployment
    directory, with the daemon selected as in the manual administration

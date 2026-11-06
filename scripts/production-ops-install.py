@@ -21,6 +21,36 @@ MARKER = b"# bangla-production-operations-v1\n"
 PAYLOAD = re.compile(r"/opt/bangla-adventures/ops/\.incoming\.[A-Za-z0-9]{12}")
 UNIT_PARTS = ("home", "config", "systemd", "user")
 SERVICE_TIMEOUT = {"backup": 45 * 60, "offsite": 4 * 3600, "monitor": 10 * 60}
+# A rollback waits this long for a running deploy (its health wait is minutes) before giving up on the lock.
+ROLLBACK_LOCK_WAIT = 20 * 60
+
+
+class InstallFailed(ops.Refused):
+    """A failure after files changed, with what the rollback achieved: complete, incomplete or failed."""
+
+    def __init__(self, codes: list[str], rollback: str):
+        super().__init__(*codes, *({"incomplete": ["rollback-incomplete"], "failed": ["rollback-failed"]}.get(rollback, [])))
+        self.rollback = rollback
+
+
+def failure_codes(exc: BaseException) -> list[str]:
+    if isinstance(exc, ops.Refused):
+        return exc.codes
+    return ["interrupted" if isinstance(exc, (ops.Stopped, KeyboardInterrupt)) else "install-failed"]
+
+
+def wait_for_deploy_lock(prod, timeout: float) -> int | None:
+    """The deploy lock, waiting for a running deploy to finish; None if it is still busy."""
+    deadline = time.monotonic() + timeout
+    while True:
+        try:
+            return prod.deploy_lock()
+        except ops.Refused as exc:
+            if exc.code != "transaction-busy":
+                raise
+        if time.monotonic() >= deadline:
+            return None
+        time.sleep(5)
 
 
 def unit_directory_problem(info: os.stat_result, resolved: bool, safe_group: int | None) -> str | None:
@@ -108,12 +138,22 @@ def main(argv: list[str]) -> int:
     previous_receipt = None
     timer_states = {}
 
-    def restore_previous():
-        # The caller holds .deploy.lock until all file and timer rollback work is complete.
+    def stop_new_timers():
         for name in ops.TIMERS.values():
             userctl(prod, "stop", name, okay=True)
             if not timer_states.get(name, {}).get("enabled"):
                 userctl(prod, "disable", name, okay=True)
+
+    def start_previous_timers():
+        for name, state in timer_states.items():
+            if state["enabled"]:
+                userctl(prod, "enable", name, okay=True)
+            if state["active"]:
+                userctl(prod, "start", name, okay=True)
+
+    def restore_previous():
+        # The caller holds .deploy.lock until all file and timer rollback work is complete.
+        stop_new_timers()
         for path, content in previous.items():
             if content is None:
                 path.unlink(missing_ok=True)
@@ -124,14 +164,31 @@ def main(argv: list[str]) -> int:
         else:
             atomic(receipt_path, previous_receipt, settings.uid)
         userctl(prod, "daemon-reload", okay=True)
-        for name, state in timer_states.items():
-            if state["enabled"]:
-                userctl(prod, "enable", name, okay=True)
-            if state["active"]:
-                userctl(prod, "start", name, okay=True)
+        start_previous_timers()
+
+    def rollback(held: int | None) -> str:
+        """Put the previous files and timer states back; once started, stop requests wait for it."""
+        previous_signals = ops.quiet_signals()
+        try:
+            lock_fd = held if held is not None else wait_for_deploy_lock(prod, ROLLBACK_LOCK_WAIT)
+            if lock_fd is None:
+                # A deploy still holds the lock: leave the files, but bring back the earlier timer states
+                # so scheduled jobs carry on (each defers while the deploy runs).
+                stop_new_timers()
+                start_previous_timers()
+                return "incomplete"
+            try:
+                restore_previous()
+            finally:
+                if held is None:
+                    os.close(lock_fd)
+            return "complete"
+        except BaseException:
+            return "failed"
+        finally:
+            ops.restore_signals(previous_signals)
 
     lock = prod.deploy_lock()
-    committed = False
     touched = False
     try:
         previous_receipt = receipt_path.read_bytes() if os.path.lexists(receipt_path) else None
@@ -161,15 +218,14 @@ def main(argv: list[str]) -> int:
         for name in ops.UNITS:
             loaded = userctl(prod, "show", name, "--property=FragmentPath", "--value").stdout.strip()
             ops.require(loaded == str(config / name), "loaded-unit-path")
-        committed = True
+    except BaseException as exc:
+        if not touched:
+            raise
+        raise InstallFailed(failure_codes(exc), rollback(lock)) from exc
     finally:
-        try:
-            if touched and not committed:
-                restore_previous()
-        finally:
-            os.close(lock)
-    offsite = prod.offsite_configured()
+        os.close(lock)
     try:
+        offsite = prod.offsite_configured()
         # Fresh systemd runs, not an older JSON report, prove the installed jobs work.
         services = [f"ba-production-{name}.service" for name in ops.REPORTS]
         userctl(prod, "reset-failed", *services, okay=True)
@@ -191,13 +247,9 @@ def main(argv: list[str]) -> int:
             userctl(prod, "enable", "--now", name)
             ops.require(userctl(prod, "is-enabled", "--quiet", name, okay=True).returncode == 0
                         and userctl(prod, "is-active", "--quiet", name, okay=True).returncode == 0, "timer-not-enabled")
-    except BaseException:
-        rollback = prod.deploy_lock()
-        try:
-            restore_previous()
-        finally:
-            os.close(rollback)
-        raise
+    except BaseException as exc:
+        # The deploy lock was released for the runs; a deploy may hold it now (a deferred run).
+        raise InstallFailed(failure_codes(exc), rollback(None)) from exc
     result = {"scope": ops.SCOPE, "action": "install", "verified": True, "status": "passed", "codes": [],
               "timers": {name: True for name in ops.TIMERS}, "offsiteConfigured": offsite, "initialRuns": initial,
               "retentionCount": ops.KEEP, "backupSchedule": "16:30 UTC daily", "offsiteSchedule": "17:15 UTC daily",
@@ -212,7 +264,8 @@ if __name__ == "__main__":
         signal.signal(number, ops.interrupted)
     try:
         raise SystemExit(main(sys.argv))
-    except (Exception, KeyboardInterrupt) as exc:
-        codes = exc.codes if isinstance(exc, ops.Refused) else ["install-failed"]
-        print(json.dumps({"scope": ops.SCOPE, "action": "install", "verified": False, "status": "failed", "codes": codes}, separators=(",", ":")))
+    except (Exception, KeyboardInterrupt, ops.Stopped) as exc:
+        # "none": nothing had changed yet; otherwise what the rollback achieved.
+        print(json.dumps({"scope": ops.SCOPE, "action": "install", "verified": False, "status": "failed", "codes": failure_codes(exc),
+                          "rollback": getattr(exc, "rollback", "none")}, separators=(",", ":")))
         raise SystemExit(1)

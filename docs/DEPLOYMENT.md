@@ -322,6 +322,8 @@ from the deployment folder: `docker compose exec app npm run admin:grant -- EMAI
 | `DEPLOY_REQUIRE_PUBLIC_HEALTH` | Fixed workflow setting | GitHub enforces `true`; portable scripts accept this environment setting and default to `false` |
 | `PUBLIC_HEALTH_URL` | Variable | Optional HTTPS health URL; defaults to the server's `PUBLIC_ORIGIN` plus `/api/health` |
 | `DEPLOY_SSH_KEY` | Secret | The deploy user's private key |
+| `STATUS_SSH_KEY` | `production-status` environment secret | The daily production status check's own key, which the server limits to reading status; never the deploy key ([Alerting](PRODUCTION_OPERATIONS.md#alerting)) |
+| `STATUS_KEY_FINGERPRINT` | Variable | Expected SHA256 fingerprint of that status key |
 | `ELEVENLABS_API_KEY` | Secret | Optional; the client's narration key, written into the server `.env` on each deploy. Empty leaves the server's own value |
 | `ELEVENLABS_VOICE_ID`, `ELEVENLABS_MODEL_ID`, `ELEVENLABS_DAILY_CHARACTER_LIMIT` | Variable | Optional narration settings, written the same way |
 
