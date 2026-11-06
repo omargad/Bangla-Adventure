@@ -138,8 +138,8 @@ export default function PracticeHub({ approvedLessonIds, recordings: initialReco
         <h1>{s("Old words come back at just the right time.", "পুরনো শব্দ ফিরে আসে ঠিক সময়ে।")}</h1>
         <p>
           {s(
-            "All 108 lesson words live here. Words you know rest longer; words you're learning return sooner. Your practice is saved only on this device — like everything a learner does.",
-            "পাঠের ১০৮টি শব্দ এখানে আছে। যে শব্দ জানো তা বেশি দিন বিশ্রামে থাকে; যা শিখছ তা তাড়াতাড়ি ফিরে আসে। অনুশীলনের হিসাব কেবল এই ডিভাইসেই থাকে — শিক্ষার্থীর সবকিছুর মতোই।",
+            "All 108 lesson words live here. Words you know rest longer; words you're learning return sooner. This word practice is kept on this device only. Topics you read, your topic quiz scores and your class activity results are saved to your account, where your teacher can see them.",
+            "পাঠের ১০৮টি শব্দ এখানে আছে। যে শব্দ জানো তা বেশি দিন বিশ্রামে থাকে; যা শিখছ তা তাড়াতাড়ি ফিরে আসে। এই শব্দ অনুশীলনের হিসাব কেবল এই ডিভাইসেই থাকে। তুমি কোন বিষয় পড়েছ, বিষয়ের কুইজে কত পেয়েছ আর ক্লাসের কার্যক্রমের ফলাফল তোমার অ্যাকাউন্টে সংরক্ষিত থাকে, শিক্ষক সেগুলো দেখতে পারেন।",
           )}
         </p>
         <div className="practice-stats" role="status">

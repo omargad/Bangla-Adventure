@@ -15,7 +15,8 @@ type HubCard = {
 const cultureHubs: HubCard[] = [
   { href: "/topics", emoji: "🏛️", title: { en: "Classroom topics", bn: "শ্রেণিকক্ষের বিষয়" }, blurb: { en: "History, festivals, literature and arts — short readings with quizzes, each citing its NCTB textbook.", bn: "ইতিহাস, উৎসব, সাহিত্য ও শিল্প — কুইজসহ ছোট পাঠ, প্রতিটিতে এনসিটিবি বইয়ের উৎস।" } },
   { href: "/library", emoji: "📚", title: { en: "NCTB textbook library", bn: "এনসিটিবি পাঠ্যবই লাইব্রেরি" }, blurb: { en: "The government textbooks behind every topic, with official free download links.", bn: "প্রতিটি বিষয়ের পেছনের সরকারি পাঠ্যবই, বিনামূল্যের অফিসিয়াল ডাউনলোড লিংকসহ।" } },
-  { href: "/classroom", emoji: "🏫", title: { en: "My classroom", bn: "আমার শ্রেণিকক্ষ" }, blurb: { en: "Join your Bangla-school class with a code, do the activities your teacher sets.", bn: "কোড দিয়ে ক্লাসে যোগ দাও, শিক্ষকের দেওয়া কার্যক্রম করো।" } },
+  // Staff allocate classes; no class code is needed.
+  { href: "/student?section=activities", emoji: "🏫", title: { en: "My classroom", bn: "আমার শ্রেণিকক্ষ" }, blurb: { en: "Do the activities your teacher sets and see your results. Your teacher adds you to your class.", bn: "শিক্ষকের দেওয়া কার্যক্রম করো, ফলাফল দেখো। শিক্ষক তোমাকে ক্লাসে যোগ করবেন।" } },
   { href: "/poems", emoji: "🪶", title: { en: "Poetry corner", bn: "কবিতার কোণ" }, blurb: { en: "Beloved poems and rhymes, exactly as the poets wrote them.", bn: "প্রিয় কবিতা ও ছড়া — কবি যেমন লিখেছেন, ঠিক তেমনই।" } },
   { href: "/explore", emoji: "🗺️", title: { en: "Explore Bangladesh", bn: "বাংলাদেশ ঘুরে দেখো" }, blurb: { en: "History timeline, landmarks, festivals, food and music of the homeland.", bn: "ইতিহাস, দর্শনীয় স্থান, উৎসব, খাবার ও গান।" } },
   { href: "/stories", emoji: "📖", title: { en: "Story time", bn: "গল্পের সময়" }, blurb: { en: "Folk tales retold gently, and stories about two homes.", bn: "নরম করে বলা লোককথা আর দুই বাড়ির গল্প।" } },
@@ -27,7 +28,7 @@ const cultureHubs: HubCard[] = [
 // language teaching for the future because community schools already run a
 // set language curriculum.
 const languageHubs: HubCard[] = [
-  { href: "/", emoji: "🛶", title: { en: "The 18 lessons", bn: "১৮টি পাঠ" }, blurb: { en: "108 guided sessions from first words to confident heritage speech.", bn: "প্রথম শব্দ থেকে আত্মবিশ্বাসী বাংলা পর্যন্ত ১০৮টি সেশন।" } },
+  { href: "/adventure", emoji: "🛶", title: { en: "The 18 lessons", bn: "১৮টি পাঠ" }, blurb: { en: "108 guided sessions from first words to confident heritage speech.", bn: "প্রথম শব্দ থেকে আত্মবিশ্বাসী বাংলা পর্যন্ত ১০৮টি সেশন।" } },
   { href: "/alphabet", emoji: "🔤", title: { en: "Bornomala — the alphabet", bn: "বর্ণমালা" }, blurb: { en: "All 50 letters, vowel signs, joined letters and numerals, with sound.", bn: "৫০টি বর্ণ, কার-চিহ্ন, যুক্তবর্ণ ও সংখ্যা — শব্দসহ।" } },
   { href: "/phrasebook", emoji: "💬", title: { en: "First phrases", bn: "বাক্যের ঝুলি" }, blurb: { en: "Forty everyday phrases for home, play and the dinner table.", bn: "বাড়ি, খেলা ও খাবার টেবিলের চল্লিশটি দৈনন্দিন কথা।" } },
   { href: "/numbers", emoji: "💯", title: { en: "Numbers & counting", bn: "সংখ্যা ও গোনা" }, blurb: { en: "One to one hundred, plus a star-earning counting game.", bn: "এক থেকে একশো, সঙ্গে তারা-জেতা গোনার খেলা।" } },
