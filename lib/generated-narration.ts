@@ -14,11 +14,21 @@ const TIMEOUT_MS = 60_000;
 const settingsFor = (modelId: string) => ({ stability: modelId === "eleven_v3" ? 0.5 : 0.7, similarityBoost: 0.75 });
 
 export class NarrationError extends Error {
-  constructor(public readonly status: number, message: string) {
+  constructor(public readonly status: number, message: string, public readonly messageBn?: string) {
     super(message);
     this.name = "NarrationError";
   }
 }
+
+/** How much of the site's daily allowance one account may use, a quarter of it unless ELEVENLABS_ACCOUNT_DAILY_CHARACTER_LIMIT says otherwise. */
+export function accountDailyLimit(siteLimit: number, configured: string | undefined): number | null {
+  const raw = configured?.trim() || "";
+  if (!raw) return Math.floor(siteLimit / 4);
+  if (!/^\d+$/.test(raw) || !Number.isSafeInteger(Number(raw))) return null;
+  return Math.min(Number(raw), siteLimit);
+}
+
+const accountKey = (actorKey: string) => createHash("sha256").update(actorKey).digest("hex");
 
 /** Public for offline fixtures; contains no account, key or provider response. */
 export function narrationCacheKey(text: string, language: Language, voiceId = DEFAULT_VOICE, modelId = DEFAULT_MODEL): string {
@@ -114,24 +124,37 @@ export function createGeneratedNarration({ env, now = Date.now, transport = prov
   let active = 0;
   let budgetQueue: Promise<void> = Promise.resolve();
 
-  function reserve(root: string, amount: number, limit: number, actorKey: string): Promise<void> {
+  /**
+   * Reserve characters from today's allowance: the site's (`limit`) and the account's own share
+   * (`accountLimit`), so one account cannot use up narration for everyone. Accounts are stored hashed.
+   */
+  function reserve(root: string, amount: number, limit: number, accountLimit: number, actorKey: string): Promise<void> {
     const reservation = budgetQueue.then(async () => {
       const file = path.join(root, "daily-budget.json");
       const day = new Date(now()).toISOString().slice(0, 10);
+      const account = accountKey(actorKey);
       let used = 0;
+      let accounts: Record<string, number> = {};
       try {
         const stored = JSON.parse(await fs.readFile(file, "utf8"));
         if (!stored || stored.schema !== 1 || typeof stored.day !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(stored.day) || stored.day > day || !Number.isSafeInteger(stored.characters) || stored.characters < 0) throw new Error("invalid budget");
         const storedDate = Date.parse(`${stored.day}T00:00:00.000Z`);
         if (!Number.isFinite(storedDate) || new Date(storedDate).toISOString().slice(0, 10) !== stored.day) throw new Error("invalid budget date");
-        if (stored.day === day) used = stored.characters;
+        // Files written before the per-account share have no accounts: everyone starts from zero.
+        const storedAccounts: unknown = stored.accounts ?? {};
+        if (!storedAccounts || typeof storedAccounts !== "object" || Array.isArray(storedAccounts)
+          || Object.entries(storedAccounts).some(([key, value]) => !/^[a-f0-9]{64}$/.test(key) || !Number.isSafeInteger(value) || (value as number) < 0)) throw new Error("invalid accounts");
+        if (stored.day === day) { used = stored.characters; accounts = storedAccounts as Record<string, number>; }
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw new NarrationError(503, "Narration usage is unavailable. Please try again later.");
       }
-      if (used + amount > limit) throw new NarrationError(429, "Today's narration allowance has been used. Saved audio is still available.");
+      if (used + amount > limit) throw new NarrationError(429, "Today's narration allowance has been used. Saved audio is still available.", "আজকের কণ্ঠ তৈরির সীমা শেষ হয়ে গেছে। সংরক্ষিত অডিও এখনো শোনা যাবে।");
+      if ((accounts[account] ?? 0) + amount > accountLimit) {
+        throw new NarrationError(429, "This account's narration allowance for today has been used. Saved audio is still available.", "আজকের জন্য এই অ্যাকাউন্টের কণ্ঠ তৈরির সীমা শেষ হয়ে গেছে। সংরক্ষিত অডিও এখনো শোনা যাবে।");
+      }
       try {
         // Keep reservations after failures: a provider may have charged before a connection failed.
-        await atomicWrite(file, JSON.stringify({ schema: 1, day, characters: used + amount, lastActor: createHash("sha256").update(actorKey).digest("hex") }));
+        await atomicWrite(file, JSON.stringify({ schema: 1, day, characters: used + amount, accounts: { ...accounts, [account]: (accounts[account] ?? 0) + amount }, lastActor: account }));
       } catch {
         throw new NarrationError(503, "Narration usage is unavailable. Please try again later.");
       }
@@ -163,10 +186,12 @@ export function createGeneratedNarration({ env, now = Date.now, transport = prov
       const rawLimit = configuration.ELEVENLABS_DAILY_CHARACTER_LIMIT?.trim() || "20000";
       const limit = Number(rawLimit);
       if (!/^\d+$/.test(rawLimit) || !Number.isSafeInteger(limit)) throw new NarrationError(503, "Narration settings are unavailable.");
+      const accountLimit = accountDailyLimit(limit, configuration.ELEVENLABS_ACCOUNT_DAILY_CHARACTER_LIMIT);
+      if (accountLimit === null) throw new NarrationError(503, "Narration settings are unavailable.");
       if (active >= 2) throw new NarrationError(503, "Narration is busy. Please try again shortly.");
       active += 1;
       try {
-        await reserve(root, [...text].length, limit, actorKey);
+        await reserve(root, [...text].length, limit, accountLimit, actorKey);
         let audio: Buffer;
         try {
           const signal = AbortSignal.timeout(TIMEOUT_MS);

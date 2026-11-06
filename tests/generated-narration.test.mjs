@@ -101,7 +101,7 @@ test("upstream concurrency is capped at two and busy requests spend no character
 });
 
 test("daily budget reservations serialize, survive restart and reset only on a later UTC day", async () => {
-  const env = fixture("budget", { ELEVENLABS_DAILY_CHARACTER_LIMIT: "3" });
+  const env = fixture("budget", { ELEVENLABS_DAILY_CHARACTER_LIMIT: "3", ELEVENLABS_ACCOUNT_DAILY_CHARACTER_LIMIT: "3" });
   let clock = now;
   let calls = 0;
   const dependencies = { env: () => env, now: () => clock, transport: async () => { calls += 1; return stream(); } };
@@ -114,6 +114,53 @@ test("daily budget reservations serialize, survive restart and reset only on a l
   clock += 86400_000;
   await createGeneratedNarration(dependencies)("ef", "en", "actor");
   assert.equal(calls, 2);
+});
+
+test("each account has its own daily share, a quarter of the site's unless configured", async () => {
+  const env = fixture("per-account", { ELEVENLABS_DAILY_CHARACTER_LIMIT: "40" });
+  let clock = now;
+  let calls = 0;
+  const dependencies = { env: () => env, now: () => clock, transport: async () => { calls += 1; return stream(); } };
+  const generate = createGeneratedNarration(dependencies);
+  // A quarter of 40 is 10 characters per account.
+  await generate("12345", "en", "adult:teacher");
+  await generate("67890", "en", "adult:teacher");
+  const refusal = await generate("abc", "en", "adult:teacher").then(() => null, (error) => error);
+  assert.ok(errorStatus(429)(refusal));
+  assert.equal(refusal.message, "This account's narration allowance for today has been used. Saved audio is still available.");
+  assert.match(refusal.messageBn, /[ঀ-৿]/);
+  // Everyone else still has narration; the refused request reserved nothing.
+  await generate("abc", "en", "student:maya");
+  assert.equal(calls, 3);
+  // Saved audio stays available to the account that used up its share.
+  assert.deepEqual(await generate("12345", "en", "adult:teacher"), { audio, cached: true });
+  // The shares are stored hashed and survive a restart.
+  const budget = JSON.parse(await fs.readFile(path.join(cacheRoot(env), "daily-budget.json"), "utf8"));
+  assert.equal(budget.characters, 13);
+  assert.deepEqual(Object.values(budget.accounts).sort((a, b) => a - b), [3, 10]);
+  assert.ok(!JSON.stringify(budget).includes("teacher") && !JSON.stringify(budget).includes("maya"));
+  await assert.rejects(createGeneratedNarration(dependencies)("xyz", "en", "adult:teacher"), errorStatus(429));
+  // A configured share replaces the quarter, and the next UTC day starts afresh.
+  env.ELEVENLABS_ACCOUNT_DAILY_CHARACTER_LIMIT = "12";
+  await createGeneratedNarration(dependencies)("xy", "en", "adult:teacher");
+  clock += 86400_000;
+  delete env.ELEVENLABS_ACCOUNT_DAILY_CHARACTER_LIMIT;
+  await createGeneratedNarration(dependencies)("0123456789", "en", "adult:teacher");
+  assert.equal(calls, 5);
+});
+
+test("the account share is a whole number, never more than the site's allowance", async () => {
+  const { accountDailyLimit } = await import("../lib/generated-narration.ts");
+  assert.equal(accountDailyLimit(20000, undefined), 5000);
+  assert.equal(accountDailyLimit(20000, " "), 5000);
+  assert.equal(accountDailyLimit(3, undefined), 0);
+  assert.equal(accountDailyLimit(20000, "8000"), 8000);
+  assert.equal(accountDailyLimit(20000, "90000"), 20000);
+  for (const bad of ["-1", "1.5", "lots"]) assert.equal(accountDailyLimit(20000, bad), null, bad);
+  let calls = 0;
+  const invalid = fixture("invalid-share", { ELEVENLABS_ACCOUNT_DAILY_CHARACTER_LIMIT: "lots" });
+  await assert.rejects(createGeneratedNarration({ env: () => invalid, transport: async () => { calls += 1; return stream(); } })("hello", "en", "actor"), errorStatus(503));
+  assert.equal(calls, 0);
 });
 
 test("missing keys, invalid settings and corrupt budget files fail closed without provider requests", async () => {
@@ -129,6 +176,10 @@ test("missing keys, invalid settings and corrupt budget files fail closed withou
   await assert.rejects(createGeneratedNarration({ env: () => corrupt, transport })("hello", "en", "actor"), errorStatus(503));
   await fs.writeFile(path.join(cacheRoot(corrupt), "daily-budget.json"), JSON.stringify({ schema: 1, day: "2025-99-99", characters: 0 }));
   await assert.rejects(createGeneratedNarration({ env: () => corrupt, transport })("hello", "en", "actor"), errorStatus(503));
+  for (const accounts of [[1], { "not-a-hash": 1 }, { ["a".repeat(64)]: -1 }]) {
+    await fs.writeFile(path.join(cacheRoot(corrupt), "daily-budget.json"), JSON.stringify({ schema: 1, day: "2026-11-05", characters: 0, accounts }));
+    await assert.rejects(createGeneratedNarration({ env: () => corrupt, transport })("hello", "en", "actor"), errorStatus(503), JSON.stringify(accounts));
+  }
   assert.equal(calls, 0);
 });
 

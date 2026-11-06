@@ -139,3 +139,19 @@ for (const [name, role, cached, revoke] of [
     assert.deepEqual(pending.generations, [[item.text, "en", item.actor(role).key]], "only canonical instructions reach the injected generator, never options or answers");
   });
 }
+
+test("a used-up account share is answered 429 in English and Bangla", async () => {
+  const { NarrationError } = await import("../lib/generated-narration.ts");
+  const item = fixture();
+  const handler = createNarrationHandler({
+    getActor: async () => item.actor("teacher"),
+    resolveSource: resolveNarrationSource,
+    generate: async () => { throw new NarrationError(429, "This account's narration allowance for today has been used. Saved audio is still available.", "আজকের জন্য এই অ্যাকাউন্টের কণ্ঠ তৈরির সীমা শেষ হয়ে গেছে। সংরক্ষিত অডিও এখনো শোনা যাবে।"); },
+    rateLimit: () => ({ allowed: true, retryAfterSeconds: 0, resetAt: 0 }),
+  });
+  const response = await handler(item.request());
+  assert.equal(response.status, 429);
+  const body = await response.json();
+  assert.equal(body.error, "This account's narration allowance for today has been used. Saved audio is still available.");
+  assert.match(body.errorBn, /[ঀ-৿]/);
+});

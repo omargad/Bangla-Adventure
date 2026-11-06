@@ -268,7 +268,11 @@ provider credits. Revoking the key leaves saved clips playable but prevents new
 clips from being made. Keep `MEDIA_ROOT` on the persistent application volume.
 
 The default generation budget is 20,000 new Unicode characters per UTC day,
-configured with `ELEVENLABS_DAILY_CHARACTER_LIMIT`. Reservations are saved before
+configured with `ELEVENLABS_DAILY_CHARACTER_LIMIT`. Each account may use at most its own
+share of that each day, a quarter of it by default (5,000 characters), configured with
+`ELEVENLABS_ACCOUNT_DAILY_CHARACTER_LIMIT`, so one account cannot use up narration for
+everyone; after that the account hears saved audio only until the next UTC day. The
+daily usage file records accounts only as hashes. Reservations are saved before
 provider requests, including unsuccessful requests, to bound repeated failures.
 Concurrent requests for the same clip share one generation. Only two provider
 requests run at once; provider errors are sanitized before returning to users.

@@ -15,8 +15,8 @@ const MAX_BODY_BYTES = 2048;
 const privateHeaders = { "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" };
 type NarrationRequest = NarrationSourceRequest & { hash: string; part: number };
 
-function failure(status: number, error: string, headers?: Record<string, string>) {
-  return Response.json({ error }, { status, headers: { ...privateHeaders, ...headers } });
+function failure(status: number, error: string, headers?: Record<string, string>, errorBn?: string) {
+  return Response.json(errorBn ? { error, errorBn } : { error }, { status, headers: { ...privateHeaders, ...headers } });
 }
 
 /** Read no more than 2 KB even when Content-Length is missing or incorrect. */
@@ -89,7 +89,8 @@ export function createNarrationHandler({ getActor, resolveSource, generate, rate
         ...privateHeaders, "Content-Type": "audio/ogg", "X-Narration-Provider": "ElevenLabs", "X-Narration-Cache": generated.cached ? "hit" : "miss",
       } });
     } catch (error) {
-      if (error instanceof NarrationSourceError || error instanceof NarrationError) return failure(error.status, error.message);
+      if (error instanceof NarrationError) return failure(error.status, error.message, undefined, error.messageBn);
+      if (error instanceof NarrationSourceError) return failure(error.status, error.message);
       return failure(503, "Narration is temporarily unavailable. Please try again.");
     }
   };
