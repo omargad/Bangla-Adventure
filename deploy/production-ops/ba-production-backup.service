@@ -1,0 +1,19 @@
+# bangla-production-operations-v1
+[Unit]
+Description=Bangla Adventures production backup (the app stops for seconds)
+After=docker.service
+
+[Service]
+Type=oneshot
+Environment=DOCKER_HOST=unix:///run/user/1002/docker.sock
+ExecStart=/bin/bash /opt/bangla-adventures/ops/tools/production-ops.sh backup
+UMask=0077
+NoNewPrivileges=true
+# Only the tool receives the stop request, so it can start the app again before it exits.
+KillMode=mixed
+TimeoutStartSec=40min
+TimeoutStopSec=6min
+SuccessExitStatus=75
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ba-production-backup

@@ -260,6 +260,16 @@ The operator must choose and authorize the remote destination, initialize it onc
 and securely store its repository password and backend credentials outside Git.
 Store a recovery copy of the encryption password separately from the source host.
 
+**On the client's rootless VPS, use the production off-site job instead of the
+templates below.** Its archives belong to the container user and are readable
+only through a container, so
+[Production operations](PRODUCTION_OPERATIONS.md#off-site-copies) runs restic
+in a pinned container from a user timer of the deployment account, with its
+settings in `~/.config/bangla-adventures/`. It replaces the
+`/etc/systemd/system` templates and `backup-offsite.sh` there, and it applies
+remote retention only when the client opts in. The rest of this section is for
+hosts where the archives are readable directly.
+
 Configure a private host-only environment file, for example
 `/etc/bangla-adventures/backup.env` (mode `0600`):
 
@@ -335,8 +345,9 @@ Run `restic check --read-data` on an agreed schedule to read and check the store
 data, then periodically restore a specific recorded snapshot into a new private
 staging directory using `restic restore SNAPSHOT_ID --target NEW_DIRECTORY`.
 Locate its archive, run this project's `verify` and restore drill, and record the
-result. Agree remote retention with the client; this project never runs remote
-`forget` or `prune` automatically.
+result. Agree remote retention with the client; `backup-offsite.sh` never runs
+remote `forget` or `prune`, and the production off-site job runs them only once
+the client has set all three retention values.
 
 ## Automated checks
 

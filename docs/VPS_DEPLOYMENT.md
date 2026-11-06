@@ -200,22 +200,29 @@ below is the confirmed name, for example `learn.example.org`.
    verify the newest commit is a failure. The job fails unless the container and
    the public health check both pass; `deploy.log` in the deployment directory
    has the server's side.
-9. **First administrator.** The agreed person opens `https://DOMAIN/grown-ups`,
+9. **Production operations.** Once that first deploy has passed, run the
+   **VPS production operations** workflow on `main` with `install` and its
+   confirmation ticked. It installs the deployment user's timers: a daily
+   backup at 16:30 UTC (the app stops for seconds), a five-minute monitor of
+   health, port exposure, disk, backup age, the public site and its
+   certificate, and an off-site copy that stays inert until the client
+   configures one. It runs one backup and one monitor before enabling them.
+   Then create the `production-status` environment for the daily status alert.
+   See [Production operations](PRODUCTION_OPERATIONS.md).
+10. **First administrator.** The agreed person opens `https://DOMAIN/grown-ups`,
    chooses Create account and keeps the recovery codes. In the deployment
    directory, with the daemon selected as in the manual administration
    commands below, the operator runs
    `docker compose exec app npm run admin:grant -- EMAIL`. That person then
    signs in again at `/grown-ups?returnTo=/admin&switchAccount=1`.
-10. **Backups.** Confirm the off-site destination, schedule and retention with
-    the client. Each deploy keeps the latest 14 local backups in `backups/` in
-    the deployment directory; that is a technical default, not agreed
-    retention, and deploy-time backups are not a schedule.
-    [`scripts/backup-offsite.sh`](../scripts/backup-offsite.sh) copies the newest
-    verified archive from `BACKUP_DIR` to the encrypted restic repository in
-    `RESTIC_REPOSITORY`, using the private `RESTIC_PASSWORD_FILE`, and refuses
-    an archive older than `BACKUP_MAX_AGE_HOURS` (default 36). It never
-    initialises, forgets or prunes; follow
-    [Encrypted off-server copies](BACKUP_RESTORE.md#encrypted-off-server-copies).
+11. **Backups.** Confirm the off-site destination, schedule and retention with
+    the client. Deploys and the daily backup together keep the latest 14 local
+    archives in `backups/` in the deployment directory; that is a technical
+    default, not agreed retention. Once the client chooses a destination, write
+    its private settings file and the off-site job starts copying the newest
+    verified archive each day; remote retention stays off until the client
+    agrees a policy (proposed: 14 daily, 8 weekly, 6 monthly). Follow
+    [Off-site copies](PRODUCTION_OPERATIONS.md#off-site-copies).
 
 After deployment, check the real sign-in and role flows externally. Run a
 controlled rollback exercise and a separate backup/restore exercise after

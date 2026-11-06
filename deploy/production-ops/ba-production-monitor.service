@@ -1,0 +1,17 @@
+# bangla-production-operations-v1
+[Unit]
+Description=Bangla Adventures production health, exposure, disk, backup, certificate and off-site checks
+After=docker.service
+
+[Service]
+Type=oneshot
+Environment=DOCKER_HOST=unix:///run/user/1002/docker.sock
+ExecStart=/bin/bash /opt/bangla-adventures/ops/tools/production-ops.sh monitor
+UMask=0077
+NoNewPrivileges=true
+TimeoutStartSec=4min
+TimeoutStopSec=2min
+SuccessExitStatus=75
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ba-production-monitor

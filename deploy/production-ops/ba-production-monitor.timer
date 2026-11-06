@@ -1,0 +1,11 @@
+# bangla-production-operations-v1
+[Unit]
+Description=Five-minute Bangla Adventures production checks
+
+[Timer]
+OnActiveSec=5min
+OnUnitActiveSec=5min
+Unit=ba-production-monitor.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,76 @@
+name: VPS production operations
+
+# Installs (or updates) and proves the production backup, monitoring and off-site timers on the VPS,
+# shows their status, or takes a backup now (docs/PRODUCTION_OPERATIONS.md). Production must exist
+# first: every job is skipped unless the repository variable DEPLOY_ENABLED is 'true'. The server's
+# address and account are the repository secrets DEPLOY_HOST and DEPLOY_USER, never printed.
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "install (or update) the timers and prove them, status, or backup-now. Needs production enabled (DEPLOY_ENABLED=true)."
+        type: choice
+        required: true
+        default: status
+        options:
+          - install
+          - status
+          - backup-now
+      confirm:
+        description: Run this operation on the production server
+        type: boolean
+        required: true
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-operations
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    if: >-
+      github.repository == 'omargad/Bangla-Adventure' && github.ref == 'refs/heads/main' &&
+      vars.DEPLOY_ENABLED == 'true' && inputs.confirm == true
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Check the operations tools offline before loading any credential
+        run: |
+          set -euo pipefail
+          bash -n scripts/production-ops.sh scripts/production-ops-install.sh scripts/production-ops-controller.sh
+          python3 -m unittest discover -s tests -p 'production_ops_test.py' -v
+
+  operate:
+    needs: validate
+    if: >-
+      github.repository == 'omargad/Bangla-Adventure' && github.ref == 'refs/heads/main' &&
+      vars.DEPLOY_ENABLED == 'true' && inputs.confirm == true && needs.validate.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: production
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Run the production operation
+        env:
+          OPERATION: ${{ inputs.action }}
+          DEPLOY_ENABLED: ${{ vars.DEPLOY_ENABLED }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PORT: ${{ vars.DEPLOY_PORT || '22' }}
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH || '/opt/bangla-adventures' }}
+          DEPLOY_HOST_FINGERPRINT: ${{ vars.DEPLOY_HOST_FINGERPRINT || 'SHA256:79xe+ubCodL2ACAHPNloo7I/K6mvngU88vEiFoEeWL8' }}
+          DEPLOY_KEY_FINGERPRINT: ${{ vars.DEPLOY_KEY_FINGERPRINT || 'SHA256:y1+C6cvcfpJFmO8pfjyMSFERpd5BtcQyDf5SptZXVlQ' }}
+          DEPLOY_DOCKER_HOST: ${{ vars.DEPLOY_DOCKER_HOST || (vars.DEPLOY_DOCKER_CONTEXT == '' && 'unix:///run/user/1002/docker.sock') || '' }}
+          DEPLOY_DOCKER_CONTEXT: ${{ vars.DEPLOY_DOCKER_CONTEXT }}
+          DEPLOY_KNOWN_HOSTS: ${{ vars.DEPLOY_KNOWN_HOSTS }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: bash scripts/production-ops-controller.sh "$OPERATION"

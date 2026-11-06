@@ -1,0 +1,12 @@
+# bangla-production-operations-v1
+[Unit]
+Description=Daily Bangla Adventures off-site copy, 17:15 UTC
+
+[Timer]
+# 45 minutes after the backup: 04:15 in Melbourne during daylight saving, 23:15 in Dhaka.
+OnCalendar=*-*-* 17:15:00 UTC
+Persistent=true
+Unit=ba-production-offsite.service
+
+[Install]
+WantedBy=timers.target

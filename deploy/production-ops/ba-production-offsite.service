@@ -1,0 +1,20 @@
+# bangla-production-operations-v1
+[Unit]
+Description=Bangla Adventures encrypted off-site copy of the latest verified backup
+After=docker.service
+# Inert until the client chooses a destination and this private file exists.
+ConditionPathExists=%h/.config/bangla-adventures/offsite.env
+
+[Service]
+Type=oneshot
+Environment=DOCKER_HOST=unix:///run/user/1002/docker.sock
+ExecStart=/bin/bash /opt/bangla-adventures/ops/tools/production-ops.sh offsite
+UMask=0077
+NoNewPrivileges=true
+KillMode=mixed
+TimeoutStartSec=4h
+TimeoutStopSec=2min
+SuccessExitStatus=75
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ba-production-offsite
