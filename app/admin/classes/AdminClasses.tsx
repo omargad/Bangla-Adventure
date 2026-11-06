@@ -6,7 +6,8 @@ import { confirmDiscardPasswords } from "@/app/components/StudentImport";
 import { localMessage, useLanguage } from "@/lib/use-language";
 import { siteTitle } from "@/lib/site-title";
 
-type ClassRow = { id: string; name: string; teacherId: string; teacherName?: string };
+/** `teacherActive` is false when the class's teacher was suspended, declined or no longer has teacher access. */
+type ClassRow = { id: string; name: string; teacherId: string; teacherName?: string; teacherActive?: boolean };
 type Teacher = { id: string; displayName: string; email: string };
 type ServerMessage = { error?: string; errorBn?: string };
 
@@ -32,6 +33,9 @@ export default function AdminClasses({ name }: { name: string }) {
   // Choosing another class remounts the panel, which would discard temporary passwords on screen.
   const [passwordsOnScreen, setPasswordsOnScreen] = useState(false);
   const current = classes.find((item) => item.id === selected);
+  // Classes whose teacher can no longer teach: only an administrator can open them until one is given a new teacher.
+  const orphaned = classes.filter((item) => item.teacherActive === false);
+  const needsTeacher = [" · Needs a new teacher", " · নতুন শিক্ষক প্রয়োজন"] as const;
 
   const loadClasses = useCallback(async (signal?: AbortSignal) => {
     try {
@@ -114,11 +118,18 @@ export default function AdminClasses({ name }: { name: string }) {
         </form>}
     </section>
 
-    <label className="portal-field">{s("Choose a class", "একটি ক্লাস বেছে নিন")}<select value={selected} onChange={(e) => choose(e.target.value)}><option value="">{s("Select a class", "ক্লাস বাছাই করুন")}</option>{classes.map((c) => <option key={c.id} value={c.id}>{c.teacherName ? `${c.name} · ${c.teacherName}` : c.name}</option>)}</select></label>
+    {orphaned.length > 0 && <section className="teach-panel" aria-labelledby="needs-teacher-heading">
+      <h2 id="needs-teacher-heading">{s("Classes that need a new teacher", "যেসব ক্লাসে নতুন শিক্ষক প্রয়োজন")}</h2>
+      <p>{s("The teacher of each of these classes is no longer an active, approved teacher, so nobody but an administrator can open the class. Choose the class, then give it to another teacher.", "এই ক্লাসগুলোর শিক্ষক আর সক্রিয় ও অনুমোদিত শিক্ষক নন, তাই প্রশাসক ছাড়া কেউ ক্লাসগুলো খুলতে পারেন না। ক্লাসটি বেছে নিয়ে অন্য একজন শিক্ষককে দিন।")}</p>
+      <ul>{orphaned.map((item) => <li key={item.id}><button type="button" className="text-button" onClick={() => choose(item.id)}>{item.name}</button>{item.teacherName && <> · {s("Teacher", "শিক্ষক")}: {item.teacherName}</>}</li>)}</ul>
+    </section>}
+
+    <label className="portal-field">{s("Choose a class", "একটি ক্লাস বেছে নিন")}<select value={selected} onChange={(e) => choose(e.target.value)}><option value="">{s("Select a class", "ক্লাস বাছাই করুন")}</option>{classes.map((c) => <option key={c.id} value={c.id}>{c.teacherName ? `${c.name} · ${c.teacherName}` : c.name}{c.teacherActive === false ? s(...needsTeacher) : ""}</option>)}</select></label>
     {loaded && !classes.length && <p>{s("No classes yet. Create one above, or teachers create their own from their workspace.", "এখনও কোনো ক্লাস নেই। ওপরে একটি তৈরি করুন, অথবা শিক্ষকেরা নিজেদের কর্মক্ষেত্র থেকে ক্লাস তৈরি করতে পারেন।")}</p>}
     {current && <section className="teach-panel" aria-label={s("Class teacher", "ক্লাসের শিক্ষক")}>
       <h2>{s("Class teacher", "ক্লাসের শিক্ষক")}</h2>
       <p>{s("Teacher", "শিক্ষক")}: <strong>{current.teacherName ?? "—"}</strong></p>
+      {current.teacherActive === false && <p role="note" className="auth-error">{s("This teacher's account is no longer an active, approved teacher. Give the class to another teacher so it can be taught again.", "এই শিক্ষকের অ্যাকাউন্ট আর সক্রিয় ও অনুমোদিত শিক্ষকের নয়। ক্লাসটি আবার পড়ানোর জন্য অন্য একজন শিক্ষককে দিন।")}</p>}
       <form className="class-setup-form" onSubmit={changeTeacher}>
         <label>{s("Change teacher", "শিক্ষক বদলান")}<select value={nextTeacher} required onChange={(event) => setNextTeacher(event.target.value)}><option value="">{s("Choose a teacher", "শিক্ষক বেছে নিন")}</option>{(teachers ?? []).filter((teacher) => teacher.id !== current.teacherId).map((teacher) => <option key={teacher.id} value={teacher.id}>{teacher.displayName} · {teacher.email}</option>)}</select></label>
         <button className="outline-button" type="submit" disabled={busy || !nextTeacher}>{s("Save teacher", "শিক্ষক সংরক্ষণ করুন")}</button>
