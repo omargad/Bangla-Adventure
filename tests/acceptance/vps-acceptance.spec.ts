@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 import Database from "better-sqlite3";
 import path from "node:path";
 import fs from "node:fs";
-import { acceptanceIdentities, runRoleAcceptance } from "../staging/role-acceptance-scenario.mjs";
+import { acceptanceIdentities, runRoleAcceptance, ROLE_ISSUE_KINDS } from "../staging/role-acceptance-scenario.mjs";
 import { acceptanceCiState } from "../staging/acceptance-ci-state.mjs";
 
 test("fresh production server completes the same disposable four-role VPS acceptance scenario", async ({ browser, baseURL, request }, testInfo) => {
@@ -14,6 +14,8 @@ test("fresh production server completes the same disposable four-role VPS accept
   const robots = path.join(process.cwd(), "public", "robots.txt");
   const originalRobots = fs.readFileSync(robots);
   let phase = "verify-clean-clone", operation = "guard", lastStatus = 0;
+  // Counts by fixed category only: browser messages can contain page data.
+  const unexpected: Record<string, number> = {};
   const output = testInfo.outputPath(`role-acceptance-${qaId}`);
   fs.mkdirSync(output, { recursive: true });
   const emails = [identities.admin.email, identities.teacher.email, identities.parent.email];
@@ -56,6 +58,7 @@ test("fresh production server completes the same disposable four-role VPS accept
         } finally { db.close(); }
       },
       onPhase: (value: string) => { phase = value; }, onOperation: (value: string) => { operation = value; }, onStatus: (value: number) => { lastStatus = value; },
+      onIssue: (kind: string) => { if (ROLE_ISSUE_KINDS.includes(kind)) unexpected[kind] = (unexpected[kind] ?? 0) + 1; },
     });
     expect(result.roles.map((item) => item.role).sort()).toEqual(["admin", "parent", "student", "teacher"]);
     expect(result.screenshotCount).toBe(12);
@@ -63,7 +66,7 @@ test("fresh production server completes the same disposable four-role VPS accept
     fs.writeFileSync(path.join(output, "ci-result.json"), JSON.stringify({ passed: true, scenario: result.scenario, screenshotCount: result.screenshotCount }, null, 2));
   } catch {
     // Playwright's raw errors may echo .fill() values. Never publish them or their causes.
-    fs.writeFileSync(path.join(output, "ci-diagnostics.json"), JSON.stringify({ passed: false, failedStep: phase, failedOperation: operation, loginResponseStatus: lastStatus }, null, 2));
-    throw new Error(`Acceptance failed at fixed phase ${phase}, operation ${operation}, HTTP status ${lastStatus}.`);
+    fs.writeFileSync(path.join(output, "ci-diagnostics.json"), JSON.stringify({ passed: false, failedStep: phase, failedOperation: operation, lastResponseStatus: lastStatus, unexpectedBrowserErrors: unexpected }, null, 2));
+    throw new Error(`Acceptance failed at fixed phase ${phase}, operation ${operation}, last response status ${lastStatus}, unexpected browser errors ${JSON.stringify(unexpected)}.`);
   } finally { fs.writeFileSync(robots, originalRobots); }
 });

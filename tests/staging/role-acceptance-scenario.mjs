@@ -10,6 +10,8 @@ export const ROLE_SCREENSHOTS = [
 export const ROLE_PHASES = ["verify-clean-clone", "browser-start", "fixture-signups", "bootstrap-admin", "admin-login", "account-approvals", "role-logins", "curriculum-review", "class-setup", "activity-review", "class-records", "topic-review", "student-work", "role-screens", "final-assertions", "cleanup"];
 export const ROLE_OPERATIONS = ["navigate", "hydrate-form", "fill-identity", "fill-password", "submit", "destination", "server-session", "cookie", "reload", "loaded-data", "api", "screenshot", "guard", "bootstrap"];
 export const SAFE_ROLE_ERRORS = new Set(["acceptance-api-status", "acceptance-assertion-failed", "browser-operation-failed", "guard-refused"]);
+// Only these fixed category names are reported for unexpected browser errors, never their text.
+export const ROLE_ISSUE_KINDS = ["page", "console", "http", "request"];
 const check = (value) => { if (!value) throw new Error("acceptance-assertion-failed"); };
 
 export function acceptanceIdentities(id) {
@@ -27,9 +29,9 @@ export function acceptanceIdentities(id) {
  * @param {{browser: import('@playwright/test').Browser, baseURL: string, qaId: string, outputDirectory: string,
  * guard: (page: import('@playwright/test').Page, expected: {users: number, pendingTopics: number, pendingLessons: number}) => Promise<void>,
  * bootstrapAdmin: () => Promise<void>, onPhase?: (value: string) => void,
- * onOperation?: (value: string) => void, onStatus?: (value: number) => void}} options
+ * onOperation?: (value: string) => void, onStatus?: (value: number) => void, onIssue?: (kind: string) => void}} options
  */
-export async function runRoleAcceptance({ browser, baseURL, qaId, outputDirectory, guard, bootstrapAdmin, onPhase = () => {}, onOperation = () => {}, onStatus = () => {} }) {
+export async function runRoleAcceptance({ browser, baseURL, qaId, outputDirectory, guard, bootstrapAdmin, onPhase = () => {}, onOperation = () => {}, onStatus = () => {}, onIssue = () => {} }) {
   const identities = acceptanceIdentities(qaId);
   const state = { users: 0, pendingTopics: 15, pendingLessons: 18 };
   const contexts = [], issues = [], expectedFailures = new Set();
@@ -38,6 +40,7 @@ export async function runRoleAcceptance({ browser, baseURL, qaId, outputDirector
   const phase = (name) => { check(ROLE_PHASES.includes(name)); onPhase(name); };
   const operation = (name) => { check(ROLE_OPERATIONS.includes(name)); onOperation(name); };
   const guarded = async (page) => { operation("guard"); await guard(page, { ...state }); };
+  const flag = (kind) => { issues.push(kind); onIssue(kind); };
   const urlOf = (url) => new URL(url, baseURL);
 
   async function newHandle(identity) {
@@ -46,22 +49,22 @@ export async function runRoleAcceptance({ browser, baseURL, qaId, outputDirector
     await context.route("**/*", (route) => new URL(route.request().url()).origin === baseURL ? route.continue() : route.abort());
     const page = await context.newPage();
     page.setDefaultTimeout(20_000);
-    page.on("pageerror", () => issues.push("page"));
+    page.on("pageerror", () => flag("page"));
     page.on("console", (message) => {
       if (message.type() !== "error") return;
       // Expected permission-denial probes are checked by URL/status below; their generic browser messages add no error.
       if (/^Failed to load resource: the server responded with a status of (401|403|404|409)/.test(message.text())) return;
-      issues.push("console");
+      flag("console");
     });
     page.on("response", (response) => {
       if (response.status() < 400) return;
       const url = new URL(response.url());
       if (url.origin !== baseURL) return;
       const key = `${response.request().method()} ${url.pathname} ${response.status()}`;
-      if (!expectedFailures.has(key)) issues.push("http");
+      if (!expectedFailures.has(key)) flag("http");
     });
     page.on("requestfailed", (request) => {
-      if (new URL(request.url()).origin === baseURL && request.failure()?.errorText !== "net::ERR_ABORTED") issues.push("request");
+      if (new URL(request.url()).origin === baseURL && request.failure()?.errorText !== "net::ERR_ABORTED") flag("request");
     });
     await page.goto("/welcome");
     return { page, context, identity };
