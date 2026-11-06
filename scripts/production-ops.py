@@ -582,12 +582,14 @@ class Production:
         try:
             self.platform()
             cfg = self.env_settings()
+            # Before anything touches backups/: preparing it hands it to root for a moment, which would make
+            # a backup helper that outlived a killed run fail its writes there.
+            require(not self.backup_writer_running(), "backup-helper-running")
             self.prepare_backups(cfg)
             # A lock left by a run whose recovery never ran (systemd's SIGKILL, a power cut) fails this backup
             # and every deploy's. It is provably stale here: this run holds the deploy lock, which every backup
             # path takes, and no container that could write to backups/ is running. Cleared before the app is
             # checked, as such a run may also have left the app stopped, and a deploy would start it again.
-            require(not self.backup_writer_running(), "backup-helper-running")
             notices = ["stale-backup-lock-cleared-at-start"] if self.clear_stale_backup(cfg) else []
             try:
                 self.wait_until_serving(cfg, PRECHECK_TIMEOUT)

@@ -8,13 +8,13 @@ fail() { printf 'private staging: %s\n' "$*" >&2; exit 1; }
 [ "${DEPLOY_ENABLED:-false}" = false ] || fail 'The production deployment gate must remain disabled.'
 [ "${REPOSITORY_GATE_CONFIRMED:-}" = disabled ] || fail 'The repository-context gate must complete before loading production credentials.'
 [ "${GITHUB_REPOSITORY:-}" = omargad/Bangla-Adventure ] && [ "${GITHUB_REF:-}" = refs/heads/main ] || fail 'Private staging runs only from the audited repository main branch.'
+# The address and account come from repository or production environment secrets; the host-key pin below proves identity.
+[[ "${DEPLOY_HOST:-}" =~ ^[a-zA-Z0-9][a-zA-Z0-9.:-]*$ ]] || fail 'The DEPLOY_HOST secret is missing or invalid (set it as a repository secret or a production environment secret, named exactly DEPLOY_HOST).'
+[[ "${DEPLOY_USER:-}" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]] || fail 'The DEPLOY_USER secret is missing or invalid (set it as a repository secret or a production environment secret, named exactly DEPLOY_USER).'
 [ -n "${DEPLOY_SSH_KEY:-}" ] && [ -n "${DEPLOY_KNOWN_HOSTS:-}" ] || fail 'Pinned deployment credentials are missing.'
 [ -n "${REGISTRY_PASSWORD:-}" ] || fail 'The temporary read-only registry token is missing.'
 [[ "${REGISTRY_USER:-}" =~ ^[a-zA-Z0-9][a-zA-Z0-9_-]*(\[bot\])?$ ]] || fail 'Invalid registry account name.'
 case "$DEPLOY_KNOWN_HOSTS" in *'PRIVATE KEY'*|*'-----BEGIN'*) fail 'The public known_hosts variable contains misplaced private credentials.' ;; esac
-# The address and account come from repository or production environment secrets; the host-key pin below proves identity.
-[[ "${DEPLOY_HOST:-}" =~ ^[a-zA-Z0-9][a-zA-Z0-9.:-]*$ ]] || fail 'The DEPLOY_HOST secret is missing or invalid (set it as a repository secret or a production environment secret, named exactly DEPLOY_HOST).'
-[[ "${DEPLOY_USER:-}" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]] || fail 'The DEPLOY_USER secret is missing or invalid (set it as a repository secret or a production environment secret, named exactly DEPLOY_USER).'
 
 readonly host="$DEPLOY_HOST" user="$DEPLOY_USER" port=22
 # Uploaded evidence names this fixed alias, never the server address.

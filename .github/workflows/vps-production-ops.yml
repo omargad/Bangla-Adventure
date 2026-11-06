@@ -5,7 +5,9 @@ name: VPS production operations
 # first: every job is skipped unless the repository variable DEPLOY_ENABLED is 'true'. The server's
 # address and account are the DEPLOY_HOST and DEPLOY_USER secrets (repository or production
 # environment), never printed. install also adds the daily status check's key, from the repository
-# variable STATUS_SSH_PUBLIC_KEY, to the server's authorized_keys, restricted to running status.
+# variable STATUS_SSH_PUBLIC_KEY, to the server's authorized_keys, restricted to running status. The
+# validate job shows that request before the reviewer approves, and install refuses unless it reads
+# the same request after the approval.
 
 on:
   workflow_dispatch:
@@ -39,6 +41,8 @@ jobs:
       vars.DEPLOY_ENABLED == 'true' && inputs.confirm == true
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    outputs:
+      status_key: ${{ steps.status_key.outputs.status_key }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -48,6 +52,15 @@ jobs:
           set -euo pipefail
           bash -n scripts/production-ops.sh scripts/production-ops-install.sh scripts/production-ops-controller.sh
           python3 -m unittest discover -s tests -p 'production_ops_test.py' -v
+      # Before the approval, so the reviewer sees which status key install would authorize.
+      - id: status_key
+        name: Show the status key change for the reviewer
+        if: inputs.action == 'install'
+        env:
+          DEPLOY_ENABLED: ${{ vars.DEPLOY_ENABLED }}
+          DEPLOY_KEY_FINGERPRINT: ${{ vars.DEPLOY_KEY_FINGERPRINT || 'SHA256:y1+C6cvcfpJFmO8pfjyMSFERpd5BtcQyDf5SptZXVlQ' }}
+          STATUS_SSH_PUBLIC_KEY: ${{ vars.STATUS_SSH_PUBLIC_KEY }}
+        run: bash scripts/production-ops-controller.sh status-key-request
 
   operate:
     needs: validate
@@ -73,7 +86,9 @@ jobs:
           DEPLOY_KEY_FINGERPRINT: ${{ vars.DEPLOY_KEY_FINGERPRINT || 'SHA256:y1+C6cvcfpJFmO8pfjyMSFERpd5BtcQyDf5SptZXVlQ' }}
           DEPLOY_DOCKER_HOST: ${{ vars.DEPLOY_DOCKER_HOST || (vars.DEPLOY_DOCKER_CONTEXT == '' && 'unix:///run/user/1002/docker.sock') || '' }}
           DEPLOY_DOCKER_CONTEXT: ${{ vars.DEPLOY_DOCKER_CONTEXT }}
-          DEPLOY_KNOWN_HOSTS: ${{ vars.DEPLOY_KNOWN_HOSTS }}
+          # Passed only with the address secret, which masks the address inside the line.
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_HOST != '' && vars.DEPLOY_KNOWN_HOSTS || '' }}
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           STATUS_SSH_PUBLIC_KEY: ${{ vars.STATUS_SSH_PUBLIC_KEY }}
+          APPROVED_STATUS_KEY: ${{ needs.validate.outputs.status_key }}
         run: bash scripts/production-ops-controller.sh "$OPERATION"

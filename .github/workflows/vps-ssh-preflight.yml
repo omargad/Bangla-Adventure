@@ -55,16 +55,17 @@ jobs:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
-          DEPLOY_KNOWN_HOSTS: ${{ vars.DEPLOY_KNOWN_HOSTS }}
+          # Passed only with the address secret, which masks the address inside the line.
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_HOST != '' && vars.DEPLOY_KNOWN_HOSTS || '' }}
         run: |
           set -euo pipefail
           umask 077
           fail() { printf 'preflight: %s\n' "$*" >&2; exit 1; }
           [ "${DEPLOY_ENABLED:-false}" = false ] || fail 'DEPLOY_ENABLED must remain false during this read-only preflight.'
-          [ -n "${DEPLOY_SSH_KEY:-}" ] || fail 'production secret DEPLOY_SSH_KEY is missing.'
-          [ -n "${DEPLOY_KNOWN_HOSTS:-}" ] || fail 'production variable DEPLOY_KNOWN_HOSTS is missing.'
           [[ "${DEPLOY_HOST:-}" =~ ^[a-zA-Z0-9][a-zA-Z0-9.:-]*$ ]] || fail 'the DEPLOY_HOST secret is missing or invalid (set it as a repository secret or a production environment secret, named exactly DEPLOY_HOST).'
           [[ "${DEPLOY_USER:-}" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]] || fail 'the DEPLOY_USER secret is missing or invalid (set it as a repository secret or a production environment secret, named exactly DEPLOY_USER).'
+          [ -n "${DEPLOY_SSH_KEY:-}" ] || fail 'production secret DEPLOY_SSH_KEY is missing.'
+          [ -n "${DEPLOY_KNOWN_HOSTS:-}" ] || fail 'production variable DEPLOY_KNOWN_HOSTS is missing.'
 
           readonly host="$DEPLOY_HOST"
           readonly user="$DEPLOY_USER"

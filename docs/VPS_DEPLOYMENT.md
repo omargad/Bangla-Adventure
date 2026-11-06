@@ -69,9 +69,13 @@ falls back to a `deploy` account, so set both before enabling it. The workflows'
 own messages report only whether each is set. They are secrets rather than
 variables because GitHub prints a step's variable values in its run log, which
 is public for a public repository, while it masks secret values wherever they
-appear, including inside the `DEPLOY_KNOWN_HOSTS` line. Run logs and artefacts
-from before this change may still show the address; delete those runs if that
-matters.
+appear, including inside the `DEPLOY_KNOWN_HOSTS` line. That masking needs the
+`DEPLOY_HOST` secret, so every workflow passes `DEPLOY_KNOWN_HOSTS` only when
+the secret is present: with a missing or misnamed one the line stays out of
+the log, and the run stops with that secret's message. The hashed form (`ssh-keyscan -H`, as in
+[DEPLOYMENT.md](DEPLOYMENT.md) step 5) keeps the address out of the line
+altogether. Run logs and artefacts from before this change may still show the
+address; delete those runs if that matters.
 
 The address is not a trust anchor. Every connection still requires the server
 host key to match the pinned `SHA256:79xe+ubCodL2ACAHPNloo7I/K6mvngU88vEiFoEeWL8`
@@ -134,11 +138,23 @@ also needs `curl` and its system CA certificates for the HTTPS check.
 
 Runtime narration is optional, and the ElevenLabs account and API key are the
 client's responsibility. The client buys an ElevenLabs plan, or obtains
-nonprofit credits from ElevenLabs, creates an API key in that account and adds
-it themselves as the `ELEVENLABS_API_KEY` secret of this repository's
-`production` environment (Settings > Environments > `production` > Environment
-secrets), or as a repository secret (Settings > Secrets and variables >
-Actions). Paste the key alone, on one line. The team never needs to see it.
+nonprofit credits from ElevenLabs, and creates an API key in that account.
+
+While this repository belongs to the personal account `omargad`, only that
+account can add Actions secrets; collaborators cannot. So the client passes the
+key privately to the owner, who adds it as the `ELEVENLABS_API_KEY` secret of
+the `production` environment: Settings > Environments > `production` > Add
+environment secret, or `gh secret set ELEVENLABS_API_KEY --env production`,
+which asks for the value with hidden input and works in PowerShell too. Paste
+the key alone, on one line. The client rotates the key in their ElevenLabs
+account after handover, and the new key replaces the secret the same way. Once
+the repository moves to the client's organisation, an administrator there adds
+or replaces it instead.
+
+To keep the key from passing through anyone else, the server administrator can
+instead write `ELEVENLABS_API_KEY=` and the key into the server `.env` as the
+deployment user; deploys keep that value while the GitHub secret is empty (see
+below).
 
 Until the key is added, the site works normally with its existing recorded
 audio: bundled clips, approved recordings and narration already saved still
@@ -239,7 +255,7 @@ below is the confirmed name, for example `learn.example.org`.
      only `main` allowed to deploy to it, and add the `DEPLOY_HOST` and
      `DEPLOY_USER` secrets and the `DEPLOY_KNOWN_HOSTS` variable to it as well
      if they are `production` environment settings;
-   - make the status key pair on your own computer;
+   - make the status key pair on your own computer and note its fingerprint;
    - save its public line as the repository variable `STATUS_SSH_PUBLIC_KEY`
      and its private key as the `production-status` environment secret
      `STATUS_SSH_KEY`, then delete both local files.
@@ -247,14 +263,18 @@ below is the confirmed name, for example `learn.example.org`.
    Then set the repository variable `DEPLOY_ENABLED=true`. Until step 9 has
    run, the daily status run fails, because nothing is installed yet.
 8. **Deploy.** Push to `main`, or run the CI workflow on `main` from the
-   Actions tab, and watch its `deploy` job. The run publishes the commit's GHCR
-   image and that job deploys it; an older commit is skipped, and inability to
-   verify the newest commit is a failure. The job fails unless the container and
-   the public health check both pass; `deploy.log` in the deployment directory
-   has the server's side.
+   Actions tab, and watch its `deploy` job. Because `production` has required
+   reviewers, the `deploy` job waits: open the run, choose **Review
+   deployments**, tick `production` and choose **Approve and deploy**. The run
+   publishes the commit's GHCR image and that job deploys it; an older commit
+   is skipped, and inability to verify the newest commit is a failure. The job
+   fails unless the container and the public health check both pass;
+   `deploy.log` in the deployment directory has the server's side.
 9. **Production operations.** Once that first deploy has passed, run the
    **VPS production operations** workflow on `main` with `install` and its
-   confirmation ticked; a reviewer approves it. It installs the deployment
+   confirmation ticked. Before approving it, the reviewer checks that its
+   `validate` job printed `status key: SHA256:... requested.` with the status
+   key's fingerprint from step 7. It installs the deployment
    user's timers: a daily backup at 16:30 UTC (the app stops for seconds), a
    five-minute monitor of health, port exposure, disk, backup age, the public
    site and its certificate, and an off-site copy that stays inert until the

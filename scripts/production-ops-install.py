@@ -41,17 +41,25 @@ MAX_AUTHORIZED_KEYS = 1024 * 1024
 
 
 class InstallFailed(ops.Refused):
-    """A failure after files changed, with what the rollback achieved: complete, incomplete or failed."""
+    """A failure after files changed, with what the rollback achieved (complete, incomplete or failed)
+    and what it left of the status key's change."""
 
-    def __init__(self, codes: list[str], rollback: str):
+    def __init__(self, codes: list[str], rollback: str, status_key: str = "unchanged"):
         super().__init__(*codes, *({"incomplete": ["rollback-incomplete"], "failed": ["rollback-failed"]}.get(rollback, [])))
         self.rollback = rollback
+        self.status_key = status_key
 
 
 def failure_codes(exc: BaseException) -> list[str]:
     if isinstance(exc, ops.Refused):
         return exc.codes
     return ["interrupted" if isinstance(exc, (ops.Stopped, KeyboardInterrupt)) else "install-failed"]
+
+
+def failure_result(exc: BaseException) -> dict:
+    # rollback "none": nothing had changed yet; otherwise what the rollback achieved.
+    return {"scope": ops.SCOPE, "action": "install", "verified": False, "status": "failed", "codes": failure_codes(exc),
+            "rollback": getattr(exc, "rollback", "none"), "statusKey": getattr(exc, "status_key", "unchanged")}
 
 
 def wait_for_deploy_lock(prod, timeout: float) -> int | None:
@@ -291,7 +299,11 @@ def write_authorized_keys(folder: pathlib.Path, data: bytes) -> None:
 
 
 class StatusKey:
-    """The status key's managed line: planned before anything changes, written once, restorable."""
+    """The status key's managed line: planned before anything changes, written once.
+
+    A rollback only ever narrows access: it takes back a line this run added where there was none, and
+    keeps a removal or a replacement, as revoking a key is never riskier than keeping it.
+    """
 
     def __init__(self, prod, request: dict):
         self.uid = prod.s.uid
@@ -315,9 +327,13 @@ class StatusKey:
             raise ops.Refused("authorized-keys-verify-failed") from exc
         return self.outcome
 
+    def left(self) -> str:
+        """What a failed install leaves in authorized_keys: this run's change while it stands, else unchanged."""
+        return self.outcome if self.written is not None else "unchanged"
+
     def restore(self) -> None:
-        """The previous bytes again, unless someone else has changed the file since this install wrote it."""
-        if self.written is None:
+        """Take back a line this run added where there was none, unless someone else has changed the file since."""
+        if self.written is None or self.outcome != "installed":
             return
         current = read_authorized_keys(self.folder, self.uid)
         if current != self.previous:
@@ -415,6 +431,10 @@ def main(argv: list[str]) -> int:
         finally:
             ops.restore_signals(previous_signals)
 
+    def failed(exc: BaseException, held: int | None) -> InstallFailed:
+        state = rollback(held)
+        return InstallFailed(failure_codes(exc), state, status_key.left() if status_key is not None else "unchanged")
+
     lock = prod.deploy_lock()
     touched = False
     try:
@@ -453,7 +473,7 @@ def main(argv: list[str]) -> int:
     except BaseException as exc:
         if not touched:
             raise
-        raise InstallFailed(failure_codes(exc), rollback(lock)) from exc
+        raise failed(exc, lock) from exc
     finally:
         os.close(lock)
     try:
@@ -481,7 +501,7 @@ def main(argv: list[str]) -> int:
                         and userctl(prod, "is-active", "--quiet", name, okay=True).returncode == 0, "timer-not-enabled")
     except BaseException as exc:
         # The deploy lock was released for the runs; a deploy may hold it now (a deferred run).
-        raise InstallFailed(failure_codes(exc), rollback(None)) from exc
+        raise failed(exc, None) from exc
     result = {"scope": ops.SCOPE, "action": "install", "verified": True, "status": "passed", "codes": [],
               "timers": {name: True for name in ops.TIMERS}, "offsiteConfigured": offsite, "initialRuns": initial,
               "retentionCount": ops.KEEP, "backupSchedule": "16:30 UTC daily", "offsiteSchedule": "17:15 UTC daily",
@@ -497,7 +517,5 @@ if __name__ == "__main__":
     try:
         raise SystemExit(main(sys.argv))
     except (Exception, KeyboardInterrupt, ops.Stopped) as exc:
-        # "none": nothing had changed yet; otherwise what the rollback achieved.
-        print(json.dumps({"scope": ops.SCOPE, "action": "install", "verified": False, "status": "failed", "codes": failure_codes(exc),
-                          "rollback": getattr(exc, "rollback", "none")}, separators=(",", ":")))
+        print(json.dumps(failure_result(exc), separators=(",", ":")))
         raise SystemExit(1)

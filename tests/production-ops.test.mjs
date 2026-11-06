@@ -20,6 +20,7 @@ test('both production workflows are gated on an enabled production deployment on
   const ops = workflow('vps-production-ops.yml');
   const status = workflow('vps-production-status.yml');
   const deploy = workflow('ci.yml').jobs.deploy.steps.find((step) => step.env?.DEPLOY_HOST_FINGERPRINT);
+  const guarded = "${{ secrets.DEPLOY_HOST != '' && vars.DEPLOY_KNOWN_HOSTS || '' }}";
   assert.deepEqual(Object.keys(ops.on), ['workflow_dispatch']);
   const { action, confirm } = ops.on.workflow_dispatch.inputs;
   assert.equal(action.type, 'choice');
@@ -66,11 +67,29 @@ test('both production workflows are gated on an enabled production deployment on
     }
     assert.deepEqual(Object.keys(step.env).filter((name) => /^STATUS_/.test(name)).sort(),
       job === ops.jobs.operate ? ['STATUS_SSH_PUBLIC_KEY'] : ['STATUS_SSH_KEY', 'STATUS_SSH_PUBLIC_KEY']);
-    assert.equal(step.env.DEPLOY_KNOWN_HOSTS, '${{ vars.DEPLOY_KNOWN_HOSTS }}');
+    // Only with the address secret, which masks the address inside an unhashed line.
+    assert.equal(step.env.DEPLOY_KNOWN_HOSTS, guarded);
     assert.equal(step.env.DEPLOY_ENABLED, '${{ vars.DEPLOY_ENABLED }}');
     for (const name of ['DEPLOY_HOST_FINGERPRINT', 'DEPLOY_KEY_FINGERPRINT', 'DEPLOY_PORT', 'DEPLOY_PATH', 'DEPLOY_DOCKER_HOST', 'DEPLOY_DOCKER_CONTEXT']) {
       assert.equal(step.env[name], deploy.env[name], name);
     }
+  }
+  // The reviewer sees the status key change before approving, and install gets exactly that request.
+  const request = ops.jobs.validate.steps.find((item) => item.id === 'status_key');
+  assert.equal(request.run, 'bash scripts/production-ops-controller.sh status-key-request');
+  assert.equal(request.if, "inputs.action == 'install'");
+  assert.deepEqual(Object.keys(request.env).sort(), ['DEPLOY_ENABLED', 'DEPLOY_KEY_FINGERPRINT', 'STATUS_SSH_PUBLIC_KEY']);
+  assert.equal(request.env.STATUS_SSH_PUBLIC_KEY, '${{ vars.STATUS_SSH_PUBLIC_KEY }}');
+  assert.equal(ops.jobs.validate.environment, undefined, 'validate runs before the approval');
+  assert.doesNotMatch(JSON.stringify(ops.jobs.validate), /secrets\./, 'validate holds no credential');
+  assert.equal(ops.jobs.validate.outputs.status_key, '${{ steps.status_key.outputs.status_key }}');
+  assert.equal(ops.jobs.operate.steps.find((item) => item.env?.DEPLOY_HOST).env.APPROVED_STATUS_KEY, '${{ needs.validate.outputs.status_key }}');
+  // Every VPS workflow passes the known_hosts line only with the address secret.
+  for (const name of ['ci.yml', 'vps-ssh-preflight.yml', 'vps-image-preflight.yml', 'vps-private-staging.yml', 'vps-acceptance.yml',
+    'vps-production-ops.yml', 'vps-production-status.yml']) {
+    const lines = read(`.github/workflows/${name}`).split('\n').filter((line) => /^\s+DEPLOY_KNOWN_HOSTS:/.test(line));
+    assert.ok(lines.length > 0, name);
+    for (const line of lines) assert.equal(line.trim(), `DEPLOY_KNOWN_HOSTS: ${guarded}`, name);
   }
   for (const name of ['vps-production-ops.yml', 'vps-production-status.yml', '../../scripts/production-ops-controller.sh']) {
     const text = read(`.github/workflows/${name}`);
@@ -92,7 +111,10 @@ function keys(folder) {
   };
   const ecdsa = path.join(folder, 'ecdsa');
   assert.equal(spawnSync('ssh-keygen', ['-q', '-t', 'ecdsa', '-N', '', '-C', '', '-f', ecdsa]).status, 0);
-  return { deploy: make('deploy'), host: make('host'), other: make('other'), status: make('status'), ecdsa: readFileSync(ecdsa + '.pub', 'utf8').trim() };
+  const locked = path.join(folder, 'locked');
+  assert.equal(spawnSync('ssh-keygen', ['-q', '-t', 'ed25519', '-N', 'throwaway-passphrase', '-C', '', '-f', locked]).status, 0);
+  return { deploy: make('deploy'), host: make('host'), other: make('other'), status: make('status'), ecdsa: readFileSync(ecdsa + '.pub', 'utf8').trim(),
+    locked: readFileSync(locked, 'utf8') };
 }
 
 const stub = String.raw`#!/usr/bin/env node
@@ -102,6 +124,8 @@ const command = args.at(-1);
 const input = fs.readFileSync(0);
 fs.appendFileSync(process.env.STUB_LOG, JSON.stringify({ args, input: input.length }) + '\n');
 const out = (text, code = 0) => { process.stdout.write(text + '\n'); process.exit(code); };
+// ssh's own failure: its message names the account and server, and it exits 255.
+if (process.env.STUB_SSH_ERROR) { process.stderr.write(process.env.STUB_SSH_ERROR + '\n'); process.exit(255); }
 if (command.includes('mktemp -d')) out('/opt/bangla-adventures/ops/.incoming.AbCdEf123456');
 if (command.includes('tar --extract')) { fs.writeFileSync(process.env.STUB_TAR, input); process.exit(0); }
 if (command.includes('production-ops-install.sh')) out(process.env.STUB_RESULT, Number(process.env.STUB_EXIT || 0));
@@ -130,7 +154,7 @@ test('the controller verifies the pinned keys before SSH, prints no address and 
       DEPLOY_ENABLED: 'true', GITHUB_REPOSITORY: 'omargad/Bangla-Adventure', GITHUB_REF: 'refs/heads/main',
       DEPLOY_HOST: 'vps.example.test', DEPLOY_USER: 'deployer', DEPLOY_SSH_KEY: readFileSync(pair.deploy.file, 'utf8'),
       DEPLOY_KNOWN_HOSTS: `vps.example.test ${pair.host.public}`, DEPLOY_HOST_FINGERPRINT: pair.host.fingerprint,
-      DEPLOY_KEY_FINGERPRINT: pair.deploy.fingerprint, STUB_RESULT: JSON.stringify(healthy),
+      DEPLOY_KEY_FINGERPRINT: pair.deploy.fingerprint, STUB_RESULT: JSON.stringify(healthy), APPROVED_STATUS_KEY: 'unchanged',
     };
     const run = (action, env = {}) => {
       rmSync(log, { force: true });
@@ -166,10 +190,13 @@ test('the controller verifies the pinned keys before SSH, prints no address and 
       [{ DEPLOY_KNOWN_HOSTS: `other.example.test ${pair.host.public}` }, /do not cover/],
       [{ DEPLOY_PATH: '/srv/elsewhere' }, /DEPLOY_PATH/], [{ DEPLOY_DOCKER_HOST: 'unix:///var/run/docker.sock' }, /DEPLOY_DOCKER_HOST/],
       [{ DEPLOY_USER: 'Root;id' }, /DEPLOY_USER secret is invalid/],
-      // The owner keeps these on the production environment, so the message names both places.
-      [{ DEPLOY_HOST: '' }, /the secret DEPLOY_HOST is missing \(add it to the repository or to this workflow's environment\)/],
-      [{ DEPLOY_USER: '' }, /the secret DEPLOY_USER is missing \(add it to the repository or to this workflow's environment\)/],
-      [{ DEPLOY_KNOWN_HOSTS: '' }, /the variable DEPLOY_KNOWN_HOSTS is missing \(add it to the repository or to this workflow's environment\)/],
+      // The owner keeps these on the production environment, so the message names that environment and the exact name.
+      [{ DEPLOY_HOST: '' }, /the secret DEPLOY_HOST is missing: add it under Settings > Environments > production > Environment secrets, named exactly DEPLOY_HOST \(or make it a repository secret\)\./],
+      [{ DEPLOY_USER: '' }, /the secret DEPLOY_USER is missing: add it under Settings > Environments > production > Environment secrets, named exactly DEPLOY_USER/],
+      [{ DEPLOY_KNOWN_HOSTS: '' }, /the variable DEPLOY_KNOWN_HOSTS is missing: add it under Settings > Environments > production > Environment variables, named exactly DEPLOY_KNOWN_HOSTS \(or make it a repository variable\)\./],
+      // The workflow passes no known_hosts line without the address secret, and the address is named first.
+      [{ DEPLOY_HOST: '', DEPLOY_KNOWN_HOSTS: '' }, /the secret DEPLOY_HOST is missing/],
+      [{ DEPLOY_SSH_KEY: pair.locked }, /the DEPLOY_SSH_KEY secret is not an unencrypted private key/],
     ]) {
       const refused = run('status', env);
       assert.equal(refused.status, 1, JSON.stringify(env));
@@ -190,8 +217,13 @@ test('the controller verifies the pinned keys before SSH, prints no address and 
     assert.ok(scheduled.calls[0].args.includes('StrictHostKeyChecking=yes'), 'host-key pinning is unchanged');
     for (const [env, message] of [
       [{ DEPLOY_SSH_KEY: base.DEPLOY_SSH_KEY }, /must not receive the DEPLOY_SSH_KEY/],
-      [{ STATUS_SSH_KEY: '' }, /the secret STATUS_SSH_KEY is missing \(add it to the repository or to this workflow's environment\)/],
-      [{ STATUS_SSH_PUBLIC_KEY: ' \n' }, /the variable STATUS_SSH_PUBLIC_KEY is missing \(add it to the repository or to this workflow's environment\)/],
+      [{ STATUS_SSH_KEY: '' }, /the secret STATUS_SSH_KEY is missing: add it under Settings > Environments > production-status > Environment secrets, named exactly STATUS_SSH_KEY \(there only, never as a repository secret\)\./],
+      [{ STATUS_SSH_PUBLIC_KEY: ' \n' }, /the variable STATUS_SSH_PUBLIC_KEY is missing: add it as a repository variable/],
+      // Production environment settings are invisible here, and the message says so.
+      [{ DEPLOY_HOST: '' }, /the secret DEPLOY_HOST is missing: this check runs in the production-status environment, which cannot see production environment secrets; add it under Settings > Environments > production-status > Environment secrets, named exactly DEPLOY_HOST \(or make it a repository secret\)\./],
+      [{ DEPLOY_KNOWN_HOSTS: '' }, /the variable DEPLOY_KNOWN_HOSTS is missing: this check runs in the production-status environment, which cannot see production environment variables; add it under Settings > Environments > production-status > Environment variables/],
+      [{ STATUS_SSH_KEY: pair.locked }, /the STATUS_SSH_KEY secret is not an unencrypted private key \(make the pair again and press Enter at both passphrase prompts\)/],
+      [{ DEPLOY_KNOWN_HOSTS: `other.example.test ${pair.host.public}` }, /DEPLOY_KNOWN_HOSTS lines do not cover the DEPLOY_HOST secret and DEPLOY_PORT/],
       [{ STATUS_SSH_PUBLIC_KEY: 'remove' }, /STATUS_SSH_PUBLIC_KEY variable is remove/],
       [{ STATUS_SSH_PUBLIC_KEY: pair.other.public }, /STATUS_SSH_KEY secret does not match the STATUS_SSH_PUBLIC_KEY variable/],
       [{ STATUS_SSH_PUBLIC_KEY: pair.ecdsa }, /one ssh-ed25519 public key line/],
@@ -205,7 +237,57 @@ test('the controller verifies the pinned keys before SSH, prints no address and 
       assert.equal(refused.calls.length, 0, 'nothing reaches SSH before the status key passes');
     }
     // The ordinary actions still need the deploy key.
-    assert.match(run('status', { DEPLOY_SSH_KEY: '', STATUS_SSH_KEY: statusKey.STATUS_SSH_KEY }).output, /the secret DEPLOY_SSH_KEY is missing/);
+    assert.match(run('status', { DEPLOY_SSH_KEY: '', STATUS_SSH_KEY: statusKey.STATUS_SSH_KEY }).output,
+      /the secret DEPLOY_SSH_KEY is missing: add it under Settings > Environments > production > Environment secrets, named exactly DEPLOY_SSH_KEY\./);
+
+    // ssh's own failure (exit 255) gets a fixed message that names the setting, never ssh's own text.
+    for (const [action, env, error, message] of [
+      ['scheduled-status', statusKey, 'deployer@vps.example.test: Permission denied (publickey).', /the server refused the status key: run VPS production operations install with the repository variable STATUS_SSH_PUBLIC_KEY set/],
+      ['status', {}, 'deployer@vps.example.test: Permission denied (publickey).', /the server refused the DEPLOY_SSH_KEY secret/],
+      ['scheduled-status', statusKey, 'Host key verification failed.', /host key does not match DEPLOY_KNOWN_HOSTS and DEPLOY_HOST_FINGERPRINT/],
+      ['status', {}, 'ssh: connect to host vps.example.test port 22: Connection timed out', /could not connect over SSH: check the DEPLOY_HOST secret, DEPLOY_PORT/],
+      ['install', {}, 'deployer@vps.example.test: Permission denied (publickey).', /the server refused the DEPLOY_SSH_KEY secret/],
+      ['backup-now', {}, 'ssh: connect to host vps.example.test port 22: Connection refused', /could not connect over SSH/],
+    ]) {
+      const refused = run(action, { ...env, STUB_SSH_ERROR: error });
+      assert.equal(refused.status, 1, `${action}: ${error}`);
+      assert.match(refused.output, message, `${action}: ${error}`);
+      assert.doesNotMatch(refused.output, /Permission denied|verification failed|timed out|refused$/m, 'ssh\'s own text is never printed');
+      assert.doesNotMatch(refused.output, /no valid result/);
+    }
+    // A failing status is still reported as such: only ssh's own exit, with no result, is a connection failure.
+    const unhealthy = run('scheduled-status', { ...statusKey, STUB_RESULT: JSON.stringify({ ...healthy, verified: false, status: 'failed', codes: ['timer-inactive-backup'] }), STUB_EXIT: '1' });
+    assert.equal(unhealthy.status, 1);
+    assert.match(unhealthy.output, /timer-inactive-backup/);
+    assert.match(unhealthy.output, /production operations status is failing/);
+
+    // Before the approval, without any credential: what install would do, also as the job's output.
+    for (const [variable, shown, output] of [
+      [`${pair.status.public} bangla-adventures-status\n`, `status key: ${pair.status.fingerprint} requested.`, pair.status.fingerprint],
+      ['remove', 'status key: removal requested.', 'remove'], ['', 'status key: not requested', 'unchanged'],
+    ]) {
+      const file = path.join(folder, 'github-output');
+      rmSync(file, { force: true });
+      const shownRun = run('status-key-request', { STATUS_SSH_PUBLIC_KEY: variable, GITHUB_OUTPUT: file, DEPLOY_HOST: '', DEPLOY_USER: '', DEPLOY_SSH_KEY: '', DEPLOY_KNOWN_HOSTS: '' });
+      assert.equal(shownRun.status, 0, shownRun.output);
+      assert.ok(shownRun.output.includes(shown), shownRun.output);
+      assert.equal(readFileSync(file, 'utf8'), `status_key=${output}\n`);
+      assert.equal(shownRun.calls.length, 0, 'nothing connects before the approval');
+    }
+    assert.match(run('status-key-request', { STATUS_SSH_PUBLIC_KEY: pair.deploy.public }).output, /must not be the deploy key/);
+    // install does only what was shown: a missing or different request is refused before any connection.
+    for (const [env, message] of [
+      [{ APPROVED_STATUS_KEY: '' }, /the status key request shown before the approval is missing/],
+      [{ APPROVED_STATUS_KEY: 'anything' }, /the status key request shown before the approval is missing/],
+      [{ APPROVED_STATUS_KEY: 'unchanged', STATUS_SSH_PUBLIC_KEY: pair.status.public }, /STATUS_SSH_PUBLIC_KEY now asks for something other than what was shown before the approval \(status key: unchanged\)/],
+      [{ APPROVED_STATUS_KEY: pair.other.fingerprint, STATUS_SSH_PUBLIC_KEY: pair.status.public }, /keep it as a repository variable only/],
+      [{ APPROVED_STATUS_KEY: 'remove' }, /something other than what was shown/],
+    ]) {
+      const refused = run('install', env);
+      assert.equal(refused.status, 1, JSON.stringify(env));
+      assert.match(refused.output, message);
+      assert.equal(refused.calls.length, 0);
+    }
 
     // install sends the public halves only, and only when STATUS_SSH_PUBLIC_KEY asks for a change.
     const passed = (statusKeyOutcome) => JSON.stringify({ scope: 'production-operations', action: 'install', verified: true, status: 'passed', codes: [],
@@ -220,7 +302,8 @@ test('the controller verifies the pinned keys before SSH, prints no address and 
       [`  ${pair.status.public} someone@WORK-PC.local `, `ssh-ed25519 ${pair.status.blob}`, 'already-present'],
       ['remove', 'remove', 'removed'], [undefined, null, 'unchanged'], ['', null, 'unchanged'],
     ]) {
-      const installed = run('install', { STUB_RESULT: passed(outcome), ...(variable === undefined ? {} : { STATUS_SSH_PUBLIC_KEY: variable }) });
+      const approved = sent === null ? 'unchanged' : sent === 'remove' ? 'remove' : pair.status.fingerprint;
+      const installed = run('install', { STUB_RESULT: passed(outcome), APPROVED_STATUS_KEY: approved, ...(variable === undefined ? {} : { STATUS_SSH_PUBLIC_KEY: variable }) });
       assert.equal(installed.status, 0, installed.output);
       assert.deepEqual(request(), { deployKey: `ssh-ed25519 ${pair.deploy.blob}`, statusKey: sent });
       assert.match(installed.output, new RegExp(`status key: ${outcome}`));
@@ -245,11 +328,24 @@ test('the controller verifies the pinned keys before SSH, prints no address and 
     // A failed installation claims restoration only when the installer reports it.
     for (const [rollback, message] of [['complete', /previous jobs and files were restored/], ['none', /before anything on the server was changed/],
       ['incomplete', /deployment held the lock/], ['failed', /rollback did not finish/], [undefined, /no usable result/]]) {
-      const result = { scope: 'production-operations', action: 'install', verified: false, status: 'failed', codes: ['initial-backup-deferred'], rollback };
+      const result = { scope: 'production-operations', action: 'install', verified: false, status: 'failed', codes: ['initial-backup-deferred'], rollback, statusKey: 'unchanged' };
       const failed = run('install', { STUB_RESULT: rollback === undefined ? 'not json' : JSON.stringify(result), STUB_EXIT: '1' });
       assert.equal(failed.status, 1, failed.output);
       assert.match(failed.output, message, String(rollback));
       if (rollback !== 'complete') assert.doesNotMatch(failed.output, /were restored/);
+      assert.doesNotMatch(failed.output, /stayed:|stayed in place|status key line stayed/);
+    }
+    // A revocation is never rolled back, and a failed install says so.
+    for (const [statusKeyLeft, rollback, message] of [
+      ['removed', 'complete', /previous jobs and files were restored\. The status key removal stayed: the earlier status key no longer works\./],
+      ['replaced', 'complete', /The new status key stayed in place of the earlier one, which no longer works\./],
+      ['installed', 'incomplete', /the new files stayed\. The new status key line stayed too\. Run install again/],
+    ]) {
+      const result = { scope: 'production-operations', action: 'install', verified: false, status: 'failed', codes: ['initial-backup-deferred'], rollback, statusKey: statusKeyLeft };
+      const failed = run('install', { STUB_RESULT: JSON.stringify(result), STUB_EXIT: '1' });
+      assert.equal(failed.status, 1, failed.output);
+      assert.match(failed.output, new RegExp(`status key: ${statusKeyLeft}`));
+      assert.match(failed.output, message);
     }
 
     const installed = run('install', { STUB_RESULT: JSON.stringify({ scope: 'production-operations', action: 'install', verified: true, status: 'passed', codes: [],

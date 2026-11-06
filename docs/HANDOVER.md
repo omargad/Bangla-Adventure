@@ -44,10 +44,15 @@ are documented in [`MEDIA_REVIEW.md`](MEDIA_REVIEW.md#a-better-bangla-computer-v
 Optional automatic narration of newly approved topic and class activity text
 requires a client-owned key in the server's private runtime environment. The
 client buys an ElevenLabs plan, or obtains nonprofit credits from ElevenLabs,
-and adds their own key as the `ELEVENLABS_API_KEY` secret in the repository's
-`production` environment (or as a repository secret); each deploy writes it into
-the server's private `.env`, so the team never needs to see it. It is never
-exposed to browsers or committed. Until it is added, the site works normally
+and supplies their own key. While the repository belongs to the personal
+account `omargad`, only that account can add Actions secrets, so the client
+passes the key privately and the owner adds it as the `ELEVENLABS_API_KEY`
+secret of the `production` environment; once the repository moves to the
+client's organisation, an administrator there does it. Each deploy writes it
+into the server's private `.env`. The client rotates the key after handover.
+Alternatively the server administrator writes it into that `.env` directly, so
+it never passes through anyone else. It is never exposed to browsers or
+committed. Until it is added, the site works normally
 with its existing recorded audio and only newly generated narration reports that
 it is not configured. Confirm the spending limit, key rotation owner and
 persistent audio storage before enabling it. See

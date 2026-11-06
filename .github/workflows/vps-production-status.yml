@@ -9,7 +9,8 @@ name: VPS production status
 # STATUS_SSH_PUBLIC_KEY, the reviewer-approved install restricts to running status. It never
 # receives the deploy key. An environment sees only its own and the repository's settings, so
 # DEPLOY_HOST, DEPLOY_USER (secrets) and DEPLOY_KNOWN_HOSTS (variable) kept on the production
-# environment must be added to production-status too.
+# environment must be added to production-status too. DEPLOY_KNOWN_HOSTS is passed only when the
+# DEPLOY_HOST secret is present, so a missing or misnamed secret never prints an unmasked address.
 
 on:
   schedule:
@@ -45,7 +46,8 @@ jobs:
           DEPLOY_KEY_FINGERPRINT: ${{ vars.DEPLOY_KEY_FINGERPRINT || 'SHA256:y1+C6cvcfpJFmO8pfjyMSFERpd5BtcQyDf5SptZXVlQ' }}
           DEPLOY_DOCKER_HOST: ${{ vars.DEPLOY_DOCKER_HOST || (vars.DEPLOY_DOCKER_CONTEXT == '' && 'unix:///run/user/1002/docker.sock') || '' }}
           DEPLOY_DOCKER_CONTEXT: ${{ vars.DEPLOY_DOCKER_CONTEXT }}
-          DEPLOY_KNOWN_HOSTS: ${{ vars.DEPLOY_KNOWN_HOSTS }}
+          # Passed only with the address secret, which masks the address inside the line.
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_HOST != '' && vars.DEPLOY_KNOWN_HOSTS || '' }}
           STATUS_SSH_KEY: ${{ secrets.STATUS_SSH_KEY }}
           STATUS_SSH_PUBLIC_KEY: ${{ vars.STATUS_SSH_PUBLIC_KEY }}
         run: bash scripts/production-ops-controller.sh scheduled-status

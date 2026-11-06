@@ -171,9 +171,19 @@ elif tool=="ssh":
             name = "HOST" if "DEPLOY_HOST" in overrides else "USER"
             self.assertIn(f"The DEPLOY_{name} secret is missing or invalid (set it as a repository secret or a production environment secret, named exactly DEPLOY_{name}).", result.stderr)
             self.assertNotIn("repository secret DEPLOY_", result.stderr)
-            self.assertNotIn("192.0.2.10", result.stderr)
+            # Neither the fixture's address nor an overriding value is ever printed.
+            for address in {self.env["DEPLOY_HOST"], overrides.get("DEPLOY_HOST")} - {None, ""}:
+                self.assertNotIn(address, result.stderr)
             self.assertEqual(self.calls(), [])
             self.assertFalse((self.root / "evidence").exists())
+
+    def test_a_missing_host_is_named_before_the_known_hosts_line_it_gates(self):
+        # The workflow passes DEPLOY_KNOWN_HOSTS only with the DEPLOY_HOST secret, which masks the address in it.
+        result = self.run_controller(DEPLOY_HOST="", DEPLOY_KNOWN_HOSTS="")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("The DEPLOY_HOST secret is missing or invalid", result.stderr)
+        self.assertNotIn("credentials are missing", result.stderr)
+        self.assertEqual(self.calls(), [])
 
     def test_pinned_host_key_must_name_the_configured_server(self):
         result = self.run_controller(DEPLOY_HOST="192.0.2.11")

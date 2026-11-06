@@ -289,10 +289,18 @@ Image/configuration rollback never restores database or media contents.
    [`deploy/nginx/bangla-adventures.conf.example`](../deploy/nginx/bangla-adventures.conf.example)
    with its upstream port set to `APP_PORT`).
 5. On your own computer, record the server's host key, so the pipeline only ever connects to this
-   server. Use the server's SSH port (`DEPLOY_PORT`, usually 22):
+   server. Use the server's SSH port (`DEPLOY_PORT`, usually 22). In Git Bash, WSL, macOS or Linux:
 
    ```sh
    ssh-keyscan -p PORT -H SERVER > server.keys
+   ssh-keygen -lf server.keys
+   ```
+
+   In Windows PowerShell 5.1, `>` writes UTF-16, which `ssh-keygen` cannot read ("is not a public
+   key file"), so write the file as ASCII instead (in PowerShell 7, `>` already writes UTF-8):
+
+   ```powershell
+   ssh-keyscan -p PORT -H SERVER | Out-File -Encoding ascii server.keys
    ssh-keygen -lf server.keys
    ```
 
@@ -324,7 +332,7 @@ from the deployment folder: `docker compose exec app npm run admin:grant -- EMAI
 | `DEPLOY_SSH_KEY` | Secret | The deploy user's private key |
 | `STATUS_SSH_KEY` | `production-status` environment secret | The private half of the daily production status check's own key, which the server limits to reading status; never the deploy key. That environment also needs `DEPLOY_HOST`, `DEPLOY_USER` and `DEPLOY_KNOWN_HOSTS` when they are `production` environment settings ([Alerting](PRODUCTION_OPERATIONS.md#alerting)) |
 | `STATUS_SSH_PUBLIC_KEY` | Repository variable | The one line of that key's `status_key.pub` (`ssh-ed25519 AAAA... bangla-adventures-status`). The reviewer-approved production operations `install` adds it to the server's `authorized_keys`, restricted to running status; `remove` makes the next install delete that line |
-| `ELEVENLABS_API_KEY` | `production` environment or repository secret | Optional, and the client's responsibility: the client buys an ElevenLabs plan, or obtains nonprofit credits from ElevenLabs, and adds their own key here; the team never needs to see it. Written into the server `.env` on each deploy; empty leaves the server's own value. Until it is added, the site works normally with its existing recorded audio and only newly generated narration reports that it is not configured ([Narration key](VPS_DEPLOYMENT.md#narration-key)) |
+| `ELEVENLABS_API_KEY` | `production` environment or repository secret | Optional, and the client's responsibility: the client buys an ElevenLabs plan, or obtains nonprofit credits from ElevenLabs, and supplies their own key. While the repository belongs to the personal account `omargad`, only that account can add Actions secrets, so the owner adds it (`gh secret set ELEVENLABS_API_KEY --env production` asks for it with hidden input) and the client rotates it after handover; once the repository is in the client's organisation, an administrator there does. The server administrator can instead write it into the server `.env`. Written into the server `.env` on each deploy; empty leaves the server's own value. Until it is added, the site works normally with its existing recorded audio and only newly generated narration reports that it is not configured ([Narration key](VPS_DEPLOYMENT.md#narration-key)) |
 | `ELEVENLABS_VOICE_ID`, `ELEVENLABS_MODEL_ID`, `ELEVENLABS_DAILY_CHARACTER_LIMIT` | Variable | Optional narration settings, written the same way |
 
 The configurable variables other than `DEPLOY_ENABLED`, and the `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY` and

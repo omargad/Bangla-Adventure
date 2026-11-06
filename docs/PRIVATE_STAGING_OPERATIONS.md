@@ -43,8 +43,13 @@ systemd exit status, a fresh completion timestamp and its actual invocation ID.
 A deferred/busy result or an older successful receipt cannot pass installation.
 Failure, including a stop request (code `interrupted`), restores the prior
 managed files and timer states under the deployment lock; stop requests during
-that restore are ignored. No root system unit, Nginx setting or firewall rule is
-installed.
+that restore are ignored. A stop request or a time-out during a first run ends
+only the wait for it: the started run, or a deploy that deferred it, still
+holds the lock, so the installer waits up to 15 minutes for the lock before
+restoring, and reports the original code. If the lock is still busy then, the
+new files stay, the earlier timer states are restored, and the result adds
+`rollback-incomplete`; run the installation again afterwards. No root system
+unit, Nginx setting or firewall rule is installed.
 
 The units run as the deployment user, so every folder from its home directory
 down to `~/.config/systemd/user` must be a real directory owned by that user that

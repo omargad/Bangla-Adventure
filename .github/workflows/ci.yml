@@ -150,7 +150,8 @@ jobs:
           DEPLOY_REQUIRE_ROOTLESS: 'true'
           DEPLOY_REQUIRE_PUBLIC_HEALTH: 'true'
           PUBLIC_HEALTH_URL: ${{ vars.PUBLIC_HEALTH_URL }}
-          DEPLOY_KNOWN_HOSTS: ${{ vars.DEPLOY_KNOWN_HOSTS }}
+          # Passed only with the address secret, which masks the address inside the line.
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_HOST != '' && vars.DEPLOY_KNOWN_HOSTS || '' }}
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           # Optional narration settings for the server .env; an empty one leaves the server's value.
           ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}

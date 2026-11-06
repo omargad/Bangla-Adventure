@@ -229,7 +229,7 @@ class BackupTests(unittest.TestCase):
             patch.object(self.prod, 'compose', self.compose),
             patch.object(self.prod, 'remove_owned', lambda token: self.events.append('helpers-gone') or self.helpers_left),
             patch.object(self.prod, 'clear_stale_backup', self.clear_stale),
-            patch.object(self.prod, 'backup_writer_running', lambda: self.writer),
+            patch.object(self.prod, 'backup_writer_running', lambda: self.events.append('writers') or self.writer),
             patch.object(self.prod, 'wait_for_health', lambda port, timeout: self.events.append('health') or self.healthy_again),
             patch.object(self.prod, 'wait_until_healthy', lambda cfg, timeout: self.events.append('docker-healthy') or self.docker_healthy),
             patch.object(self.prod, 'receipt', lambda cfg, verify: {'present': True, 'archive': ARCHIVE, 'sha256': 'b' * 64, 'bytes': 2048, 'createdEpoch': NOW}),
@@ -287,7 +287,7 @@ class BackupTests(unittest.TestCase):
     def test_routine_backup_runs_the_deploys_command_and_records_downtime(self):
         value = self.prod.backup()
         self.assertEqual(value['status'], 'passed')
-        self.assertEqual(self.events, ['prepare', 'clear-start', 'serving', 'stop', 'backup', 'helpers-gone', 'up', 'health', 'docker-healthy'])
+        self.assertEqual(self.events, ['writers', 'prepare', 'clear-start', 'serving', 'stop', 'backup', 'helpers-gone', 'up', 'health', 'docker-healthy'])
         self.assertEqual(value['codes'], [])
         backups = str(self.fx.deployment / 'backups')
         self.assertEqual(self.run_args[:3], ('run', '--rm', '--no-deps'))
@@ -511,7 +511,7 @@ class BackupTests(unittest.TestCase):
         self.stale_at_start = True
         value = self.prod.backup()
         self.assertEqual((value['status'], value['verified'], value['codes']), ('passed', True, ['stale-backup-lock-cleared-at-start']))
-        self.assertEqual(self.events[:4], ['prepare', 'clear-start', 'serving', 'stop'])
+        self.assertEqual(self.events[:5], ['writers', 'prepare', 'clear-start', 'serving', 'stop'])
         self.assertEqual(self.fx.report('backup')['codes'], ['stale-backup-lock-cleared-at-start'])
         # A passing run with the notice keeps status healthy, and shows the code.
         status = StatusTests().status(reports=StatusTests().reports(backup={**self.fx.report('backup'), 'checkedAtEpoch': NOW - 60}))
@@ -533,19 +533,36 @@ class BackupTests(unittest.TestCase):
             with self.assertRaises(ops.Refused) as caught:
                 self.prod.backup()
         self.assertEqual(caught.exception.codes, ['app-unhealthy-before-backup', 'stale-backup-lock-cleared-at-start'])
-        self.assertEqual(self.events, ['prepare', 'clear-start'])
+        self.assertEqual(self.events, ['writers', 'prepare', 'clear-start'])
 
     def test_a_running_backup_writer_means_the_lock_is_not_stale(self):
         self.writer = True
         with self.assertRaises(ops.Refused) as caught:
             self.prod.backup()
         self.assertEqual(caught.exception.codes, ['backup-helper-running'])
-        self.assertEqual(self.events, ['prepare'])
+        # Refused before backups/ is prepared: that briefly hands it to root, so a writer still there would fail.
+        self.assertEqual(self.events, ['writers'])
         self.writer, self.stale_at_start = False, ops.Refused('stale-backup-lock')
         with self.assertRaises(ops.Refused) as caught:
             self.prod.backup()
         self.assertEqual(caught.exception.codes, ['stale-backup-lock'])
         self.assertNotIn('stop', self.events)
+
+    def test_no_helper_touches_backups_while_a_writer_may_still_run(self):
+        # The real preparation, whose helper hands backups/ to root for a moment.
+        helpers = []
+        backups = self.fx.deployment / 'backups'
+        with patch.object(self.prod, 'prepare_backups', lambda cfg: self.events.append('prepare') or ops.Production.prepare_backups(self.prod, cfg)), \
+                patch.object(self.prod, 'isolated_run', lambda *args, **kwargs: helpers.append(args) or completed()):
+            self.writer = True
+            with self.assertRaises(ops.Refused) as caught:
+                self.prod.backup()
+            self.assertEqual(caught.exception.codes, ['backup-helper-running'])
+            self.assertEqual((helpers, backups.exists()), ([], False), 'nothing was created or changed')
+            self.writer = False
+            self.assertEqual(self.prod.backup()['status'], 'passed')
+            self.assertEqual(len(helpers), 1)
+            self.assertIn('chown 0:0 /backups && chmod 0700 /backups && chown 1000:1000 /backups', helpers[0])
 
     def test_backup_writers_are_running_containers_with_backups_mounted_writable(self):
         backups = str(self.fx.deployment / 'backups')
@@ -1285,7 +1302,9 @@ class InstallerTests(unittest.TestCase):
         result = subprocess.run([sys.executable, str(ROOT / 'scripts/production-ops-install.py'), '/tmp/elsewhere'], capture_output=True, text=True, env=env, timeout=60)
         self.assertEqual(result.returncode, 1)
         value = json.loads(result.stdout)
-        self.assertEqual((value['codes'], value['rollback']), (['payload-path'], 'none'))
+        self.assertEqual((value['codes'], value['rollback'], value['statusKey']), (['payload-path'], 'none', 'unchanged'))
+        value = installer.failure_result(installer.InstallFailed(['initial-monitor-failed'], 'incomplete', 'installed'))
+        self.assertEqual((value['codes'], value['rollback'], value['statusKey']), (['initial-monitor-failed', 'rollback-incomplete'], 'incomplete', 'installed'))
 
     def test_deferred_failed_or_old_results_cannot_satisfy_an_initial_run(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -1432,14 +1451,25 @@ class InstallerTests(unittest.TestCase):
             self.assertEqual(list((fx.deployment / 'ops' / 'tools').iterdir()), [])
             self.assertFalse([args for args in calls if args[0] in ('stop', 'daemon-reload', 'start', 'enable')])
 
-    def test_install_rollback_restores_authorized_keys(self):
-        before = f'{DEPLOY_KEY} deployer\r\n{OLD_STATUS_LINE}\r\n'.encode()
-        with tempfile.TemporaryDirectory() as folder:
-            fx, ssh, calls, result = self.keyed_install(folder, STATUS_KEY, before, deferred=True)
-            self.assertIsInstance(result, installer.InstallFailed)
-            self.assertEqual((result.codes, result.rollback), (['initial-backup-deferred'], 'complete'), repr(result.__cause__))
-            self.assertEqual((ssh / 'authorized_keys').read_bytes(), before)
-            self.assertEqual(list((fx.deployment / 'ops' / 'tools').iterdir()), [])
+    def test_install_rollback_only_ever_narrows_status_key_access(self):
+        old = f'{DEPLOY_KEY} deployer\r\n{OLD_STATUS_LINE}\r\n'.encode()
+        new = f'{DEPLOY_KEY} deployer\r\n'.encode()
+        # (request, file before, file after the failed install's rollback, what the failure reports)
+        for status, before, after, left in [
+                # A rotation after a leak: the old key must not work again, and STATUS_SSH_KEY holds the new one.
+                (STATUS_KEY, old, new + STATUS_LINE.encode() + b'\r\n', 'replaced'),
+                # A revocation stays revoked.
+                ('remove', old, new, 'removed'),
+                # A line this run added where there was none is taken out again.
+                (STATUS_KEY, new, new, 'unchanged')]:
+            with tempfile.TemporaryDirectory() as folder:
+                fx, ssh, calls, result = self.keyed_install(folder, status, before, deferred=True)
+                self.assertIsInstance(result, installer.InstallFailed)
+                self.assertEqual((result.codes, result.rollback, result.status_key), (['initial-backup-deferred'], 'complete', left), repr(result.__cause__))
+                self.assertEqual((ssh / 'authorized_keys').read_bytes(), after, left)
+                self.assertNotIn(ed25519(4).encode(), (ssh / 'authorized_keys').read_bytes(), 'the old status key is never authorized again')
+                self.assertEqual(list((fx.deployment / 'ops' / 'tools').iterdir()), [], 'the rest of the rollback is complete')
+                self.assertEqual(installer.failure_result(result)['statusKey'], left)
 
     def test_a_failed_verification_during_install_restores_the_file_and_rolls_back(self):
         before = f'{DEPLOY_KEY} deployer\n'.encode()
@@ -1648,6 +1678,21 @@ class AuthorizedKeysTests(unittest.TestCase):
             with self.assertRaisesRegex(installer.ops.Refused, 'authorized-keys-changed'):
                 key.restore()
             self.assertEqual((ssh / 'authorized_keys').read_text(), before + '# edited\n')
+
+    def test_a_rollback_keeps_a_removal_or_a_replacement(self):
+        before = f'{DEPLOY_KEY} d\n{OLD_STATUS_LINE}\n'
+        for status, outcome, after in [('remove', 'removed', f'{DEPLOY_KEY} d\n'), (STATUS_KEY, 'replaced', f'{DEPLOY_KEY} d\n{STATUS_LINE}\n')]:
+            with tempfile.TemporaryDirectory() as folder:
+                ssh, key = self.status_key(folder, before, status)
+                self.assertEqual((key.left(), key.apply(), key.left()), ('unchanged', outcome, outcome))
+                key.restore()
+                self.assertEqual((ssh / 'authorized_keys').read_text(), after, 'the old key stays revoked')
+                self.assertEqual(key.left(), outcome)
+        with tempfile.TemporaryDirectory() as folder:
+            ssh, key = self.status_key(folder, f'{DEPLOY_KEY} d\n')
+            self.assertEqual(key.apply(), 'installed')
+            key.restore()
+            self.assertEqual(((ssh / 'authorized_keys').read_text(), key.left()), (f'{DEPLOY_KEY} d\n', 'unchanged'))
 
     def test_an_unchanged_file_is_not_rewritten(self):
         before = f'{DEPLOY_KEY} d\n{STATUS_LINE}\n'

@@ -88,7 +88,8 @@ jobs:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
-          DEPLOY_KNOWN_HOSTS: ${{ vars.DEPLOY_KNOWN_HOSTS }}
+          # Passed only with the address secret, which masks the address inside the line.
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_HOST != '' && vars.DEPLOY_KNOWN_HOSTS || '' }}
           REGISTRY_USER: ${{ github.actor }}
           REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -96,6 +97,8 @@ jobs:
           umask 077
           fail() { printf 'image preflight: %s\n' "$*" >&2; exit 1; }
           [ "${DEPLOY_ENABLED:-false}" = false ] || fail 'DEPLOY_ENABLED must remain false during image verification.'
+          [[ "${DEPLOY_HOST:-}" =~ ^[a-zA-Z0-9][a-zA-Z0-9.:-]*$ ]] || fail 'the DEPLOY_HOST secret is missing or invalid (set it as a repository secret or a production environment secret, named exactly DEPLOY_HOST).'
+          [[ "${DEPLOY_USER:-}" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]] || fail 'the DEPLOY_USER secret is missing or invalid (set it as a repository secret or a production environment secret, named exactly DEPLOY_USER).'
           [ -n "${DEPLOY_SSH_KEY:-}" ] || fail 'production secret DEPLOY_SSH_KEY is missing.'
           [ -n "${DEPLOY_KNOWN_HOSTS:-}" ] || fail 'production variable DEPLOY_KNOWN_HOSTS is missing.'
           [ -n "${REGISTRY_PASSWORD:-}" ] || fail 'The temporary GitHub registry token is missing.'
@@ -103,8 +106,6 @@ jobs:
 
           [[ "${PREFLIGHT_IMAGE_REF:-}" =~ ^ghcr\.io/omargad/bangla-adventure@sha256:[0-9a-f]{64}$ ]] || fail 'image_ref must be an immutable digest in this repository GHCR package.'
           [[ "${PREFLIGHT_EXPECTED_REVISION:-}" =~ ^[0-9a-f]{40}$ ]] || fail 'expected_revision must be a full lowercase 40-character commit SHA.'
-          [[ "${DEPLOY_HOST:-}" =~ ^[a-zA-Z0-9][a-zA-Z0-9.:-]*$ ]] || fail 'the DEPLOY_HOST secret is missing or invalid (set it as a repository secret or a production environment secret, named exactly DEPLOY_HOST).'
-          [[ "${DEPLOY_USER:-}" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]] || fail 'the DEPLOY_USER secret is missing or invalid (set it as a repository secret or a production environment secret, named exactly DEPLOY_USER).'
 
           readonly host="$DEPLOY_HOST"
           readonly user="$DEPLOY_USER"

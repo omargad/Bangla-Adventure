@@ -389,6 +389,57 @@ class InstallerTests(unittest.TestCase):
             self.assertEqual(installer.failure_code(OSError()), 'install-failed')
             self.assertEqual(installer.failure_code(installer.ops.Refused('transaction-busy')), 'transaction-busy')
 
+    def initial_backup_stopped(self, folder, busy):
+        """An update whose initial backup gets a real stop request; the started run then holds the lock `busy` more times."""
+        stage, config, payload = self.install_fixture(folder)
+        old = b'# earlier\n'
+        for name in installer.TOOLS: (stage / 'tools' / name).write_bytes(old)
+        for name in installer.UNITS: (config / name).write_bytes(old)
+        (stage / 'ops' / 'installation.json').write_bytes(b'{"earlier": true}\n')
+        lockfile = Path(folder) / 'lock'; lockfile.write_text('')
+        plan = ['free'] + ['busy'] * busy + ['free']
+        def acquire():
+            if (plan.pop(0) if plan else 'busy') == 'busy': raise installer.ops.Refused('transaction-busy')
+            return os.open(lockfile, os.O_RDWR)
+        calls = []
+        with StopHandlers(folder, installer.ops) as stop:
+            def ctl(*args, **kwargs):
+                calls.append(args)
+                if args[0] in ('is-enabled', 'is-active'): return completed(returncode=0)
+                if args[0] == 'show': return completed(str(config / args[1]))
+                # systemctl waits for the started backup: the real helper, so the stop request is real.
+                if args == ('start', 'ba-private-stage-backup.service'): return installer.ops.command(stop.child(), timeout=60)
+                return completed()
+            with patch.object(installer, 'Path', return_value=payload), patch.object(installer.sys, 'argv', ['install', str(payload)]), patch.object(installer.ops, 'platform'), patch.object(installer.ops, 'private_dir'), patch.object(installer.ops, 'regular'), patch.object(installer.ops, 'healthy', return_value=True), patch.object(installer.ops, 'containers'), patch.object(installer.ops, 'http_health', return_value=True), patch.object(installer.ops, 'systemd_dir', return_value=config), patch.object(installer, 'owned_config'), patch.object(installer.ops, 'OPS', stage / 'ops'), patch.object(installer.ops, 'STAGE', stage), patch.object(installer.ops, 'validate_installation'), patch.object(installer.ops, 'acquire_lock', acquire), patch.object(installer, 'userctl', ctl), patch.object(installer.time, 'sleep'):
+                stop.stop_when_running()
+                with self.assertRaises((installer.ops.Stopped, installer.RollbackIncomplete)) as caught: installer.main()
+            self.assertTrue(stop.child_gone())
+        after = calls[calls.index(('start', 'ba-private-stage-backup.service')) + 1:]
+        return stage, config, old, after, caught.exception
+
+    def test_a_stop_request_during_the_initial_backup_waits_for_its_lock_then_rolls_back(self):
+        with tempfile.TemporaryDirectory() as folder:
+            stage, config, old, after, failure = self.initial_backup_stopped(folder, busy=2)
+            # The stop request is reported, not the lock the started backup still held.
+            self.assertIsInstance(failure, installer.ops.Stopped)
+            self.assertEqual(installer.failure_code(failure), 'interrupted')
+            for name in installer.TOOLS: self.assertEqual((stage / 'tools' / name).read_bytes(), old)
+            for name in installer.UNITS: self.assertEqual((config / name).read_bytes(), old)
+            self.assertEqual((stage / 'ops' / 'installation.json').read_bytes(), b'{"earlier": true}\n')
+            self.assertIn(('daemon-reload',), after)
+            for name in installer.TIMERS:
+                self.assertIn(('enable', name), after); self.assertIn(('start', name), after)
+
+    def test_a_lock_that_stays_busy_restarts_the_earlier_timers_and_says_so(self):
+        with tempfile.TemporaryDirectory() as folder, patch.object(installer, 'ROLLBACK_LOCK_WAIT', 0):
+            stage, config, old, after, failure = self.initial_backup_stopped(folder, busy=1)
+            self.assertIsInstance(failure, installer.RollbackIncomplete)
+            self.assertEqual(failure.codes, ['interrupted', 'rollback-incomplete'])
+            self.assertEqual((stage / 'tools' / installer.TOOLS[0]).read_bytes(), installer.MARKER + b'fixture\n', 'the new files stayed')
+            self.assertNotIn(('daemon-reload',), after)
+            for name in installer.TIMERS:
+                self.assertIn(('enable', name), after); self.assertIn(('start', name), after)
+
     def test_deferred_or_old_success_receipt_cannot_satisfy_initial_run(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder); now = 2_000_000_000
@@ -455,6 +506,7 @@ class InstallerTests(unittest.TestCase):
         for name in ('private-staging-ops.py', 'private-staging-ops-install.py'):
             text = (ROOT / 'scripts' / name).read_text()
             codes |= set(re.findall(r'require\(.*, "([a-z0-9-]+)"\)$', text, re.M)) | set(re.findall(r'Refused\("([a-z0-9-]+)"\)', text))
+            codes |= set(re.findall(r'"(rollback-[a-z-]+)"', text))
         failing = {'checkedAtEpoch': 2_000_000_000, 'health': False, 'containersHealthy': False, 'publishedPorts': 1, 'freeDiskBytes': 0,
                    'backup': {'verified': False, 'createdEpoch': None}, 'lastBackupRunPassed': False}
         codes |= set(checker.evaluate(failing)['codes'])

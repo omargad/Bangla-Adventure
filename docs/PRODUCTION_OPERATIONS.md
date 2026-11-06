@@ -79,6 +79,20 @@ secret checked against the pinned key fingerprint, and `DEPLOY_KNOWN_HOSTS`
 checked line by line against the pinned host-key fingerprint. It never prints
 the address or account.
 
+Before the approval prompt, the run's credential-free `validate` job prints the
+change `install` would make to the status key: `status key: SHA256:...
+requested.`, `status key: removal requested.` or `status key: not requested`.
+Anyone with write access can change the `STATUS_SSH_PUBLIC_KEY` variable, so
+the reviewer opens that job (**Show the status key change for the reviewer**)
+and approves only if it shows the expected change; for a new key, the
+fingerprint noted when its pair was made
+([Setting up the status key](#setting-up-the-status-key), step 2). After the
+approval, `install` refuses, before connecting, if the variable now asks for
+anything else: "STATUS_SSH_PUBLIC_KEY now asks for something other than what was
+shown before the approval". That also happens when the variable is set on the
+`production` environment, which `validate` cannot see; keep it a repository
+variable only.
+
 The installation:
 
 1. uploads the four tools, the six units and a small request naming the public
@@ -106,15 +120,20 @@ A successful run ends with `status key: installed`, `replaced`,
 `already-present`, `removed`, `already-absent` or `unchanged` (the variable is
 unset, so `authorized_keys` was not read or changed).
 
-Any failure fails the run with fixed codes and a `rollback` state, and the
-workflow's message follows that state:
+Any failure fails the run with fixed codes, a `rollback` state and a
+`status key` state, and the workflow's message follows them:
 
 | `rollback` | Meaning |
 | --- | --- |
 | `none` | The installer stopped before changing anything |
-| `complete` | The previous files, record, `authorized_keys` and timer states are back |
-| `incomplete` | A deploy still held the lock after 20 minutes: the new files (and any new status-key line) stayed, and the earlier timer states were restored (code `rollback-incomplete`); run `install` again after the deploy |
+| `complete` | The previous files, record and timer states are back. A status-key line this run added where there was none is taken out again (`status key: unchanged`); a removal or a replacement stays (`status key: removed` or `replaced`), so a revoked key never works again |
+| `incomplete` | A deploy still held the lock after 20 minutes: the new files (and any new status-key line, `status key: installed`) stayed, and the earlier timer states were restored (code `rollback-incomplete`); run `install` again after the deploy |
 | `failed` | The rollback itself failed (code `rollback-failed`); check the timers on the server |
+
+A rollback only ever narrows access, because revoking a key is never riskier
+than keeping it: after a leak, a failed install still leaves the old status
+key revoked, and the message says so, for example "The status key removal
+stayed: the earlier status key no longer works."
 
 A rollback after the initial runs waits up to 20 minutes for the deploy lock,
 because a deploy that starts during those runs, and so defers one of them
@@ -134,30 +153,32 @@ Each run:
 1. takes the deploy lock (`.deploy.lock`) without waiting. If a deploy or
    another backup holds it, the run exits `75` ("deferred"), which the unit
    treats as success, and nothing is stopped or recorded;
-2. prepares `backups/` as the deploy does (uid 1000, mode `0700`);
-3. removes a backup lock that an earlier run left behind, while the app still
+2. stops with `backup-helper-running`, changing nothing, if a container that
+   can write to `backups/` is still running: its backup lock may be in use, and
+   the next step would make its writes fail;
+3. prepares `backups/` as the deploy does (uid 1000, mode `0700`; for a moment
+   the folder belongs to the container's root user, so uid 1000 cannot write);
+4. removes a backup lock that an earlier run left behind, while the app still
    serves (`stale-backup-lock-cleared-at-start`; see
-   [A stale backup lock](#a-stale-backup-lock)). If a container that can write
-   to `backups/` is still running, the lock may be in use: the run stops here
-   with `backup-helper-running` and changes nothing;
-4. requires the app container to be running and healthy, with the configured
+   [A stale backup lock](#a-stale-backup-lock));
+5. requires the app container to be running and healthy, with the configured
    image, and `http://127.0.0.1:APP_PORT/api/health` answering `200`. It waits up
    to two minutes, for example when a missed run starts just after a reboot;
-5. requires at least 1 GiB free on the deployment filesystem;
-6. stops only the app, and confirms no container is running on the data volume;
-7. runs the deploy's own backup command with the current `APP_IMAGE`:
+6. requires at least 1 GiB free on the deployment filesystem;
+7. stops only the app, and confirms no container is running on the data volume;
+8. runs the deploy's own backup command with the current `APP_IMAGE`:
    `docker compose run --rm --no-deps --volume /opt/bangla-adventures/backups:/backups app bash scripts/backup.sh /backups 14 --application-stopped`
    (14 archives kept, including the deploy's own), plus two labels that let the
    job find and remove its helper container if the run is interrupted;
-8. **always** starts the same app container again, also after a failed or
+9. **always** starts the same app container again, also after a failed or
    interrupted backup or a stop request, and waits up to three minutes for
    `/api/health` on the loopback port, then for Docker's own health check to
    report it healthy, so the next monitor run never sees a container that is
    still `starting`;
-9. if the backup helper had to be killed (a timeout or a stop request), removes
-   the lock and staging copy it left in `backups/`, once the app is serving
-   again and still under the deploy lock;
-10. confirms the new `.latest-backup.json` receipt names the archive just made.
+10. if the backup helper had to be killed (a timeout or a stop request), removes
+    the lock and staging copy it left in `backups/`, once the app is serving
+    again and still under the deploy lock;
+11. confirms the new `.latest-backup.json` receipt names the archive just made.
 
 A stop request (`systemctl --user stop`, a shutdown, or the unit's own time
 limit) interrupts the running Docker command at once; the job then recovers as
@@ -423,6 +444,14 @@ work the same in PowerShell on Windows and in a macOS or Linux terminal.
    (**Environment variables > Add environment variable**). Moving the three to
    repository level instead also works. Never add `DEPLOY_SSH_KEY` to this
    environment.
+
+   Use the hashed form of the `DEPLOY_KNOWN_HOSTS` line (`ssh-keyscan -H`, as
+   in [DEPLOYMENT.md](DEPLOYMENT.md), step 5), so the line itself does not
+   contain the address. Every VPS workflow passes `DEPLOY_KNOWN_HOSTS` only when
+   the `DEPLOY_HOST` secret is present, because GitHub prints a step's variable
+   values in the public run log and masks the address inside them only through
+   that secret. With a missing or misnamed secret the line therefore stays out
+   of the log, and the run stops with "the secret DEPLOY_HOST is missing".
 2. **Make the key pair** on your own computer, not the server, in a folder of
    your choice (Windows 10 and 11 include `ssh-keygen`):
 
@@ -434,6 +463,10 @@ work the same in PowerShell on Windows and in a macOS or Linux terminal.
    workflow cannot type one). This writes `status_key` (private) and
    `status_key.pub` (public). Do not add `-N ''`: Windows PowerShell drops the
    empty quotes, so the key ends up with a passphrase or the command fails.
+
+   Note the key's fingerprint, which is not secret: `ssh-keygen -l -f
+   status_key.pub` prints `256 SHA256:... bangla-adventures-status (ED25519)`.
+   The reviewer compares it with the install run before approving (step 4).
 3. **Save the two halves in GitHub, then delete them locally.**
    - Show the public half with `Get-Content status_key.pub` (PowerShell) or
      `cat status_key.pub`, and copy its single line,
@@ -452,8 +485,10 @@ work the same in PowerShell on Windows and in a macOS or Linux terminal.
      or `rm status_key status_key.pub`. GitHub keeps the only copy of the
      private key; if it is ever needed again, make a new pair instead.
 4. **Install it.** Run **Actions > VPS production operations > Run workflow**
-   on `main` with `install` and the confirmation ticked; a reviewer approves
-   the `production` environment. Besides the timers, the run adds the status
+   on `main` with `install` and the confirmation ticked. Before approving the
+   `production` environment, the reviewer opens the run's `validate` job and
+   checks that it printed `status key: SHA256:... requested.` with the
+   fingerprint from step 2. Besides the timers, the run adds the status
    key's line to the deployment user's `~/.ssh/authorized_keys` and reports
    `status key: installed` (`already-present` when a later install finds the
    same key).
@@ -497,9 +532,10 @@ rollback, and changes nothing else:
   exactly as it was and in the same order (Windows line endings and a missing
   final line break included), writes the file atomically with mode `0600`, then
   reads it back. If anything differs it restores the previous contents
-  (`authorized-keys-verify-failed`). A failed install's rollback restores the
-  previous contents too, unless someone changed the file meanwhile
-  (`authorized-keys-changed`).
+  (`authorized-keys-verify-failed`). A failed install's rollback only takes
+  out a line that the run added where there was none, unless someone changed
+  the file meanwhile (`authorized-keys-changed`); it keeps a removal or a
+  replacement, so it never authorizes a key again.
 - It never touches `authorized_keys2`, the sshd settings or anything outside
   the deployment user's `~/.ssh/authorized_keys`.
 
@@ -510,10 +546,13 @@ With `STATUS_SSH_PUBLIC_KEY` unset, the install does not read or change
 
 - **Replace** (a lost or leaked key, or routine rotation): make a new pair as in
   step 2, put its public line in `STATUS_SSH_PUBLIC_KEY` and its private key in
-  `STATUS_SSH_KEY`, and run `install`. The new line replaces the old one
-  (`status key: replaced`), so the old key stops working at once.
+  `STATUS_SSH_KEY`, and run `install`; the reviewer checks the new fingerprint
+  in the `validate` job. The new line replaces the old one
+  (`status key: replaced`), so the old key stops working at once. It stays
+  replaced even if a later step of the same install fails and is rolled back.
 - **Remove**: set `STATUS_SSH_PUBLIC_KEY` to the single word `remove` and run
-  `install`. The line is deleted (`status key: removed`, or `already-absent`).
+  `install`. The line is deleted (`status key: removed`, or `already-absent`),
+  and stays deleted even if a later step fails.
   Then delete the `STATUS_SSH_KEY` secret and disable the daily workflow
   (**Actions > VPS production status > ... > Disable workflow**), or it fails
   every day. The variable can be deleted afterwards.
@@ -523,11 +562,32 @@ With `STATUS_SSH_PUBLIC_KEY` unset, the install does not read or change
   the line ending in `bangla-adventures-status` from `~/.ssh/authorized_keys`.
 
 The daily workflow refuses to run if the deploy key reaches it, if
-`STATUS_SSH_KEY` or `STATUS_SSH_PUBLIC_KEY` is missing (for example "the secret
-STATUS_SSH_KEY is missing (add it to the repository or to this workflow's
-environment)"), if the private key's public half is not exactly the key in
-`STATUS_SSH_PUBLIC_KEY`, or if the status key is the deploy key. Host-key
-pinning is the same as for the deploy.
+`STATUS_SSH_KEY` or `STATUS_SSH_PUBLIC_KEY` is missing, if the private key's
+public half is not exactly the key in `STATUS_SSH_PUBLIC_KEY`, or if the status
+key is the deploy key. Host-key pinning is the same as for the deploy. Each
+message names the setting and where it belongs, for example "the secret
+STATUS_SSH_KEY is missing: add it under Settings > Environments >
+production-status > Environment secrets, named exactly STATUS_SSH_KEY (there
+only, never as a repository secret)".
+
+### When the daily check fails
+
+The run log ends with one of these. SSH's own error text is never printed,
+because it can name the server; the message is chosen from it instead.
+
+| Message | What to do |
+| --- | --- |
+| `status: failed; codes: ...` | A job failed or is stale: see [Reading status](#reading-status) |
+| "the secret DEPLOY_HOST is missing: this check runs in the production-status environment, which cannot see production environment secrets; ..." (likewise `DEPLOY_USER`, and the variable `DEPLOY_KNOWN_HOSTS`) | Add it to `production-status` with exactly that name ([step 1](#setting-up-the-status-key)), or make it a repository setting |
+| "the STATUS_SSH_KEY secret is not an unencrypted private key ..." | The key has a passphrase: make a new pair, pressing Enter at both prompts, and repeat steps 3 and 4 |
+| "the STATUS_SSH_KEY secret does not match the STATUS_SSH_PUBLIC_KEY variable" | The two halves come from different pairs: save both halves of one pair, then run `install` |
+| "the server refused the status key: run VPS production operations install ..." | The server does not hold this key: between go-live steps 7 and 9, after a new pair without an install, or because `STATUS_SSH_PUBLIC_KEY` was not a repository variable when `install` ran (it then reports `status key: not requested`). Run `install` and check that it reports `status key: installed` or `already-present` |
+| "the server host key does not match DEPLOY_KNOWN_HOSTS and DEPLOY_HOST_FINGERPRINT ..." | The server showed a different host key. If it was rebuilt, verify the new key with the administrator before changing either setting |
+| "the verified DEPLOY_KNOWN_HOSTS lines do not cover the DEPLOY_HOST secret and DEPLOY_PORT ..." | The saved line names another host or port than `DEPLOY_HOST` and `DEPLOY_PORT`: record it for the same one |
+| "could not connect over SSH: check the DEPLOY_HOST secret, DEPLOY_PORT and that the server is running." | The connection failed before any key was tried |
+
+The `status` and `backup-now` actions and `install` print the same messages,
+naming `DEPLOY_SSH_KEY` and the `production` environment instead.
 
 GitHub disables scheduled workflows in a public repository after 60 days
 without commits, and emails a warning first; re-enable it from the Actions tab.
@@ -581,8 +641,9 @@ lock, and every backup takes that lock first: the scheduled job, `backup-now`
 (which runs the same service) and the deploy's own backup before each release.
 So no other backup can be starting. A backup helper that outlived a killed run
 could still be working, so the job also lists running containers by this tool's
-label and by a mount of `backups/`; if any can write there, it leaves the lock
-alone and stops with `backup-helper-running`. The monitor's receipt reader
+label and by a mount of `backups/`, before it prepares that folder; if any can
+write there, it leaves the folder and the lock alone and stops with
+`backup-helper-running`. The monitor's receipt reader
 mounts `backups/` read-only and does not count. The removal runs in a
 short-lived container as uid 1000, with no network, a read-only root, no
 capabilities and only `backups/` mounted.

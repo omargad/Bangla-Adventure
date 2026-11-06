@@ -23,6 +23,30 @@ TOOLS = ("private-staging-ops.sh", "private-staging-ops.py", "private-staging-op
 UNITS = ("ba-private-stage-backup.service", "ba-private-stage-backup.timer", "ba-private-stage-monitor.service", "ba-private-stage-monitor.timer")
 TIMERS = ("ba-private-stage-backup.timer", "ba-private-stage-monitor.timer")
 MARKER = b"# bangla-private-staging-operations-v1\n"
+# A started backup keeps the lock for its own run, at most its 10-minute start and 4-minute stop limits.
+ROLLBACK_LOCK_WAIT = 15 * 60
+
+
+class RollbackIncomplete(ops.Refused):
+    """The run's own failure, and that the new files stayed because the lock stayed busy."""
+
+    def __init__(self, cause: BaseException):
+        super().__init__(failure_code(cause))
+        self.codes = [self.code, "rollback-incomplete"]
+
+
+def wait_for_lock(timeout: float) -> int | None:
+    """The deployment lock, waiting for the run that holds it; None if it is still busy at the deadline."""
+    deadline = time.monotonic() + timeout
+    while True:
+        try:
+            return ops.acquire_lock()
+        except ops.Refused as exc:
+            if exc.code != "transaction-busy":
+                raise
+        if time.monotonic() >= deadline:
+            return None
+        time.sleep(5)
 
 
 def userctl(*args: str, okay: bool = False):
@@ -116,14 +140,24 @@ def main() -> int:
     previous_receipt = None
     timer_states = {}
 
+    def stop_new_timers():
+        for name in TIMERS:
+            userctl("stop", name, okay=True)
+            if not timer_states.get(name, {}).get("enabled"):
+                userctl("disable", name, okay=True)
+
+    def start_previous_timers():
+        for name, state in timer_states.items():
+            if state["enabled"]:
+                userctl("enable", name, okay=True)
+            if state["active"]:
+                userctl("start", name, okay=True)
+
     def restore_previous():
         # Caller holds .deploy.lock until all file/timer rollback work is complete; stop requests wait for it.
         previous_signals = ops.quiet_signals()
         try:
-            for name in TIMERS:
-                userctl("stop", name, okay=True)
-                if not timer_states.get(name, {}).get("enabled"):
-                    userctl("disable", name, okay=True)
+            stop_new_timers()
             for path, content in previous.items():
                 if content is None:
                     path.unlink(missing_ok=True)
@@ -134,11 +168,7 @@ def main() -> int:
             else:
                 atomic(receipt_path, previous_receipt)
             userctl("daemon-reload", okay=True)
-            for name, state in timer_states.items():
-                if state["enabled"]:
-                    userctl("enable", name, okay=True)
-                if state["active"]:
-                    userctl("start", name, okay=True)
+            start_previous_timers()
         finally:
             ops.restore_signals(previous_signals)
 
@@ -200,12 +230,23 @@ def main() -> int:
         for name in TIMERS:
             userctl("enable", "--now", name)
             ops.require(userctl("is-enabled", "--quiet", name).returncode == 0 and userctl("is-active", "--quiet", name).returncode == 0, "timer-not-enabled")
-    except BaseException:
-        rollback_lock = ops.acquire_lock()
+    except BaseException as exc:
+        # A stop request or a timeout ends the waiting systemctl, not the started run, which keeps the lock
+        # for its own run, as does a deploy that deferred it: wait for it, then roll back. Stop requests wait.
+        previous_signals = ops.quiet_signals()
         try:
-            restore_previous()
+            rollback_lock = wait_for_lock(ROLLBACK_LOCK_WAIT)
+            if rollback_lock is None:
+                # Still busy: the new files stay, but the earlier timers run again (each defers meanwhile).
+                stop_new_timers()
+                start_previous_timers()
+                raise RollbackIncomplete(exc) from exc
+            try:
+                restore_previous()
+            finally:
+                os.close(rollback_lock)
         finally:
-            os.close(rollback_lock)
+            ops.restore_signals(previous_signals)
         raise
     result = {"scope": ops.SCOPE, "action": "install", "verified": True, "status": "passed",
         "timers": {"backup": True, "monitor": True}, "initialBackupVerified": True, "initialMonitorVerified": True,
@@ -228,5 +269,6 @@ if __name__ == "__main__":
     try:
         raise SystemExit(main())
     except (ops.Refused, OSError, ValueError, KeyError, TypeError, KeyboardInterrupt, ops.Stopped) as exc:
-        print(json.dumps({"scope": ops.SCOPE, "action": "install", "verified": False, "status": "failed", "codes": [failure_code(exc)]}, separators=(",", ":")))
+        codes = exc.codes if isinstance(exc, RollbackIncomplete) else [failure_code(exc)]
+        print(json.dumps({"scope": ops.SCOPE, "action": "install", "verified": False, "status": "failed", "codes": codes}, separators=(",", ":")))
         raise SystemExit(1)
