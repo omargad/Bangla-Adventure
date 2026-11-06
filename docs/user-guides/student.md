@@ -41,17 +41,24 @@ You need:
 There are two ways to get an account.
 
 **1. Your school makes it for you (the usual way).** Your teacher or the school's
-Administrator gives you, or your grown-up, a sheet called **Bangla Adventures sign-in
-details**. It shows:
+Administrator gives you, or your grown-up, your sign-in details on paper. They show:
 
 - your **Name**
 - your **Username**
 - a **Temporary password**
-- **Sign in at** — the address of the student sign-in page
+- the address of the student sign-in page
 
-The sheet also says: *"At the first sign-in you will be asked to choose your own password.
-Only you will know it."* An account made this way works straight away. Keep the sheet
-somewhere private until you have chosen your own password.
+The paper can look one of two ways:
+
+- From the Administrator, it is a sheet called **Bangla Adventures sign-in details**, with
+  the address under **Sign in at**. It says: *"At the first sign-in you will be asked to
+  choose your own password. Only you will know it."*
+- From your teacher, it is a list called **Student sign-in sheet**. It says: *"Sign in at*
+  (the address) *with your username and temporary password, then choose your own
+  password."*
+
+An account made this way works straight away. Keep the paper somewhere private until you
+have chosen your own password.
 
 **2. You create your own account** on the sign-in page, with a grown-up's help (see
 [Creating your own account](#creating-your-own-account) below). An Administrator must
@@ -65,6 +72,8 @@ approve the account before you can sign in.
 ## Signing in
 
 1. Open your school's Bangla Adventures address in your browser. The welcome page opens.
+   (Or type the sign-in address from your sign-in details. It opens the student sign-in page
+   straight away, so you can go on to step 3.)
 2. Scroll down to **How will you join us?** In the **I'm a student** box, select
    **Student sign in**.
 
@@ -119,7 +128,8 @@ The temporary password no longer works.
 5. Select **Create account**.
 
 **What you'll see:** the message *"Your account is waiting for an administrator to approve
-it. You can sign in once it is approved."* You cannot sign in until the Administrator has
+it. You can sign in once it is approved."* The form goes back to the **Sign in** tab, with
+your username already filled in. You cannot sign in until the Administrator has
 approved the account. Ask your teacher or grown-up to let the school know. (The
 Administrator does this as described in
 [Approving or declining new accounts](administrator.md#approving-or-declining-new-accounts).)
@@ -197,11 +207,14 @@ as **History & the national story**, **Our country — symbols, rivers & nature*
 ### Open a topic
 
 1. On **My Learning**, scroll to **Choose a topic**. Or select **Learning topics** in the menu.
-2. Select a topic card. Each card shows how many minutes it takes to read. A card you have
-   not read says **Start reading →**. A card you have read says **Read · revisit →**.
-3. Read the topic. Near the end there is a **Learning references** box with related NCTB
-   textbooks and **Official NCTB page ↗** links. These open the textbook board's website in
-   a new tab.
+2. Select a topic card. Each card shows how many minutes it takes to read.
+   - On **My Learning**, a card you have not read says **Start reading →**. A card you have
+     read says **Read · revisit →**.
+   - On the **Learning topics** page, a card you have read says **Read ✓**.
+3. Read the topic. Some parts have a **Listen in Bangla** button, to hear that part read
+   aloud (see [Troubleshooting](#troubleshooting) if it shows a message instead). Near the end
+   there is a **Learning references** box with related NCTB textbooks and links such as
+   **Class 3: Official NCTB page ↗**. These open the textbook board's website in a new tab.
 4. To go back to the list, select **All topics** at the top of the topic.
 
 ### Mark a topic as read
@@ -254,7 +267,9 @@ your classes.
 - A card for each activity. The bottom of the card says:
   - **Start activity**: you have not done it yet.
   - **Result:** and your score, for example **Result: 3/3**: you have done it.
-  - **Closed**: your teacher has closed it. You cannot open a closed activity.
+  - **Closed**: your teacher has closed it before you did it.
+- You cannot open a closed activity. If you did it before your teacher closed it, the card
+  still shows your **Result:**, but it no longer opens.
 - If the class has no activities yet: *"Your teacher has not added activities yet."*
 
 ### Do an activity
@@ -262,7 +277,8 @@ your classes.
 1. Select the activity card (**Start activity**).
 2. Read the instructions. If the activity is linked to a topic, select
    **Read the learning topic & references** to read it first.
-3. For each question, select one answer. You must answer every question.
+3. For each question, select one answer. You must answer every question. If you miss one,
+   the browser shows a message such as *"Please select one of these options."* beside it.
 4. Select **Submit answers** at the bottom.
 
 ![An activity with its instructions, the "Read the learning topic & references" and "Listen to instructions" buttons, and the first question.](images/student/07-activity.jpg)
@@ -342,13 +358,18 @@ At the bottom of My Learning, select **More language activities**. This opens a 
 
 1. On the **More language activities** page, select **Guided language practice** (the button
    near the top).
-2. The lessons page opens. Scroll down to **Your complete Bangla learning path**. Choose
-   **All levels** or a level, such as **Pre-A1**.
-3. On a lesson, select **Open six-session lesson →**.
-4. The lesson opens in its own window. Use the tabs **Overview**, **Listen**, **Read**,
+2. The lessons page opens. On a computer, it may scroll down to the very bottom of the page
+   by itself. Select **Lessons** in the bar at the top of the page to jump to
+   **Your complete Bangla learning path**. (On a phone, scroll down to it.)
+3. **Pre-A1** is chosen at first. Choose **All levels** to see every open lesson, or choose
+   another level.
+4. On a lesson, select **Open six-session lesson →**.
+5. The lesson opens in its own window. Use the tabs **Overview**, **Listen**, **Read**,
    **Speak**, **Write**, **Watch** and **Mastery**, or the **Next →** and **← Previous**
    buttons at the bottom.
-5. To close the lesson, select **×** in the top right corner (or press the Esc key).
+6. To close the lesson, select **×** in the top right corner (or press the Esc key). On the
+   last tab, **Mastery**, the **Next →** button becomes **Close lesson ×**, which also closes
+   it.
 
 ![A lesson window, "Hello, this is me", with the Overview, Listen, Read, Speak, Write, Watch and Mastery tabs.](images/student/10-lesson.jpg)
 
@@ -430,7 +451,8 @@ Every student page can be shown in English or Bangla.
   out, stay in the language you chose.
 - Topics have their own Bangla version.
 - Announcements and activities appear exactly as your teacher wrote them. They are not
-  translated.
+  translated. A class source link shows its Bangla title, if your teacher gave it one, but its
+  note stays as your teacher wrote it.
 - The lessons page has its own **EN** and **বাংলা** switch at the top.
 
 ## Privacy and safety
@@ -493,6 +515,8 @@ page.
 | An activity your teacher mentioned is not there. | New activities appear only after the Administrator approves them. | Select **Refresh** later, or ask your teacher. |
 | The activity card says **Closed**. | Your teacher has closed the activity. | Ask your teacher if you still need to do it. |
 | *"No topics have been approved yet."*, or no topic cards under **Choose a topic** | The Administrator has not approved any topics yet. | Ask your teacher or the Administrator. |
+| *"Please select one of these options."* when you select **Submit answers** | A question in the activity has no answer yet. | Choose an answer for that question, then select **Submit answers** again. |
+| The lessons page opens at the very bottom, not at the lessons. | A known problem when you open it from **Guided language practice** on a computer. | Select **Lessons** in the bar at the top of the page. |
 | *"No lessons are open at this level right now. Try another level."* | No approved lesson at that level. | Choose **All levels** or another level. |
 | *"New narration is not configured. Saved audio is still available."* after a **Listen** button | The read-aloud voice is not switched on for your school's site. | Read the text with a grown-up, and tell the Administrator. |
 | *"This lesson's video is unavailable. Talk through the three prompts below with a grown-up instead."* | The lesson has no approved video. | Use the three prompts with a grown-up. |
