@@ -60,7 +60,8 @@ class StopHandlers:
 def facts(**changes):
     value = {'checkedAtEpoch': NOW, 'loopbackHealth': True, 'appRunning': True, 'appHealthy': True, 'appImageCurrent': True,
              'portsConfined': True, 'freeDiskBytes': 2 * 1024 ** 3, 'backup': {'present': True, 'createdEpoch': NOW - 60},
-             'lastBackupRunPassed': True, 'public': {'health': True, 'certificateExpiresEpoch': NOW + 60 * 86400},
+             'lastBackupRunPassed': True, 'backupLockPresent': False,
+             'public': {'health': True, 'certificateExpiresEpoch': NOW + 60 * 86400},
              'offsite': {'lastSuccessEpoch': NOW - 3600}}
     value.update(changes)
     return value
@@ -142,6 +143,7 @@ class MonitorTests(unittest.TestCase):
             (dict(backup={'present': True, 'createdEpoch': NOW - 36 * 3600 - 1}), 'backup-stale-or-future'),
             (dict(backup={'present': True, 'createdEpoch': NOW + 301}), 'backup-stale-or-future'),
             (dict(lastBackupRunPassed=False), 'backup-job-failed'),
+            (dict(backupLockPresent=True), 'stale-backup-lock-found'),
             (dict(public={'health': False, 'certificateExpiresEpoch': NOW + 60 * 86400}), 'public-health-failed'),
             (dict(public={'health': True, 'certificateExpiresEpoch': NOW + 14 * 86400 - 1}), 'certificate-expiring-or-invalid'),
             (dict(public={'health': False, 'certificateExpiresEpoch': None}), 'certificate-expiring-or-invalid'),
@@ -168,7 +170,7 @@ class MonitorTests(unittest.TestCase):
         self.assertEqual((result['publicOriginConfigured'], result['offsiteConfigured']), (False, False))
 
     def test_invalid_facts_are_rejected(self):
-        for change in [dict(extra=True), dict(freeDiskBytes=True), dict(appRunning=1), dict(checkedAtEpoch=float('nan')),
+        for change in [dict(extra=True), dict(freeDiskBytes=True), dict(appRunning=1), dict(backupLockPresent=None), dict(checkedAtEpoch=float('nan')),
                        dict(backup={'present': True}), dict(public={'health': 'yes', 'certificateExpiresEpoch': None}),
                        dict(offsite={'lastSuccessEpoch': -5})]:
             with self.assertRaises(ValueError):
@@ -212,6 +214,8 @@ class BackupTests(unittest.TestCase):
         self.run_args = None
         self.helpers_left = 0
         self.stale_found = True
+        self.stale_at_start = False
+        self.writer = False
         self.patches = [
             patch.object(self.prod, 'platform', lambda: None),
             patch.object(self.prod, 'wait_until_serving', lambda cfg, timeout: self.events.append('serving') or container()),
@@ -222,6 +226,7 @@ class BackupTests(unittest.TestCase):
             patch.object(self.prod, 'compose', self.compose),
             patch.object(self.prod, 'remove_owned', lambda token: self.events.append('helpers-gone') or self.helpers_left),
             patch.object(self.prod, 'clear_stale_backup', self.clear_stale),
+            patch.object(self.prod, 'backup_writer_running', lambda: self.writer),
             patch.object(self.prod, 'wait_for_health', lambda port, timeout: self.events.append('health') or self.healthy_again),
             patch.object(self.prod, 'wait_until_healthy', lambda cfg, timeout: self.events.append('docker-healthy') or self.docker_healthy),
             patch.object(self.prod, 'receipt', lambda cfg, verify: {'present': True, 'archive': ARCHIVE, 'sha256': 'b' * 64, 'bytes': 2048, 'createdEpoch': NOW}),
@@ -231,10 +236,13 @@ class BackupTests(unittest.TestCase):
         self.addCleanup(lambda: [item.stop() for item in reversed(self.patches)])
 
     def clear_stale(self, cfg):
-        self.events.append('clear-stale')
-        if isinstance(self.stale_found, BaseException):
-            raise self.stale_found
-        return self.stale_found
+        # Before this run's stop: the check at the start; after it: the clean-up after a killed helper.
+        stopped = 'stop' in self.events[len(self.events) - self.events[::-1].index('prepare'):]
+        found = self.stale_found if stopped else self.stale_at_start
+        self.events.append('clear-stale' if stopped else 'clear-start')
+        if isinstance(found, BaseException):
+            raise found
+        return found
 
     def compose(self, cfg, *args, image=None, **kwargs):
         if args[0] == 'stop':
@@ -276,7 +284,8 @@ class BackupTests(unittest.TestCase):
     def test_routine_backup_runs_the_deploys_command_and_records_downtime(self):
         value = self.prod.backup()
         self.assertEqual(value['status'], 'passed')
-        self.assertEqual(self.events, ['serving', 'prepare', 'stop', 'backup', 'helpers-gone', 'up', 'health', 'docker-healthy'])
+        self.assertEqual(self.events, ['prepare', 'clear-start', 'serving', 'stop', 'backup', 'helpers-gone', 'up', 'health', 'docker-healthy'])
+        self.assertEqual(value['codes'], [])
         backups = str(self.fx.deployment / 'backups')
         self.assertEqual(self.run_args[:3], ('run', '--rm', '--no-deps'))
         self.assertEqual(self.run_args[-8:], ('--volume', backups + ':/backups', 'app', 'bash', 'scripts/backup.sh', '/backups', '14', '--application-stopped'))
@@ -413,6 +422,149 @@ class BackupTests(unittest.TestCase):
         self.assertNotIn('backup', self.events)
         self.assertTrue(self.running)
 
+    def test_a_stop_request_while_the_app_drains_starts_it_only_after_it_exits(self):
+        # The daemon has sent the app its stop signal; it drains while `compose stop` waits, and the stop
+        # request kills that command. `up --no-recreate` before the exit would do nothing, and the app would
+        # then exit as stopped by hand, which `restart: unless-stopped` never undoes.
+        polls = []
+
+        def compose(cfg, *args, **kwargs):
+            if args[0] == 'stop':
+                self.events.append('stop')
+                return ops.Production.command(self.prod, ['sleep', '20'], timeout=60)
+            if args[0] == 'up':
+                self.assertFalse(self.running, 'the app is started only once it has exited')
+            return self.compose(cfg, *args, **kwargs)
+
+        def containers(cfg):
+            if 'stop' in self.events and self.running:
+                polls.append('running')
+                if len(polls) == 3:
+                    self.running = False
+                    self.events.append('exited')
+            return [container(running=self.running)]
+        with patch.object(self.prod, 'compose', compose), patch.object(self.prod, 'containers', containers), \
+                patch.object(ops.time, 'sleep', lambda seconds: self.events.append('wait')):
+            with StopHandlers() as handlers:
+                handlers.stop_after(0.5)
+                began = time.monotonic()
+                with self.assertRaises(ops.Refused) as caught:
+                    self.prod.backup()
+                self.assertLess(time.monotonic() - began, 10)
+        self.assertEqual(caught.exception.codes, ['interrupted'])
+        self.assertEqual(self.events[self.events.index('stop'):],
+                         ['stop', 'helpers-gone', 'wait', 'wait', 'exited', 'up', 'health', 'docker-healthy'])
+        self.assertEqual(self.events.count('stop'), 1, 'the stop is waited for, not repeated')
+        self.assertTrue(self.running)
+
+    def test_a_stop_that_never_reached_the_daemon_is_waited_for_only_within_the_grace_period(self):
+        clock = [1000.0]
+
+        def compose(cfg, *args, **kwargs):
+            if args[0] == 'stop':
+                self.events.append('stop')
+                raise ops.Stopped()  # Before the command reached the daemon: the app keeps serving.
+            return self.compose(cfg, *args, **kwargs)
+
+        def sleep(seconds):
+            clock[0] += seconds
+        with patch.object(self.prod, 'compose', compose), patch.object(ops.time, 'monotonic', lambda: clock[0]), patch.object(ops.time, 'sleep', sleep):
+            with self.assertRaises(ops.Refused) as caught:
+                self.prod.backup()
+        self.assertEqual(caught.exception.codes, ['interrupted'])
+        # Docker would have killed an app it was asked to stop by then; this one is left running.
+        self.assertGreaterEqual(clock[0] - 1000.0, ops.STOP_GRACE + ops.STOP_MARGIN)
+        self.assertLess(clock[0] - 1000.0, ops.STOP_GRACE + ops.STOP_MARGIN + 5)
+        self.assertEqual(self.events.count('stop'), 1)
+        self.assertEqual(self.events[-3:], ['up', 'health', 'docker-healthy'])
+        self.assertTrue(self.running)
+
+    def test_waiting_for_the_stop_follows_the_grace_period_and_rides_out_docker_errors(self):
+        self.assertIn(f'stop_grace_period: {ops.STOP_GRACE}s\n', (ROOT / 'compose.yaml').read_text())
+        states = iter([ops.Refused('command-failed'), True, False])
+
+        def containers(cfg):
+            state = next(states)
+            if isinstance(state, BaseException):
+                raise state
+            return [container(running=state)]
+        with patch.object(self.prod, 'containers', containers), patch.object(ops.time, 'sleep'):
+            self.assertTrue(ops.Production.wait_until_stopped(self.prod, {'project': 'p'}, 60))
+        with patch.object(self.prod, 'containers', lambda cfg: [container()]), patch.object(ops.time, 'sleep'), \
+                patch.object(ops.time, 'monotonic', side_effect=[0, 0, 61]):
+            self.assertFalse(ops.Production.wait_until_stopped(self.prod, {'project': 'p'}, 60))
+
+    def test_a_stop_request_before_the_stop_never_stops_the_app(self):
+        def serving(cfg, timeout):
+            raise ops.Stopped()
+        with patch.object(self.prod, 'wait_until_serving', serving):
+            with self.assertRaises(ops.Stopped):
+                self.prod.backup()
+        self.assertNotIn('stop', self.events)
+        self.assertNotIn('up', self.events)
+        self.assertTrue(self.running)
+
+    def test_a_stale_backup_lock_is_cleared_at_the_start_while_the_app_still_serves(self):
+        self.stale_at_start = True
+        value = self.prod.backup()
+        self.assertEqual((value['status'], value['verified'], value['codes']), ('passed', True, ['stale-backup-lock-cleared-at-start']))
+        self.assertEqual(self.events[:4], ['prepare', 'clear-start', 'serving', 'stop'])
+        self.assertEqual(self.fx.report('backup')['codes'], ['stale-backup-lock-cleared-at-start'])
+        # A passing run with the notice keeps status healthy, and shows the code.
+        status = StatusTests().status(reports=StatusTests().reports(backup={**self.fx.report('backup'), 'checkedAtEpoch': NOW - 60}))
+        self.assertEqual((status['verified'], status['backup']['codes']), (True, ['stale-backup-lock-cleared-at-start']))
+
+    def test_the_clean_up_at_the_start_is_reported_by_a_failing_run_too(self):
+        self.stale_at_start = True
+        self.backup_rc = 1
+        with self.assertRaises(ops.Refused) as caught:
+            self.prod.backup()
+        self.assertEqual(caught.exception.codes, ['backup-failed', 'stale-backup-lock-cleared-at-start'])
+        self.events.clear()
+
+        def unhealthy(cfg, timeout):
+            raise ops.Refused('app-unhealthy-before-backup')
+        # A run that never recovered may have left the app stopped too: the lock is cleared all the same,
+        # so the deploy that starts the app again is not refused by it.
+        with patch.object(self.prod, 'wait_until_serving', unhealthy):
+            with self.assertRaises(ops.Refused) as caught:
+                self.prod.backup()
+        self.assertEqual(caught.exception.codes, ['app-unhealthy-before-backup', 'stale-backup-lock-cleared-at-start'])
+        self.assertEqual(self.events, ['prepare', 'clear-start'])
+
+    def test_a_running_backup_writer_means_the_lock_is_not_stale(self):
+        self.writer = True
+        with self.assertRaises(ops.Refused) as caught:
+            self.prod.backup()
+        self.assertEqual(caught.exception.codes, ['backup-helper-running'])
+        self.assertEqual(self.events, ['prepare'])
+        self.writer, self.stale_at_start = False, ops.Refused('stale-backup-lock')
+        with self.assertRaises(ops.Refused) as caught:
+            self.prod.backup()
+        self.assertEqual(caught.exception.codes, ['stale-backup-lock'])
+        self.assertNotIn('stop', self.events)
+
+    def test_backup_writers_are_running_containers_with_backups_mounted_writable(self):
+        backups = str(self.fx.deployment / 'backups')
+        ids = {'helper': 'a' * 64, 'deploy': 'b' * 64, 'reader': 'c' * 64}
+        mounts = {ids['helper']: [{'Type': 'bind', 'Source': backups, 'Destination': '/backups', 'RW': True}],
+                  ids['deploy']: [{'Type': 'bind', 'Source': backups, 'Destination': '/backups', 'RW': True},
+                                  {'Type': 'volume', 'Name': 'bangla-adventures_bangla-data', 'Destination': '/app/.data', 'RW': True}],
+                  ids['reader']: [{'Type': 'bind', 'Source': backups, 'Destination': '/backups', 'RW': False}]}
+        for listed, expected in [({}, False), ({'label': ['reader']}, False), ({'label': ['reader', 'helper']}, True),
+                                 ({'volume': ['deploy']}, True), ({'volume': ['reader']}, False)]:
+            calls = []
+
+            def docker(*args, **kwargs):
+                calls.append(args)
+                kind = args[-1].split('=', 1)[0]
+                return completed('\n'.join(ids[name] for name in listed.get(kind, [])))
+            with patch.object(self.prod, 'docker', docker), patch.object(self.prod, 'inspect', lambda kind, cid: {'Mounts': mounts[cid]}):
+                self.assertIs(ops.Production.backup_writer_running(self.prod), expected, listed)
+            # Running containers only, found by this tool's label and by the bind mount.
+            self.assertEqual(calls, [('ps', '--quiet', '--no-trunc', '--filter', 'label=io.bangla.scope=' + ops.SCOPE),
+                                     ('ps', '--quiet', '--no-trunc', '--filter', 'volume=' + backups)])
+
     def test_resume_failure_is_reported_even_after_a_good_backup(self):
         self.up_error = ops.Refused('command-failed')
         with self.assertRaises(ops.Refused) as caught:
@@ -505,7 +657,7 @@ class ReceiptScriptTests(unittest.TestCase):
                 result = subprocess.run([sys.executable, '-', mode], input=script, cwd=ROOT, capture_output=True, text=True, check=True)
                 return json.loads(result.stdout)
             read = run('read')
-            self.assertEqual((read['present'], read['archive']), (True, archive))
+            self.assertEqual((read['present'], read['archive'], read['backupLock']), (True, archive, False))
             checked = run('verify')
             self.assertTrue(checked['sha256Matches'] and checked['verified'])
             prod = ops.Production(ops.Settings({'PRODUCTION_OPS_DEPLOYMENT_DIR': folder, 'PRODUCTION_OPS_UID': str(os.getuid())}))
@@ -513,11 +665,21 @@ class ReceiptScriptTests(unittest.TestCase):
                 with patch.object(prod, 'isolated_run', return_value=completed(json.dumps(raw))):
                     value = prod.receipt({'image': IMAGE}, verify=verify)
                 self.assertTrue(value['present'])
+                self.assertIs(value['backupLock'], False)
                 self.assertLess(abs(value['createdEpoch'] - ops.time.time()), 600)
+            # A lock that outlived its backup is seen in the same read, with or without a receipt.
+            (backups / '.bangla-backup.lock').mkdir()
+            self.assertIs(run('read')['backupLock'], True)
+            with patch.object(prod, 'isolated_run', return_value=completed(json.dumps(run('read')))):
+                self.assertIs(prod.receipt({'image': IMAGE}, verify=False)['backupLock'], True)
             (backups / archive).write_bytes(b'tampered')
             self.assertFalse(run('verify')['sha256Matches'])
             (backups / '.latest-backup.json').unlink()
-            self.assertEqual(run('read'), {'present': False})
+            self.assertEqual(run('read'), {'present': False, 'backupLock': True})
+            with patch.object(prod, 'isolated_run', return_value=completed(json.dumps(run('read')))):
+                self.assertEqual(prod.receipt({'image': IMAGE}, verify=False), {'present': False, 'backupLock': True})
+            (backups / '.bangla-backup.lock').rmdir()
+            self.assertEqual(run('read'), {'present': False, 'backupLock': False})
 
 
 class OffsiteTests(unittest.TestCase):
@@ -794,13 +956,66 @@ class DeployLockTests(unittest.TestCase):
         info = (self.fx.deployment / '.deploy.lock').stat()
         key = f'{os.major(info.st_dev):02x}:{os.minor(info.st_dev):02x}:{info.st_ino}'
         other = f'{os.major(info.st_dev):02x}:{os.minor(info.st_dev):02x}:{info.st_ino + 1}'
+        # btrfs subvolumes and some overlay set-ups: the kernel names another device than stat does.
+        device = f'{(os.major(info.st_dev) + 1) % 256:02x}:{(os.minor(info.st_dev) + 7) % 256:02x}:{info.st_ino}'
         for table, busy in [(f'1: FLOCK  ADVISORY  WRITE 4242 {key} 0 EOF\n', True), (f'1: POSIX  ADVISORY  WRITE 4242 {key} 0 EOF\n', False),
-                            (f'1: FLOCK  ADVISORY  WRITE 4242 {other} 0 EOF\n', False), (f'1: -> FLOCK  ADVISORY  WRITE 4243 {key} 0 EOF\n', False), ('', False)]:
+                            (f'1: FLOCK  ADVISORY  WRITE 4242 {other} 0 EOF\n', False), (f'1: -> FLOCK  ADVISORY  WRITE 4243 {key} 0 EOF\n', False),
+                            (f'1: FLOCK  ADVISORY  WRITE 4242 {device} 0 EOF\n', True),
+                            (f'1: FLOCK  ADVISORY  WRITE 4242 00:2e:1{info.st_ino} 0 EOF\n', False),
+                            (f'7: POSIX  ADVISORY  WRITE 99 {key} 0 EOF\n8: FLOCK  ADVISORY  WRITE 4242 {device} 0 EOF\n', True), ('', False)]:
             with patch.object(ops.Path, 'read_text', return_value=table):
                 self.assertIs(self.prod.deploy_busy(), busy, table)
         with patch.object(ops.Path, 'read_text', side_effect=PermissionError()):
             with self.assertRaisesRegex(ops.Refused, 'lock-state-unreadable'):
                 self.prod.deploy_busy()
+
+
+class MonitorRunTests(unittest.TestCase):
+    """The monitor job around its pure checks, with Docker's answers stubbed."""
+
+    def setUp(self):
+        self.folder = tempfile.TemporaryDirectory()
+        self.addCleanup(self.folder.cleanup)
+        self.fx = Fixture(self.folder.name)
+        self.prod = self.fx.production()
+        now = ops.time.time()
+        self.prod.write_status('backup', {'scope': ops.SCOPE, 'action': 'backup', 'status': 'passed', 'verified': True, 'checkedAtEpoch': now, 'codes': []})
+        self.busy = [False, False]
+        self.latest = {'present': True, 'archive': ARCHIVE, 'sha256': 'b' * 64, 'bytes': 1, 'createdEpoch': now - 60, 'backupLock': False}
+
+        def receipt(cfg, verify):
+            if isinstance(self.latest, BaseException):
+                raise self.latest
+            return self.latest
+        self.patches = [patch.object(self.prod, 'platform', lambda: None), patch.object(self.prod, 'deploy_busy', lambda: self.busy.pop(0)),
+                        patch.object(self.prod, 'containers', return_value=[container()]), patch.object(self.prod, 'receipt', receipt),
+                        patch.object(self.prod, 'loopback_health', return_value=True), patch.object(self.prod, 'free_bytes', return_value=5 * 1024 ** 3),
+                        patch.object(self.prod, 'public_facts', return_value={'health': True, 'certificateExpiresEpoch': now + 60 * 86400})]
+        for item in self.patches:
+            item.start()
+        self.addCleanup(lambda: [item.stop() for item in reversed(self.patches)])
+
+    def test_a_healthy_deployment_passes(self):
+        value = self.prod.monitor()
+        self.assertEqual((value['status'], value['codes'], value['checks']['backupLockClear']), ('healthy', [], True))
+
+    def test_a_backup_lock_while_the_deploy_lock_is_free_is_reported(self):
+        self.latest = {**self.latest, 'backupLock': True}
+        value = self.prod.monitor()
+        self.assertEqual((value['status'], value['codes']), ('failed', ['stale-backup-lock-found']))
+        self.assertEqual(self.fx.report('monitor')['codes'], ['stale-backup-lock-found'])
+        self.assertEqual(self.busy, [], 'the deploy lock is read again before the failure is recorded')
+
+    def test_a_backup_lock_held_by_a_deploy_that_just_started_defers(self):
+        self.latest, self.busy = {**self.latest, 'backupLock': True}, [False, True]
+        with self.assertRaisesRegex(ops.Refused, 'transaction-busy'):
+            self.prod.monitor()
+        self.assertIsNone(self.fx.report('monitor'))
+
+    def test_an_unreadable_receipt_is_a_missing_backup_not_a_lock(self):
+        self.latest = ops.Refused('backup-receipt-unreadable')
+        value = self.prod.monitor()
+        self.assertEqual(value['codes'], ['backup-missing', 'backup-stale-or-future'])
 
 
 class StatusTests(unittest.TestCase):
@@ -1135,12 +1350,42 @@ class DocumentationTests(unittest.TestCase):
                     name = getattr(node.func, 'attr', getattr(node.func, 'id', ''))
                     values = node.args[1:2] if name == 'require' else node.args if name in ('Refused', 'InstallFailed') else []
                     codes |= {value.value for value in values if isinstance(value, ast.Constant) and isinstance(value.value, str)}
-                if isinstance(node, ast.Constant) and isinstance(node.value, str) and re.fullmatch(r'(stale-backup-lock(-cleared)?|offsite-retention-\w+|rollback-\w+|interrupted|operation-failed|install-failed)', node.value):
+                if isinstance(node, ast.Constant) and isinstance(node.value, str) and re.fullmatch(r'(stale-backup-lock(-[a-z-]+)?|offsite-retention-\w+|rollback-\w+|interrupted|operation-failed|install-failed)', node.value):
                     codes.add(node.value)
         codes |= {f'{name}-report-{kind}' for name in ops.REPORTS for kind in ('missing', 'failed', 'stale')}
         codes |= {f'{prefix}-{name}' for prefix in ('timer-inactive', 'service-failed') for name in ops.REPORTS}
         codes |= {f'initial-{name}-{kind}' for name in ops.REPORTS for kind in ('deferred', 'failed')}
         self.assertEqual(sorted(code for code in codes if code not in documented), [])
+
+    def test_the_manual_restic_commands_mount_the_gcs_key_only_for_gs(self):
+        # Pasted for any destination: an unconditional key mount fails ("bind source path does not exist").
+        text = (ROOT / 'docs/PRODUCTION_OPERATIONS.md').read_text()
+        blocks = re.findall(r'```sh\n(.*?)```', text, re.S)
+        configure, = [block for block in blocks if 'restic_options=(' in block]
+        uses = [block for block in blocks if 'restic_options[@]' in block and block != configure]
+        self.assertTrue(uses, 'the restore commands reuse the options')
+        self.assertEqual(text.count('gcs-key.json,target='), 1, 'only the guarded line adds the key')
+        with tempfile.TemporaryDirectory() as folder:
+            home = Path(folder) / 'home'
+            settings = home / '.config/bangla-adventures'
+            settings.mkdir(parents=True)
+            tools = Path(folder) / 'bin'
+            tools.mkdir()
+            log = Path(folder) / 'docker.log'
+            (tools / 'docker').write_text('#!/bin/sh\nprintf "%s\\n" "$@" END >> "$DOCKER_LOG"\n')
+            (tools / 'docker').chmod(0o755)
+            env = {'HOME': str(home), 'PATH': f'{tools}:/usr/bin:/bin', 'DOCKER_LOG': str(log)}
+            for repository, mounted in [('s3:s3.amazonaws.com/bucket', False), ('b2:bucket:bangla', False), ('rest:https://backup.example.org/', False),
+                                        ('azure:container:/bangla', False), ('gs:bucket:/bangla', True)]:
+                (settings / 'offsite.env').write_text(f'# client destination\nRESTIC_REPOSITORY={repository}\n')
+                log.write_text('')
+                subprocess.run(['bash', '-c', 'set -euo pipefail\n' + configure + '\n'.join(uses)], env=env, check=True, capture_output=True, text=True)
+                runs = log.read_text().split('END\n')[:-1]
+                self.assertEqual(len(runs), 1 + sum(block.count('"$restic_image"') for block in uses), repository)
+                for run in runs:
+                    self.assertIn('target=/run/secrets/restic-password,readonly', run)
+                    self.assertEqual('target=/run/secrets/gcs-key.json,readonly' in run, mounted, repository)
+                    self.assertEqual('GOOGLE_APPLICATION_CREDENTIALS=/run/secrets/gcs-key.json' in run, mounted, repository)
 
 
 class UnitTests(unittest.TestCase):

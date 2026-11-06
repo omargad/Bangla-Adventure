@@ -123,34 +123,50 @@ Each run:
 1. takes the deploy lock (`.deploy.lock`) without waiting. If a deploy or
    another backup holds it, the run exits `75` ("deferred"), which the unit
    treats as success, and nothing is stopped or recorded;
-2. requires the app container to be running and healthy, with the configured
+2. prepares `backups/` as the deploy does (uid 1000, mode `0700`);
+3. removes a backup lock that an earlier run left behind, while the app still
+   serves (`stale-backup-lock-cleared-at-start`; see
+   [A stale backup lock](#a-stale-backup-lock)). If a container that can write
+   to `backups/` is still running, the lock may be in use: the run stops here
+   with `backup-helper-running` and changes nothing;
+4. requires the app container to be running and healthy, with the configured
    image, and `http://127.0.0.1:APP_PORT/api/health` answering `200`. It waits up
    to two minutes, for example when a missed run starts just after a reboot;
-3. requires at least 1 GiB free on the deployment filesystem;
-4. prepares `backups/` as the deploy does (uid 1000, mode `0700`);
-5. stops only the app, and confirms no container is running on the data volume;
-6. runs the deploy's own backup command with the current `APP_IMAGE`:
+5. requires at least 1 GiB free on the deployment filesystem;
+6. stops only the app, and confirms no container is running on the data volume;
+7. runs the deploy's own backup command with the current `APP_IMAGE`:
    `docker compose run --rm --no-deps --volume /opt/bangla-adventures/backups:/backups app bash scripts/backup.sh /backups 14 --application-stopped`
    (14 archives kept, including the deploy's own), plus two labels that let the
    job find and remove its helper container if the run is interrupted;
-7. **always** starts the same app container again, also after a failed or
+8. **always** starts the same app container again, also after a failed or
    interrupted backup or a stop request, and waits up to three minutes for
    `/api/health` on the loopback port, then for Docker's own health check to
    report it healthy, so the next monitor run never sees a container that is
    still `starting`;
-8. if the backup helper had to be killed (a timeout or a stop request), removes
-   the lock and staging copy it left in `backups/` (see
-   [A stale backup lock](#a-stale-backup-lock)), once the app is serving again
-   and still under the deploy lock;
-9. confirms the new `.latest-backup.json` receipt names the archive just made.
+9. if the backup helper had to be killed (a timeout or a stop request), removes
+   the lock and staging copy it left in `backups/`, once the app is serving
+   again and still under the deploy lock;
+10. confirms the new `.latest-backup.json` receipt names the archive just made.
 
 A stop request (`systemctl --user stop`, a shutdown, or the unit's own time
 limit) interrupts the running Docker command at once; the job then recovers as
 above before it exits. Later stop requests wait for that recovery. The unit
 allows six minutes for it before systemd kills the job.
 
+A stop request that arrives while the app is being stopped cuts the stop
+command short, but Docker carries on: the app has already been asked to stop
+and exits within its 30-second `stop_grace_period`. Starting it before then
+would do nothing (it is still running), and once it exits Docker treats it as
+stopped by hand, so `restart: unless-stopped` would leave the site down. The job
+therefore waits up to a minute for the app to exit and only then starts it. If
+it is still running after that, the stop never reached Docker (which would have
+killed it), and the app is left running. A stop request that arrives before the
+app is stopped never stops it.
+
 A failed backup or a failed restart exits non-zero and records its codes, for
-example `backup-failed` or `resume-failed` (both appear when both happen). A deploy
+example `backup-failed` or `resume-failed` (both appear when both happen). A
+passing run that cleared an old lock first keeps `stale-backup-lock-cleared-at-start`
+in its codes; status still counts it as passed. A deploy
 started at the same moment is refused with "another deployment is running";
 run it again a minute later.
 
@@ -160,7 +176,12 @@ The monitor never takes the deploy lock, so it can never make a deploy fail. It
 reads the kernel's lock table (`/proc/locks`) for a lock on `.deploy.lock`:
 when a deploy or backup is running, or starts during the checks, the run is
 deferred (exit `75`) instead of reporting a stopped app. If that table cannot be
-read the run fails with `lock-state-unreadable`.
+read the run fails with `lock-state-unreadable`. The table names the file by
+device and inode, and only the inode is compared: on btrfs subvolumes and some
+overlay set-ups the kernel's device number differs from the one `stat` gives,
+which would hide every deploy. Another file with the same inode number on a
+different disk, locked at that moment, could only make a run defer, which is the
+safe direction; a lasting one would show as `monitor-report-stale`.
 
 | Check | Failure code |
 | --- | --- |
@@ -172,6 +193,7 @@ read the run fails with `lock-state-unreadable`.
 | The newest successful-backup receipt names an existing archive | `backup-missing` |
 | That archive is at most 36 hours old and not more than 5 minutes in the future | `backup-stale-or-future` |
 | The last scheduled backup run passed | `backup-job-failed` |
+| No backup lock is left in `backups/` while the deploy lock is free ([A stale backup lock](#a-stale-backup-lock)) | `stale-backup-lock-found` |
 | `https://PUBLIC_ORIGIN/api/health` answers `200` | `public-health-failed` |
 | Its certificate verifies and expires in at least 14 days | `certificate-expiring-or-invalid` |
 | With off-site configured: the last successful copy is at most 48 hours old | `offsite-stale` |
@@ -180,7 +202,9 @@ The certificate check catches a failed Let's Encrypt renewal: certbot renews
 about 30 days before expiry, so 14 days left means renewal has been failing for
 over two weeks. The receipt is read in a container as uid 1000; the monitor does
 not unpack the archive every five minutes, since the backup verified it when it
-was made and the off-site job verifies it again daily.
+was made and the off-site job verifies it again daily. The same read-only
+container notes whether `backups/.bangla-backup.lock` exists, so the lock check
+adds no container and no time.
 
 ## Off-site copies
 
@@ -273,15 +297,18 @@ restic_options=(--rm --env-file "$HOME/.config/bangla-adventures/offsite.env"
   --env RESTIC_PASSWORD_FILE=/run/secrets/restic-password
   --mount "type=bind,source=$HOME/.config/bangla-adventures/restic-password,target=/run/secrets/restic-password,readonly"
   --entrypoint /usr/bin/restic)
-# For a gs: repository only: the service-account key, as the job mounts it.
-restic_options+=(--mount "type=bind,source=$HOME/.config/bangla-adventures/gcs-key.json,target=/run/secrets/gcs-key.json,readonly"
-  --env GOOGLE_APPLICATION_CREDENTIALS=/run/secrets/gcs-key.json)
+# A gs: repository also needs its service-account key, mounted as the job does.
+if grep -q '^[[:space:]]*RESTIC_REPOSITORY=gs:' "$HOME/.config/bangla-adventures/offsite.env"; then
+  restic_options+=(--mount "type=bind,source=$HOME/.config/bangla-adventures/gcs-key.json,target=/run/secrets/gcs-key.json,readonly"
+    --env GOOGLE_APPLICATION_CREDENTIALS=/run/secrets/gcs-key.json)
+fi
 restic_image=restic/restic:0.19.1@sha256:136600b6ff6843d61d355f7f71f460a166429f35de6fd11b568fece3c9a4d510
 docker --host unix:///run/user/1002/docker.sock run "${restic_options[@]}" "$restic_image" init
 ```
 
-Leave out the `gs:` lines for any other repository: `gcs-key.json` exists only
-for Google Cloud Storage.
+The key is mounted only for a `gs:` repository, as the job does: `gcs-key.json`
+exists only for Google Cloud Storage, and Docker refuses to mount a file that
+is not there. Paste the whole block for every destination.
 
 Then make the first copy and check it:
 
@@ -413,7 +440,8 @@ systemctl --user start ba-production-backup.timer ba-production-monitor.timer ba
 ```
 
 To restore from the off-site repository, set `restic_options` and
-`restic_image` as in [Configure it](#configure-it), list the copies, and restore
+`restic_image` as in [Configure it](#configure-it) (all of that block except its
+last `init` line, including the `gs:` check), list the copies, and restore
 one straight back into `backups/`. Each snapshot holds one archive, saved as
 `/backups/NAME.tar.gz`, so it returns with its original owner (uid 1000) and
 mode, next to the local archives:
@@ -433,17 +461,43 @@ the timers first, as above: a backup run keeps only the newest 14 archives.
 `backup_restore.py` marks a running backup with `backups/.bangla-backup.lock`
 and stages its copy in `backups/.bangla-snapshot-*`. A backup that is killed
 leaves both behind, and then every later backup, including the deploy's own
-before each release, fails with "Backup lock exists". When the scheduled job
-had to kill its own helper it removes them itself (`stale-backup-lock-cleared`).
-If that clean-up fails (`stale-backup-lock`), or a backup was killed some other
-way, remove them by hand. First make sure no backup or deploy is running: the
-deploy lock must be free. `backups/` belongs to the container user, so the
-removal runs in a container, under the same lock:
+before each release, fails with "Backup lock exists".
+
+The backup job (scheduled or `backup-now`) removes them in two places:
+
+- after a run in which it had to kill its own helper (a timeout or a stop
+  request), once the app serves again (`stale-backup-lock-cleared`);
+- at the start of every run, before anything is stopped, when an earlier run
+  never got as far as its own clean-up: systemd killed it after its six-minute
+  stop limit, or the server lost power (`stale-backup-lock-cleared-at-start`).
+
+The lock is removed only when it is provably stale. The run holds the deploy
+lock, and every backup takes that lock first: the scheduled job, `backup-now`
+(which runs the same service) and the deploy's own backup before each release.
+So no other backup can be starting. A backup helper that outlived a killed run
+could still be working, so the job also lists running containers by this tool's
+label and by a mount of `backups/`; if any can write there, it leaves the lock
+alone and stops with `backup-helper-running`. The monitor's receipt reader
+mounts `backups/` read-only and does not count. The removal runs in a
+short-lived container as uid 1000, with no network, a read-only root, no
+capabilities and only `backups/` mounted.
+
+The monitor reports a lock that exists while the deploy lock is free
+(`stale-backup-lock-found`), so it shows in the next status alert. A deploy
+refused by such a lock does not need a manual clean-up: run the workflow's
+`backup-now` action (or wait for the next scheduled backup), then deploy again.
+
+If the automatic clean-up fails (`stale-backup-lock`), remove them by hand.
+First make sure no backup or deploy is running: the deploy lock must be free,
+and `docker ps --filter volume=/opt/bangla-adventures/backups` must list no
+container. `backups/` belongs to the container user, so the removal runs in a
+container, under the same lock:
 
 ```sh
 cd /opt/bangla-adventures
 export DOCKER_HOST=unix:///run/user/1002/docker.sock
 image="$(sed -n 's/^APP_IMAGE=//p' .env)"
+docker ps --filter volume=/opt/bangla-adventures/backups
 flock -n .deploy.lock docker run --rm --network none --user 1000:1000 \
   --mount type=bind,source=/opt/bangla-adventures/backups,target=/backups \
   --entrypoint sh "$image" -c 'rm -rf -- /backups/.bangla-backup.lock /backups/.bangla-snapshot-*'
@@ -467,7 +521,9 @@ above:
 | `app-stop-failed`, `writers-not-stopped`, `source-still-in-use` | The app could not be stopped cleanly; it was started again |
 | `backup-failed`, `backup-timeout`, `backup-unverified` | The backup command failed or took over 30 minutes, or its receipt did not match |
 | `stale-backup-lock-cleared` | A killed backup helper left its lock behind and the job removed it; later backups and deploys can run |
+| `stale-backup-lock-cleared-at-start` | An earlier run that never finished its clean-up left the lock; this run removed it before stopping anything. A passing run keeps this code and still counts as passed |
 | `stale-backup-lock` | That lock could not be removed: remove it by hand ([A stale backup lock](#a-stale-backup-lock)) before the next deploy |
+| `backup-helper-running` | A container that can write to `backups/` was still running, so its lock may be in use; nothing was stopped or removed: `docker ps --filter volume=/opt/bangla-adventures/backups` |
 | `resume-failed` | The app did not answer healthy within three minutes of the restart: act now |
 | `helper-cleanup-failed`, `helper-id`, `helper-identity`, `helper-name-exists` | A helper container could not be identified or removed: `docker ps --all --filter label=io.bangla.scope=production-operations` |
 | `backup-directory-initialization`, `unsafe-backup-directory` | `backups/` could not be prepared, or is not a folder |
