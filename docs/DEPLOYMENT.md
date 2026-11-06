@@ -389,7 +389,8 @@ the package's Package settings > Danger Zone > Change visibility. The deploy job
 server pull it either way. If publishing is denied, open the package's settings and, under Manage
 Actions access, give this repository the Write role, or delete a stale package of that name so the
 workflow creates it again, linked to this repository. After the repository is transferred, the
-image is `ghcr.io/NEWOWNER/REPOSITORY`.
+image is `ghcr.io/NEWOWNER/bangla-adventure` (the new owner in lowercase; see
+[Repository transfer](REPOSITORY_TRANSFER.md#container-images)).
 
 **Other CI/CD systems** use the same settings under their own names and places; see
 [CI_CD.md](CI_CD.md). Where a system's secrets hold a single line, `DEPLOY_SSH_KEY_BASE64` and
@@ -410,7 +411,7 @@ DEPLOY_ENABLED=true DEPLOY_HOST=SERVER DEPLOY_KNOWN_HOSTS="$(cat server.keys)" D
   DEPLOY_USER=SERVER_USER DEPLOY_DOCKER_HOST=unix:///run/user/1002/docker.sock \
   DEPLOY_REQUIRE_ROOTLESS=true DEPLOY_REQUIRE_PUBLIC_HEALTH=true \
   REGISTRY_USER=GITHUB_USER REGISTRY_PASSWORD=TOKEN_WITH_READ_PACKAGES \
-  bash scripts/deploy.sh ghcr.io/OWNER/REPOSITORY:sha-COMMIT
+  bash scripts/deploy.sh ghcr.io/OWNER/bangla-adventure:sha-COMMIT
 ```
 
 `DEPLOY_KNOWN_HOSTS` and `DEPLOY_SSH_KEY` each take either the text itself or the path of a file

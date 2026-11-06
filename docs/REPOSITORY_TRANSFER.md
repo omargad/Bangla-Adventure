@@ -99,6 +99,11 @@ which forks and copies do not have.
   blocks `actions/checkout`), and do not turn on "Require actions to be pinned to a
   full-length commit SHA": the workflows use version tags such as `@v5`, which would then
   fail. (Documented.)
+- **Workflow execution protections** (Organisation settings > Actions > Policies, available
+  for public repositories): if the organisation uses them, let this repository's maintainers run its
+  workflows and allow the events they use (`push`, `pull_request`, `workflow_dispatch` and
+  `schedule`), and do not apply "Require lockfile" to this repository: it has no workflow
+  lockfile, so every run would be blocked. (Documented.)
 - **Workflow permissions**: either default works. Every job that publishes or reads images
   asks for its `packages` permission itself. (Documented.)
 - **Packages** (Organisation settings > Packages): allow members to create public packages,
@@ -185,15 +190,16 @@ issues. The new owner can administer the repository at once.
    - Run **CI** on `main` (push, or **Actions > CI > Run workflow**). `verify`, `e2e`,
      `container` and `publish` must pass; `publish` creates `ghcr.io/ORG/bangla-adventure`.
      `deploy` runs only with `DEPLOY_ENABLED=true` and waits for a reviewer.
-   - Run **VPS SSH preflight** on `main` (with `DEPLOY_ENABLED` still `false`). It proves that
-     the `production` environment's secrets work from the new location without changing the
-     server.
-   - If production is live, run **VPS production status** on `main` once by hand: it must end
-     with `status: healthy`, which proves the `production-status` environment and the status
-     key.
+   - Run **VPS SSH preflight** on `main` (with `DEPLOY_ENABLED` still `false`: the preflight
+     refuses to run otherwise). It proves that the `production` environment's secrets work
+     from the new location without changing the server.
    - If a VPS workflow fails with "Not the production repository", follow its message
      (step 1 above).
-   - Set `DEPLOY_ENABLED` back to its noted value.
+   - Set `DEPLOY_ENABLED` back to its noted value. From now on a push to `main` deploys again,
+     after a reviewer approves.
+   - If production is live, run **VPS production status** on `main` once by hand, only now:
+     with `DEPLOY_ENABLED` not `true` its job is skipped without a message. It must end with
+     `status: healthy`, which proves the `production-status` environment and the status key.
 6. **Railway demo.** See [Railway and Vercel](#railway-and-vercel).
 7. **Local clones and links.** See [Clones and links](#clones-and-links).
 
@@ -216,15 +222,20 @@ first from the command line and never connected to the repository. So:
    owner of `ORG` opens the package's settings and either connects the repository (choosing
    to inherit its access) or adds the repository under **Manage Actions access** with the
    **Write** role. (Documented.)
-2. **Make it public.** A first publish is private. To match today's package, an owner of
-   `ORG` opens the package's settings, **Danger Zone > Change visibility > Public**. This
-   cannot be undone. (Documented.) The production deploy would also work with a private
-   package linked to the repository, because it signs in with the workflow's token.
+2. **Check that it is public.** A package that a workflow creates with its `GITHUB_TOKEN`
+   takes the visibility of the repository, so the package of this public repository should
+   be public, like today's. (Documented.) If its page shows **Private** (for example because
+   the organisation allows only private packages to be created), an owner of `ORG` opens the
+   package's settings, **Danger Zone > Change visibility > Public**. This cannot be undone.
+   (Documented.) The production deploy and private staging would also work with a private
+   package linked to the repository, because they sign in with the workflow's token.
 3. **Copy the private staging image, keeping its digest.** Private staging runs one reviewed
    image: digest `sha256:5f9ac5508771eb97c6b1e4aa4bff8db0fe69569b1f00b08a2e0e02e263d93f13`,
    built from revision `a709cb3d2bc9fb0a271e6814bc96d1f16444c94f`, a single `linux/amd64`
    manifest. A byte-for-byte copy has the same digest under the new name. Sign in to
-   `ghcr.io` with a token of an `ORG` member that has `write:packages`, then:
+   `ghcr.io` with a personal access token (classic) with `write:packages`, of an `ORG` member
+   who has write access to the repository (the package created in step 1 inherits the
+   repository's access), then:
 
    ```sh
    crane copy ghcr.io/omargad/bangla-adventure@sha256:5f9ac5508771eb97c6b1e4aa4bff8db0fe69569b1f00b08a2e0e02e263d93f13 ghcr.io/ORG/bangla-adventure:staging-a709cb3
@@ -312,7 +323,8 @@ one exists, reconnect it under **Project Settings > Git > Connected Git Reposito
 - GitHub: [Transferring a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/transferring-a-repository)
 - GitHub: [Restricting repository creation in your organization](https://docs.github.com/en/organizations/managing-organization-settings/restricting-repository-creation-in-your-organization)
 - GitHub: [Managing environments for deployment](https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments) and [Deployments and environments](https://docs.github.com/en/actions/reference/workflows-and-actions/deployments-and-environments#required-reviewers)
-- GitHub: [Disabling or limiting GitHub Actions for your organization](https://docs.github.com/en/organizations/managing-organization-settings/disabling-or-limiting-github-actions-for-your-organization)
+- GitHub: [Disabling or limiting GitHub Actions for your organization](https://docs.github.com/en/organizations/managing-organization-settings/disabling-or-limiting-github-actions-for-your-organization) and [Governing execution of GitHub Actions workflows](https://docs.github.com/en/actions/how-tos/administer/control-workflow-execution)
+- GitHub: [Publishing and installing a package with GitHub Actions](https://docs.github.com/en/packages/managing-github-packages-using-github-actions-workflows/publishing-and-installing-a-package-with-github-actions#default-permissions-and-access-settings-for-packages-modified-through-workflows)
 - GitHub: [About permissions for GitHub Packages](https://docs.github.com/en/packages/learn-github-packages/about-permissions-for-github-packages#about-repository-transfers), [Configuring a package's access control and visibility](https://docs.github.com/en/packages/learn-github-packages/configuring-a-packages-access-control-and-visibility), [Connecting a repository to a package](https://docs.github.com/en/packages/learn-github-packages/connecting-a-repository-to-a-package) and [Working with the Container registry](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry)
 - GitHub: [About code owners](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners)
 - GitHub: [Installing a GitHub App from a third party](https://docs.github.com/en/apps/using-github-apps/installing-a-github-app-from-a-third-party)
