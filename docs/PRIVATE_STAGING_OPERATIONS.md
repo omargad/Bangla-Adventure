@@ -41,8 +41,10 @@ It performs a fresh backup service invocation and a fresh monitoring service
 invocation before enabling the timers. Each result must have a successful
 systemd exit status, a fresh completion timestamp and its actual invocation ID.
 A deferred/busy result or an older successful receipt cannot pass installation.
-Failure restores the prior managed files and timer states under the deployment
-lock. No root system unit, Nginx setting or firewall rule is installed.
+Failure, including a stop request (code `interrupted`), restores the prior
+managed files and timer states under the deployment lock; stop requests during
+that restore are ignored. No root system unit, Nginx setting or firewall rule is
+installed.
 
 The units run as the deployment user, so every folder from its home directory
 down to `~/.config/systemd/user` must be a real directory owned by that user that
@@ -83,6 +85,15 @@ is gone before application writers resume. The app and proxy are restarted and
 required healthy even after a snapshot failure. A failed recovery is reported as
 a failure requiring operator attention; it is never converted into success.
 
+A stop request (SIGTERM, as systemd sends when it stops a unit, or SIGHUP)
+interrupts the running Docker command at once and is recorded with the code
+`interrupted`. Recovery then runs as above. If the request arrived while the
+app and proxy were still stopping, recovery first finishes that stop, so `up`
+never meets a writer that is about to exit. Recovery cannot be interrupted:
+after the first stop request, and during any recovery, further stop requests
+and hang-ups are ignored. The units allow four minutes for this before systemd
+kills the run.
+
 The controlled `exercise` action is intended for the clean acceptance state.
 It stops the same staging writers, then intentionally attempts a backup into a
 new owned **read-only disposable volume**. This must fail. It then verifies
@@ -97,7 +108,9 @@ both Docker health states, actual port isolation, free disk, the latest verified
 archive, backup age and the last backup job's result. Each run writes a bounded
 JSON status and produces the same aggregate result in the user journal. Failure
 codes include `health-unavailable`, `container-unhealthy`, `disk-low`,
-`backup-unverified`, `backup-stale-or-future` and `backup-job-failed`. Raw database
+`backup-unverified`, `backup-stale-or-future` and `backup-job-failed`. A run
+stopped part-way records `interrupted`; any other unexpected error records
+`operation-failed` (or `install-failed` for the installer). Raw database
 rows, passwords, session values, registry tokens and environment contents are
 excluded.
 

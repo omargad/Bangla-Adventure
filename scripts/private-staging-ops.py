@@ -33,6 +33,10 @@ SCOPE = "private-staging-operations"
 OWNED_HELPERS = {}
 
 
+class Stopped(BaseException):
+    """A stop request (SIGTERM or SIGHUP). Not an OSError, so subprocess and selectors pass it on."""
+
+
 class Refused(Exception):
     def __init__(self, code: str):
         self.code = code
@@ -349,7 +353,7 @@ def run_maintenance(*, exercise: bool) -> dict:
     original_backups = backup_metadata(full_inventory=True) if exercise else None
     drill_id = secrets.token_hex(12) if exercise else None
     destination = "bangla-private-ops-drill-" + drill_id if exercise else BACKUPS
-    stopped = False
+    stopped = drained = False
     expected_failure = False
     resumed = False
     cleanup_verified = not exercise
@@ -363,6 +367,7 @@ def run_maintenance(*, exercise: bool) -> dict:
             require(initialised.returncode == 0, "drill-directory-initialization")
         stopped = True  # Recovery also runs after a partially successful stop.
         compose("stop", "proxy", "app")
+        drained = True
         state = containers()
         require(all(not c["State"].get("Running") for c in state.values()), "writers-not-stopped")
         require(not docker("ps", "--quiet", "--filter", "volume=" + DATA).stdout.strip(), "source-still-in-use")
@@ -377,21 +382,31 @@ def run_maintenance(*, exercise: bool) -> dict:
     except BaseException as exc:
         failure = exc
     finally:
-        if stopped:
-            try:
-                cleanup_helpers()  # Never resume writers while a timed-out backup helper remains.
-                compose("up", "--detach", "--no-build", "--wait", "--wait-timeout", "180", "app", "proxy")
-                resumed = healthy(containers()) and http_health()
-            except BaseException:
-                resumed = False
-        if exercise and drill_id:
-            try:
-                volume(destination, drill_id=drill_id)
-                require(not docker("ps", "--all", "--quiet", "--filter", "volume=" + destination).stdout.strip(), "drill-volume-in-use")
-                docker("volume", "rm", destination)
-                cleanup_verified = docker("volume", "inspect", destination, okay=True).returncode != 0
-            except BaseException:
-                cleanup_verified = False
+        previous = quiet_signals()
+        try:
+            if stopped:
+                try:
+                    cleanup_helpers()  # Never resume writers while a timed-out backup helper remains.
+                    if not drained:
+                        # An interrupted stop leaves writers draining: `up` would see them running, then they exit.
+                        try:
+                            compose("stop", "proxy", "app")
+                        except Refused:
+                            pass  # Start them regardless; the health check below decides.
+                    compose("up", "--detach", "--no-build", "--wait", "--wait-timeout", "180", "app", "proxy")
+                    resumed = healthy(containers()) and http_health()
+                except BaseException:
+                    resumed = False
+            if exercise and drill_id:
+                try:
+                    volume(destination, drill_id=drill_id)
+                    require(not docker("ps", "--all", "--quiet", "--filter", "volume=" + destination).stdout.strip(), "drill-volume-in-use")
+                    docker("volume", "rm", destination)
+                    cleanup_verified = docker("volume", "inspect", destination, okay=True).returncode != 0
+                except BaseException:
+                    cleanup_verified = False
+        finally:
+            restore_signals(previous)
     require(resumed, "resume-failed")
     if failure:
         raise failure
@@ -447,14 +462,31 @@ def main() -> int:
         os.close(fd)
 
 
-if __name__ == "__main__":
-    os.umask(0o077)
-    # SIGTERM is handled as an exception so stopped staging services are resumed.
-    signal.signal(signal.SIGTERM, lambda *_: (_ for _ in ()).throw(InterruptedError()))
+def interrupted(*_):
+    # The first stop request interrupts the work; later ones must not interrupt its recovery.
+    for number in (signal.SIGTERM, signal.SIGHUP):
+        signal.signal(number, signal.SIG_IGN)
+    raise Stopped()
+
+
+def quiet_signals() -> dict:
+    """Recovery and rollback must finish: stop requests, interrupts and hang-ups are ignored until they end."""
+    previous = {}
+    for number in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):
+        previous[number] = signal.signal(number, signal.SIG_IGN)
+    return previous
+
+
+def restore_signals(previous: dict) -> None:
+    for number, handler in previous.items():
+        signal.signal(number, handler)
+
+
+def entry() -> int:
     try:
-        raise SystemExit(main())
-    except (Refused, OSError, ValueError, KeyError, TypeError, InterruptedError, KeyboardInterrupt) as exc:
-        code = exc.code if isinstance(exc, Refused) else "operation-failed"
+        return main()
+    except (Refused, OSError, ValueError, KeyError, TypeError, KeyboardInterrupt, Stopped) as exc:
+        code = exc.code if isinstance(exc, Refused) else "interrupted" if isinstance(exc, (Stopped, KeyboardInterrupt)) else "operation-failed"
         action = sys.argv[1] if len(sys.argv) == 2 and sys.argv[1] in ("monitor", "backup", "exercise", "status") else "invalid"
         value = {"scope": SCOPE, "action": action, "verified": False, "status": "deferred" if code == "transaction-busy" else "failed", "checkedAtEpoch": time.time(), "codes": [code]}
         try:
@@ -463,4 +495,12 @@ if __name__ == "__main__":
         except (OSError, Refused):
             pass
         print(json.dumps(value, separators=(",", ":")))
-        raise SystemExit(75 if code == "transaction-busy" else 1)
+        return 75 if code == "transaction-busy" else 1
+
+
+if __name__ == "__main__":
+    os.umask(0o077)
+    # Stop requests and hang-ups become exceptions, so stopped staging services are resumed.
+    for number in (signal.SIGTERM, signal.SIGHUP):
+        signal.signal(number, interrupted)
+    raise SystemExit(entry())
