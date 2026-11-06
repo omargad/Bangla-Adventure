@@ -8,18 +8,24 @@
 # The server address and account come from the DEPLOY_HOST and DEPLOY_USER secrets and are never
 # printed. The key and the server host key are checked against their pins, in the same way as
 # scripts/deploy.sh, before any connection. Only fixed status fields and codes are printed.
+# install also sends the public halves of the deploy key and of STATUS_SSH_PUBLIC_KEY, so the
+# installer can add the status key's restricted line to authorized_keys; never a private key.
 set -euo pipefail
 set +x
 umask 077
 fail() { printf 'production operations: %s\n' "$*" >&2; exit 1; }
+# Settings may live at repository level or in the workflow's environment (production or production-status).
+missing() { fail "the $1 is missing (add it to the repository or to this workflow's environment)."; }
 [ "$#" -eq 1 ] || fail 'usage: production-ops-controller.sh install|status|backup-now|scheduled-status'
 action="$1"
 case "$action" in install|status|backup-now|scheduled-status) ;; *) fail 'the action must be install, status, backup-now or scheduled-status.' ;; esac
 [ "${DEPLOY_ENABLED:-false}" = true ] || fail 'production is not enabled (the DEPLOY_ENABLED variable must be true).'
 [ "${GITHUB_REPOSITORY:-}" = omargad/Bangla-Adventure ] && [ "${GITHUB_REF:-}" = refs/heads/main ] || \
   fail 'only the main branch of the project repository may run production operations.'
-[[ "${DEPLOY_HOST:-}" =~ ^[a-zA-Z0-9][a-zA-Z0-9.:-]*$ ]] || fail 'the DEPLOY_HOST secret is missing or invalid.'
-[[ "${DEPLOY_USER:-}" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]] || fail 'the DEPLOY_USER secret is missing or invalid.'
+[ -n "${DEPLOY_HOST:-}" ] || missing 'secret DEPLOY_HOST'
+[ -n "${DEPLOY_USER:-}" ] || missing 'secret DEPLOY_USER'
+[[ "$DEPLOY_HOST" =~ ^[a-zA-Z0-9][a-zA-Z0-9.:-]*$ ]] || fail 'the DEPLOY_HOST secret is invalid.'
+[[ "$DEPLOY_USER" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]] || fail 'the DEPLOY_USER secret is invalid.'
 port="${DEPLOY_PORT:-22}"
 [[ "$port" =~ ^[0-9]{1,5}$ ]] && ((10#$port > 0 && 10#$port <= 65535)) || fail 'invalid SSH port.'
 # The operations are fixed to the production folder and the rootless daemon the deploy uses.
@@ -31,23 +37,6 @@ host_fingerprint="${DEPLOY_HOST_FINGERPRINT:-SHA256:79xe+ubCodL2ACAHPNloo7I/K6mv
 key_fingerprint="${DEPLOY_KEY_FINGERPRINT:-SHA256:y1+C6cvcfpJFmO8pfjyMSFERpd5BtcQyDf5SptZXVlQ}"
 [[ "$host_fingerprint" =~ ^SHA256:[a-zA-Z0-9+/]{43}$ ]] || fail 'DEPLOY_HOST_FINGERPRINT must be a SHA256 fingerprint.'
 [[ "$key_fingerprint" =~ ^SHA256:[a-zA-Z0-9+/]{43}$ ]] || fail 'DEPLOY_KEY_FINGERPRINT must be a SHA256 fingerprint.'
-if [ "$action" = scheduled-status ]; then
-  # The daily alert runs without a reviewer, so it never holds the deploy key: its own key is
-  # installed with a forced command that can only run status (docs/PRODUCTION_OPERATIONS.md).
-  [ -z "${DEPLOY_SSH_KEY:-}" ] || fail 'the scheduled status check must not receive the DEPLOY_SSH_KEY secret.'
-  [ -n "${STATUS_SSH_KEY:-}" ] || fail 'the STATUS_SSH_KEY secret is missing.'
-  [[ "${STATUS_KEY_FINGERPRINT:-}" =~ ^SHA256:[a-zA-Z0-9+/]{43}$ ]] || fail 'the STATUS_KEY_FINGERPRINT variable must be the status key SHA256 fingerprint.'
-  [ "$STATUS_KEY_FINGERPRINT" != "$key_fingerprint" ] || fail 'the status key must not be the deploy key.'
-  ssh_key="$STATUS_SSH_KEY"
-  key_fingerprint="$STATUS_KEY_FINGERPRINT"
-  key_name=STATUS_KEY_FINGERPRINT
-else
-  [ -n "${DEPLOY_SSH_KEY:-}" ] || fail 'the DEPLOY_SSH_KEY secret is missing.'
-  ssh_key="$DEPLOY_SSH_KEY"
-  key_name=DEPLOY_KEY_FINGERPRINT
-fi
-[ -n "${DEPLOY_KNOWN_HOSTS:-}" ] || fail 'the DEPLOY_KNOWN_HOSTS variable is missing.'
-case "$DEPLOY_KNOWN_HOSTS" in *'PRIVATE KEY'*|*'-----BEGIN'*) fail 'DEPLOY_KNOWN_HOSTS must hold only public host-key lines.' ;; esac
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
 readonly ops=/opt/bangla-adventures/ops
 work="$(mktemp -d)"
@@ -67,12 +56,66 @@ trap cleanup EXIT
 trap 'exit 129' HUP
 trap 'exit 130' INT
 trap 'exit 143' TERM
+
+# The status key's public line: one ssh-ed25519 key, no options, at most a plain one-word comment.
+# Sets status_blob and status_fingerprint. The installer writes its own fixed comment.
+status_public() {
+  local value="$1" pattern='^ssh-ed25519 ([A-Za-z0-9+/]{68})( [A-Za-z0-9@._-]{1,64})?$' listed
+  case "$value" in *$'\n'*|*$'\r'*) fail 'the STATUS_SSH_PUBLIC_KEY variable must be a single line: the contents of status_key.pub.' ;; esac
+  [[ "$value" =~ $pattern ]] || fail 'the STATUS_SSH_PUBLIC_KEY variable must be one ssh-ed25519 public key line without options, as in status_key.pub; a comment may use only letters, digits and @._-'
+  status_blob="${BASH_REMATCH[1]}"
+  printf 'ssh-ed25519 %s\n' "$status_blob" > "$work/status_public"
+  listed="$(ssh-keygen -l -E sha256 -f "$work/status_public" 2>/dev/null)" || fail 'the STATUS_SSH_PUBLIC_KEY variable is not a valid SSH public key.'
+  [[ "$listed" =~ ^256\ (SHA256:[a-zA-Z0-9+/]{43})\ .*\(ED25519\)$ ]] || fail 'the STATUS_SSH_PUBLIC_KEY variable is not a valid ed25519 public key.'
+  status_fingerprint="${BASH_REMATCH[1]}"
+}
+# Surrounding blanks and a final line break from a pasted file are not part of the key.
+status_variable="${STATUS_SSH_PUBLIC_KEY:-}"
+status_variable="${status_variable#"${status_variable%%[![:space:]]*}"}"
+status_variable="${status_variable%"${status_variable##*[![:space:]]}"}"
+status_blob=''
+status_fingerprint=''
+if [ "$action" = scheduled-status ]; then
+  # The daily alert runs without a reviewer, so it never holds the deploy key: its own key is
+  # installed with a forced command that can only run status (docs/PRODUCTION_OPERATIONS.md).
+  [ -z "${DEPLOY_SSH_KEY:-}" ] || fail 'the scheduled status check must not receive the DEPLOY_SSH_KEY secret.'
+  [ -n "${STATUS_SSH_KEY:-}" ] || missing 'secret STATUS_SSH_KEY'
+  [ -n "$status_variable" ] || missing 'variable STATUS_SSH_PUBLIC_KEY'
+  [ "$status_variable" != remove ] || fail 'the STATUS_SSH_PUBLIC_KEY variable is remove, so the server has no status key; set a new key and run install, or disable this workflow.'
+  status_public "$status_variable"
+  [ "$status_fingerprint" != "$key_fingerprint" ] || fail 'the status key must not be the deploy key.'
+  ssh_key="$STATUS_SSH_KEY"
+  key_fingerprint="$status_fingerprint"
+  key_name=STATUS_SSH_PUBLIC_KEY
+else
+  [ -n "${DEPLOY_SSH_KEY:-}" ] || missing 'secret DEPLOY_SSH_KEY'
+  ssh_key="$DEPLOY_SSH_KEY"
+  key_name=DEPLOY_KEY_FINGERPRINT
+  # Only install changes the status key; unset leaves authorized_keys alone, remove deletes its line.
+  if [ "$action" = install ] && [ -n "$status_variable" ] && [ "$status_variable" != remove ]; then
+    status_public "$status_variable"
+    [ "$status_fingerprint" != "$key_fingerprint" ] || fail 'the status key must not be the deploy key.'
+  fi
+fi
+[ -n "${DEPLOY_KNOWN_HOSTS:-}" ] || missing 'variable DEPLOY_KNOWN_HOSTS'
+case "$DEPLOY_KNOWN_HOSTS" in *'PRIVATE KEY'*|*'-----BEGIN'*) fail 'DEPLOY_KNOWN_HOSTS must hold only public host-key lines.' ;; esac
 printf '%s\n' "$ssh_key" | tr -d '\r' > "$work/key"
 printf '%s\n' "$DEPLOY_KNOWN_HOSTS" | tr -d '\r' > "$work/provided_hosts"
 unset ssh_key DEPLOY_SSH_KEY STATUS_SSH_KEY DEPLOY_KNOWN_HOSTS GITHUB_TOKEN GH_TOKEN
 # The key and host checks of scripts/deploy.sh: the derived public key must match its pin, every
 # retained known_hosts line must match the host pin, and the lines must cover this host and port.
 ssh-keygen -y -P '' -f "$work/key" > "$work/public_key" 2>/dev/null || fail 'the private key could not be read (an unencrypted CI key is required).'
+key_type=''
+key_blob=''
+read -r key_type key_blob _ < "$work/public_key" || true
+[[ "$key_type" =~ ^[a-z0-9][a-z0-9@.-]{0,63}$ && "$key_blob" =~ ^[A-Za-z0-9+/]+={0,2}$ ]] && ((${#key_blob} >= 16 && ${#key_blob} <= 16384)) || \
+  fail 'could not read the public half of the private key.'
+if [ "$action" = scheduled-status ]; then
+  # The private key's own public half must be exactly the key that install restricted to status.
+  [ "$key_type $key_blob" = "ssh-ed25519 $status_blob" ] || fail 'the STATUS_SSH_KEY secret does not match the STATUS_SSH_PUBLIC_KEY variable.'
+elif [ -n "$status_blob" ]; then
+  [ "$status_blob" != "$key_blob" ] || fail 'the status key must not be the deploy key.'
+fi
 actual="$(ssh-keygen -l -E sha256 -f "$work/public_key" 2>/dev/null | awk '{print $2}')" || fail 'could not fingerprint the private key.'
 [ "$actual" = "$key_fingerprint" ] || fail "the key fingerprint does not match $key_name."
 : > "$work/known_hosts"
@@ -123,6 +166,9 @@ if isinstance(value.get('timers'),dict):
     print('  timers: '+', '.join(f"{k} {'active' if v is True else 'inactive'}" for k,v in value['timers'].items() if k in ('backup','monitor','offsite')))
 if isinstance(value.get('initialRuns'),dict):
     print('  initial runs: '+', '.join(k for k in value['initialRuns'] if k in ('backup','offsite','monitor')))
+if kind=='install' and value.get('verified') is True:
+    key=value.get('statusKey')
+    print('  status key: '+(key if key in ('installed','replaced','already-present','removed','already-absent','unchanged') else 'unknown'))
 if kind=='install' and value.get('verified') is not True:
     print('  rollback: '+(value.get('rollback') if value.get('rollback') in ('none','complete','incomplete','failed') else 'unknown'))
 raise SystemExit(0 if value.get('verified') is True else 1)
@@ -139,6 +185,19 @@ case "$action" in
       names+=("${source##*/}")
       cp -- "$root/$source" "$work/payload/${source##*/}"
     done
+    # Public halves only: the deploy key shows which authorized_keys sshd reads; null leaves it alone.
+    python3 - "$key_type $key_blob" "$status_variable" "$status_blob" > "$work/payload/status-key.json" <<'PY' || fail 'could not prepare the status key request.'
+import json,sys
+deploy,variable,blob=sys.argv[1:]
+status=None if variable=='' else 'remove' if variable=='remove' else 'ssh-ed25519 '+blob
+print(json.dumps({'deployKey':deploy,'statusKey':status},separators=(',',':')))
+PY
+    names+=(status-key.json)
+    case "$status_variable" in
+      '') printf 'status key: not requested (STATUS_SSH_PUBLIC_KEY is unset), so authorized_keys stays as it is.\n' ;;
+      remove) printf 'status key: removal requested.\n' ;;
+      *) printf 'status key: %s requested.\n' "$status_fingerprint" ;;
+    esac
     # A private incoming folder in ops/, never in backups/; the installer promotes it under the deploy lock.
     incoming="$(on_server "set -eu; umask 077; [ \"\$(id -u)\" = 1002 ]; [ -f /opt/bangla-adventures/.deploy.lock ]; \
 [ -d $ops ] || mkdir $ops; [ ! -L $ops ] && [ \"\$(stat -c %u:%a $ops)\" = 1002:700 ]; mktemp -d $ops/.incoming.XXXXXXXXXXXX" \

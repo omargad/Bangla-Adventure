@@ -193,11 +193,21 @@ below is the confirmed name, for example `learn.example.org`.
    ([Server address secrets](#server-address-secrets)), save the verified
    `DEPLOY_KNOWN_HOSTS` line and confirm the `DEPLOY_SSH_KEY` secret is present
    ([Settings to complete](#settings-to-complete)).
-7. **Enable.** First create the `production-status` GitHub environment, with
-   no reviewers and only `main` allowed to deploy to it
-   ([Alerting](PRODUCTION_OPERATIONS.md#alerting)): this step switches on the
-   daily status check, which runs there. Then set the repository variable
-   `DEPLOY_ENABLED=true`.
+7. **Enable.** This step also switches on the daily status check, so prepare
+   it first
+   ([Setting up the status key](PRODUCTION_OPERATIONS.md#setting-up-the-status-key),
+   steps 1 to 3):
+   - create the `production-status` GitHub environment, with no reviewers and
+     only `main` allowed to deploy to it, and add the `DEPLOY_HOST` and
+     `DEPLOY_USER` secrets and the `DEPLOY_KNOWN_HOSTS` variable to it as well
+     if they are `production` environment settings;
+   - make the status key pair on your own computer;
+   - save its public line as the repository variable `STATUS_SSH_PUBLIC_KEY`
+     and its private key as the `production-status` environment secret
+     `STATUS_SSH_KEY`, then delete both local files.
+
+   Then set the repository variable `DEPLOY_ENABLED=true`. Until step 9 has
+   run, the daily status run fails, because nothing is installed yet.
 8. **Deploy.** Push to `main`, or run the CI workflow on `main` from the
    Actions tab, and watch its `deploy` job. The run publishes the commit's GHCR
    image and that job deploys it; an older commit is skipped, and inability to
@@ -206,15 +216,17 @@ below is the confirmed name, for example `learn.example.org`.
    has the server's side.
 9. **Production operations.** Once that first deploy has passed, run the
    **VPS production operations** workflow on `main` with `install` and its
-   confirmation ticked. It installs the deployment user's timers: a daily
-   backup at 16:30 UTC (the app stops for seconds), a five-minute monitor of
-   health, port exposure, disk, backup age, the public site and its
-   certificate, and an off-site copy that stays inert until the client
-   configures one. It runs one backup and one monitor before enabling them.
-   Then give the daily status alert its own status key, which the server
-   limits to reading status, never the deploy key
-   ([Alerting](PRODUCTION_OPERATIONS.md#alerting)). See
-   [Production operations](PRODUCTION_OPERATIONS.md).
+   confirmation ticked; a reviewer approves it. It installs the deployment
+   user's timers: a daily backup at 16:30 UTC (the app stops for seconds), a
+   five-minute monitor of health, port exposure, disk, backup age, the public
+   site and its certificate, and an off-site copy that stays inert until the
+   client configures one. It runs one backup and one monitor before enabling
+   them. The same run adds the status key from step 7 to the deployment user's
+   `~/.ssh/authorized_keys`, restricted to reading status, and reports
+   `status key: installed`; nobody edits the server by hand. Then run the
+   **VPS production status** workflow on `main` once by hand: it must end with
+   `status: healthy`. See [Production operations](PRODUCTION_OPERATIONS.md)
+   and its [Alerting](PRODUCTION_OPERATIONS.md#alerting) section.
 10. **First administrator.** The agreed person opens `https://DOMAIN/grown-ups`,
    chooses Create account and keeps the recovery codes. In the deployment
    directory, with the daemon selected as in the manual administration

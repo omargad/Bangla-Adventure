@@ -3,7 +3,9 @@ name: VPS production operations
 # Installs (or updates) and proves the production backup, monitoring and off-site timers on the VPS,
 # shows their status, or takes a backup now (docs/PRODUCTION_OPERATIONS.md). Production must exist
 # first: every job is skipped unless the repository variable DEPLOY_ENABLED is 'true'. The server's
-# address and account are the repository secrets DEPLOY_HOST and DEPLOY_USER, never printed.
+# address and account are the DEPLOY_HOST and DEPLOY_USER secrets (repository or production
+# environment), never printed. install also adds the daily status check's key, from the repository
+# variable STATUS_SSH_PUBLIC_KEY, to the server's authorized_keys, restricted to running status.
 
 on:
   workflow_dispatch:
@@ -73,4 +75,5 @@ jobs:
           DEPLOY_DOCKER_CONTEXT: ${{ vars.DEPLOY_DOCKER_CONTEXT }}
           DEPLOY_KNOWN_HOSTS: ${{ vars.DEPLOY_KNOWN_HOSTS }}
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          STATUS_SSH_PUBLIC_KEY: ${{ vars.STATUS_SSH_PUBLIC_KEY }}
         run: bash scripts/production-ops-controller.sh "$OPERATION"

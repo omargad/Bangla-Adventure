@@ -67,6 +67,8 @@ Before installing:
   (rootless Docker needs this too): `ls /var/lib/systemd/linger/` lists the
   account. If not, an administrator runs `sudo loginctl enable-linger ACCOUNT`.
   The installer refuses with `user-linger-disabled` otherwise.
+- The status key is ready ([Setting up the status key](#setting-up-the-status-key),
+  steps 1 to 3), so that the same run installs it.
 
 Then, in GitHub, open **Actions > VPS production operations > Run workflow** on
 `main`, choose `install` and tick the confirmation. The workflow runs only when
@@ -79,21 +81,30 @@ the address or account.
 
 The installation:
 
-1. uploads the four tools and six units into a new private folder,
-   `/opt/bangla-adventures/ops/.incoming.*`;
+1. uploads the four tools, the six units and a small request naming the public
+   halves of the deploy key and of `STATUS_SSH_PUBLIC_KEY` (never a private key)
+   into a new private folder, `/opt/bangla-adventures/ops/.incoming.*`;
 2. checks the rootless daemon, the server `.env`, a healthy app and safe unit
    folders (the same rules as private staging: every folder from the home
    directory down to `~/.config/systemd/user` must belong to the deployment user
    and be writable by nobody else, except its own private group under Ubuntu's
    `002` umask; a refusal names the folder, for example
    `unsafe-unit-directory-config-writable`);
-3. under the deploy lock, stops the timers, replaces the tools and units
-   atomically, writes the installation record and reloads the user manager;
+3. under the deploy lock, checks `~/.ssh/authorized_keys` when
+   `STATUS_SSH_PUBLIC_KEY` is set (see
+   [What the install changes in authorized_keys](#what-the-install-changes-in-authorized_keys)),
+   stops the timers, replaces the tools and units atomically, writes the
+   installation record, adds or replaces the status key's line, and reloads the
+   user manager;
 4. runs one backup, then one off-site copy if it is configured, then one
    monitor, each through systemd, and requires each to exit `0` with a fresh
    result carrying its own systemd invocation ID; an older result or a deferral
    does not count;
 5. only then enables the three timers.
+
+A successful run ends with `status key: installed`, `replaced`,
+`already-present`, `removed`, `already-absent` or `unchanged` (the variable is
+unset, so `authorized_keys` was not read or changed).
 
 Any failure fails the run with fixed codes and a `rollback` state, and the
 workflow's message follows that state:
@@ -101,8 +112,8 @@ workflow's message follows that state:
 | `rollback` | Meaning |
 | --- | --- |
 | `none` | The installer stopped before changing anything |
-| `complete` | The previous files, record and timer states are back |
-| `incomplete` | A deploy still held the lock after 20 minutes: the new files stayed, and the earlier timer states were restored (code `rollback-incomplete`); run `install` again after the deploy |
+| `complete` | The previous files, record, `authorized_keys` and timer states are back |
+| `incomplete` | A deploy still held the lock after 20 minutes: the new files (and any new status-key line) stayed, and the earlier timer states were restored (code `rollback-incomplete`); run `install` again after the deploy |
 | `failed` | The rollback itself failed (code `rollback-failed`); check the timers on the server |
 
 A rollback after the initial runs waits up to 20 minutes for the deploy lock,
@@ -112,9 +123,9 @@ connection or cancelled run no longer interrupts it. Run `install` again
 whenever these tools or units change.
 The same workflow also offers `status`, and `backup-now`, which starts the
 installed backup service and waits for its result (the service carries on if
-the connection drops).
+the connection drops). Only `install` uses `STATUS_SSH_PUBLIC_KEY`.
 
-Finally, set up the [status alert](#alerting).
+Finally, run the [status alert](#alerting) once by hand.
 
 ## The backup
 
@@ -390,39 +401,133 @@ It runs in its own GitHub environment, `production-status`, with no required
 reviewers, so the daily check never waits for a deploy approval. For that
 reason it never receives the deploy key, which can do anything the deployment
 user can. It uses a **status key** instead, which the server allows to run only
-`status`:
+`status`. The reviewer-approved `install` puts that key on the server: nobody
+edits files there by hand.
 
-1. Create the environment before setting `DEPLOY_ENABLED=true` (go-live step 7),
-   in **Settings > Environments > New environment**, named
-   `production-status`: no required reviewers, and under **Deployment
-   branches and tags** choose **Selected branches and tags** and allow only
-   `main`. If a scheduled run has already created it, it has no rules yet: add
-   them before anything else. Never add `DEPLOY_SSH_KEY` to it.
-2. Make the key pair on your own computer, not the server:
-   `ssh-keygen -t ed25519 -N '' -C bangla-adventures-status -f status_key`.
-3. As the deployment user on the server, add one line to
-   `~/.ssh/authorized_keys`: the forced command, then the public key from
-   `status_key.pub`:
+### Setting up the status key
 
-   ```text
-   restrict,command="bash /opt/bangla-adventures/ops/tools/production-ops.sh status" ssh-ed25519 AAAA... bangla-adventures-status
+Do this once, before go-live step 7 sets `DEPLOY_ENABLED=true`. The commands
+work the same in PowerShell on Windows and in a macOS or Linux terminal.
+
+1. **Create the environment.** In GitHub, open **Settings > Environments >
+   New environment** and name it `production-status`. Leave **Required
+   reviewers** off. Under **Deployment branches and tags** choose **Selected
+   branches and tags** and add only `main`. If a scheduled run has already
+   created the environment, it has no rules yet: add them before anything else.
+
+   A workflow in an environment sees only that environment's settings and the
+   repository's. If `DEPLOY_HOST` and `DEPLOY_USER` are secrets of the
+   `production` environment, add both to `production-status` too, with the same
+   values (**Environment secrets > Add environment secret**); if
+   `DEPLOY_KNOWN_HOSTS` is a `production` environment variable, add it as well
+   (**Environment variables > Add environment variable**). Moving the three to
+   repository level instead also works. Never add `DEPLOY_SSH_KEY` to this
+   environment.
+2. **Make the key pair** on your own computer, not the server, in a folder of
+   your choice (Windows 10 and 11 include `ssh-keygen`):
+
+   ```sh
+   ssh-keygen -t ed25519 -C bangla-adventures-status -f status_key
    ```
 
-   Whatever a connection with this key asks for, the server runs only that
-   status command, with no terminal or forwarding.
-4. In GitHub, add the private key (`status_key`) as the `production-status`
-   environment secret `STATUS_SSH_KEY`, and its fingerprint
-   (`ssh-keygen -lf status_key.pub`, the `SHA256:...` part) as the variable
-   `STATUS_KEY_FINGERPRINT`. Then delete the local private key.
+   When it asks for a passphrase, press Enter twice, so the key has none (the
+   workflow cannot type one). This writes `status_key` (private) and
+   `status_key.pub` (public). Do not add `-N ''`: Windows PowerShell drops the
+   empty quotes, so the key ends up with a passphrase or the command fails.
+3. **Save the two halves in GitHub, then delete them locally.**
+   - Show the public half with `Get-Content status_key.pub` (PowerShell) or
+     `cat status_key.pub`, and copy its single line,
+     `ssh-ed25519 AAAA... bangla-adventures-status`, into a new **repository
+     variable** `STATUS_SSH_PUBLIC_KEY` (**Settings > Secrets and variables >
+     Actions > Variables > New repository variable**). It is public, and at
+     repository level both the install (in `production`) and the daily check
+     (in `production-status`) can read it.
+   - Show the private half with `Get-Content status_key` or `cat status_key`,
+     and copy all of it, from `-----BEGIN OPENSSH PRIVATE KEY-----` to
+     `-----END OPENSSH PRIVATE KEY-----`, into the `production-status`
+     **environment secret** `STATUS_SSH_KEY` (**Settings > Environments >
+     production-status > Add environment secret**), not into the repository
+     secrets.
+   - Delete both files: `Remove-Item status_key, status_key.pub` (PowerShell)
+     or `rm status_key status_key.pub`. GitHub keeps the only copy of the
+     private key; if it is ever needed again, make a new pair instead.
+4. **Install it.** Run **Actions > VPS production operations > Run workflow**
+   on `main` with `install` and the confirmation ticked; a reviewer approves
+   the `production` environment. Besides the timers, the run adds the status
+   key's line to the deployment user's `~/.ssh/authorized_keys` and reports
+   `status key: installed` (`already-present` when a later install finds the
+   same key).
+5. **Check it.** Run **Actions > VPS production status > Run workflow** on
+   `main` once by hand. It must end with `status: healthy`.
 
-The workflow refuses a status key with the deploy key's fingerprint, and refuses
-to run if the deploy key reaches it. The `DEPLOY_HOST`, `DEPLOY_USER` and host
-key settings come from the repository as for the deploy (add
-`DEPLOY_KNOWN_HOSTS` to this environment too if it is a `production`
-environment variable rather than a repository variable). Until the key is set,
-the run fails with "the STATUS_SSH_KEY secret is missing". Should the status key
-leak, it shows only the fixed status fields; remove its line from
-`authorized_keys` and make a new one.
+### What the install changes in authorized_keys
+
+With `STATUS_SSH_PUBLIC_KEY` set, the install keeps exactly one line for the
+status key in `~/.ssh/authorized_keys`, added at the end:
+
+```text
+restrict,command="bash /opt/bangla-adventures/ops/tools/production-ops.sh status" ssh-ed25519 AAAA... bangla-adventures-status
+```
+
+`command="..."` is a forced command: whatever a connection with this key asks
+to run, the server runs only that status command, which reads the job results
+and changes nothing. `restrict` turns off everything else a key could do: no
+terminal, no port, agent or X11 forwarding, and no `~/.ssh/rc`. Should the
+status key leak, it shows only the fixed status fields. The line always ends in
+the comment `bangla-adventures-status`, whatever comment the key had: that
+comment and the fixed start are how the installer recognises its own line.
+
+The installer works under the deploy lock and inside the installation's
+rollback, and changes nothing else:
+
+- It refuses unless `~/.ssh` is a real folder and `authorized_keys` a real file
+  (not a link), both owned by the deployment user and writable by nobody else
+  (`unsafe-ssh-directory`, `unsafe-authorized-keys`). That is sshd's
+  `StrictModes` rule, without the exception Ubuntu's sshd makes for the
+  account's own private group. If it refuses, the server administrator runs
+  `chmod 700 ~/.ssh` and `chmod 600 ~/.ssh/authorized_keys` for the deployment
+  user; `install` can then run again.
+- It requires the deploy key, the one this run connected with, on a line of its
+  own (`authorized-keys-not-in-use` otherwise, also when the file is missing).
+  That proves sshd reads this file, and the deploy key's line is never changed.
+- It refuses a status key that is the deploy key (`status-key-is-deploy-key`)
+  or already appears on any other line (`status-key-already-authorized`), so it
+  never restricts or duplicates a key someone else added.
+- It replaces an earlier status-key line (`replaced`), keeps every other line
+  exactly as it was and in the same order (Windows line endings and a missing
+  final line break included), writes the file atomically with mode `0600`, then
+  reads it back. If anything differs it restores the previous contents
+  (`authorized-keys-verify-failed`). A failed install's rollback restores the
+  previous contents too, unless someone changed the file meanwhile
+  (`authorized-keys-changed`).
+- It never touches `authorized_keys2`, the sshd settings or anything outside
+  the deployment user's `~/.ssh/authorized_keys`.
+
+With `STATUS_SSH_PUBLIC_KEY` unset, the install does not read or change
+`authorized_keys` and reports `status key: unchanged`.
+
+### Replacing or removing the status key
+
+- **Replace** (a lost or leaked key, or routine rotation): make a new pair as in
+  step 2, put its public line in `STATUS_SSH_PUBLIC_KEY` and its private key in
+  `STATUS_SSH_KEY`, and run `install`. The new line replaces the old one
+  (`status key: replaced`), so the old key stops working at once.
+- **Remove**: set `STATUS_SSH_PUBLIC_KEY` to the single word `remove` and run
+  `install`. The line is deleted (`status key: removed`, or `already-absent`).
+  Then delete the `STATUS_SSH_KEY` secret and disable the daily workflow
+  (**Actions > VPS production status > ... > Disable workflow**), or it fails
+  every day. The variable can be deleted afterwards.
+- Deleting or emptying the variable alone removes nothing from the server: the
+  install then leaves `authorized_keys` as it is.
+- Without GitHub, the deployment user or the server administrator can delete
+  the line ending in `bangla-adventures-status` from `~/.ssh/authorized_keys`.
+
+The daily workflow refuses to run if the deploy key reaches it, if
+`STATUS_SSH_KEY` or `STATUS_SSH_PUBLIC_KEY` is missing (for example "the secret
+STATUS_SSH_KEY is missing (add it to the repository or to this workflow's
+environment)"), if the private key's public half is not exactly the key in
+`STATUS_SSH_PUBLIC_KEY`, or if the status key is the deploy key. Host-key
+pinning is the same as for the deploy.
 
 GitHub disables scheduled workflows in a public repository after 60 days
 without commits, and emails a warning first; re-enable it from the Actions tab.
@@ -554,6 +659,12 @@ The installer adds these:
 | `user-unit-path`, `loaded-unit-path`, `unit-marker`, `unmanaged-file` | The unit folder or a unit file is not the one this installer manages |
 | `user-runtime`, `user-bus` | The account's user manager is not running (it lingers, but has not started yet) |
 | `payload-path`, `invalid-install-arguments`, `overrides-not-allowed` | The installer was not started by the workflow's upload |
+| `status-key-request-invalid` | The uploaded key request is not in the controller's form (public keys only, an ed25519 status key, or `remove`) |
+| `unsafe-ssh-directory`, `unsafe-authorized-keys` | `~/.ssh` or `authorized_keys` is a link, belongs to another account, is writable by its group or others, or the file is over 1 MiB: nothing changed |
+| `authorized-keys-not-in-use` | `~/.ssh/authorized_keys` is missing or has no line of its own for the deploy key, so sshd reads keys from somewhere else: nothing changed |
+| `status-key-already-authorized`, `status-key-is-deploy-key` | The status key already appears on another line, or is the deploy key: nothing changed |
+| `authorized-keys-changed` | `authorized_keys` changed while the install ran; it was left as found |
+| `authorized-keys-verify-failed` | The file read back after writing was not as planned; the previous contents were restored |
 
 ## Local testing
 

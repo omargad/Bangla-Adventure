@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import ast
+import base64
+import contextlib
 import fcntl
 import importlib.util
+import io
 import json
 import os
 from pathlib import Path
@@ -15,7 +18,7 @@ import tempfile
 import threading
 import time
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -1089,8 +1092,25 @@ class StatusTests(unittest.TestCase):
                 self.assertEqual(oct((fx.deployment / 'ops' / f'last-{name}.json').stat().st_mode & 0o777), '0o600')
 
 
+def ed25519(seed):
+    """A well-formed ed25519 public key blob; the tests never need its private half."""
+    return base64.b64encode(b'\0\0\0\x0bssh-ed25519\0\0\0\x20' + bytes([seed]) * 32).decode()
+
+
+DEPLOY_KEY = 'ssh-ed25519 ' + ed25519(1)
+STATUS_KEY = 'ssh-ed25519 ' + ed25519(2)
+OTHER_KEY = 'ssh-ed25519 ' + ed25519(3)
+RSA_KEY = 'ssh-rsa ' + base64.b64encode(b'\0\0\0\x07ssh-rsa\0\0\0\x03\x01\x00\x01\0\0\0\x81\x00' + bytes(range(128))).decode()
+STATUS_LINE = 'restrict,command="bash /opt/bangla-adventures/ops/tools/production-ops.sh status" ' + STATUS_KEY + ' bangla-adventures-status'
+OLD_STATUS_LINE = STATUS_LINE.replace(ed25519(2), ed25519(4))
+
+
+def key_request(status=None, deploy=DEPLOY_KEY):
+    return json.dumps({'deployKey': deploy, 'statusKey': status}).encode()
+
+
 class InstallerTests(unittest.TestCase):
-    def install_fixture(self, folder):
+    def install_fixture(self, folder, request=None):
         root = Path(folder)
         source = root / 'payload'
         source.mkdir()
@@ -1100,6 +1120,7 @@ class InstallerTests(unittest.TestCase):
         config.mkdir()
         for name in (*installer.ops.TOOLS, *installer.ops.UNITS):
             (source / name).write_bytes(installer.MARKER + b'fixture\n')
+        (source / installer.KEY_REQUEST).write_bytes(request or key_request())
 
         class Payload:
             def __str__(self):
@@ -1334,6 +1355,315 @@ class InstallerTests(unittest.TestCase):
                 (home / '.config').chmod(0o700)
                 with self.assertRaisesRegex(installer.ops.Refused, 'user-unit-path'):
                     installer.owned_config(prod, Path('/etc/systemd/system'))
+
+    def keyed_install(self, folder, status, authorized, *, deferred=False, reader=None, ssh_mode=0o700):
+        """main() with a key request and a real ~/.ssh in the test folder: (fx, ssh folder, calls, result JSON or exception)."""
+        fx, settings, config, payload = self.install_fixture(folder, key_request(status))
+        ssh = Path(folder) / 'home' / '.ssh'
+        ssh.mkdir(parents=True)
+        ssh.chmod(ssh_mode)
+        if authorized is not None:
+            (ssh / 'authorized_keys').write_bytes(authorized)
+            (ssh / 'authorized_keys').chmod(0o600)
+        prod, items = self.patches(fx, settings, config, payload)
+        calls = []
+
+        def ctl(prod, *args, **kwargs):
+            calls.append(args)
+            if args[0] in ('is-enabled', 'is-active'):
+                return completed(returncode=0)
+            if args[0] == 'show' and args[2] == '--property=FragmentPath':
+                return completed(str(config / args[1]))
+            if args[0] == 'show':
+                return completed('75' if deferred else '0')
+            return completed()
+        fresh = {'invocationId': 'f' * 32, 'checkedAtEpoch': NOW, 'backup': {'sha256': 'a' * 64},
+                 'measures': {'downtimeSeconds': 3, 'backupAgeSeconds': 60}}
+        items.update(lock=patch.object(prod, 'deploy_lock', lambda: os.open(fx.deployment / '.deploy.lock', os.O_RDWR)),
+                     userctl=patch.object(installer, 'userctl', ctl), ssh=patch.object(installer, 'ssh_folder', return_value=ssh),
+                     validate=patch.object(prod, 'validate_installation'), sleep=patch.object(installer.time, 'sleep'),
+                     report=patch.object(prod, 'read_report', return_value=None))
+        if not deferred:
+            items['fresh'] = patch.object(installer, 'fresh_service_result', return_value=fresh)
+        if reader is not None:
+            items['reader'] = patch.object(installer, 'read_authorized_keys', reader)
+        output = io.StringIO()
+        for item in items.values():
+            item.start()
+        try:
+            with contextlib.redirect_stdout(output):
+                installer.main(['install', str(payload)])
+            outcome = json.loads(output.getvalue())
+        except (Exception, installer.ops.Stopped) as exc:
+            outcome = exc
+        finally:
+            for item in reversed(list(items.values())):
+                item.stop()
+        return fx, ssh, calls, outcome
+
+    def test_install_adds_the_status_key_line_and_reports_it(self):
+        before = f'# keys\n{DEPLOY_KEY} deployer\n'.encode()
+        with tempfile.TemporaryDirectory() as folder:
+            fx, ssh, calls, result = self.keyed_install(folder, STATUS_KEY, before)
+            self.assertIsInstance(result, dict, repr(result))
+            self.assertEqual((result['verified'], result['statusKey']), (True, 'installed'))
+            self.assertEqual((ssh / 'authorized_keys').read_bytes(), before + STATUS_LINE.encode() + b'\n')
+            self.assertEqual(oct((ssh / 'authorized_keys').stat().st_mode & 0o777), '0o600')
+            self.assertEqual(sorted(path.name for path in ssh.iterdir()), ['authorized_keys'], 'no temporary file is left')
+
+    def test_unset_status_key_never_reads_authorized_keys(self):
+        before = b'not even a key line'
+        with tempfile.TemporaryDirectory() as folder:
+            reader = Mock(side_effect=AssertionError('authorized_keys was read'))
+            # An unsafe ~/.ssh would be refused if it were looked at.
+            fx, ssh, calls, result = self.keyed_install(folder, None, before, reader=reader, ssh_mode=0o777)
+            self.assertIsInstance(result, dict, repr(result))
+            self.assertEqual((result['verified'], result['statusKey']), (True, 'unchanged'))
+            reader.assert_not_called()
+            self.assertEqual((ssh / 'authorized_keys').read_bytes(), before)
+
+    def test_an_authorized_keys_refusal_changes_nothing(self):
+        before = f'{OTHER_KEY} someone\n'.encode()
+        with tempfile.TemporaryDirectory() as folder:
+            fx, ssh, calls, result = self.keyed_install(folder, STATUS_KEY, before)
+            self.assertNotIsInstance(result, installer.InstallFailed)
+            self.assertEqual(result.codes, ['authorized-keys-not-in-use'])
+            self.assertEqual((ssh / 'authorized_keys').read_bytes(), before)
+            self.assertEqual(list((fx.deployment / 'ops' / 'tools').iterdir()), [])
+            self.assertFalse([args for args in calls if args[0] in ('stop', 'daemon-reload', 'start', 'enable')])
+
+    def test_install_rollback_restores_authorized_keys(self):
+        before = f'{DEPLOY_KEY} deployer\r\n{OLD_STATUS_LINE}\r\n'.encode()
+        with tempfile.TemporaryDirectory() as folder:
+            fx, ssh, calls, result = self.keyed_install(folder, STATUS_KEY, before, deferred=True)
+            self.assertIsInstance(result, installer.InstallFailed)
+            self.assertEqual((result.codes, result.rollback), (['initial-backup-deferred'], 'complete'), repr(result.__cause__))
+            self.assertEqual((ssh / 'authorized_keys').read_bytes(), before)
+            self.assertEqual(list((fx.deployment / 'ops' / 'tools').iterdir()), [])
+
+    def test_a_failed_verification_during_install_restores_the_file_and_rolls_back(self):
+        before = f'{DEPLOY_KEY} deployer\n'.encode()
+        real = installer.read_authorized_keys
+        reads = []
+
+        def reader(folder, uid):
+            reads.append(1)
+            data = real(folder, uid)
+            # The third read is the check after writing: report a changed deploy line.
+            return data.replace(b'deployer', b'changed') if len(reads) == 3 else data
+        with tempfile.TemporaryDirectory() as folder:
+            fx, ssh, calls, result = self.keyed_install(folder, STATUS_KEY, before, reader=reader)
+            self.assertIsInstance(result, installer.InstallFailed)
+            self.assertEqual((result.codes, result.rollback), (['authorized-keys-verify-failed'], 'complete'))
+            self.assertEqual((ssh / 'authorized_keys').read_bytes(), before)
+
+
+class AuthorizedKeysTests(unittest.TestCase):
+    """The status key's managed line in ~/.ssh/authorized_keys."""
+
+    def request(self, status=STATUS_KEY, deploy=DEPLOY_KEY):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / installer.KEY_REQUEST
+            path.write_bytes(key_request(status, deploy))
+            return installer.key_request(path)
+
+    def plan(self, text, status=STATUS_KEY, deploy=DEPLOY_KEY):
+        return installer.plan_status_key(text if isinstance(text, bytes) else text.encode(), self.request(status, deploy))
+
+    def refused(self, code, text, **kwargs):
+        with self.assertRaises(installer.ops.Refused) as caught:
+            self.plan(text, **kwargs)
+        self.assertEqual(caught.exception.codes, [code])
+
+    def test_appends_exactly_one_line_and_keeps_every_other_line_in_order(self):
+        before = f'# managed by hand\n\nfrom="*.example.org",no-pty {DEPLOY_KEY} deployer\n{OTHER_KEY} someone\n{RSA_KEY}\n'
+        self.assertEqual(self.plan(before), ('installed', (before + STATUS_LINE + '\n').encode()))
+        self.assertEqual(STATUS_LINE.encode(), self.request()['line'])
+
+    def test_replaces_an_older_line_and_is_idempotent(self):
+        before = f'{OLD_STATUS_LINE}\n{DEPLOY_KEY} deployer\n{OLD_STATUS_LINE}\n{OTHER_KEY}\n'
+        outcome, after = self.plan(before)
+        self.assertEqual((outcome, after), ('replaced', f'{DEPLOY_KEY} deployer\n{OTHER_KEY}\n{STATUS_LINE}\n'.encode()))
+        self.assertEqual(self.plan(after), ('already-present', None))
+        # Already present anywhere in the file is enough; nothing is moved.
+        self.assertEqual(self.plan(f'{STATUS_LINE}\n{DEPLOY_KEY}'), ('already-present', None))
+
+    def test_windows_line_endings_and_a_missing_final_newline(self):
+        self.assertEqual(self.plan(f'# a\r\n{DEPLOY_KEY} d\r\n'), ('installed', f'# a\r\n{DEPLOY_KEY} d\r\n{STATUS_LINE}\r\n'.encode()))
+        self.assertEqual(self.plan(f'{DEPLOY_KEY} d'), ('installed', f'{DEPLOY_KEY} d\n{STATUS_LINE}\n'.encode()))
+        self.assertEqual(self.plan(f'# a\r\n{DEPLOY_KEY} d'), ('installed', f'# a\r\n{DEPLOY_KEY} d\r\n{STATUS_LINE}\r\n'.encode()))
+        self.assertEqual(self.plan(f'{DEPLOY_KEY} d\r'), ('installed', f'{DEPLOY_KEY} d\r\n{STATUS_LINE}\n'.encode()))
+        self.assertEqual(self.plan(f'{DEPLOY_KEY} d\r\n{STATUS_LINE}\r\n'), ('already-present', None))
+        self.assertEqual(self.plan(f'{DEPLOY_KEY} d\r\n{OLD_STATUS_LINE}'), ('replaced', f'{DEPLOY_KEY} d\r\n{STATUS_LINE}\r\n'.encode()))
+
+    def test_the_deploy_key_must_be_on_a_line_of_its_own(self):
+        for text in ('', f'{OTHER_KEY}\n', f'# {DEPLOY_KEY}\n', f'command="echo {DEPLOY_KEY}" {OTHER_KEY}\n',
+                     STATUS_LINE.replace(ed25519(2), ed25519(1)) + '\n', f'{DEPLOY_KEY[:-4]}AAAA\n'):
+            self.refused('authorized-keys-not-in-use', text)
+        self.refused('authorized-keys-not-in-use', f'{OTHER_KEY}\n{STATUS_LINE}\n', status='remove')
+        self.assertEqual(self.plan(f'command="echo \\"x y\\"",no-pty {DEPLOY_KEY} d\n')[0], 'installed')
+        self.assertEqual(self.plan(f'  {RSA_KEY} d\n', deploy=RSA_KEY)[0], 'installed')
+
+    def test_a_status_key_on_any_other_line_is_refused(self):
+        for line in (f'{STATUS_KEY} added-by-hand', f'no-pty {STATUS_KEY}', f'# {STATUS_KEY}',
+                     STATUS_LINE.replace('bangla-adventures-status', 'other-comment')):
+            self.refused('status-key-already-authorized', f'{DEPLOY_KEY}\n{line}\n')
+
+    def test_remove_deletes_only_the_managed_lines(self):
+        self.assertEqual(self.plan(f'{DEPLOY_KEY}\n{OLD_STATUS_LINE}\n# end', status='remove'), ('removed', f'{DEPLOY_KEY}\n# end'.encode()))
+        self.assertEqual(self.plan(f'{DEPLOY_KEY}\n', status='remove'), ('already-absent', None))
+
+    def test_the_request_is_strict_and_public_only(self):
+        self.assertEqual(self.request(None)['action'], 'unchanged')
+        self.assertEqual(self.request('remove')['action'], 'remove')
+        self.assertEqual(self.request(STATUS_KEY)['action'], 'install')
+        corrupt = 'ssh-ed25519 ' + base64.b64encode(b'\0\0\0\x0bssh-ed25519\0\0\0\x21' + b'\x02' * 32).decode()
+        for status, deploy in ((STATUS_KEY + ' comment', DEPLOY_KEY), ('restrict ' + STATUS_KEY, DEPLOY_KEY), (RSA_KEY, DEPLOY_KEY),
+                               (corrupt, DEPLOY_KEY), ('Remove', DEPLOY_KEY), ('-----BEGIN OPENSSH PRIVATE KEY-----', DEPLOY_KEY),
+                               (STATUS_KEY, 'ssh-ed25519 not-base64'), (STATUS_KEY, DEPLOY_KEY + ' comment'), (STATUS_KEY, 17)):
+            with self.assertRaisesRegex(installer.ops.Refused, 'status-key-request-invalid'):
+                self.request(status, deploy)
+        with self.assertRaisesRegex(installer.ops.Refused, 'status-key-is-deploy-key'):
+            self.request(DEPLOY_KEY, DEPLOY_KEY)
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / installer.KEY_REQUEST
+            for raw in (b'', b'[]', json.dumps({'deployKey': DEPLOY_KEY}).encode(), json.dumps({'deployKey': DEPLOY_KEY, 'statusKey': None, 'x': 1}).encode()):
+                path.write_bytes(raw)
+                with self.assertRaisesRegex(installer.ops.Refused, 'status-key-request-invalid'):
+                    installer.key_request(path)
+
+    def ssh_folder(self, folder, text=f'{DEPLOY_KEY}\n'):
+        ssh = Path(folder) / '.ssh'
+        ssh.mkdir(mode=0o700)
+        (ssh / 'authorized_keys').write_text(text)
+        (ssh / 'authorized_keys').chmod(0o600)
+        return ssh
+
+    def test_only_a_safe_folder_and_plain_file_are_read(self):
+        uid = os.getuid()
+        with tempfile.TemporaryDirectory() as folder:
+            ssh = self.ssh_folder(folder)
+            self.assertEqual(installer.read_authorized_keys(ssh, uid), f'{DEPLOY_KEY}\n'.encode())
+            # Ubuntu's 0644 is fine: only group and other write access breaks sshd's StrictModes.
+            (ssh / 'authorized_keys').chmod(0o644)
+            self.assertEqual(installer.read_authorized_keys(ssh, uid), f'{DEPLOY_KEY}\n'.encode())
+            for mode in (0o620, 0o602, 0o666):
+                (ssh / 'authorized_keys').chmod(mode)
+                with self.assertRaisesRegex(installer.ops.Refused, 'unsafe-authorized-keys'):
+                    installer.read_authorized_keys(ssh, uid)
+            (ssh / 'authorized_keys').chmod(0o600)
+            for mode in (0o770, 0o707, 0o777):
+                ssh.chmod(mode)
+                with self.assertRaisesRegex(installer.ops.Refused, 'unsafe-ssh-directory'):
+                    installer.read_authorized_keys(ssh, uid)
+            ssh.chmod(0o700)
+            with self.assertRaisesRegex(installer.ops.Refused, 'unsafe-ssh-directory'):
+                installer.read_authorized_keys(ssh, uid + 1)
+            real = Path(folder) / 'elsewhere'
+            real.write_text(f'{DEPLOY_KEY}\n')
+            real.chmod(0o600)
+            (ssh / 'authorized_keys').unlink()
+            (ssh / 'authorized_keys').symlink_to(real)
+            with self.assertRaisesRegex(installer.ops.Refused, 'unsafe-authorized-keys'):
+                installer.read_authorized_keys(ssh, uid)
+            (ssh / 'authorized_keys').unlink()
+            with self.assertRaisesRegex(installer.ops.Refused, 'authorized-keys-not-in-use'):
+                installer.read_authorized_keys(ssh, uid)
+            (ssh / 'authorized_keys').mkdir()
+            with self.assertRaisesRegex(installer.ops.Refused, 'unsafe-authorized-keys'):
+                installer.read_authorized_keys(ssh, uid)
+            (ssh / 'authorized_keys').rmdir()
+            (ssh / 'authorized_keys').write_bytes(b'#' * (installer.MAX_AUTHORIZED_KEYS + 1))
+            with self.assertRaisesRegex(installer.ops.Refused, 'unsafe-authorized-keys'):
+                installer.read_authorized_keys(ssh, uid)
+            linked = Path(folder) / 'linked'
+            linked.symlink_to(ssh)
+            with self.assertRaisesRegex(installer.ops.Refused, 'unsafe-ssh-directory'):
+                installer.read_authorized_keys(linked, uid)
+            with self.assertRaisesRegex(installer.ops.Refused, 'authorized-keys-not-in-use'):
+                installer.read_authorized_keys(Path(folder) / 'missing', uid)
+
+    @unittest.skipUnless(os.geteuid() == 0, 'changing a file owner needs root')
+    def test_a_file_owned_by_another_account_is_refused(self):
+        with tempfile.TemporaryDirectory() as folder:
+            ssh = self.ssh_folder(folder)
+            os.chown(ssh / 'authorized_keys', 54321, -1)
+            with self.assertRaisesRegex(installer.ops.Refused, 'unsafe-authorized-keys'):
+                installer.read_authorized_keys(ssh, os.getuid())
+
+    def test_writes_are_atomic_private_and_synced(self):
+        with tempfile.TemporaryDirectory() as folder:
+            ssh = self.ssh_folder(folder)
+            synced = []
+            real_fsync = os.fsync
+            with patch.object(installer.os, 'fsync', lambda fd: (synced.append(os.path.realpath(f'/proc/self/fd/{fd}')), real_fsync(fd))):
+                installer.write_authorized_keys(ssh, b'new\n')
+            self.assertEqual((ssh / 'authorized_keys').read_bytes(), b'new\n')
+            self.assertEqual(oct((ssh / 'authorized_keys').stat().st_mode & 0o777), '0o600')
+            self.assertEqual(synced[-1], str(ssh), 'the folder is synced after the rename')
+            self.assertEqual(sorted(path.name for path in ssh.iterdir()), ['authorized_keys'])
+            with patch.object(installer.os, 'replace', side_effect=OSError('disk full')):
+                with self.assertRaises(OSError):
+                    installer.write_authorized_keys(ssh, b'lost\n')
+            self.assertEqual((ssh / 'authorized_keys').read_bytes(), b'new\n')
+            self.assertEqual(sorted(path.name for path in ssh.iterdir()), ['authorized_keys'], 'the temporary file is removed')
+
+    def status_key(self, folder, text, status=STATUS_KEY):
+        ssh = self.ssh_folder(folder, text)
+        prod = installer.ops.Production(installer.ops.Settings({'PRODUCTION_OPS_UID': str(os.getuid())}))
+        with patch.object(installer, 'ssh_folder', return_value=ssh):
+            return ssh, installer.StatusKey(prod, self.request(status))
+
+    def test_a_failed_check_after_writing_restores_the_previous_bytes(self):
+        before = f'# a\r\n{DEPLOY_KEY} d'
+        with tempfile.TemporaryDirectory() as folder:
+            ssh, key = self.status_key(folder, before)
+            real = installer.read_authorized_keys
+            reads = []
+
+            def reader(path, uid):
+                reads.append(1)
+                return real(path, uid).replace(b'# a', b'# b') if len(reads) == 2 else real(path, uid)
+            with patch.object(installer, 'read_authorized_keys', reader):
+                with self.assertRaisesRegex(installer.ops.Refused, 'authorized-keys-verify-failed'):
+                    key.apply()
+            self.assertEqual((ssh / 'authorized_keys').read_bytes(), before.encode())
+            self.assertIsNone(key.written)
+
+    def test_apply_and_restore_never_overwrite_someone_elses_change(self):
+        before = f'{DEPLOY_KEY} d\n'
+        with tempfile.TemporaryDirectory() as folder:
+            ssh, key = self.status_key(folder, before)
+            (ssh / 'authorized_keys').write_text(before + '# edited\n')
+            with self.assertRaisesRegex(installer.ops.Refused, 'authorized-keys-changed'):
+                key.apply()
+            self.assertEqual((ssh / 'authorized_keys').read_text(), before + '# edited\n')
+        with tempfile.TemporaryDirectory() as folder:
+            ssh, key = self.status_key(folder, before)
+            self.assertEqual(key.apply(), 'installed')
+            key.restore()
+            self.assertEqual((ssh / 'authorized_keys').read_text(), before, 'the rollback restores the previous bytes')
+            self.assertEqual(key.apply(), 'installed')
+            (ssh / 'authorized_keys').write_text(before + '# edited\n')
+            with self.assertRaisesRegex(installer.ops.Refused, 'authorized-keys-changed'):
+                key.restore()
+            self.assertEqual((ssh / 'authorized_keys').read_text(), before + '# edited\n')
+
+    def test_an_unchanged_file_is_not_rewritten(self):
+        before = f'{DEPLOY_KEY} d\n{STATUS_LINE}\n'
+        with tempfile.TemporaryDirectory() as folder:
+            ssh, key = self.status_key(folder, before)
+            inode = (ssh / 'authorized_keys').stat().st_ino
+            self.assertEqual(key.apply(), 'already-present')
+            self.assertEqual((ssh / 'authorized_keys').stat().st_ino, inode)
+            self.assertIsNone(key.written)
+
+    def test_the_installer_touches_only_authorized_keys(self):
+        text = (ROOT / 'scripts/production-ops-install.py').read_text()
+        self.assertNotIn('authorized_keys2', text)
+        self.assertNotIn('sshd_config', text)
+        self.assertEqual(re.findall(r'folder / \(?"([^"]+)"', text), ['authorized_keys', '.authorized_keys.ba-', 'authorized_keys'])
+        self.assertEqual(re.findall(r'"\.ssh"', text), ['".ssh"'])
 
 
 class DocumentationTests(unittest.TestCase):
