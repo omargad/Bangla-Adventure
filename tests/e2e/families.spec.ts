@@ -58,6 +58,8 @@ test("an administrator imports a family CSV and gets a printable sign-in sheet p
   const mayaUsername = await mayaRow.locator("code").first().innerText();
   const mayaPassword = await mayaRow.locator("code").nth(1).innerText();
   await expect(panel.getByRole("region", { name: `Family of Karim ${suffix}` })).toContainText(`Nadia ${suffix}`);
+  // No public address is configured for this server, so the sheet names the address this browser is on.
+  await expect(family).toContainText(`${new URL(page.url()).origin}/grown-ups`);
 
   // Printed, only the sheet shows and every family gets a titled page of its own, so a page handed out shows one family only.
   await page.emulateMedia({ media: "print" });

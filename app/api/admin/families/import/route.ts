@@ -1,6 +1,7 @@
 import { getStaffAccess } from "@/lib/auth";
 import { importFamilies } from "@/lib/families";
 import { checkRateLimit, tooManyRequests } from "@/lib/rate-limit";
+import { publicOrigin } from "@/lib/request-security";
 import { fileTooLargeIssue, importTooLarge, MAX_IMPORT_BYTES } from "@/lib/student-import";
 import { UserManagementError } from "@/lib/user-management";
 export const dynamic = "force-dynamic";
@@ -26,7 +27,9 @@ export async function POST(request: Request) {
     const result = await importFamilies(actor.id, body.csv, body.classId || null, { createSameNames: body.createSameNames === true });
     if ("errors" in result) return Response.json({ error: "Nothing was created. Fix the rows listed and upload the file again.", errorBn: "কিছুই তৈরি হয়নি। তালিকার সারিগুলো ঠিক করে ফাইলটি আবার আপলোড করুন।", errors: result.errors, sameNames: result.sameNames }, { status: 400 });
     // The only copy of each temporary password: never cache it.
-    return Response.json(result, { status: 201, headers: { "Cache-Control": "no-store" } });
+    // The printed sheet names the site's public address (PUBLIC_ORIGIN) when one is configured, not
+    // whichever internal or temporary address the administrator happens to be using.
+    return Response.json({ ...result, signInOrigin: publicOrigin(process.env.PUBLIC_ORIGIN) ?? null }, { status: 201, headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     return Response.json({ error: error instanceof UserManagementError ? error.message : "The families could not be imported.", errorBn: error instanceof UserManagementError ? error.messageBn : "পরিবারগুলো যোগ করা যায়নি।" }, { status: error instanceof UserManagementError ? error.status : 503 });
   }

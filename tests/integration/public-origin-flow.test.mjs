@@ -6,6 +6,7 @@ import http from "node:http";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test, { after, before } from "node:test";
+import Database from "better-sqlite3";
 
 /**
  * A production server with PUBLIC_ORIGIN written the way a host's settings page may leave it (spaces, capitals,
@@ -69,4 +70,21 @@ test("redirects are root-relative, not built from PUBLIC_ORIGIN or the internal 
     assert.equal(response.status, 307, route);
     assert.equal(response.headers.location, expected, route);
   }
+});
+
+test("the family import names the public address for the printed sign-in sheet, not the address the administrator used", async () => {
+  const email = "sheet-admin@example.com", password = "Public-origin-admin-2026";
+  const fromPublic = { ...behindProxy, origin: "https://learn.example.org", "sec-fetch-site": "same-origin" };
+  assert.equal((await proxied("/api/auth/sign-up", fromPublic, { email, displayName: "Sheet Admin", password })).status, 201);
+  const db = new Database(path.join(stateDir, "test.db"));
+  try { db.prepare("UPDATE adults SET role = 'admin', approval_status = 'approved' WHERE email = ?").run(email); } finally { db.close(); }
+  const signedIn = await proxied("/api/auth/sign-in", fromPublic, { email, password });
+  assert.equal(signedIn.status, 200, signedIn.text);
+  const cookie = [signedIn.headers["set-cookie"]].flat().find((value) => value.startsWith("ba_adult_session=")).split(";")[0];
+  const csv = "student name,parent name,parent email\nSheet Child,Sheet Parent,sheet-parent@example.com\n";
+  const imported = await proxied("/api/admin/families/import", { ...fromPublic, cookie }, { csv, classId: null });
+  assert.equal(imported.status, 201, imported.text);
+  const body = JSON.parse(imported.text);
+  assert.equal(body.signInOrigin, "https://learn.example.org");
+  assert.equal(body.families.length, 1);
 });
