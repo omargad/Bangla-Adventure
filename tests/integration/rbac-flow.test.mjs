@@ -108,7 +108,11 @@ test("student suspension revokes access without granting adult permissions", asy
   assert.equal((await send("/api/classes", "GET", undefined, studentCookie)).status, 401);
   assert.equal((await send(`/api/admin/users/${studentId}`, "PATCH", { kind: "student", status: "suspended" }, adminCookie)).status, 200);
   assert.equal((await send("/api/student/feed", "GET", undefined, studentCookie)).status, 401);
-  assert.equal((await send("/api/student/sign-in", "POST", { username: "test-learner", password })).status, 401);
+  // No session; with the right password the student is told the account is suspended, with a wrong one nothing.
+  const suspended = await send("/api/student/sign-in", "POST", { username: "test-learner", password });
+  assert.equal(suspended.status, 403);
+  assert.equal((await suspended.json()).accountStatus, "suspended");
+  assert.equal((await send("/api/student/sign-in", "POST", { username: "test-learner", password: "not-the-password" })).status, 401);
 });
 
 test("cross-origin requests and form-encoded mutations are rejected", async () => {

@@ -145,7 +145,7 @@ test("an administrator-created teacher must choose a password, gets fresh recove
     const row = db.prepare("SELECT id, must_change_password FROM adults WHERE email = ?").get("made-teacher@example.com");
     assert.equal(row.must_change_password, 0);
     const audit = db.prepare("SELECT details_json FROM user_audit_events WHERE target_id = ? AND action = 'password-changed'").get(row.id);
-    assert.deepEqual(JSON.parse(audit.details_json), { temporary: true });
+    assert.deepEqual(JSON.parse(audit.details_json), { temporary: true, targetLabel: { en: "Made Teacher", bn: "Made Teacher" } });
   });
 });
 

@@ -145,7 +145,7 @@ test("approval lets each account sign in, and approving a teacher request makes 
   assert.equal((await send("/api/classes", "POST", { name: "Approved teacher class" }, teacherCookie)).status, 201);
 
   assert.deepEqual(actions(ids.student), ["account-approved", "class-allocated"]);
-  assert.deepEqual(actions(ids.parent), ["account-approved"]);
+  assert.deepEqual(actions(ids.parent), ["account-approved", "password-recovered"], "the parent then reset the password with a recovery code");
   assert.deepEqual(actions(ids.teacher), ["approve"]);
   const details = fixture((db) => JSON.parse(db.prepare("SELECT details_json FROM user_audit_events WHERE target_id = ? AND action = 'approve'").get(ids.teacher).details_json));
   assert.equal(details.approvalStatus, "approved");
