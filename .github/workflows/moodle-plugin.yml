@@ -111,9 +111,13 @@ jobs:
           sudo bash infra/moodle/install-pilot-plugin.sh \
             --install dist/local_banglapilot.zip \
             --sha256-file dist/local_banglapilot.zip.sha256
+          # The runner, not www-data, writes the report.
+          # shellcheck disable=SC2024
           sudo -u www-data php \
             "$MOODLE_ROOT/public/local/banglapilot/cli/seed.php" \
             --check --json > /tmp/banglapilot-report.json
+          # PHP code: its $ names are PHP variables.
+          # shellcheck disable=SC2016
           php -r '
             $report = json_decode(file_get_contents($argv[1]), true, 512, JSON_THROW_ON_ERROR);
             $expected = [

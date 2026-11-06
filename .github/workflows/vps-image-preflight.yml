@@ -129,7 +129,7 @@ jobs:
           while IFS= read -r line || [ -n "$line" ]; do
             [[ "$line" =~ ^[[:space:]]*(#|$) ]] && continue
             [[ "$line" =~ ^[[:space:]]*@ ]] && fail 'known_hosts markers are not permitted; supply the pinned server public key directly.'
-            IFS=$' \t' read -r hostnames key_type key_data comment <<< "$line"
+            IFS=$' \t' read -r hostnames key_type key_data _ <<< "$line"
             [ -n "$hostnames" ] || fail 'DEPLOY_KNOWN_HOSTS is not in known_hosts format.'
             case "$key_type" in
               ssh-ed25519|ssh-rsa|ecdsa-sha2-nistp256|ecdsa-sha2-nistp384|ecdsa-sha2-nistp521) ;;
