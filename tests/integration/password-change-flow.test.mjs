@@ -68,8 +68,14 @@ async function expectHeldAtForm(cookie) {
     assert.equal(location.pathname, "/account/password", page);
     assert.equal(location.searchParams.get("returnTo"), page, page);
   }
+  // The student sign-in page is public, so the page itself sends the adult on; it never returns to a sign-in page.
+  const studentPage = await send("/student", "GET", undefined, cookie);
+  assert.equal(studentPage.status, 307, "/student");
+  const studentLocation = new URL(studentPage.headers.get("location"), BASE);
+  assert.equal(studentLocation.pathname, "/account/password", "/student");
+  assert.equal(studentLocation.searchParams.get("returnTo"), "/", "/student");
   assert.equal((await send("/account/password", "GET", undefined, cookie)).status, 200);
-  const session = await (await send("/api/auth/session", "GET", undefined, cookie)).json();
+  const session =await (await send("/api/auth/session", "GET", undefined, cookie)).json();
   assert.equal(session.authenticated, true);
   assert.equal(session.home, "/account/password");
 }

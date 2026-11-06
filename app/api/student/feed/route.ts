@@ -8,11 +8,11 @@ import {
   classes,
   studentClassEnrollments,
 } from "@/db/schema";
-import type { QuizQuestion } from "@/lib/classroom";
 import { listAnnouncements } from "@/lib/class-announcements";
 import { attendanceKey, studentAttendance } from "@/lib/class-attendance";
 import { sourcesOf } from "@/lib/class-sources";
 import { getStudentAccess } from "@/lib/student-auth";
+import { parseQuestions, rosterInEnrolledClass } from "@/lib/student-work";
 
 export const dynamic = "force-dynamic";
 
@@ -34,7 +34,8 @@ export async function GET() {
       .from(studentClassEnrollments)
       .innerJoin(classes, eq(studentClassEnrollments.classId, classes.id))
       .innerJoin(adults, eq(classes.teacherId, adults.id))
-      .innerJoin(classStudents, eq(studentClassEnrollments.classStudentId, classStudents.id))
+      // The roster row must belong to the allocated class: results are kept against it.
+      .innerJoin(classStudents, rosterInEnrolledClass)
       .where(and(eq(studentClassEnrollments.studentId, student.id), eq(studentClassEnrollments.active, true)))
       .orderBy(desc(studentClassEnrollments.createdAt));
 
@@ -95,15 +96,6 @@ export async function GET() {
     });
   } catch (error) {
     return databaseError(error);
-  }
-}
-
-function parseQuestions(json: string): QuizQuestion[] {
-  try {
-    const parsed = JSON.parse(json);
-    return Array.isArray(parsed) ? (parsed as QuizQuestion[]) : [];
-  } catch {
-    return [];
   }
 }
 

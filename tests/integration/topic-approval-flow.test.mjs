@@ -168,7 +168,14 @@ test("a teacher's new topic stays hidden from learners until an administrator pr
   // Finishing the quiz counts as reading, keeps the best score on the server and reaches the class teacher.
   assert.equal((await send("/api/student/topic-progress", "POST", { topicId: newTopicId, answers: [5] }, studentCookie)).status, 400);
   const finished = await (await send("/api/student/topic-progress", "POST", { topicId: newTopicId, answers: [0] }, studentCookie)).json();
-  assert.deepEqual(finished.quiz, { score: 1, total: 1, best: 1 });
+  assert.deepEqual(finished.quiz, { score: 1, total: 1, best: 1, correct: [true] });
+  // No reader, staff included, receives quiz answers; a grown-up's quiz is marked on the server without saving anything.
+  for (const cookie of [studentCookie, parentCookie, adminCookie]) assert.equal(JSON.stringify(await curriculum(cookie)).includes('"answer"'), false);
+  const marked = await send("/api/curriculum/quiz", "POST", { topicId: newTopicId, answers: [1] }, parentCookie);
+  assert.equal(marked.status, 200);
+  assert.deepEqual((await marked.json()).quiz, { score: 0, total: 1, correct: [false] });
+  assert.equal((await send("/api/curriculum/quiz", "POST", { topicId: newTopicId, answers: [0] }, studentCookie)).status, 401, "students check their quiz through topic progress");
+  assert.equal((await send("/api/curriculum/quiz", "POST", { topicId: newTopicId, answers: [] }, parentCookie)).status, 400);
   const progress = await curriculum(studentCookie);
   assert.deepEqual(progress.readTopicIds, [newTopicId]);
   assert.deepEqual(progress.quizScores, { [newTopicId]: { best: 1, total: 1 } });

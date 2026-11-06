@@ -208,13 +208,18 @@ test("submitting grades server-side and the teacher sees it", async () => {
   assert.equal(result.review[0].correct, true);
   assert.equal(result.review[1].correct, false);
 
-  // Resubmission replaces the previous attempt.
+  // The submission is final: the answers it showed cannot be used to raise the saved score.
   const again = await fetch(`${BASE}/api/student/submit`, {
     method: "POST",
     headers: { "Content-Type": "application/json", cookie: studentToken },
     body: JSON.stringify({ activityId, answers: [0, 0] }),
   });
-  assert.equal((await again.json()).score, 2);
+  assert.equal(again.status, 409);
+  const refused = await again.json();
+  assert.equal(refused.alreadySubmitted, true);
+  assert.equal(refused.submission.score, 1);
+  assert.equal(refused.review, undefined);
+  assert.ok(refused.errorBn);
 
   const detail = await fetch(`${BASE}/api/classes/${classId}`, { headers: { cookie: teacherCookie } });
   assert.equal(detail.status, 200);
@@ -223,7 +228,7 @@ test("submitting grades server-side and the teacher sees it", async () => {
   const [activity] = data.activities;
   assert.equal(activity.submissions.length, 1);
   assert.equal(activity.submissions[0].studentName, "Maya");
-  assert.equal(activity.submissions[0].score, 2);
+  assert.equal(activity.submissions[0].score, 1, "the first submission is kept");
 });
 
 test("closed activities refuse new submissions", async () => {

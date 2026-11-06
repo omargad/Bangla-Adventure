@@ -11,6 +11,7 @@ import { libraryBooks } from "../library-content";
 import LessonExperience from "../components/LessonExperience";
 import FourSkillDiagnostic from "../components/FourSkillDiagnostic";
 import VoiceNote from "../components/VoiceNote";
+import type { HomeLink } from "../../lib/home-link";
 import { bundledClip, lessonClip, playbackPlan, playingStatus, voiceStatusText, type Clip, type RecordingMap, type VoiceStatus } from "../../lib/voice-playback";
 import { deviceVoices, runPlayback, stopPlayback } from "../../lib/voice-player";
 import { useLessonRecordings } from "../../lib/use-voice-player";
@@ -451,13 +452,15 @@ type AmbienceNodes = {
  * teacher took down, the approved human recordings (asked for again whenever a
  * lesson opens), and the lesson a ?module= link asks for when it may open.
  */
-export default function AdventureApp({ approvedLessonIds, snapshots, videos, recordings: initialRecordings, initialModuleId, moduleUnavailable }: {
+export default function AdventureApp({ approvedLessonIds, snapshots, videos, recordings: initialRecordings, initialModuleId, moduleUnavailable, viewer = null }: {
   approvedLessonIds: string[];
   snapshots: Record<string, LessonSnapshot>;
   videos: Record<string, LearnerVideo | null>;
   recordings: RecordingMap;
   initialModuleId: string | null;
   moduleUnavailable: boolean;
+  /** Who is signed in: a student, or a grown-up with their own home. The page is never shown signed out. */
+  viewer?: { kind: "student" | "adult"; name: string; home: HomeLink } | null;
 }) {
   const lessons = useMemo(() => visibleLessons(Object.values(snapshots).map(({ lesson }) => lesson), approvedLessonIds), [snapshots, approvedLessonIds]);
   const videoFor = (lesson: Lesson): LearnerVideo | null => videos[lesson.id] ?? null;
@@ -1089,7 +1092,9 @@ export default function AdventureApp({ approvedLessonIds, snapshots, videos, rec
   }
 
   return (
-    <>
+    // One element around the page: on arrival from another page Next.js scrolls the page's first element into view,
+    // and with a fragment (skip link to footer) the smooth scroll ended at the footer.
+    <div className="adventure-root">
       <a className="skip-link" href="#adventure">
         {t.skip}
       </a>
@@ -1154,18 +1159,33 @@ export default function AdventureApp({ approvedLessonIds, snapshots, videos, rec
               বাংলা
             </button>
           </div>
-          <Link className="student-login-link" href="/student" aria-label={language === "en" ? "Student login" : "শিক্ষার্থী লগইন"}>
-            <span aria-hidden="true">★</span>
-            <span>{t.studentLogin}</span>
-          </Link>
+          {/* Signed in, the header leads home (My Learning, or a grown-up's own workspace) instead of to the sign-in pages. */}
+          {viewer?.kind === "student" ? (
+            <Link className="student-login-link" href={viewer.home.href} title={viewer.name}>
+              <span aria-hidden="true">★</span>
+              <span>{language === "en" ? viewer.home.label[0] : viewer.home.label[1]}</span>
+            </Link>
+          ) : !viewer && (
+            <Link className="student-login-link" href="/student" aria-label={language === "en" ? "Student login" : "শিক্ষার্থী লগইন"}>
+              <span aria-hidden="true">★</span>
+              <span>{t.studentLogin}</span>
+            </Link>
+          )}
           <button className="grownups-button" type="button" onClick={() => setModal({ type: "grownups" })}>
             {t.grownups}
           </button>
-          <Link className="teacher-login-link" href="/teach" aria-label={language === "en" ? "Teacher sign in" : "শিক্ষকের সাইন ইন"}>{language === "en" ? "Teachers" : "শিক্ষক"}</Link>
-          <Link className="grownups-login-link" href="/grown-ups" aria-label={language === "en" ? "Grown-up sign in" : "বড়দের সাইন ইন"}>
-            <span className="grownups-login-mark" aria-hidden="true">বা</span>
-            <span className="grownups-login-text">{t.grownupsSignIn}</span>
-          </Link>
+          {viewer?.kind === "adult" ? (
+            <Link className="grownups-login-link" href={viewer.home.href} title={viewer.name}>
+              <span className="grownups-login-mark" aria-hidden="true">বা</span>
+              <span className="grownups-login-text">{language === "en" ? viewer.home.label[0] : viewer.home.label[1]}</span>
+            </Link>
+          ) : !viewer && <>
+            <Link className="teacher-login-link" href="/teach" aria-label={language === "en" ? "Teacher sign in" : "শিক্ষকের সাইন ইন"}>{language === "en" ? "Teachers" : "শিক্ষক"}</Link>
+            <Link className="grownups-login-link" href="/grown-ups" aria-label={language === "en" ? "Grown-up sign in" : "বড়দের সাইন ইন"}>
+              <span className="grownups-login-mark" aria-hidden="true">বা</span>
+              <span className="grownups-login-text">{t.grownupsSignIn}</span>
+            </Link>
+          </>}
         </div>
       </header>
 
@@ -1222,7 +1242,9 @@ export default function AdventureApp({ approvedLessonIds, snapshots, videos, rec
           <nav className="adventure-paths" aria-label={language === "en" ? "Choose your adventure" : "তোমার অভিযান বেছে নাও"}>
             <Link href="/stories" className="adventure-path path-story"><span className="path-illustration" aria-hidden="true"><svg viewBox="0 0 64 64" fill="none"><path d="M32 17C24 10 14 10 6 13v36c9-4 17-3 26 4 9-7 17-8 26-4V13c-8-3-18-3-26 4Z" fill="#fff8e9" stroke="currentColor" strokeWidth="3"/><path d="M32 17v36M14 23l10 2m-10 7 10 2m16-9 10-2m-10 11 10-2" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/></svg></span><span><small>{language === "en" ? "Once upon a river" : "এক নদীর গল্প"}</small><strong>{language === "en" ? "Read a story" : "গল্প পড়ি"}</strong><p>{language === "en" ? "Meet new friends, one page at a time." : "পাতায় পাতায় নতুন বন্ধুর সঙ্গে দেখা হোক।"}</p></span><span className="path-arrow" aria-hidden="true">→</span></Link>
             <Link href="/topics" className="adventure-path path-explore"><span className="path-illustration" aria-hidden="true"><svg viewBox="0 0 64 64" fill="none"><circle cx="32" cy="32" r="25" fill="#fff8e9" stroke="currentColor" strokeWidth="3"/><path d="m42 19-6 17-16 9 7-18 15-8Z" fill="#f6b93b" stroke="currentColor" strokeWidth="3"/><circle cx="32" cy="32" r="3" fill="currentColor"/></svg></span><span><small>{language === "en" ? "A world to discover" : "আবিষ্কারের এক জগৎ"}</small><strong>{language === "en" ? "Explore Bangladesh" : "বাংলাদেশকে জানি"}</strong><p>{language === "en" ? "Read classroom topics about Bangladesh with your teacher." : "শিক্ষকের সঙ্গে বাংলাদেশ নিয়ে শ্রেণিকক্ষের বিষয়গুলো পড়ো।"}</p></span><span className="path-arrow" aria-hidden="true">→</span></Link>
-            <Link href="/student" className="adventure-path path-class"><span className="path-illustration" aria-hidden="true"><svg viewBox="0 0 64 64" fill="none"><rect x="10" y="19" width="44" height="36" rx="10" fill="#fff8e9" stroke="currentColor" strokeWidth="3"/><path d="M23 19v-7a9 9 0 0 1 18 0v7" stroke="currentColor" strokeWidth="3"/><rect x="20" y="34" width="24" height="13" rx="4" fill="#bde7f5" stroke="currentColor" strokeWidth="3"/></svg></span><span><small>{language === "en" ? "Your learning crew" : "তোমার শেখার দল"}</small><strong>{language === "en" ? "My classroom" : "আমার শ্রেণিকক্ষ"}</strong><p>{language === "en" ? "Sign in, join your class and try a quiz." : "সাইন ইন করে ক্লাসে যোগ দাও আর কুইজ করো।"}</p></span><span className="path-arrow" aria-hidden="true">→</span></Link>
+            <Link href={viewer?.kind === "student" ? "/student?section=activities" : "/student"} className="adventure-path path-class"><span className="path-illustration" aria-hidden="true"><svg viewBox="0 0 64 64" fill="none"><rect x="10" y="19" width="44" height="36" rx="10" fill="#fff8e9" stroke="currentColor" strokeWidth="3"/><path d="M23 19v-7a9 9 0 0 1 18 0v7" stroke="currentColor" strokeWidth="3"/><rect x="20" y="34" width="24" height="13" rx="4" fill="#bde7f5" stroke="currentColor" strokeWidth="3"/></svg></span><span><small>{language === "en" ? "Your learning crew" : "তোমার শেখার দল"}</small><strong>{language === "en" ? "My classroom" : "আমার শ্রেণিকক্ষ"}</strong><p>{viewer?.kind === "student"
+              ? (language === "en" ? "Do your class activities and see your results." : "ক্লাসের কার্যক্রম করো আর ফলাফল দেখো।")
+              : (language === "en" ? "Students sign in to do the activities their teacher sets." : "শিক্ষার্থীরা সাইন ইন করে শিক্ষকের দেওয়া কার্যক্রম করে।")}</p></span><span className="path-arrow" aria-hidden="true">→</span></Link>
           </nav>
           <p className="adventure-grownup-note">{language === "en" ? "Exploring together?" : "একসঙ্গে ঘুরে দেখছ?"} <Link href="/grown-ups">{language === "en" ? "Parents, start here" : "অভিভাবকেরা এখানে শুরু করুন"}</Link><span aria-hidden="true"> · </span><Link href="/teach">{language === "en" ? "Teacher workspace" : "শিক্ষকের কর্মক্ষেত্র"}</Link></p>
         </section>
@@ -1935,6 +1957,6 @@ export default function AdventureApp({ approvedLessonIds, snapshots, videos, rec
           </section>
         </div>
       )}
-    </>
+    </div>
   );
 }

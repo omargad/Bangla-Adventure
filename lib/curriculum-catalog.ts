@@ -5,9 +5,10 @@ import { adults, contentApprovals, shippedContentState, studentTopicProgress, to
 import { topics as shippedTopics, type Bilingual, type Topic, type TopicQuizQuestion } from "../app/topics-content";
 import { topicSourceLinks, type SourceOverride } from "./library-links";
 import { currentMembers } from "./class-roster";
+import { markTopicQuiz } from "./learner-topic";
 import { canPublishContent, canTeach } from "./roles";
 import {
-  canRestartFromApproved, checkReview, checkTopicDecision, describeTopicChanges, gradeTopicQuiz, newTopicId, readConfirmationMissing, statusesAfterApproval,
+  canRestartFromApproved, checkReview, checkTopicDecision, describeTopicChanges, newTopicId, readConfirmationMissing, statusesAfterApproval,
   topicChanged, TopicError, TOPIC_LIMITS, validateTopicDraft, type TopicContent, type TopicVersionStatus,
 } from "./topic-model";
 
@@ -377,7 +378,7 @@ function currentScore(row: typeof studentTopicProgress.$inferSelect, key: string
 export async function recordTopicProgress(studentId: string, topicId: unknown, answers?: unknown) {
   const topic = await findApprovedTopic(topicId);
   if (!topic) throw new TopicError("Choose a valid learning topic.", "একটি সঠিক শেখার বিষয় বেছে নাও।");
-  const result = answers === undefined ? null : gradeTopicQuiz(topic.quiz, answers);
+  const result = answers === undefined ? null : markTopicQuiz(topic.quiz, answers);
   if (answers !== undefined && !result) throw new TopicError("Answer every quiz question first.", "আগে সব প্রশ্নের উত্তর দাও।");
   const db = await getDb();
   return db.transaction((tx) => {
@@ -391,7 +392,8 @@ export async function recordTopicProgress(studentId: string, topicId: unknown, a
     const previous = existing ? currentScore(existing, key)?.best ?? null : null;
     const best = Math.max(previous ?? -1, result.score);
     if (best !== previous) tx.update(studentTopicProgress).set({ quizBestScore: best, quizTotal: result.total, quizKey: key, quizCompletedAt: now }).where(where).run();
-    return { read: true, topicId: topic.id, quiz: { score: result.score, total: result.total, best } };
+    // Whether each pick was right, not which option is: the reader can try again from the topic.
+    return { read: true, topicId: topic.id, quiz: { score: result.score, total: result.total, best, correct: result.correct } };
   });
 }
 

@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
-import type { Topic } from "../topics-content";
+import type { LearnerTopic, ReaderQuizQuestion, TopicQuizMarks } from "@/lib/learner-topic";
 import { formatNumber, type Language } from "@/lib/topic-model";
 import { topicSourceLinks, type TopicReference } from "@/lib/library-links";
 import SourceLinks from "../references/SourceLinks";
@@ -17,15 +17,18 @@ import { presentQuizOptions } from "@/lib/quiz-option-order";
  * Source links come with the topic (references, including the administrator's yearly
  * links) from /api/curriculum or, for the staff preview, the topic version API; a
  * topic without them falls back to the official NCTB pages.
+ * Readers get topics without quiz answers, so checkQuiz marks the quiz on the server;
+ * only a staff preview, whose version still has its answers, marks it here.
  */
-export default function TopicReader({ topic, language, titleLevel = 1, best, onQuizChecked, beforeQuiz, quizNote, onPickAnother, narrationEnabled = true }: {
-  topic: Topic & { references?: TopicReference[] };
+export default function TopicReader({ topic, language, titleLevel = 1, best, checkQuiz, beforeQuiz, quizNote, onPickAnother, narrationEnabled = true }: {
+  topic: LearnerTopic & { references?: TopicReference[] };
   language: Language;
   /** 2 when several readers share a page (the side-by-side preview). */
   titleLevel?: 1 | 2;
   /** The reader's best saved score, when known. */
   best?: { best: number; total: number };
-  onQuizChecked?: (answers: number[], score: number) => void;
+  /** Marks the answers on the server; null when that failed (the caller shows why). */
+  checkQuiz?: (answers: number[]) => Promise<TopicQuizMarks | null>;
   /** Shown between the sources and the quiz (the "Mark reading complete" button). */
   beforeQuiz?: ReactNode;
   /** Replaces the default note under the quiz result. */
@@ -37,15 +40,24 @@ export default function TopicReader({ topic, language, titleLevel = 1, best, onQ
   const s = (en: string, bn: string) => (language === "bn" ? bn : en);
   const n = (value: number) => formatNumber(value, language);
   const [answers, setAnswers] = useState<Record<number, number>>({});
-  const [checked, setChecked] = useState(false);
+  const [marks, setMarks] = useState<TopicQuizMarks | null>(null);
+  const [checking, setChecking] = useState(false);
+  const checked = marks !== null;
   // A deterministic initial order keeps server/client rendering identical. A retry
   // rotates the presentation without changing the canonical answer indexes sent
   // to the server. Language changes never change the current attempt's order.
   const [attempt, setAttempt] = useState(0);
   const Title = titleLevel === 1 ? "h1" : "h2";
-  const score = topic.quiz.reduce((total, question, index) => total + (answers[index] === question.answer ? 1 : 0), 0);
   const allAnswered = topic.quiz.every((_, index) => answers[index] !== undefined);
   const references = topic.references ?? topicSourceLinks(topic.sources ?? []);
+
+  async function check() {
+    const picked = topic.quiz.map((_, index) => answers[index]);
+    if (!checkQuiz) { setMarks(markHere(topic.quiz, picked)); return; }
+    setChecking(true);
+    try { const result = await checkQuiz(picked); if (result) setMarks(result); }
+    finally { setChecking(false); }
+  }
 
   return (
     <>
@@ -104,15 +116,16 @@ export default function TopicReader({ topic, language, titleLevel = 1, best, onQ
               <div className="topic-options">
                 {presentQuizOptions(question.options, `topic:${topic.id}`, questionIndex + attempt).map(({ text: option, originalIndex: optionIndex }) => {
                   const selected = answers[questionIndex] === optionIndex;
-                  const isRight = checked && optionIndex === question.answer;
-                  const isWrong = checked && selected && optionIndex !== question.answer;
+                  // A preview knows the answer and shows it; a reader learns only whether the pick was right.
+                  const isRight = checked && (question.answer !== undefined ? optionIndex === question.answer : selected && Boolean(marks?.correct[questionIndex]));
+                  const isWrong = checked && selected && !marks?.correct[questionIndex];
                   return (
                     <button
                       type="button"
                       key={optionIndex}
                       aria-pressed={selected}
                       className={`topic-option ${selected ? "is-selected" : ""} ${isRight ? "is-right" : ""} ${isWrong ? "is-wrong" : ""}`}
-                      disabled={checked}
+                      disabled={checked || checking}
                       onClick={() => setAnswers((current) => ({ ...current, [questionIndex]: optionIndex }))}
                     >
                       {option[language]}
@@ -120,18 +133,19 @@ export default function TopicReader({ topic, language, titleLevel = 1, best, onQ
                   );
                 })}
               </div>
+              {marks && <p className="topic-question-mark">{marks.correct[questionIndex] ? `✓ ${s("Right", "ঠিক হয়েছে")}` : `✗ ${s("Not this one", "এটি নয়")}`}</p>}
             </fieldset>
           ))}
 
-          {checked ? (
+          {marks ? (
             <div className="topic-result" role="status">
-              <strong>{s(`You got ${score} out of ${topic.quiz.length}!`, `তুমি ${n(topic.quiz.length)}টির মধ্যে ${n(score)}টি পেরেছ!`)}</strong>
+              <strong>{s(`You got ${marks.score} out of ${marks.total}!`, `তুমি ${n(marks.total)}টির মধ্যে ${n(marks.score)}টি পেরেছ!`)}</strong>
               <p>{quizNote ?? s(
                 "Show this screen to your teacher or family — or read the topic again and try for a full score.",
                 "এই পর্দাটি শিক্ষক বা পরিবারকে দেখাও — অথবা আবার পড়ে পুরো নম্বরের চেষ্টা করো।",
               )}</p>
               <div className="topic-result-actions">
-                <button type="button" onClick={() => { setAnswers({}); setChecked(false); setAttempt((current) => current + 1); }}>{s("Try again", "আবার চেষ্টা")}</button>
+                <button type="button" onClick={() => { setAnswers({}); setMarks(null); setAttempt((current) => current + 1); }}>{s("Try again", "আবার চেষ্টা")}</button>
                 {onPickAnother && <button type="button" onClick={onPickAnother}>{s("Pick another topic", "অন্য বিষয় বেছে নাও")}</button>}
               </div>
             </div>
@@ -139,14 +153,20 @@ export default function TopicReader({ topic, language, titleLevel = 1, best, onQ
             <button
               type="button"
               className="primary-button topic-submit"
-              disabled={!allAnswered}
-              onClick={() => { setChecked(true); onQuizChecked?.(topic.quiz.map((_, index) => answers[index]), score); }}
+              disabled={!allAnswered || checking}
+              onClick={() => void check()}
             >
-              {allAnswered ? s("Check my answers", "উত্তর মিলিয়ে দেখো") : s("Answer every question first", "আগে সব প্রশ্নের উত্তর দাও")}
+              {checking ? s("Checking…", "মিলিয়ে দেখা হচ্ছে…") : allAnswered ? s("Check my answers", "উত্তর মিলিয়ে দেখো") : s("Answer every question first", "আগে সব প্রশ্নের উত্তর দাও")}
             </button>
           )}
         </section>
       )}
     </>
   );
+}
+
+/** A staff preview's own marking, from the answers its version carries. */
+function markHere(quiz: ReaderQuizQuestion[], picked: number[]): TopicQuizMarks {
+  const correct = quiz.map((question, index) => question.answer !== undefined && picked[index] === question.answer);
+  return { score: correct.filter(Boolean).length, total: quiz.length, correct };
 }

@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { getSessionStudent, redirectIfPasswordChangeRequired } from "@/lib/student-auth";
 import StudentPortal from "./StudentPortal";
 import { redirect } from "next/navigation";
-import { learningReturnPath } from "@/lib/learning-policy";
+import { learningReturnPath, passwordChangeDestination } from "@/lib/learning-policy";
+import { getSignedInAdult } from "@/lib/auth";
 import { cache } from "react";
 import { cookies } from "next/headers";
 import { chosenLanguage, LANGUAGE_COOKIE } from "@/lib/language-choice";
@@ -25,7 +26,9 @@ export async function generateMetadata({ searchParams }: StudentPageProps): Prom
 export default async function StudentPage({ searchParams }: StudentPageProps) {
   const { returnTo, mode, section } = await searchParams;
   const destination = returnTo && returnTo !== "/" ? learningReturnPath(returnTo) : "/student";
-  const student = await sessionStudent();
+  const [student, adult] = await Promise.all([sessionStudent(), getSignedInAdult()]);
+  // An adult still on an administrator-issued password goes to the change form first, as on every other page.
+  if (adult?.mustChangePassword) redirect(passwordChangeDestination(destination));
   redirectIfPasswordChangeRequired(student);
   if (student && destination !== "/student") redirect(destination);
   return <StudentPortal initialStudent={student} destination={destination} initialMode={mode === "sign-up" ? "sign-up" : "sign-in"} initialSection={section} />;

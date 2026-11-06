@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { localDateTime, localNumber, MessageError, serverMessage, useLanguage, type Message } from "@/lib/use-language";
 import type { Student } from "@/lib/student-auth";
-import type { Topic } from "../topics-content";
+import type { LearnerTopic } from "@/lib/learner-topic";
 import { groupByCategory } from "@/lib/topic-model";
 import type { ClassSource } from "@/lib/class-sources";
 import { approvalNotice, type ApprovalStatus } from "@/lib/roles";
@@ -18,16 +18,23 @@ import { activityNarrationText, detectNarrationLanguage } from "@/lib/narration-
 type Activity = { id: string; title: string; instructions: string; topicId: string | null; status: string; questions: { prompt: string; options: string[] }[]; submission: { score: number; total: number; submittedAt: string } | null };
 type Attendance = { attended: number; recorded: number };
 type Feed = { metrics: { enrolledClasses: number; assignedActivities: number; completedActivities: number; averagePercent: number; attendedSessions: number; recordedSessions: number }; classes: { id: string; name: string; teacherName: string; attendance: Attendance; announcements: { id: string; body: string; authorName: string | null; createdAt: string }[]; activities: Activity[]; sources: ClassSource[] }[] };
-type Catalog = { topics: Topic[]; readTopicIds: string[]; quizScores?: Record<string, { best: number; total: number }> };
+type Catalog = { topics: LearnerTopic[]; readTopicIds: string[]; quizScores?: Record<string, { best: number; total: number }> };
 const PASSWORD_PATH = "/student/password";
 async function request<T>(url: string, data?: object): Promise<T> {
   const response = await fetch(url, data ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) } : { cache: "no-store" });
   const payload = await response.json();
   // Learning APIs refuse a temporary password until the student has chosen their own.
   if (response.status === 403 && payload.mustChangePassword) window.location.replace(PASSWORD_PATH);
-  if (!response.ok) throw new MessageError(serverMessage(payload, ["Please try again.", "আবার চেষ্টা করো।"]));
+  if (!response.ok) throw new RequestError(serverMessage(payload, ["Please try again.", "আবার চেষ্টা করো।"]), payload);
   return payload as T;
 }
+/** A refused request with what the server sent, for a refusal the page answers itself. */
+class RequestError extends MessageError {
+  constructor(text: Message, readonly payload: Record<string, unknown>) { super(text); }
+}
+type Review = { picked: number; answer: number; correct: boolean };
+/** A handed-in activity: just now (with each question's answer, since the submission is final) or earlier. */
+type Result = { score: number; total: number; submittedAt?: string; review?: Review[]; earlier?: boolean };
 export default function StudentPortal({ initialStudent, destination = "/student", initialMode = "sign-in", initialSection = "learning" }: {
   initialStudent: Student | null; destination?: string; initialMode?: "sign-in" | "sign-up"; initialSection?: string;
 }) {
@@ -54,7 +61,7 @@ export default function StudentPortal({ initialStudent, destination = "/student"
   const [section, setSection] = useState(["learning", "activities", "results"].includes(initialSection) ? initialSection : "learning");
   const [activity, setActivity] = useState<Activity | null>(null);
   const [answers, setAnswers] = useState<Record<number, number>>({});
-  const [result, setResult] = useState<{ score: number; total: number } | null>(null);
+  const [result, setResult] = useState<Result | null>(null);
   const title = studentPageTitle(Boolean(student), activity ? "activities" : section, mode)[language === "bn" ? 1 : 0];
   useEffect(() => {
     document.title = title;
@@ -111,9 +118,14 @@ export default function StudentPortal({ initialStudent, destination = "/student"
     if (!activity.questions.every((_, index) => answers[index] !== undefined)) { setError(s("Answer every question before submitting.", "জমা দেওয়ার আগে সব প্রশ্নের উত্তর দাও।")); return; }
     setBusy(true); setError("");
     try {
-      setResult(await request("/api/student/submit", { activityId: activity.id, answers: activity.questions.map((_, index) => answers[index]) }));
+      setResult(await request<Result>("/api/student/submit", { activityId: activity.id, answers: activity.questions.map((_, index) => answers[index]) }));
       await load();
-    } catch (error) { setError(error instanceof MessageError ? error.text : ["Your work was not saved. Please try again.", "তোমার কাজ সংরক্ষণ হয়নি। আবার চেষ্টা করো।"]); }
+    } catch (error) {
+      // Handed in already (another tab or device): the first answers stay, so show that result.
+      const earlier = error instanceof RequestError && error.payload.alreadySubmitted ? error.payload.submission as Result | undefined : undefined;
+      if (earlier) { setResult({ ...earlier, earlier: true }); void load(); return; }
+      setError(error instanceof MessageError ? error.text : ["Your work was not saved. Please try again.", "তোমার কাজ সংরক্ষণ হয়নি। আবার চেষ্টা করো।"]);
+    }
     finally { setBusy(false); }
   }
   if (!student) return <main className="adult-app auth-app" lang={language}>
@@ -138,6 +150,12 @@ export default function StudentPortal({ initialStudent, destination = "/student"
     { id: "results", label: s("My results", "আমার ফলাফল") },
   ].map((item) => ({ ...item, onClick: () => { setSection(item.id); setActivity(null); setError(""); scrollToTop("instant"); } }));
   const results = feed?.classes.flatMap((c) => c.activities.filter((a) => a.submission).map((a) => ({ ...a, className: c.name }))) ?? [];
+  // A closed card cannot be opened, so it says why, with the result when there is one.
+  const activityState = (a: Activity) => {
+    const score = a.submission && `${number(a.submission.score)}/${number(a.submission.total)}`;
+    if (a.status !== "open") return score ? s(`Closed · Your result: ${score}`, `বন্ধ · তোমার ফলাফল: ${score}`) : s("Closed", "বন্ধ");
+    return score ? s(`Submitted · Result: ${score}`, `জমা দেওয়া হয়েছে · ফলাফল: ${score}`) : s("Start activity", "কার্যক্রম শুরু");
+  };
   // Each post names the teacher or administrator who wrote it, or no one once that account is deleted.
   const announcements = (feed?.classes.flatMap((c) => (c.announcements ?? []).map((notice) => ({ ...notice, className: c.name }))) ?? [])
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
@@ -160,7 +178,16 @@ export default function StudentPortal({ initialStudent, destination = "/student"
       </section>}
       {activity ? <section className="teach-panel"><button className="text-button" onClick={() => setActivity(null)}>{s("Back to activities", "কার্যক্রমে ফিরি")}</button><h2>{activity.title}</h2><p>{activity.instructions}</p>{activity.topicId && <Link className="outline-button" href={`/topics?topic=${encodeURIComponent(activity.topicId)}`}>{s("Read the learning topic & references", "বিষয় ও তথ্যসূত্র পড়ো")}</Link>}
         <ContentNarration source={{ kind: "activity", id: activity.id, slot: "instructions", language: detectNarrationLanguage(instructionsNarration) }} text={instructionsNarration} language={language} label={s("Listen to instructions", "নির্দেশনা শুনি")} disabled={activity.status !== "open"} />
-        {result ? <div role="status"><h3>{s(`You got ${result.score} out of ${result.total}.`, `তুমি ${number(result.total)}টির মধ্যে ${number(result.score)}টি পেরেছ।`)}</h3><p>{s("Your teacher can now see your saved result.", "শিক্ষক এখন তোমার ফলাফল দেখতে পারবেন।")}</p></div> : <form onSubmit={submit}>
+        {result ? <div role="status"><h3>{s(`You got ${result.score} out of ${result.total}.`, `তুমি ${number(result.total)}টির মধ্যে ${number(result.score)}টি পেরেছ।`)}</h3>
+          <p>{result.earlier
+            ? s(`You handed this in${result.submittedAt ? ` on ${localDateTime(result.submittedAt, language)}` : ""}. Your first answers are kept, and your teacher can see your result.`, `তুমি এটি ${result.submittedAt ? `${localDateTime(result.submittedAt, language)}-এ ` : ""}জমা দিয়েছ। প্রথমবারের উত্তরই রাখা আছে, আর শিক্ষক তোমার ফলাফল দেখতে পারবেন।`)
+            : s("Your teacher can now see your saved result.", "শিক্ষক এখন তোমার ফলাফল দেখতে পারবেন।")}</p>
+          <p>{s("Each activity is handed in once. Ask your teacher if you need another try.", "প্রতিটি কার্যক্রম একবারই জমা দেওয়া যায়। আবার চেষ্টা করতে চাইলে শিক্ষককে বলো।")}</p>
+          {result.review && <ol className="activity-review" aria-label={s("Your answers", "তোমার উত্তর")}>{result.review.map((item, index) => { const question = activity.questions[index]; return question && <li key={index}>
+            <strong>{question.prompt}</strong>
+            <span>{item.correct ? s(`Right: ${question.options[item.answer]}`, `ঠিক: ${question.options[item.answer]}`) : s(`Your answer: ${question.options[item.picked] ?? "—"} · Correct answer: ${question.options[item.answer]}`, `তোমার উত্তর: ${question.options[item.picked] ?? "—"} · সঠিক উত্তর: ${question.options[item.answer]}`)}</span>
+          </li>; })}</ol>}
+        </div> : <form onSubmit={submit}>
           {activity.questions.map((q, index) => <fieldset className="portal-question" key={index}><legend>{index + 1}. {q.prompt}</legend><ContentNarration source={{ kind: "activity", id: activity.id, slot: `question:${index}`, language: detectNarrationLanguage(q.prompt) }} text={q.prompt} language={language} label={s("Listen to question", "প্রশ্ন শুনি")} disabled={activity.status !== "open"} />{presentQuizOptions(q.options, `${student.id}:${activity.id}`, index).map(({ text, originalIndex }) => <label key={originalIndex}><input type="radio" name={`question-${index}`} required checked={answers[index] === originalIndex} onChange={() => setAnswers({ ...answers, [index]: originalIndex })} />{text}</label>)}</fieldset>)}
           {error && <p className="auth-error" role="alert">{shownError}</p>}
           <button className="primary-button" disabled={busy}>{busy ? s("Saving…", "সংরক্ষণ হচ্ছে…") : s("Submit answers", "উত্তর জমা দাও")}</button>
@@ -169,7 +196,7 @@ export default function StudentPortal({ initialStudent, destination = "/student"
         {section === "learning" && <section aria-label={s("Learning topics", "শেখার বিষয়")}><h2>{s("Choose a topic", "একটি বিষয় বেছে নাও")}</h2><p>{s("Read, explore and mark your progress. Finishing a topic's quiz also counts as reading it.", "পড়ো, জানো ও অগ্রগতি রাখো। কোনো বিষয়ের কুইজ শেষ করলেও সেটি পড়া হিসেবে গোনা হয়।")}</p>
           {groupByCategory(catalog.topics).map(({ category, items }) => <section key={category.id} aria-label={category.title[language]}><h3 className="portal-category-heading"><span aria-hidden="true">{category.icon}</span> {category.title[language]}</h3><div className="portal-topic-grid">{items.map((topic) => { const best = catalog.quizScores?.[topic.id]; return <Link className="portal-topic-card" key={topic.id} href={`/topics?topic=${encodeURIComponent(topic.id)}`}><small>{s(`${topic.minutes} min`, `${number(topic.minutes)} মিনিট`)}{best ? ` · ${s("quiz best", "কুইজে সেরা")} ${number(best.best)}/${number(best.total)}` : ""}</small><h3>{topic.title[language]}</h3><p>{topic.tagline[language]}</p><strong>{catalog.readTopicIds.includes(topic.id) ? s("Read · revisit", "পড়া হয়েছে · আবার পড়ি") : s("Start reading", "পড়া শুরু করি")} →</strong></Link>; })}</div></section>)}
           <Link className="outline-button" href="/learn">{s("More language activities", "আরও ভাষার কার্যক্রম")}</Link></section>}
-        {section === "activities" && <section><h2>{s("My class activities", "আমার ক্লাসের কার্যক্রম")}</h2>{feed.classes.length === 0 && <div className="teach-panel"><h3>{s("Your teacher will add your class", "শিক্ষক তোমার ক্লাস যোগ করবেন")}</h3><p>{s("You can explore your learning topics while you wait.", "অপেক্ষার সময় শেখার বিষয়গুলো পড়তে পারো।")}</p></div>}{feed.classes.map((c) => <section className="teach-panel" key={c.id}><h3>{c.name}</h3><p>{s("Teacher", "শিক্ষক")}: {c.teacherName} · {c.attendance.recorded ? s(`You attended ${c.attendance.attended} of ${c.attendance.recorded} class${c.attendance.recorded === 1 ? "" : "es"}`, `${number(c.attendance.recorded)}টি ক্লাসের মধ্যে ${number(c.attendance.attended)}টিতে তুমি উপস্থিত ছিলে`) : s("No attendance taken yet", "এখনও উপস্থিতি নেওয়া হয়নি")}</p>{c.sources.length > 0 && <section className="class-sources-inline" aria-label={`${c.name}: ${s("Class sources", "ক্লাসের উৎস")}`}><h4>{s("Class sources", "ক্লাসের উৎস")}</h4><ClassSourceList sources={c.sources} language={language} /></section>}{!c.activities.length && <p>{s("Your teacher has not added activities yet.", "শিক্ষক এখনও কার্যক্রম যোগ করেননি।")}</p>}<div className="portal-topic-grid">{c.activities.map((a) => <button className="portal-topic-card" key={a.id} disabled={a.status !== "open"} onClick={() => { setActivity(a); setAnswers({}); setResult(null); setError(""); }}><h3>{a.title}</h3><p>{a.instructions}</p><strong>{a.submission ? `${s("Result", "ফলাফল")}: ${number(a.submission.score)}/${number(a.submission.total)}` : a.status === "open" ? s("Start activity", "কার্যক্রম শুরু") : s("Closed", "বন্ধ")}</strong></button>)}</div></section>)}</section>}
+        {section === "activities" && <section><h2>{s("My class activities", "আমার ক্লাসের কার্যক্রম")}</h2>{feed.classes.length === 0 && <div className="teach-panel"><h3>{s("Your teacher will add your class", "শিক্ষক তোমার ক্লাস যোগ করবেন")}</h3><p>{s("You can explore your learning topics while you wait.", "অপেক্ষার সময় শেখার বিষয়গুলো পড়তে পারো।")}</p></div>}{feed.classes.map((c) => <section className="teach-panel" key={c.id}><h3>{c.name}</h3><p>{s("Teacher", "শিক্ষক")}: {c.teacherName} · {c.attendance.recorded ? s(`You attended ${c.attendance.attended} of ${c.attendance.recorded} class${c.attendance.recorded === 1 ? "" : "es"}`, `${number(c.attendance.recorded)}টি ক্লাসের মধ্যে ${number(c.attendance.attended)}টিতে তুমি উপস্থিত ছিলে`) : s("No attendance taken yet", "এখনও উপস্থিতি নেওয়া হয়নি")}</p>{c.sources.length > 0 && <section className="class-sources-inline" aria-label={`${c.name}: ${s("Class sources", "ক্লাসের উৎস")}`}><h4>{s("Class sources", "ক্লাসের উৎস")}</h4><ClassSourceList sources={c.sources} language={language} /></section>}{!c.activities.length && <p>{s("Your teacher has not added activities yet.", "শিক্ষক এখনও কার্যক্রম যোগ করেননি।")}</p>}<div className="portal-topic-grid">{c.activities.map((a) => <button className="portal-topic-card" key={a.id} disabled={a.status !== "open"} onClick={() => { setActivity(a); setAnswers({}); setResult(a.submission ? { ...a.submission, earlier: true } : null); setError(""); }}><h3>{a.title}</h3><p>{a.instructions}</p><strong>{activityState(a)}</strong></button>)}</div></section>)}</section>}
         {section === "results" && <section className="teach-panel"><h2>{s("My results", "আমার ফলাফল")}</h2>{!results.length ? <p>{s("Complete a class activity to see your results here.", "এখানে ফলাফল দেখতে ক্লাসের কার্যক্রম সম্পন্ন করো।")}</p> : <div className="portal-table"><table><thead><tr><th>{s("Class", "ক্লাস")}</th><th>{s("Activity", "কার্যক্রম")}</th><th>{s("Result", "ফলাফল")}</th><th>{s("Submitted", "জমার সময়")}</th></tr></thead><tbody>{results.map((a) => <tr key={a.id}><td>{a.className}</td><td>{a.title}</td><td>{number(a.submission!.score)}/{number(a.submission!.total)}</td><td>{localDateTime(a.submission!.submittedAt, language)}</td></tr>)}</tbody></table></div>}</section>}
       </>}
     </main>
