@@ -214,11 +214,13 @@ test("finishing a topic quiz counts as reading and keeps the best server-side sc
   const wrong = topic.quiz.map((question) => (question.answer + 1) % question.options.length);
   await assert.rejects(catalog.recordTopicProgress("maya", "pohela-boishakh", [0]), /Answer every quiz question/);
   const first = await catalog.recordTopicProgress("maya", "pohela-boishakh", wrong);
-  assert.deepEqual(first.quiz, { score: 0, total: topic.quiz.length, best: 0 });
+  const allWrong = topic.quiz.map(() => false);
+  assert.deepEqual(first.quiz, { score: 0, total: topic.quiz.length, best: 0, correct: allWrong });
   const second = await catalog.recordTopicProgress("maya", "pohela-boishakh", right);
   assert.equal(second.quiz.best, topic.quiz.length);
+  assert.deepEqual(second.quiz.correct, topic.quiz.map(() => true), "each pick is marked right or wrong, without the answers");
   const third = await catalog.recordTopicProgress("maya", "pohela-boishakh", wrong);
-  assert.deepEqual(third.quiz, { score: 0, total: topic.quiz.length, best: topic.quiz.length });
+  assert.deepEqual(third.quiz, { score: 0, total: topic.quiz.length, best: topic.quiz.length, correct: allWrong });
   await catalog.recordTopicProgress("maya", "folk-tales");
   const progress = await catalog.topicProgressFor("maya", await catalog.getCatalog());
   assert.deepEqual(progress.readTopicIds.sort(), ["folk-tales", "pohela-boishakh"]);
@@ -298,7 +300,7 @@ test("a quiz score counts only while the topic still has the quiz it was earned 
   assert.equal((await scores())[id], undefined);
   assert.equal((await catalog.classTopicProgress("class")).students[0].quizzesDone, 0);
   const wrong = right.map((answer, index) => (answer + 1) % rewritten[index].options.length);
-  assert.deepEqual((await catalog.recordTopicProgress("maya", id, wrong)).quiz, { score: 0, total: right.length, best: 0 }, "the new quiz starts afresh");
+  assert.deepEqual((await catalog.recordTopicProgress("maya", id, wrong)).quiz, { score: 0, total: right.length, best: 0, correct: right.map(() => false) }, "the new quiz starts afresh");
   assert.deepEqual((await scores())[id], { best: 0, total: right.length });
 
   // The quiz removed: the topic still counts as read, but no quiz result is reported.

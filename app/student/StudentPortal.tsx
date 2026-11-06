@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { localDateTime, localNumber, MessageError, serverMessage, useLanguage, type Message } from "@/lib/use-language";
 import type { Student } from "@/lib/student-auth";
-import type { Topic } from "../topics-content";
+import type { LearnerTopic } from "@/lib/learner-topic";
 import { groupByCategory } from "@/lib/topic-model";
 import type { ClassSource } from "@/lib/class-sources";
 import { approvalNotice, type ApprovalStatus } from "@/lib/roles";
@@ -18,7 +18,7 @@ import { activityNarrationText, detectNarrationLanguage } from "@/lib/narration-
 type Activity = { id: string; title: string; instructions: string; topicId: string | null; status: string; questions: { prompt: string; options: string[] }[]; submission: { score: number; total: number; submittedAt: string } | null };
 type Attendance = { attended: number; recorded: number };
 type Feed = { metrics: { enrolledClasses: number; assignedActivities: number; completedActivities: number; averagePercent: number; attendedSessions: number; recordedSessions: number }; classes: { id: string; name: string; teacherName: string; attendance: Attendance; announcements: { id: string; body: string; authorName: string | null; createdAt: string }[]; activities: Activity[]; sources: ClassSource[] }[] };
-type Catalog = { topics: Topic[]; readTopicIds: string[]; quizScores?: Record<string, { best: number; total: number }> };
+type Catalog = { topics: LearnerTopic[]; readTopicIds: string[]; quizScores?: Record<string, { best: number; total: number }> };
 const PASSWORD_PATH = "/student/password";
 async function request<T>(url: string, data?: object): Promise<T> {
   const response = await fetch(url, data ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) } : { cache: "no-store" });

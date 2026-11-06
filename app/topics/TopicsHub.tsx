@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useLanguage } from "../../lib/use-language";
-import type { Topic } from "../topics-content";
+import type { LearnerTopic, TopicQuizMarks } from "@/lib/learner-topic";
 import { formatNumber, formatWhen, groupByCategory } from "@/lib/topic-model";
 import TopicReader from "./TopicReader";
 import { scrollToTop } from "@/lib/scroll-to-top";
@@ -15,7 +15,7 @@ const moodleUrl = process.env.NEXT_PUBLIC_MOODLE_URL?.replace(/\/+$/, "");
 const courseHref = moodleUrl || "/learn";
 
 type Approval = { version: number; baseline: boolean; approvedAt: string | null; reviewerName: string | null; pendingVersions: number[] };
-type HubTopic = Topic & { approval?: Approval; references?: TopicReference[] };
+type HubTopic = LearnerTopic & { approval?: Approval; references?: TopicReference[] };
 type QuizScores = Record<string, { best: number; total: number }>;
 
 export default function TopicsHub() {
@@ -70,7 +70,7 @@ export default function TopicsHub() {
   };
   const closeTopic = () => { setActiveId(null); setQuizSaved(false); window.history.replaceState(null, "", "/topics"); };
 
-  async function saveProgress(topicId: string, answers?: number[]) {
+  async function saveProgress(topicId: string, answers?: number[]): Promise<TopicQuizMarks | null> {
     setError(""); setQuizSaved(false);
     try {
       const response = await fetch("/api/student/topic-progress", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ topicId, ...(answers ? { answers } : {}) }) });
@@ -79,8 +79,21 @@ export default function TopicsHub() {
       if (data.quiz) {
         setScores((current) => ({ ...current, [topicId]: { best: data.quiz.best, total: data.quiz.total } }));
         setQuizSaved(true);
+        return { score: data.quiz.score, total: data.quiz.total, correct: data.quiz.correct };
       }
     } catch (error) { setError(error instanceof Error ? error.message : s("Could not save progress.", "অগ্রগতি সংরক্ষণ করা যায়নি।")); }
+    return null;
+  }
+
+  /** A grown-up's quiz is marked on the server too, and nothing is saved. */
+  async function markQuiz(topicId: string, answers: number[]): Promise<TopicQuizMarks | null> {
+    setError("");
+    try {
+      const response = await fetch("/api/curriculum/quiz", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ topicId, answers }) });
+      const data = await response.json(); if (!response.ok) throw new Error(language === "bn" && data.errorBn ? data.errorBn : data.error);
+      return data.quiz as TopicQuizMarks;
+    } catch (error) { setError(error instanceof Error && error.message ? error.message : s("Could not check the answers. Please try again.", "উত্তর মিলিয়ে দেখা যায়নি। আবার চেষ্টা করুন।")); }
+    return null;
   }
 
   const header = (
@@ -120,7 +133,7 @@ export default function TopicsHub() {
             topic={active}
             language={language}
             best={scores[active.id]}
-            onQuizChecked={canRecord ? (answers) => void saveProgress(active.id, answers) : undefined}
+            checkQuiz={(answers) => canRecord ? saveProgress(active.id, answers) : markQuiz(active.id, answers)}
             quizNote={quizSaved ? s("Saved. This topic now counts as read, and your teacher can see your best score.", "সংরক্ষিত। বিষয়টি এখন পড়া হিসেবে গোনা হবে, আর শিক্ষক তোমার সেরা ফল দেখতে পাবেন।") : undefined}
             onPickAnother={closeTopic}
             beforeQuiz={canRecord && (
