@@ -254,7 +254,8 @@ below is the confirmed name, for example `learn.example.org`.
    - create the `production-status` GitHub environment, with no reviewers and
      only `main` allowed to deploy to it, and add the `DEPLOY_HOST` and
      `DEPLOY_USER` secrets and the `DEPLOY_KNOWN_HOSTS` variable to it as well
-     if they are `production` environment settings;
+     if they are `production` environment settings, with exactly the same
+     values (GitHub never shows a secret again);
    - make the status key pair on your own computer and note its fingerprint;
    - save its public line as the repository variable `STATUS_SSH_PUBLIC_KEY`
      and its private key as the `production-status` environment secret

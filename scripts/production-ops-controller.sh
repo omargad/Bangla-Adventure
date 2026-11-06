@@ -194,16 +194,31 @@ ssh_options=(-F /dev/null -T -i "$work/key" -p "$port" -o BatchMode=yes -o Ident
 # shellcheck disable=SC2029
 on_server() { ssh "${ssh_options[@]}" "$DEPLOY_USER@$DEPLOY_HOST" "$@"; }
 # ssh exits 255 for its own errors. Its messages can name the server, so they are never printed:
-# a fixed message is chosen from them instead.
+# a fixed message is chosen from them instead. A second argument means the remote command said it
+# had started, so the connection was made and lost later, and the log also holds that command's
+# own errors, which are not read.
 ssh_failure() {
-  if grep -q 'Permission denied' "$1"; then
-    [ "$action" != scheduled-status ] || fail 'the server refused the status key: run VPS production operations install with the repository variable STATUS_SSH_PUBLIC_KEY set (it must report status key: installed or already-present), then run this check again.'
-    fail "the server refused the DEPLOY_SSH_KEY secret: its public half must be in the deployment account's authorized_keys."
+  local log="$1" begun="${2:-}"
+  if [ -z "$begun" ]; then
+    if grep -q 'Permission denied' "$log"; then
+      [ "$action" != scheduled-status ] || fail 'the server refused the status key: run VPS production operations install with the repository variable STATUS_SSH_PUBLIC_KEY set (it must report status key: installed or already-present), then run this check again. If install already reports already-present, the DEPLOY_USER secret in production-status must name the same account as in production: enter it again under Settings > Environments > production-status > Environment secrets.'
+      fail 'the server refused the DEPLOY_SSH_KEY secret: its public half must be in the authorized_keys of the account that the DEPLOY_USER secret names.'
+    fi
+    if grep -q 'Host key verification failed' "$log"; then
+      fail 'the server host key does not match DEPLOY_KNOWN_HOSTS and DEPLOY_HOST_FINGERPRINT: if the server was rebuilt, verify its new key with the administrator before changing them.'
+    fi
+    # No SSH session: the name lookup, the TCP connection or the first exchange failed. The first
+    # exchange can end in "Connection reset" or "timed out" too, so this comes before the rest.
+    if grep -Eq 'connect to host .* port [0-9]+: |Could not resolve hostname|kex_exchange_identification|banner exchange|Unable to negotiate' "$log"; then
+      fail 'could not connect over SSH: check the DEPLOY_HOST secret, DEPLOY_PORT and that the server is running.'
+    fi
   fi
-  if grep -q 'Host key verification failed' "$1"; then
-    fail 'the server host key does not match DEPLOY_KNOWN_HOSTS and DEPLOY_HOST_FINGERPRINT: if the server was rebuilt, verify its new key with the administrator before changing them.'
+  # Anything else ends a session that was made: closed by the server, a timeout or a reset.
+  if [ "$action" = backup-now ]; then
+    [ -z "$begun" ] || fail 'the SSH connection was lost during the run; that does not stop the backup, which runs on the server as ba-production-backup.service: run status in a few minutes to see its result.'
+    fail 'the SSH connection was lost before the server confirmed that the backup started: run backup-now again, which never runs two backups at once.'
   fi
-  fail 'could not connect over SSH: check the DEPLOY_HOST secret, DEPLOY_PORT and that the server is running.'
+  fail 'the SSH connection was lost before the run finished: run it again.'
 }
 
 # Prints only fixed fields; codes are checked against the fixed code shape first.
@@ -311,19 +326,28 @@ tar --extract --file - --directory $(quote "$incoming") --no-same-owner --no-sam
     ;;
   backup-now)
     # Run through the installed service: it survives a dropped connection and logs to the journal.
-    on_server 'bash -s' > "$work/run.txt" 2> "$work/run.log" <<'REMOTE' || { [ "$?" -ne 255 ] || ssh_failure "$work/run.log"; fail 'the backup could not be started.'; }
+    # The first line, sent just before the start, tells a drop during the run from no connection.
+    result=0
+    on_server 'bash -s' > "$work/run.txt" 2> "$work/run.log" <<'REMOTE' || result=$?
 set -eu
 [ "$(id -u)" = 1002 ]
 export XDG_RUNTIME_DIR=/run/user/1002 DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1002/bus
 test -f /opt/bangla-adventures/ops/installation.json
+printf 'starting\n'
 started="$(date +%s)"
 systemctl --user start ba-production-backup.service || true
 exit_status="$(systemctl --user show ba-production-backup.service --property=ExecMainStatus --value)"
 printf '{"started":%s,"exitStatus":"%s"}\n' "$started" "${exit_status//[^0-9]/}"
 bash /opt/bangla-adventures/ops/tools/production-ops.sh status || true
 REMOTE
-    head -n 1 "$work/run.txt" > "$work/run.json"
-    tail -n +2 "$work/run.txt" > "$work/result.json"
+    if [ "$result" -ne 0 ]; then
+      begun=''
+      [ "$(head -n 1 "$work/run.txt")" != starting ] || begun=yes
+      [ "$result" -ne 255 ] || ssh_failure "$work/run.log" "$begun"
+      fail 'the backup could not be started.'
+    fi
+    sed -n 2p "$work/run.txt" > "$work/run.json"
+    tail -n +3 "$work/run.txt" > "$work/result.json"
     summarise status "$work/result.json" || true
     python3 - "$work/run.json" "$work/result.json" <<'PY' || fail 'the backup did not pass; see the codes above and the server journal (journalctl --user -u ba-production-backup).'
 import json,sys

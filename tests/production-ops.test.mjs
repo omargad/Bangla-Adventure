@@ -125,12 +125,18 @@ const input = fs.readFileSync(0);
 fs.appendFileSync(process.env.STUB_LOG, JSON.stringify({ args, input: input.length }) + '\n');
 const out = (text, code = 0) => { process.stdout.write(text + '\n'); process.exit(code); };
 // ssh's own failure: its message names the account and server, and it exits 255.
-if (process.env.STUB_SSH_ERROR) { process.stderr.write(process.env.STUB_SSH_ERROR + '\n'); process.exit(255); }
+const fault = (text = '') => { process.stdout.write(text); process.stderr.write(process.env.STUB_SSH_ERROR + '\n'); process.exit(255); };
+// Only the account whose authorized_keys holds the key is let in.
+const account = args.at(-2).split('@')[0];
+if (process.env.STUB_ACCOUNT && account !== process.env.STUB_ACCOUNT) { process.stderr.write(account + '@vps.example.test: Permission denied (publickey).\n'); process.exit(255); }
+if (process.env.STUB_SSH_ERROR && !process.env.STUB_DROP) fault();
 if (command.includes('mktemp -d')) out('/opt/bangla-adventures/ops/.incoming.AbCdEf123456');
 if (command.includes('tar --extract')) { fs.writeFileSync(process.env.STUB_TAR, input); process.exit(0); }
 if (command.includes('production-ops-install.sh')) out(process.env.STUB_RESULT, Number(process.env.STUB_EXIT || 0));
 if (command.includes('production-ops.sh status')) out(process.env.STUB_RESULT, Number(process.env.STUB_EXIT || 0));
-if (command === 'bash -s') out('{"started":1000,"exitStatus":"' + process.env.STUB_RUN + '"}\n' + process.env.STUB_RESULT);
+// STUB_DROP: the connection is lost once the backup is being started, after what the server sent so far.
+if (command === 'bash -s' && process.env.STUB_DROP) fault(process.env.STUB_DROP);
+if (command === 'bash -s') out('starting\n{"started":1000,"exitStatus":"' + process.env.STUB_RUN + '"}\n' + process.env.STUB_RESULT);
 if (command.includes('rm -rf')) process.exit(0);
 process.exit(9);
 `;
@@ -241,19 +247,49 @@ test('the controller verifies the pinned keys before SSH, prints no address and 
       /the secret DEPLOY_SSH_KEY is missing: add it under Settings > Environments > production > Environment secrets, named exactly DEPLOY_SSH_KEY\./);
 
     // ssh's own failure (exit 255) gets a fixed message that names the setting, never ssh's own text.
+    // The texts are OpenSSH's own: a reset or a time-out in the first exchange means no session either.
+    const connect = /could not connect over SSH: check the DEPLOY_HOST secret, DEPLOY_PORT and that the server is running\./;
+    const lost = /the SSH connection was lost before the run finished: run it again\./;
+    const carriesOn = /the SSH connection was lost during the run; that does not stop the backup, which runs on the server as ba-production-backup\.service: run status in a few minutes to see its result\./;
+    const closed = 'Connection to vps.example.test closed by remote host.';
+    const silent = 'Timeout, server vps.example.test not responding.';
     for (const [action, env, error, message] of [
       ['scheduled-status', statusKey, 'deployer@vps.example.test: Permission denied (publickey).', /the server refused the status key: run VPS production operations install with the repository variable STATUS_SSH_PUBLIC_KEY set/],
-      ['status', {}, 'deployer@vps.example.test: Permission denied (publickey).', /the server refused the DEPLOY_SSH_KEY secret/],
+      ['status', {}, 'deployer@vps.example.test: Permission denied (publickey).', /the server refused the DEPLOY_SSH_KEY secret: its public half must be in the authorized_keys of the account that the DEPLOY_USER secret names\./],
       ['scheduled-status', statusKey, 'Host key verification failed.', /host key does not match DEPLOY_KNOWN_HOSTS and DEPLOY_HOST_FINGERPRINT/],
-      ['status', {}, 'ssh: connect to host vps.example.test port 22: Connection timed out', /could not connect over SSH: check the DEPLOY_HOST secret, DEPLOY_PORT/],
+      ['status', {}, 'ssh: connect to host vps.example.test port 22: Connection timed out', connect],
       ['install', {}, 'deployer@vps.example.test: Permission denied (publickey).', /the server refused the DEPLOY_SSH_KEY secret/],
-      ['backup-now', {}, 'ssh: connect to host vps.example.test port 22: Connection refused', /could not connect over SSH/],
+      ['backup-now', {}, 'ssh: connect to host vps.example.test port 22: Connection refused', connect],
+      ['status', {}, 'ssh: Could not resolve hostname vps.example.test: Name or service not known', connect],
+      ['scheduled-status', statusKey, 'kex_exchange_identification: read: Connection reset by peer\nConnection reset by vps.example.test port 22', connect],
+      ['backup-now', {}, 'Connection timed out during banner exchange\nConnection to vps.example.test port 22 timed out', connect],
+      // A session that was made and then lost: the result is missing, the settings are not at fault.
+      ['status', {}, closed, lost], ['scheduled-status', statusKey, silent, lost], ['install', {}, closed, lost],
+      // backup-now: the server says just before the start that it is starting the backup, so a drop
+      // after that leaves the backup running, and the remote errors in the log are not ssh's.
+      ['backup-now', { STUB_DROP: 'starting\n' }, closed, carriesOn],
+      ['backup-now', { STUB_DROP: 'starting\n' }, silent, carriesOn],
+      ['backup-now', { STUB_DROP: 'starting\n' }, `Failed to connect to bus: Permission denied\n${closed}`, carriesOn],
+      ['backup-now', {}, closed, /the SSH connection was lost before the server confirmed that the backup started: run backup-now again, which never runs two backups at once\./],
     ]) {
       const refused = run(action, { ...env, STUB_SSH_ERROR: error });
       assert.equal(refused.status, 1, `${action}: ${error}`);
       assert.match(refused.output, message, `${action}: ${error}`);
-      assert.doesNotMatch(refused.output, /Permission denied|verification failed|timed out|refused$/m, 'ssh\'s own text is never printed');
-      assert.doesNotMatch(refused.output, /no valid result/);
+      assert.doesNotMatch(refused.output, /Permission denied|verification failed|timed out|refused$|closed by|not responding|reset by|resolve|kex_|banner/m, 'ssh\'s own text is never printed');
+      assert.doesNotMatch(refused.output, /no valid result|backup could not be started/);
+      if (/lost/.test(message.source)) assert.doesNotMatch(refused.output, /DEPLOY_|secret/, 'a lost connection points at no setting');
+    }
+    // A mistyped account in production-status is refused like a missing key, and the message names DEPLOY_USER.
+    const account = { ...statusKey, STUB_ACCOUNT: 'deployer' };
+    assert.equal(run('scheduled-status', account).status, 0);
+    for (const [action, env, message] of [
+      ['scheduled-status', account, /then run this check again\. If install already reports already-present, the DEPLOY_USER secret in production-status must name the same account as in production: enter it again under Settings > Environments > production-status > Environment secrets\./],
+      ['status', { STUB_ACCOUNT: 'deployer' }, /the authorized_keys of the account that the DEPLOY_USER secret names/],
+    ]) {
+      const refused = run(action, { ...env, DEPLOY_USER: 'deployr' });
+      assert.equal(refused.status, 1, action);
+      assert.match(refused.output, message, action);
+      assert.doesNotMatch(refused.output, /deployr|Permission denied/);
     }
     // A failing status is still reported as such: only ssh's own exit, with no result, is a connection failure.
     const unhealthy = run('scheduled-status', { ...statusKey, STUB_RESULT: JSON.stringify({ ...healthy, verified: false, status: 'failed', codes: ['timer-inactive-backup'] }), STUB_EXIT: '1' });

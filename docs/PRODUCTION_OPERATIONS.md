@@ -142,7 +142,9 @@ connection or cancelled run no longer interrupts it. Run `install` again
 whenever these tools or units change.
 The same workflow also offers `status`, and `backup-now`, which starts the
 installed backup service and waits for its result (the service carries on if
-the connection drops). Only `install` uses `STATUS_SSH_PUBLIC_KEY`.
+the connection drops, and the run then says so: see
+[When the daily check fails](#when-the-daily-check-fails)). Only `install`
+uses `STATUS_SSH_PUBLIC_KEY`.
 
 Finally, run the [status alert](#alerting) once by hand.
 
@@ -443,7 +445,9 @@ work the same in PowerShell on Windows and in a macOS or Linux terminal.
    `DEPLOY_KNOWN_HOSTS` is a `production` environment variable, add it as well
    (**Environment variables > Add environment variable**). Moving the three to
    repository level instead also works. Never add `DEPLOY_SSH_KEY` to this
-   environment.
+   environment. Copy the values exactly: GitHub never shows a secret again, and
+   a `DEPLOY_USER` that names another account makes the server refuse the
+   status key ([When the daily check fails](#when-the-daily-check-fails)).
 
    Use the hashed form of the `DEPLOY_KNOWN_HOSTS` line (`ssh-keyscan -H`, as
    in [DEPLOYMENT.md](DEPLOYMENT.md), step 5), so the line itself does not
@@ -581,13 +585,22 @@ because it can name the server; the message is chosen from it instead.
 | "the secret DEPLOY_HOST is missing: this check runs in the production-status environment, which cannot see production environment secrets; ..." (likewise `DEPLOY_USER`, and the variable `DEPLOY_KNOWN_HOSTS`) | Add it to `production-status` with exactly that name ([step 1](#setting-up-the-status-key)), or make it a repository setting |
 | "the STATUS_SSH_KEY secret is not an unencrypted private key ..." | The key has a passphrase: make a new pair, pressing Enter at both prompts, and repeat steps 3 and 4 |
 | "the STATUS_SSH_KEY secret does not match the STATUS_SSH_PUBLIC_KEY variable" | The two halves come from different pairs: save both halves of one pair, then run `install` |
-| "the server refused the status key: run VPS production operations install ..." | The server does not hold this key: between go-live steps 7 and 9, after a new pair without an install, or because `STATUS_SSH_PUBLIC_KEY` was not a repository variable when `install` ran (it then reports `status key: not requested`). Run `install` and check that it reports `status key: installed` or `already-present` |
+| "the server refused the status key: run VPS production operations install ..." | The account the check signs in to does not hold this key: between go-live steps 7 and 9, after a new pair without an install, or because `STATUS_SSH_PUBLIC_KEY` was not a repository variable when `install` ran (it then reports `status key: not requested`). Run `install` and check that it reports `status key: installed` or `already-present`. If it already reports `already-present`, the `DEPLOY_USER` secret in `production-status` names another account than in `production`, for example after a typo, which GitHub cannot show: enter it again under **Settings > Environments > production-status > Environment secrets** |
 | "the server host key does not match DEPLOY_KNOWN_HOSTS and DEPLOY_HOST_FINGERPRINT ..." | The server showed a different host key. If it was rebuilt, verify the new key with the administrator before changing either setting |
 | "the verified DEPLOY_KNOWN_HOSTS lines do not cover the DEPLOY_HOST secret and DEPLOY_PORT ..." | The saved line names another host or port than `DEPLOY_HOST` and `DEPLOY_PORT`: record it for the same one |
-| "could not connect over SSH: check the DEPLOY_HOST secret, DEPLOY_PORT and that the server is running." | The connection failed before any key was tried |
+| "could not connect over SSH: check the DEPLOY_HOST secret, DEPLOY_PORT and that the server is running." | No SSH session was made: the name was not found, the port did not answer, or the first exchange failed before any key was tried |
+| "the SSH connection was lost before the run finished: run it again." | The session was made but closed or stopped answering before status replied, for example during a network break or a server restart. The settings are not at fault: run the check again |
 
 The `status` and `backup-now` actions and `install` print the same messages,
-naming `DEPLOY_SSH_KEY` and the `production` environment instead.
+naming `DEPLOY_SSH_KEY` and the `production` environment instead; a refused
+`DEPLOY_SSH_KEY` means its public half is not in the `authorized_keys` of the
+account that `DEPLOY_USER` names. `backup-now` tells two dropped connections
+apart, because the server reports just before it starts the backup:
+
+| Message | What to do |
+| --- | --- |
+| "the SSH connection was lost during the run; that does not stop the backup, which runs on the server as ba-production-backup.service ..." | The backup was started, and the drop does not interrupt it: run `status` a few minutes later and check the `backup` line |
+| "the SSH connection was lost before the server confirmed that the backup started: run backup-now again, ..." | Run `backup-now` again. Two backups never run at once: should the first have started after all, the new run waits for it to finish |
 
 GitHub disables scheduled workflows in a public repository after 60 days
 without commits, and emails a warning first; re-enable it from the Actions tab.
