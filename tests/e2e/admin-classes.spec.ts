@@ -92,3 +92,53 @@ test("an administrator opens and manages another teacher's class from the teache
   // or the platform is empty and the administrator sees the platform-wide empty state.
   await expect(page.getByText(/^(No class matches your search\.|No teacher has created a class yet\.)$/)).toBeVisible();
 });
+
+test("a class whose teacher is suspended needs a new teacher on /admin/classes, which sends a teacher to /teach", async ({ page, baseURL }) => {
+  test.setTimeout(90000);
+  const suffix = randomUUID().slice(0, 8);
+  const className = `Orphaned class ${suffix}`, teacherEmail = `orphan-teacher-${suffix}@example.com`, nextEmail = `next-teacher-${suffix}@example.com`, adminEmail = `orphan-admin-${suffix}@example.com`;
+
+  const api = await apiRequest.newContext({ baseURL, extraHTTPHeaders: { "x-forwarded-for": `orphan-setup-${suffix}` } });
+  let classId = "";
+  try {
+    const headers = { cookie: await signUp(api, { email: teacherEmail, displayName: `Leaving Teacher ${suffix}`, password }, "teacher") };
+    const created = await api.post("/api/classes", { headers, data: { name: className } });
+    expect(created.status()).toBe(201);
+    classId = (await created.json()).class.id;
+    await signUp(api, { email: nextEmail, displayName: `Next Teacher ${suffix}`, password }, "teacher");
+  } finally {
+    await api.dispose();
+  }
+
+  // A teacher who opens the administrator's page goes to their own workspace, not the parent page.
+  await page.context().setExtraHTTPHeaders({ "x-forwarded-for": `orphan-teacher-${suffix}` });
+  expect((await page.request.post("/api/auth/sign-in", { data: { email: teacherEmail, password } })).status()).toBe(200);
+  await page.goto("/admin/classes");
+  await expect(page).toHaveURL(/\/teach$/);
+
+  // The teacher is suspended; their class keeps pointing to them.
+  const db = new Database(process.env.BANGLA_E2E_DB!);
+  db.prepare("UPDATE adults SET status = 'suspended' WHERE email = ?").run(teacherEmail);
+  db.close();
+
+  await page.context().setExtraHTTPHeaders({ "x-forwarded-for": `orphan-admin-${suffix}` });
+  expect((await page.request.post("/api/auth/sign-up", { data: { email: adminEmail, displayName: "Orphan Admin", password } })).status()).toBe(201);
+  grant(adminEmail, "admin");
+  expect((await page.request.post("/api/auth/sign-in", { data: { email: adminEmail, password } })).status()).toBe(200);
+  await page.goto("/admin/classes");
+  const needing = page.getByRole("region", { name: "Classes that need a new teacher" });
+  await expect(needing).toContainText(`${className} · Teacher: Leaving Teacher ${suffix}`);
+  await expect(page.getByRole("option", { name: new RegExp(`${className} .* · Needs a new teacher$`) })).toHaveCount(1);
+  await needing.getByRole("button", { name: className, exact: true }).click();
+  await expect(page.getByLabel("Choose a class")).toHaveValue(classId);
+  const panel = page.getByRole("region", { name: "Class teacher" });
+  await expect(panel).toContainText("This teacher's account is no longer an active, approved teacher.");
+
+  await panel.getByLabel("Change teacher").selectOption({ label: `Next Teacher ${suffix} · ${nextEmail}` });
+  page.once("dialog", (dialog) => void dialog.accept());
+  await panel.getByRole("button", { name: "Save teacher", exact: true }).click();
+  await expect(page.getByRole("status").filter({ hasText: `${className} is now taught by Next Teacher ${suffix}.` })).toBeVisible();
+  await expect(panel).not.toContainText("no longer an active, approved teacher");
+  await expect(page.getByRole("option", { name: new RegExp(`${className} .* · Needs a new teacher$`) })).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "Classes that need a new teacher" }).getByRole("button", { name: className, exact: true })).toHaveCount(0);
+});

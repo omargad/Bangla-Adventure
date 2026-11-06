@@ -178,9 +178,9 @@ test("an administrator deletes another teacher's class and the deletion is audit
     assert.equal(byAdmin.actor_id, adultId("class-admin@example.com"));
     assert.equal(byAdmin.target_type, "class");
     assert.equal(byAdmin.target_id, classId);
-    assert.deepEqual(JSON.parse(byAdmin.details_json), { classId, name: className, teacherId: adultId("class-teacher@example.com") });
+    assert.deepEqual(JSON.parse(byAdmin.details_json), { classId, name: className, teacherId: adultId("class-teacher@example.com"), targetLabel: { en: className, bn: className } });
     assert.equal(byTeacher.actor_id, adultId("other-class-teacher@example.com"));
-    assert.deepEqual(JSON.parse(byTeacher.details_json), { classId: otherClassId, name: "Quiet class", teacherId: adultId("other-class-teacher@example.com") });
+    assert.deepEqual(JSON.parse(byTeacher.details_json), { classId: otherClassId, name: "Quiet class", teacherId: adultId("other-class-teacher@example.com"), targetLabel: { en: "Quiet class", bn: "Quiet class" } });
     assert.equal(db.prepare("SELECT count(*) AS n FROM class_activities WHERE class_id = ?").get(classId).n, 0, "the class's activities went with it");
   });
 });

@@ -92,7 +92,7 @@ test("an administrator creates a class for a teacher, who sees and manages it; i
   assert.equal(audit.actor_id, ids["setup-admin"]);
   assert.equal(audit.target_type, "class");
   assert.equal(audit.target_id, classId);
-  assert.deepEqual(JSON.parse(audit.details_json), { classId, name: "রবিবার ১১:৩০", teacherId: ids.rina });
+  assert.deepEqual(JSON.parse(audit.details_json), { classId, name: "রবিবার ১১:৩০", teacherId: ids.rina, targetLabel: { en: "রবিবার ১১:৩০", bn: "রবিবার ১১:৩০" } });
 
   // The teacher works in it as in any class of their own.
   assert.equal((await send(`/api/classes/${classId}/students`, "POST", { studentIds: [studentId] }, rinaCookie)).status, 200);
@@ -147,7 +147,7 @@ test("an administrator gives the class to another teacher: the old teacher loses
   const [audit] = audits("class-teacher-changed");
   assert.equal(audit.actor_id, ids["setup-admin"]);
   assert.equal(audit.target_id, classId);
-  assert.deepEqual(JSON.parse(audit.details_json), { classId, name: "রবিবার ১১:৩০", fromTeacherId: ids.rina, toTeacherId: ids.karim });
+  assert.deepEqual(JSON.parse(audit.details_json), { classId, name: "রবিবার ১১:৩০", fromTeacherId: ids.rina, toTeacherId: ids.karim, targetLabel: { en: "রবিবার ১১:৩০", bn: "রবিবার ১১:৩০" } });
   assert.equal((await send(`/api/classes/${classId}`, "PATCH", { teacherId: ids.karim }, adminCookie)).status, 200);
   assert.equal(audits("class-teacher-changed").length, 1, "no change, no audit");
 });

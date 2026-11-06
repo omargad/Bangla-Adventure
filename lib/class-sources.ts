@@ -1,9 +1,10 @@
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { getDb } from "../db";
-import { adults, classes, classSources, classStudents, parentStudentLinks, studentClassEnrollments, students, userAuditEvents } from "../db/schema";
+import { adults, classes, classSources, classStudents, parentStudentLinks, studentClassEnrollments, students } from "../db/schema";
 import type { Bilingual } from "../app/topics-content";
 import { linkProblem } from "./library-links";
 import { managedClass, type Staff } from "./class-access";
+import { auditClass } from "./class-audit";
 import { canTeach, canPublishContent } from "./roles";
 
 /**
@@ -60,7 +61,7 @@ export async function sourcesOf(classIds: string[]): Promise<ClassSource[]> {
 }
 
 function audit(tx: Transaction, actorId: string, classId: string, action: string, details: Record<string, unknown>) {
-  tx.insert(userAuditEvents).values({ id: crypto.randomUUID(), actorId, targetId: classId, targetType: "class", action, detailsJson: JSON.stringify(details) }).run();
+  auditClass(tx, actorId, classId, action, details);
 }
 
 /** The sources of a class the actor manages, or null when they do not manage it. */

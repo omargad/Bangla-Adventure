@@ -64,3 +64,22 @@ test("the CSV keeps one row per submission and adds done and attendance, with a 
     ["Sunday Class", "Alphabet quiz", "Zara", 0, 4, 0, "2026-10-02T11:00:00.000Z", "1 of 2", "1 of 2"],
   ]);
 });
+
+test("only activities students can see get a column and count in Done; the rest are counted as unpublished", () => {
+  const published = activities.map((activity) => ({ ...activity, approvalStatus: "approved" }));
+  const waiting = { id: "quiz-waiting", title: "Waiting for approval", createdAt: "2026-10-25 09:00:00", approvalStatus: "pending", submissions: [] };
+  // An activity sent back after a student had already answered it: the work is kept but not shown or counted.
+  const sentBack = { id: "quiz-sent-back", title: "Changes requested", createdAt: "2026-10-24 09:00:00", approvalStatus: "rejected", submissions: [
+    { id: "s-hidden", studentId: "roster-arif", score: 1, total: 1, submittedAt: "2026-10-24T10:00:00.000Z" },
+  ] };
+  const gradebook = buildGradebook(students, [...published, waiting, sentBack]);
+  assert.deepEqual(gradebook.activities.map((activity) => activity.id), ["quiz-new", "quiz-old"]);
+  assert.equal(gradebook.unpublished, 2);
+  const [arif, maya] = gradebook.rows;
+  assert.deepEqual([arif.done, arif.averagePercent, arif.cells.length], [0, null, 2], "the sent-back answer is not counted");
+  assert.equal(maya.done, 2, "Maya has done both published activities: 2 of 2, as on her own My Learning");
+  assert.ok(!JSON.stringify(gradebook).includes("s-hidden"));
+  assert.ok(gradebookCsvRows("Sunday Class", gradebook).slice(1).every((row) => / of 2$/.test(row[7])), "the CSV's Done is out of the published activities");
+  assert.equal(buildGradebook(students, activities).unpublished, 0, "an activity without an approval status counts");
+  assert.deepEqual(buildGradebook(students, [waiting]).activities, []);
+});

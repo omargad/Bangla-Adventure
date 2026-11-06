@@ -90,7 +90,7 @@ test("only the class's teacher or an administrator manages its sources", async (
 
   const audit = db.select().from(userAuditEvents).where(eq(userAuditEvents.targetId, "sunday")).all();
   assert.deepEqual(audit.map((row) => row.action), ["class-source-added", "class-source-updated"]);
-  assert.deepEqual(JSON.parse(audit[1].detailsJson), { sourceId: added.id, oldUrl: "https://example.org/boishakh", newUrl: "https://example.org/boishakh-2" });
+  assert.deepEqual(JSON.parse(audit[1].detailsJson), { sourceId: added.id, oldUrl: "https://example.org/boishakh", newUrl: "https://example.org/boishakh-2", targetLabel: { en: "Sunday 11:30", bn: "Sunday 11:30" } });
   assert.equal(audit[1].actorId, "admin");
 });
 

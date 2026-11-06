@@ -3,6 +3,7 @@ import { getDb } from "../db";
 import { adults, classAttendance, classes, studentClassEnrollments } from "../db/schema";
 import { attendanceSessions, summarizeAttendance, type AttendanceMark, type AttendanceSummary } from "./attendance";
 import { managedClass, type Staff } from "./class-access";
+import { auditClass } from "./class-audit";
 import { currentMembers } from "./class-roster";
 import type { Tx } from "./enrollments";
 import { UserManagementError } from "./user-management";
@@ -71,24 +72,35 @@ export type AttendanceSheet = Awaited<ReturnType<typeof attendanceSheet>>;
  * Save one session. The first save of a date carries a mark for exactly the students now allocated
  * (the sheet the teacher saw). A date that already has marks is corrected in place and takes marks
  * for any of the current students only, so a student added to the class after that session is not
- * recorded for it unless the teacher includes them. Records who saved it and when; a routine save is
- * not audited.
+ * recorded for it unless the teacher includes them. Records who saved it and when on each mark, and
+ * audits every save as attendance-saved: the date, how many were marked and present, and for a
+ * correction each student whose mark changed (from the earlier mark, or null if they had none).
  */
 export async function saveAttendance(actor: Staff, classId: string, date: string, marks: AttendanceMark[]) {
   const db = await getDb();
   return db.transaction((tx) => {
-    if (!tx.select({ id: classes.id }).from(classes).where(managedClass(actor, classId)).get()) throw notFound();
+    const classroom = tx.select({ id: classes.id, name: classes.name }).from(classes).where(managedClass(actor, classId)).get();
+    if (!classroom) throw notFound();
     const allocated = new Set(currentMembers(tx, [classId]).flatMap((member) => member.studentId ? [member.studentId] : []));
     const savedBefore = tx.select({ id: classAttendance.id }).from(classAttendance).innerJoin(studentClassEnrollments, allocatedMark)
       .where(and(eq(classAttendance.classId, classId), eq(classAttendance.sessionDate, date))).limit(1).get();
     if (marks.some((mark) => !allocated.has(mark.studentId)) || (!savedBefore && marks.length !== allocated.size)) {
       throw new UserManagementError("The class list has changed since this page loaded. Reload the attendance and save again.", 409, "পাতাটি খোলার পর ক্লাসের তালিকা বদলেছে। উপস্থিতি আবার লোড করে সংরক্ষণ করুন।");
     }
+    const earlier = savedBefore
+      ? new Map(tx.select({ studentId: classAttendance.studentId, present: classAttendance.present }).from(classAttendance)
+        .where(and(eq(classAttendance.classId, classId), eq(classAttendance.sessionDate, date))).all().map((row) => [row.studentId, row.present]))
+      : new Map<string, boolean>();
     const recordedAt = new Date().toISOString();
+    const present = marks.filter((mark) => mark.present).length;
+    auditClass(tx, actor.id, classId, "attendance-saved", {
+      date, marked: marks.length, present, correction: Boolean(savedBefore),
+      ...(savedBefore ? { changes: marks.filter((mark) => earlier.get(mark.studentId) !== mark.present).map((mark) => ({ studentId: mark.studentId, from: earlier.get(mark.studentId) ?? null, to: mark.present })) } : {}),
+    }, classroom.name);
     for (const mark of marks) {
       tx.insert(classAttendance).values({ id: crypto.randomUUID(), classId, studentId: mark.studentId, sessionDate: date, present: mark.present, recordedBy: actor.id, recordedAt })
         .onConflictDoUpdate({ target: [classAttendance.classId, classAttendance.studentId, classAttendance.sessionDate], set: { present: mark.present, recordedBy: actor.id, recordedAt } }).run();
     }
-    return { date, saved: marks.length, present: marks.filter((mark) => mark.present).length };
+    return { date, saved: marks.length, present };
   });
 }

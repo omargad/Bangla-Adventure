@@ -1,15 +1,17 @@
 import { and, eq } from "drizzle-orm";
 import { getDb } from "../db";
-import { adults, classes, userAuditEvents } from "../db/schema";
+import { adults, classes } from "../db/schema";
+import { auditClass } from "./class-audit";
 import { generateJoinCode } from "./classroom";
 import type { Tx } from "./enrollments";
-import { canManageUsers } from "./roles";
+import { canManageUsers, canTeach } from "./roles";
 import { UserManagementError } from "./user-management";
 
 /**
  * Administrators set classes up for teachers: create a class owned by a chosen teacher, or give a
  * class to another teacher. The class keeps its students, activities, announcements, results and
- * attendance; only who may teach it changes. Teachers still create their own classes in /teach.
+ * attendance; only who may teach it changes. Teachers still create their own classes in /teach
+ * (createOwnClass). Every one of these changes is audited.
  */
 
 /** Teachers a class can be given to: approved, active teacher accounts. */
@@ -25,8 +27,15 @@ function findTeacher(tx: Tx, teacherId: string) {
   if (!teacher) throw new UserManagementError("Choose an approved teacher.", 404, "একজন অনুমোদিত শিক্ষক বেছে নিন।");
   return teacher;
 }
-function audit(tx: Tx, actorId: string, classId: string, action: string, details: object) {
-  tx.insert(userAuditEvents).values({ id: crypto.randomUUID(), actorId, targetId: classId, targetType: "class", action, detailsJson: JSON.stringify(details) }).run();
+const audit = (tx: Tx, actorId: string, classId: string, action: string, details: { name: string } & Record<string, unknown>) => auditClass(tx, actorId, classId, action, details, details.name);
+
+/**
+ * Whether a class's teacher can still teach it: an active, approved teacher or administrator. A class
+ * whose teacher was suspended, declined or no longer has teacher access keeps pointing to them, and
+ * only an administrator can open it, so /admin/classes shows it as needing a new teacher.
+ */
+export function canStillTeach(teacher: { role: string; status: string; teacherStatus: string; approvalStatus: string }): boolean {
+  return canTeach(teacher) && teacher.approvalStatus === "approved";
 }
 
 /** The class name rule shared with teachers' own classes. */
@@ -45,6 +54,32 @@ export async function listTeachers(actorId: string) {
   });
 }
 
+/** A new class row with a fresh join code, regenerated on the (vanishingly rare) collision. */
+function insertClass(tx: Tx, teacherId: string, name: string) {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const created = tx.insert(classes).values({ id: crypto.randomUUID(), teacherId, name, joinCode: generateJoinCode() }).onConflictDoNothing().returning().get();
+    if (created) return created;
+  }
+  throw new UserManagementError("Could not allocate a join code. Try again.", 500, "যোগদান কোড তৈরি করা যায়নি। আবার চেষ্টা করুন।");
+}
+
+/**
+ * A teacher (or an administrator) creates a class they teach themselves, audited as class-created.
+ * The account is checked again inside the transaction, so a teacher suspended or demoted a moment
+ * ago cannot create one.
+ */
+export async function createOwnClass(actorId: string, name: unknown) {
+  const title = className(name);
+  const db = await getDb();
+  return db.transaction((tx) => {
+    const actor = tx.select({ role: adults.role, status: adults.status, teacherStatus: adults.teacherStatus, approvalStatus: adults.approvalStatus }).from(adults).where(eq(adults.id, actorId)).get();
+    if (!actor || !canStillTeach(actor)) throw new UserManagementError("An approved teacher account is required.", 403, "অনুমোদিত শিক্ষকের অ্যাকাউন্ট প্রয়োজন।");
+    const created = insertClass(tx, actorId, title);
+    audit(tx, actorId, created.id, "class-created", { classId: created.id, name: created.name, teacherId: actorId });
+    return created;
+  });
+}
+
 /** Create a class owned by an approved teacher, audited as class-created-for-teacher. */
 export async function createClassForTeacher(actorId: string, name: unknown, teacherId: string) {
   const title = className(name);
@@ -52,15 +87,9 @@ export async function createClassForTeacher(actorId: string, name: unknown, teac
   return db.transaction((tx) => {
     requireAdministrator(tx, actorId);
     const teacher = findTeacher(tx, teacherId);
-    // Regenerate on the (vanishingly rare) join-code collision.
-    for (let attempt = 0; attempt < 5; attempt += 1) {
-      const created = tx.insert(classes).values({ id: crypto.randomUUID(), teacherId: teacher.id, name: title, joinCode: generateJoinCode() })
-        .onConflictDoNothing().returning().get();
-      if (!created) continue;
-      audit(tx, actorId, created.id, "class-created-for-teacher", { classId: created.id, name: created.name, teacherId: teacher.id });
-      return { ...created, teacherName: teacher.displayName };
-    }
-    throw new UserManagementError("Could not allocate a join code. Try again.", 500, "যোগদান কোড তৈরি করা যায়নি। আবার চেষ্টা করুন।");
+    const created = insertClass(tx, teacher.id, title);
+    audit(tx, actorId, created.id, "class-created-for-teacher", { classId: created.id, name: created.name, teacherId: teacher.id });
+    return { ...created, teacherName: teacher.displayName };
   });
 }
 

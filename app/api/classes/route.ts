@@ -3,10 +3,9 @@ import { getDb } from "../../../db";
 import { activitySubmissions, adults, classActivities, classes } from "../../../db/schema";
 import { getSessionAdult } from "@/lib/auth";
 import { canManageUsers, canTeach } from "@/lib/roles";
-import { generateJoinCode } from "@/lib/classroom";
-import { createClassForTeacher } from "@/lib/class-management";
+import { canStillTeach, createClassForTeacher, createOwnClass } from "@/lib/class-management";
+import { classServerError } from "@/lib/class-errors";
 import { currentMembers } from "@/lib/class-roster";
-import { UserManagementError } from "@/lib/user-management";
 
 export const dynamic = "force-dynamic";
 
@@ -19,9 +18,15 @@ export async function GET(request: Request) {
     const db = await getDb();
     const all = new URL(request.url).searchParams.get("scope") === "all";
     if (all && user.role !== "admin") return Response.json({ error: "Administrator access required.", errorBn: "প্রশাসকের অ্যাকাউন্ট প্রয়োজন।" }, { status: 403 });
-    // Administrators see every class with the owning teacher's name; teachers see their own.
-    const teacherClasses: Array<typeof classes.$inferSelect & { teacherName?: string }> = all
-      ? await db.select({ ...getTableColumns(classes), teacherName: adults.displayName }).from(classes).innerJoin(adults, eq(classes.teacherId, adults.id)).orderBy(desc(classes.createdAt))
+    // Administrators see every class with the owning teacher's name, and whether that teacher can still
+    // teach it (an approved, active teacher or administrator): a class whose teacher was suspended,
+    // demoted or declined needs a new teacher. Teachers see their own.
+    const teacherClasses: Array<typeof classes.$inferSelect & { teacherName?: string; teacherActive?: boolean }> = all
+      ? (await db.select({ ...getTableColumns(classes), teacherName: adults.displayName, teacherRole: adults.role, teacherAccountStatus: adults.status, teacherStatus: adults.teacherStatus, teacherApproval: adults.approvalStatus })
+        .from(classes).innerJoin(adults, eq(classes.teacherId, adults.id)).orderBy(desc(classes.createdAt)))
+        .map(({ teacherRole, teacherAccountStatus, teacherStatus, teacherApproval, ...item }) => ({
+          ...item, teacherActive: canStillTeach({ role: teacherRole, status: teacherAccountStatus, teacherStatus, approvalStatus: teacherApproval }),
+        }))
       : await db.select().from(classes).where(eq(classes.teacherId, user.id)).orderBy(desc(classes.createdAt));
     const classIds = teacherClasses.map((item) => item.id);
     // Counts cover the students now in each class, not those whose allocation was removed.
@@ -44,7 +49,7 @@ export async function GET(request: Request) {
       })),
     });
   } catch (error) {
-    return databaseError(error);
+    return classServerError(error);
   }
 }
 
@@ -65,31 +70,10 @@ export async function POST(request: Request) {
       return Response.json({ class: { ...created, studentCount: 0, activityCount: 0, submissionCount: 0 } }, { status: 201 });
     }
 
-    const db = await getDb();
-    // Regenerate on the (vanishingly rare) join-code collision.
-    for (let attempt = 0; attempt < 5; attempt += 1) {
-      try {
-        const [created] = await db
-          .insert(classes)
-          .values({ id: crypto.randomUUID(), teacherId: user.id, name, joinCode: generateJoinCode() })
-          .returning();
-        return Response.json({ class: { ...created, studentCount: 0, activityCount: 0, submissionCount: 0 } }, { status: 201 });
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "";
-        if (!message.includes("classes_join_code_unique")) throw error;
-      }
-    }
-    return Response.json({ error: "Could not allocate a join code. Try again.", errorBn: "যোগদান কোড তৈরি করা যায়নি। আবার চেষ্টা করুন।" }, { status: 500 });
+    // A teacher's own class, audited as class-created.
+    const created = await createOwnClass(user.id, name);
+    return Response.json({ class: { ...created, studentCount: 0, activityCount: 0, submissionCount: 0 } }, { status: 201 });
   } catch (error) {
-    return databaseError(error);
+    return classServerError(error);
   }
-}
-
-function databaseError(error: unknown) {
-  if (error instanceof UserManagementError) return Response.json({ error: error.message, errorBn: error.messageBn }, { status: error.status });
-  const message = error instanceof Error ? error.message : "Unexpected database error";
-  const unavailable = message.includes("no such table") || message.includes("SQLITE");
-  return Response.json(unavailable
-    ? { error: "The classroom service is still being set up.", errorBn: "ক্লাসরুম সেবাটি এখনো চালু করা হচ্ছে।" }
-    : { error: message, errorBn: "ক্লাসের তথ্য এখন পাওয়া যাচ্ছে না। একটু পরে আবার চেষ্টা করুন।" }, { status: 500 });
 }

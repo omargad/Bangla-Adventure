@@ -8,9 +8,9 @@ import { eq } from "drizzle-orm";
 const dir = mkdtempSync(path.join(os.tmpdir(), "bangla-announcements-test-"));
 process.env.DATABASE_PATH = path.join(dir, "test.db");
 const { getDb } = await import("../db/index.ts");
-const { adults, students, classes, classStudents, studentClassEnrollments, classAnnouncements, parentStudentLinks } = await import("../db/schema.ts");
+const { adults, students, classes, classStudents, studentClassEnrollments, classAnnouncements, parentStudentLinks, userAuditEvents } = await import("../db/schema.ts");
 const { ANNOUNCEMENT_MAX_LENGTH, audiencesFor, isVisibleTo, parseAnnouncement } = await import("../lib/announcements.ts");
-const { listAnnouncements } = await import("../lib/class-announcements.ts");
+const { ANNOUNCEMENT_AUDIT_EXCERPT, listAnnouncements, postAnnouncement, removeAnnouncement } = await import("../lib/class-announcements.ts");
 const { getParentOverview } = await import("../lib/parent-access.ts");
 after(() => rmSync(dir, { recursive: true, force: true }));
 
@@ -117,4 +117,32 @@ test("a post whose author's account is deleted stays, but is never credited to w
   const post = db.select().from(classAnnouncements).where(eq(classAnnouncements.id, "parents")).get();
   assert.equal(post.authorId, null);
   assert.deepEqual(listAnnouncements(db, ["sunday"]).map((row) => [row.id, row.authorName]), [["parents", null], ["students", "Teacher Rahman"], ["everyone", "Teacher Rahman"]]);
+});
+
+test("posting and removing an announcement are audited with the class name, and only in a class the poster manages", async () => {
+  const teacher = { id: "teacher", role: "teacher", status: "active", teacherStatus: "approved" };
+  const bashir = { id: "bashir", role: "teacher", status: "active", teacherStatus: "approved" };
+  const audits = (action) => db.select().from(userAuditEvents).where(eq(userAuditEvents.action, action)).all();
+  const label = { en: "Monday Class", bn: "Monday Class" };
+
+  const body = `Bring your library book. ${"x".repeat(300)}`;
+  const posted = await postAnnouncement(teacher, "monday", { body, audience: "parents" });
+  assert.equal(posted.authorId, "teacher");
+  assert.equal(posted.body, body, "the post keeps its whole text");
+  const [audit] = audits("announcement-posted");
+  assert.deepEqual([audit.actorId, audit.targetType, audit.targetId], ["teacher", "class", "monday"]);
+  assert.deepEqual(JSON.parse(audit.detailsJson), { announcementId: posted.id, audience: "parents", excerpt: body.slice(0, ANNOUNCEMENT_AUDIT_EXCERPT), targetLabel: label });
+
+  assert.equal(await postAnnouncement(bashir, "monday", { body: "Not my class.", audience: "all" }), null, "another teacher's class");
+  assert.equal(await removeAnnouncement(bashir, "monday", posted.id), null);
+  assert.equal(audits("announcement-posted").length, 1);
+  assert.equal(audits("announcement-removed").length, 0);
+
+  assert.equal((await removeAnnouncement(teacher, "monday", posted.id)).id, posted.id);
+  assert.equal(db.select().from(classAnnouncements).where(eq(classAnnouncements.id, posted.id)).get(), undefined);
+  const [removal] = audits("announcement-removed");
+  assert.equal(removal.actorId, "teacher");
+  assert.deepEqual(JSON.parse(removal.detailsJson), { announcementId: posted.id, audience: "parents", authorId: "teacher", targetLabel: label });
+  assert.equal(await removeAnnouncement(teacher, "monday", posted.id), null, "already removed");
+  assert.equal(audits("announcement-removed").length, 1);
 });
