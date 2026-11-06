@@ -18,8 +18,8 @@ verified source has no media files, the clone receives an empty media directory.
 The live source app remains running throughout.
 
 The clone lives under
-`/opt/bangla-adventures/private-staging/rollback/<24-hex-ID>`, owned by `deployer`
-with mode `0700`. Its unique project, data volume and internal network publish no
+`/opt/bangla-adventures/private-staging/rollback/<24-hex-ID>`, owned by the
+deployment user (UID 1002) with mode `0700`. Its unique project, data volume and internal network publish no
 TCP port. Only the clone volume is mounted by the rehearsal application.
 
 A never-started, unmounted container from the trusted image is committed locally

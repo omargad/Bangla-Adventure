@@ -5,7 +5,7 @@ configure public production, offsite storage or notifications to a person.
 
 | Setting | Technical staging default |
 | --- | --- |
-| Operator / daemon | `deployer`, UID 1002; `unix:///run/user/1002/docker.sock` |
+| Operator / daemon | The `DEPLOY_USER` account, UID 1002; `unix:///run/user/1002/docker.sock` |
 | Application project | `bangla-adventures-staging` |
 | Data volume | `bangla-adventures-staging_bangla-data` |
 | Local archive volume | `bangla-adventures-staging-backups` |
@@ -23,7 +23,7 @@ policy. Local archives share the VPS failure domain and are not an offsite copy.
 
 The acceptance controller uploads the five `private-staging-ops*` scripts and
 four files from `deploy/private-staging-ops/` into one private, owned payload.
-Run as `deployer`:
+Run as the deployment user (UID 1002):
 
 ```sh
 bash PAYLOAD/private-staging-ops-install.sh PAYLOAD

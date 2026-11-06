@@ -21,12 +21,12 @@ say() { printf 'private staging: %s\n' "$*"; }
 [ "$image" = "$allowed_image" ] && [ "$revision" = "$allowed_revision" ] || fail 'image and revision are outside this reviewed staging release.'
 [[ "$registry_user" =~ ^[a-zA-Z0-9][a-zA-Z0-9_-]*(\[bot\])?$ || -z "$registry_user" ]] || fail 'invalid registry user.'
 for command in docker python3 stat realpath flock sha256sum; do command -v "$command" >/dev/null || fail "required command $command is unavailable."; done
-[ "$(id -un)" = deployer ] && [ "$(id -u)" = 1002 ] || fail 'only deployer UID 1002 may run this transaction.'
+[ "$(id -u)" = 1002 ] || fail 'only the deployment user (UID 1002) may run this transaction.'
 [ "$(uname -m)" = x86_64 ] || fail 'the reviewed private staging host must be x86_64.'
 [ -d "$parent" ] && [ ! -L "$parent" ] && [ "$(realpath -e "$parent")" = "$parent" ] || fail 'the deployment parent is not the expected real directory.'
 parent_owner="$(stat -c %u "$parent")"
 parent_mode="$(stat -c %a "$parent")"
-[[ "$parent_owner" = 0 || "$parent_owner" = 1002 ]] && [[ "$parent_mode" =~ ^[0-7]{3,4}$ ]] && (( (8#$parent_mode & 2) == 0 )) && [ -w "$parent" ] && [ -x "$parent" ] || fail 'the deployment parent must be root/deployer-owned, not world-writable, and accessible to deployer.'
+[[ "$parent_owner" = 0 || "$parent_owner" = 1002 ]] && [[ "$parent_mode" =~ ^[0-7]{3,4}$ ]] && (( (8#$parent_mode & 2) == 0 )) && [ -w "$parent" ] && [ -x "$parent" ] || fail 'the deployment parent must be root/deployer-owned, not world-writable, and accessible to the deployment user.'
 [[ "$payload" =~ ^/opt/bangla-adventures/\.private-stage-payload\.[a-zA-Z0-9]+$ ]] || fail 'invalid payload directory.'
 [ -d "$payload" ] && [ ! -L "$payload" ] && [ "$(realpath -e "$payload")" = "$payload" ] || fail 'payload must be a real directory under the deployment parent.'
 [ "$(stat -c %u "$payload")" = 1002 ] && [ "$(stat -c %a "$payload")" = 700 ] || fail 'payload ownership or permissions are unsafe.'

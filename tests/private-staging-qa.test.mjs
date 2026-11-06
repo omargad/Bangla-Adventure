@@ -121,7 +121,7 @@ async function fixture(t) {
   writeFileSync(stateFile,JSON.stringify({containers:{'real-stage-app':real},networks:{},volumes:{}}));
   const script=path.join(root,'qa.sh');writeFileSync(script,readFileSync(new URL('../scripts/private-staging-qa.sh',import.meta.url),'utf8').replace('readonly stage=/opt/bangla-adventures/private-staging',`readonly stage=${stage}`).replace('readonly socketDaemon=/run/user/1002/docker.sock',`readonly socketDaemon=${daemon}`).replace('[ -S \"$socketDaemon\" ]','[ -f \"$socketDaemon\" ]').replace('[ -S \"$socket\" ]','[ -f \"$socket\" ]'));
   writeFileSync(path.join(bin,'docker'),`#!${process.execPath}\n${dockerStub}`,{mode:0o755});
-  writeFileSync(path.join(bin,'id'),'#!/bin/sh\ncase "$1" in -un) echo deployer;; -u) echo 1002;; *) exit 99;; esac\n',{mode:0o755});
+  writeFileSync(path.join(bin,'id'),'#!/bin/sh\ncase "$1" in -un) echo example-user;; -u) echo 1002;; *) exit 99;; esac\n',{mode:0o755});
   writeFileSync(path.join(bin,'stat'),'#!/bin/sh\ncase "$2" in %u) echo 1002;; %u:%a) printf "1002:"; /usr/bin/stat -c %a "${@: -1}";; *) exec /usr/bin/stat "$@";; esac\n'.replace('#!/bin/sh','#!/bin/bash'),{mode:0o755});
   const env={...process.env,PATH:`${bin}:${process.env.PATH}`,NODE_NO_WARNINGS:'1',MOCK_FOLDER:root,MOCK_STATE:stateFile,MOCK_LOG:log,MOCK_SOCKET:daemon,MOCK_REPO:repo,MOCK_TEMPLATE:template,MOCK_IMAGE:image,MOCK_IMAGE_ID:imageId,MOCK_REAL_ID:realId,MOCK_REVISION:revision,MOCK_COUNTS:JSON.stringify(cleanCounts)};
   const state=()=>JSON.parse(readFileSync(stateFile));

@@ -13,6 +13,8 @@ scripts, so the pipeline behaves the same wherever it runs:
    with `scripts/deploy.sh`.
 3. Publishing waits until a registry is set (`REGISTRY_IMAGE`, or the CI system's own registry),
    and deploying until `DEPLOY_ENABLED=true` and `DEPLOY_HOST` are set; until then those steps are skipped and say so.
+   On GitHub the gate is `DEPLOY_ENABLED` alone, and `DEPLOY_HOST` and `DEPLOY_USER` are secrets so that the
+   public run logs never show the server.
 
 | CI/CD system | File | Runs on | Container test |
 | --- | --- | --- | --- |

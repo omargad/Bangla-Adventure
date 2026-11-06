@@ -24,7 +24,7 @@ docker() { command env -u DOCKER_HOST -u DOCKER_CONTEXT docker --host "unix://$s
 owned_dir() { [ -d "$1" ] && [ ! -L "$1" ] && [ "$(realpath -e -- "$1")" = "$1" ] && [ "$(stat -c '%u:%a' -- "$1")" = 1002:700 ]; }
 platform() {
   diagnostic_phase=platform
-  [ "$(id -un)" = deployer ] && [ "$(id -u)" = 1002 ] || fail 'The dedicated deployment user is required.'
+  [ "$(id -u)" = 1002 ] || fail 'The dedicated deployment user is required.'
   owned_dir "$stage" || fail 'The private staging directory is not the expected private directory.'
   [ -f "$stage/.private-staging-marker" ] && [ ! -L "$stage/.private-staging-marker" ] && [ "$(stat -c %u -- "$stage/.private-staging-marker")" = 1002 ] || fail 'Missing owned staging marker.'
   python3 -c 'import pathlib,sys; assert pathlib.Path(sys.argv[1]).read_bytes()==b"bangla-adventures-private-staging-v1\n"' "$stage/.private-staging-marker" || fail 'Staging marker mismatch.'

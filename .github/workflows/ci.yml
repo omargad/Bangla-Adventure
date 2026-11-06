@@ -103,12 +103,14 @@ jobs:
           IMAGE_REF: ${{ needs.container.outputs.image_ref }}
         run: bash scripts/ci/publish.sh promote "${IMAGE_REF:?Missing verified image digest}" "$IMAGE:latest"
 
-  # Disabled until repository variables DEPLOY_ENABLED=true AND DEPLOY_HOST are set. This gate
-  # runs before the production environment loads; public defaults below never enable deployment.
+  # Disabled until the repository variable DEPLOY_ENABLED=true. This gate runs before the production
+  # environment loads; public defaults below never enable deployment. The server's address and account
+  # are the repository secrets DEPLOY_HOST and DEPLOY_USER, so GitHub masks them in this public
+  # repository's logs; scripts/deploy.sh stops with a message when DEPLOY_HOST is missing.
   # Add required reviewers to the "production" environment to approve each deploy.
   deploy:
     needs: [container, publish]
-    if: vars.DEPLOY_ENABLED == 'true' && vars.DEPLOY_HOST != ''
+    if: vars.DEPLOY_ENABLED == 'true'
     runs-on: ubuntu-latest
     environment: production
     concurrency:
@@ -136,8 +138,8 @@ jobs:
         if: steps.current.outputs.newest == 'true'
         env:
           DEPLOY_ENABLED: ${{ vars.DEPLOY_ENABLED }}
-          DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
-          DEPLOY_USER: ${{ vars.DEPLOY_USER || 'deployer' }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
           DEPLOY_PORT: ${{ vars.DEPLOY_PORT || '22' }}
           DEPLOY_PATH: ${{ vars.DEPLOY_PATH || '/opt/bangla-adventures' }}
           DEPLOY_HOST_FINGERPRINT: ${{ vars.DEPLOY_HOST_FINGERPRINT || 'SHA256:79xe+ubCodL2ACAHPNloo7I/K6mvngU88vEiFoEeWL8' }}

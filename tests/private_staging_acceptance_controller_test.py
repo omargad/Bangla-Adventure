@@ -29,7 +29,9 @@ monitor=dict(**{**base,'status':'healthy'},action='monitor',checkedAtEpoch=now,i
 exercise=dict(**base,action='exercise',checkedAtEpoch=now,invocationId=None,checks={k:True for k in ['writersQuiesced','applicationResumedHealthy','expectedBackupFailureObserved','logicalDataUnchanged','realBackupArchivesUnchanged','disposableVolumeRemoved']},codes=[])
 if tool=='ssh-keygen':
  if '-y'in args:print('ssh-ed25519 RklYVFVSRQ== fixture')
- elif '-F'in args:sys.exit(0)
+ elif '-F'in args:
+  names=Path(args[args.index('-f')+1]).read_text().split()[0].split(',')
+  sys.exit(0 if args[args.index('-F')+1]in names else 1)
  elif '-l'in args:
   public=Path(args[args.index('-f')+1]).name=='public_key'
   pin='SHA256:y1+C6cvcfpJFmO8pfjyMSFERpd5BtcQyDf5SptZXVlQ'if public else'SHA256:79xe+ubCodL2ACAHPNloo7I/K6mvngU88vEiFoEeWL8'
@@ -103,7 +105,7 @@ class AcceptanceControllerTests(unittest.TestCase):
         for name in UNITS:(self.root/'deploy/private-staging-ops'/name).write_text('fixture unit\n')
         transport=self.root/'bin/transport';transport.write_text(TRANSPORT);transport.chmod(0o700)
         for name in ['ssh','ssh-keygen','curl','node']:(self.root/'bin'/name).symlink_to(transport)
-        self.env={**os.environ,'PATH':str(self.root/'bin')+':'+os.environ['PATH'],'DEPLOY_ENABLED':'false','REPOSITORY_GATE_CONFIRMED':'disabled','GITHUB_REPOSITORY':'omargad/Bangla-Adventure','GITHUB_REF':'refs/heads/main','DEPLOY_SSH_KEY':'SECRET_MUST_NOT_LEAK','DEPLOY_KNOWN_HOSTS':'203.0.113.10 ssh-ed25519 RklYVFVSRQ== public fixture comment','PRIVATE_ACCEPTANCE_EVIDENCE_DIR':str(self.root/'evidence'),'FIXTURE_LOG':str(self.root/'calls.jsonl'),'FIXTURE_IMAGE':IMAGE,'FIXTURE_REVISION':REVISION}
+        self.env={**os.environ,'PATH':str(self.root/'bin')+':'+os.environ['PATH'],'DEPLOY_ENABLED':'false','REPOSITORY_GATE_CONFIRMED':'disabled','GITHUB_REPOSITORY':'omargad/Bangla-Adventure','GITHUB_REF':'refs/heads/main','DEPLOY_HOST':'192.0.2.10','DEPLOY_USER':'example-user','DEPLOY_SSH_KEY':'SECRET_MUST_NOT_LEAK','DEPLOY_KNOWN_HOSTS':'192.0.2.10 ssh-ed25519 RklYVFVSRQ== public fixture comment','PRIVATE_ACCEPTANCE_EVIDENCE_DIR':str(self.root/'evidence'),'FIXTURE_LOG':str(self.root/'calls.jsonl'),'FIXTURE_IMAGE':IMAGE,'FIXTURE_REVISION':REVISION}
 
     def run_controller(self,**changes):
         result=subprocess.run(['bash',str(self.root/'scripts/private-staging-acceptance.sh')],env={**self.env,**changes},capture_output=True,text=True,timeout=20)
@@ -114,8 +116,11 @@ class AcceptanceControllerTests(unittest.TestCase):
                 if p.is_file():self.assertNotIn(b'SECRET_MUST_NOT_LEAK',p.read_bytes())
         return result
 
+    def calls(self):
+        log=self.root/'calls.jsonl';return [json.loads(x)for x in log.read_text().splitlines()]if log.exists()else[]
+
     def kinds(self):
-        log=self.root/'calls.jsonl';return [json.loads(x)['kind']for x in log.read_text().splitlines()]if log.exists()else[]
+        return [call['kind']for call in self.calls()]
 
     def test_success_runs_operations_then_real_engine_drill_then_four_roles_without_recreating_stage(self):
         result=self.run_controller();self.assertEqual(result.returncode,0,result.stderr);kinds=self.kinds()
@@ -125,7 +130,20 @@ class AcceptanceControllerTests(unittest.TestCase):
         self.assertEqual(len(list((evidence/'synthetic-role-screens').glob('*.png'))),12)
         self.assertEqual(json.loads((evidence/'stage-before.json').read_text()),json.loads((evidence/'stage-after.json').read_text()))
         self.assertEqual(set(p.name for p in evidence.iterdir()),{'stage-before.json','staging_known_hosts','helper-install.json','operations.json','rollback.json','qa-cleanup.json','stage-after.json','synthetic-role-screens','roles.json','attempt-status.json'})
-        self.assertNotIn('public fixture comment',(evidence/'staging_known_hosts').read_text())
+        self.assertEqual((evidence/'staging_known_hosts').read_text(),'bangla-adventures-vps ssh-ed25519 RklYVFVSRQ==\n')
+        for p in evidence.rglob('*'):
+            if p.is_file():self.assertNotIn(b'192.0.2.10',p.read_bytes(),p.name)
+        remote=[call for call in self.calls()if call['kind']not in {'http','browser'}];self.assertIn('qa_prepare',[call['kind']for call in remote])
+        for call in remote:self.assertIn('example-user@192.0.2.10',call['args'],call['kind'])
+
+    def test_missing_or_invalid_server_variables_prevent_remote_contact(self):
+        for changes in [dict(DEPLOY_HOST=''),dict(DEPLOY_USER=''),dict(DEPLOY_HOST='192.0.2.10;id'),dict(DEPLOY_USER='Example User')]:
+            result=self.run_controller(**changes);self.assertNotEqual(result.returncode,0)
+            self.assertRegex(result.stderr,r'The DEPLOY_(HOST|USER) repository secret is missing or invalid\.');self.assertEqual(self.kinds(),[])
+
+    def test_pinned_host_key_must_name_the_configured_server(self):
+        result=self.run_controller(DEPLOY_HOST='192.0.2.11');self.assertNotEqual(result.returncode,0)
+        self.assertIn('does not cover the configured VPS address',result.stderr);self.assertEqual(self.kinds(),[])
 
     def test_repository_gate_and_key_pin_precede_remote_contact(self):
         for changes in [dict(DEPLOY_ENABLED='true'),dict(REPOSITORY_GATE_CONFIRMED='refused'),dict(FIXTURE_BAD_PIN='1')]:
@@ -207,6 +225,7 @@ class AcceptanceWorkflowTests(unittest.TestCase):
         gate=workflow['jobs']['repository-settings'];self.assertNotIn('environment',gate);self.assertIn('[vps-acceptance-run]',gate['if']);self.assertNotIn('secrets.',json.dumps(gate))
         private=workflow['jobs']['acceptance'];self.assertEqual(private['environment'],'production');self.assertEqual(set(private['needs']),{'validate','repository-settings'});self.assertIn('[vps-acceptance-run]',private['if'])
         credentials=[i for i,step in enumerate(private['steps'])if 'DEPLOY_SSH_KEY'in step.get('env',{})];self.assertEqual(len(credentials),1)
+        server=private['steps'][credentials[0]]['env'];self.assertEqual((server['DEPLOY_HOST'],server['DEPLOY_USER']),('${{ secrets.DEPLOY_HOST }}','${{ secrets.DEPLOY_USER }}'))
         self.assertTrue(any('playwright install --with-deps chromium'in step.get('run','')for step in private['steps'][:credentials[0]]))
         artifact=next(step for step in validate['steps']if step.get('with',{}).get('name')=='private-acceptance-local')
         self.assertEqual(artifact['if'],'${{ always() }}');self.assertNotIn('trace',artifact['with']['path']);self.assertNotIn('error-context',artifact['with']['path'])

@@ -231,7 +231,7 @@ On the default branch the pipeline then:
    deployed is exactly what was tested.
 3. Deploys it when the server is configured and `DEPLOY_ENABLED=true`. Until then that step is skipped.
 
-For Faysal's prepared `deployer` rootless VPS, use [VPS_DEPLOYMENT.md](VPS_DEPLOYMENT.md)
+For Faysal's prepared rootless VPS, use [VPS_DEPLOYMENT.md](VPS_DEPLOYMENT.md)
 and the supplied non-secret settings templates. That server uses host port `3001`,
 the existing rootless daemon, and Nginx; the generic rootful setup below does not
 apply to it.
@@ -309,11 +309,11 @@ from the deployment folder: `docker compose exec app npm run admin:grant -- EMAI
 | Name | Kind | Value |
 | --- | --- | --- |
 | `DEPLOY_ENABLED` | Repository variable | Must be exactly `true` to enable deployment. Leave unset or `false` while preparing access, the domain and backups |
-| `DEPLOY_HOST` | Repository variable | The server's name or address. The deploy job is skipped while it is unset. It must be a repository variable, not an environment one: the job checks it before the environment loads |
+| `DEPLOY_HOST` | Repository secret | The server's name or address. A secret, so that GitHub masks it in the run logs of this public repository; every VPS workflow reads it, so it stays at repository level. A deploy with `DEPLOY_ENABLED=true` and no `DEPLOY_HOST` stops with a message |
 | `DEPLOY_KNOWN_HOSTS` | Variable | The contents of `server.keys` (step 5 above) |
 | `DEPLOY_HOST_FINGERPRINT` | Variable | Expected SHA256 fingerprint; every supplied host-key line must match this pin |
 | `DEPLOY_KEY_FINGERPRINT` | Variable | Expected SHA256 fingerprint of the deployment key's public half |
-| `DEPLOY_USER` | Variable | Optional; GitHub defaults to `deployer`; the portable script defaults to `deploy` |
+| `DEPLOY_USER` | Repository secret | The SSH account on the server; required for the prepared VPS, whose account is in the server handover email. A secret for the same reason as `DEPLOY_HOST`. When unset the portable script uses `deploy` |
 | `DEPLOY_PORT` | Variable | Optional; default `22` |
 | `DEPLOY_PATH` | Variable | Optional; default `/opt/bangla-adventures` |
 | `DEPLOY_DOCKER_HOST` | Variable | Explicit daemon endpoint; for the prepared VPS, `unix:///run/user/1002/docker.sock` |
@@ -325,7 +325,7 @@ from the deployment folder: `docker compose exec app npm run admin:grant -- EMAI
 | `ELEVENLABS_API_KEY` | Secret | Optional; the client's narration key, written into the server `.env` on each deploy. Empty leaves the server's own value |
 | `ELEVENLABS_VOICE_ID`, `ELEVENLABS_MODEL_ID`, `ELEVENLABS_DAILY_CHARACTER_LIMIT` | Variable | Optional narration settings, written the same way |
 
-The configurable variables other than `DEPLOY_HOST` and `DEPLOY_ENABLED`, and the `DEPLOY_SSH_KEY` and `ELEVENLABS_API_KEY` secrets, may be set on the
+The configurable variables other than `DEPLOY_ENABLED`, and the `DEPLOY_SSH_KEY` and `ELEVENLABS_API_KEY` secrets, may be set on the
 `production` environment instead (Settings > Environments). To approve each deploy before it runs,
 add required reviewers to that environment. Only the newest commit on the default branch is marked
 `latest` and deployed: a run whose commit is no longer the newest, such as an old run started
@@ -356,7 +356,7 @@ repository, with `server.keys` from step 5 above:
 unset ELEVENLABS_API_KEY ELEVENLABS_VOICE_ID ELEVENLABS_MODEL_ID ELEVENLABS_DAILY_CHARACTER_LIMIT
 DEPLOY_ENABLED=true DEPLOY_HOST=SERVER DEPLOY_KNOWN_HOSTS="$(cat server.keys)" DEPLOY_SSH_KEY=~/.ssh/bangla_deploy \
   DEPLOY_HOST_FINGERPRINT=EXPECTED_SERVER_SHA256 DEPLOY_KEY_FINGERPRINT=EXPECTED_DEPLOY_KEY_SHA256 \
-  DEPLOY_USER=deployer DEPLOY_DOCKER_HOST=unix:///run/user/1002/docker.sock \
+  DEPLOY_USER=SERVER_USER DEPLOY_DOCKER_HOST=unix:///run/user/1002/docker.sock \
   DEPLOY_REQUIRE_ROOTLESS=true DEPLOY_REQUIRE_PUBLIC_HEALTH=true \
   REGISTRY_USER=GITHUB_USER REGISTRY_PASSWORD=TOKEN_WITH_READ_PACKAGES \
   bash scripts/deploy.sh ghcr.io/OWNER/REPOSITORY:sha-COMMIT

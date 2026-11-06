@@ -31,10 +31,11 @@ jobs:
         shell: bash
         env:
           REPOSITORY_DEPLOY_ENABLED_STATE: ${{ (vars.DEPLOY_ENABLED == '' || vars.DEPLOY_ENABLED == 'false') && 'disabled' || vars.DEPLOY_ENABLED == 'true' && 'enabled' || 'unexpected' }}
-          REPOSITORY_DEPLOY_HOST_STATE: ${{ vars.DEPLOY_HOST == '' && 'unset' || vars.DEPLOY_HOST == '203.0.113.10' && 'matches expected VPS' || 'unexpected' }}
+          REPOSITORY_DEPLOY_HOST_STATE: ${{ secrets.DEPLOY_HOST == '' && 'unset' || 'set' }}
+          REPOSITORY_DEPLOY_USER_STATE: ${{ secrets.DEPLOY_USER == '' && 'unset' || 'set' }}
         run: |
           set -euo pipefail
-          printf 'repository gate scope (production environment not loaded): DEPLOY_ENABLED=%s; DEPLOY_HOST=%s.\n' "$REPOSITORY_DEPLOY_ENABLED_STATE" "$REPOSITORY_DEPLOY_HOST_STATE"
+          printf 'repository gate scope (production environment not loaded): DEPLOY_ENABLED=%s; DEPLOY_HOST=%s; DEPLOY_USER=%s.\n' "$REPOSITORY_DEPLOY_ENABLED_STATE" "$REPOSITORY_DEPLOY_HOST_STATE" "$REPOSITORY_DEPLOY_USER_STATE"
           if [ "$REPOSITORY_DEPLOY_ENABLED_STATE" != disabled ]; then
             printf '::error::Repository DEPLOY_ENABLED must be absent or exactly false before this preflight may contact the VPS.\n'
             exit 1
@@ -60,7 +61,8 @@ jobs:
         if: ${{ success() }}
         shell: bash
         env:
-          EFFECTIVE_USER_STATE: ${{ vars.DEPLOY_USER == '' && 'default deployer' || vars.DEPLOY_USER == 'deployer' && 'matches deployer' || 'unexpected' }}
+          EFFECTIVE_HOST_STATE: ${{ secrets.DEPLOY_HOST == '' && 'unset' || 'set' }}
+          EFFECTIVE_USER_STATE: ${{ secrets.DEPLOY_USER == '' && 'unset' || 'set' }}
           EFFECTIVE_PORT_STATE: ${{ vars.DEPLOY_PORT == '' && 'default 22' || vars.DEPLOY_PORT == '22' && 'matches 22' || 'unexpected' }}
           EFFECTIVE_PATH_STATE: ${{ vars.DEPLOY_PATH == '' && 'default deployment directory' || vars.DEPLOY_PATH == '/opt/bangla-adventures' && 'matches deployment directory' || 'unexpected' }}
           EFFECTIVE_DOCKER_HOST_STATE: ${{ vars.DEPLOY_DOCKER_HOST == '' && (vars.DEPLOY_DOCKER_CONTEXT == '' && 'default rootless socket' || 'unset; context selected') || vars.DEPLOY_DOCKER_HOST == 'unix:///run/user/1002/docker.sock' && 'matches rootless socket' || 'unexpected' }}
@@ -72,7 +74,7 @@ jobs:
           UNUSED_HOST_SECRET_STATE: ${{ secrets.DEPLOY_KNOWN_HOSTS == '' && 'absent' || 'present; unused secret entry' }}
         run: |
           set -euo pipefail
-          printf 'effective production settings: user=%s; port=%s; path=%s.\n' "$EFFECTIVE_USER_STATE" "$EFFECTIVE_PORT_STATE" "$EFFECTIVE_PATH_STATE"
+          printf 'effective production settings: host=%s; user=%s; port=%s; path=%s.\n' "$EFFECTIVE_HOST_STATE" "$EFFECTIVE_USER_STATE" "$EFFECTIVE_PORT_STATE" "$EFFECTIVE_PATH_STATE"
           printf 'effective production settings: Docker host=%s; context=%s; public health URL=%s.\n' "$EFFECTIVE_DOCKER_HOST_STATE" "$EFFECTIVE_DOCKER_CONTEXT_STATE" "$EFFECTIVE_HEALTH_URL_STATE"
           printf 'effective production fingerprint settings: server=%s; deployment key=%s.\n' "$EFFECTIVE_HOST_PIN_STATE" "$EFFECTIVE_KEY_PIN_STATE"
           printf 'production section placement: DEPLOY_SSH_KEY variable=%s; DEPLOY_KNOWN_HOSTS secret=%s.\n' "$MISPLACED_PRIVATE_VARIABLE_STATE" "$UNUSED_HOST_SECRET_STATE"
@@ -83,6 +85,8 @@ jobs:
           PREFLIGHT_IMAGE_REF: ${{ inputs.image_ref }}
           PREFLIGHT_EXPECTED_REVISION: ${{ inputs.expected_revision }}
           DEPLOY_ENABLED: ${{ vars.DEPLOY_ENABLED }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           DEPLOY_KNOWN_HOSTS: ${{ vars.DEPLOY_KNOWN_HOSTS }}
           REGISTRY_USER: ${{ github.actor }}
@@ -99,9 +103,11 @@ jobs:
 
           [[ "${PREFLIGHT_IMAGE_REF:-}" =~ ^ghcr\.io/omargad/bangla-adventure@sha256:[0-9a-f]{64}$ ]] || fail 'image_ref must be an immutable digest in this repository GHCR package.'
           [[ "${PREFLIGHT_EXPECTED_REVISION:-}" =~ ^[0-9a-f]{40}$ ]] || fail 'expected_revision must be a full lowercase 40-character commit SHA.'
+          [[ "${DEPLOY_HOST:-}" =~ ^[a-zA-Z0-9][a-zA-Z0-9.:-]*$ ]] || fail 'repository secret DEPLOY_HOST is missing or invalid.'
+          [[ "${DEPLOY_USER:-}" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]] || fail 'repository secret DEPLOY_USER is missing or invalid.'
 
-          readonly host='203.0.113.10'
-          readonly user='deployer'
+          readonly host="$DEPLOY_HOST"
+          readonly user="$DEPLOY_USER"
           readonly port='22'
           readonly key_pin='SHA256:y1+C6cvcfpJFmO8pfjyMSFERpd5BtcQyDf5SptZXVlQ'
           readonly host_pin='SHA256:79xe+ubCodL2ACAHPNloo7I/K6mvngU88vEiFoEeWL8'
@@ -144,8 +150,9 @@ jobs:
           set -euo pipefail
           umask 077
           fail() { printf 'image preflight: %s\n' "$*" >&2; exit 1; }
-          [ "$(id -un)" = deployer ] || fail 'SSH connected as an unexpected user.'
-          [ "$(id -u)" = 1002 ] || fail 'deployer does not have the expected UID 1002.'
+          readonly expected_user="${4:?The expected deployment user is required.}"
+          [ "$(id -un)" = "$expected_user" ] || fail 'SSH connected as an unexpected user.'
+          [ "$(id -u)" = 1002 ] || fail 'The deployment user does not have the expected UID 1002.'
           readonly registry_user="${1:?Registry user is required.}"
           readonly docker_socket='unix:///run/user/1002/docker.sock'
           readonly image="${2:?An immutable image reference is required.}"
@@ -187,7 +194,7 @@ jobs:
           actual_revision="$(docker --config "$docker_config" --host "$docker_socket" image inspect "$image" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' 2>/dev/null)" || fail 'The pulled image revision label could not be inspected.'
           [ "$actual_revision" = "$expected_revision" ] || fail 'The pulled image revision label does not match expected_revision.'
           printf 'image preflight: verified explicit image digest, expected revision and linux/amd64 platform in the rootless Docker image cache.\n'
-          printf 'VPS metadata: deployer UID matches 1002.\n'
+          printf 'VPS metadata: deployment user UID matches 1002.\n'
           if command -v ss >/dev/null 2>&1 && listeners="$(ss -H -ltn 'sport = :3001' 2>/dev/null)"; then
             if [ -z "$listeners" ]; then port_state=unused; else port_state=occupied; fi
           else port_state=unavailable; fi
@@ -202,7 +209,7 @@ jobs:
           done
           linger_state=unavailable
           if command -v loginctl >/dev/null 2>&1; then
-            linger_state="$(loginctl show-user deployer -p Linger --value 2>/dev/null || true)"
+            linger_state="$(loginctl show-user "$expected_user" -p Linger --value 2>/dev/null || true)"
             case "$linger_state" in yes|no) ;; *) linger_state=unavailable ;; esac
           fi
           enabled_state=unavailable
@@ -217,7 +224,7 @@ jobs:
           REMOTE
           )"
           quoted() { printf "'%s'" "${1//\'/\'\\\'\'}"; }
-          remote_command="bash -c $(quoted "$remote_script") image-preflight $(quoted "$REGISTRY_USER") $(quoted "$PREFLIGHT_IMAGE_REF") $(quoted "$PREFLIGHT_EXPECTED_REVISION")"
+          remote_command="bash -c $(quoted "$remote_script") image-preflight $(quoted "$REGISTRY_USER") $(quoted "$PREFLIGHT_IMAGE_REF") $(quoted "$PREFLIGHT_EXPECTED_REVISION") $(quoted "$user")"
           registry_token="$REGISTRY_PASSWORD"
           unset REGISTRY_PASSWORD
           printf '%s' "$registry_token" | ssh -F /dev/null -T -i "$work/key" -p "$port" \

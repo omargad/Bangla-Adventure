@@ -689,7 +689,9 @@ test("GitHub deployment requires the explicit gate and newest-check lookup error
   const workflow = readFileSync(new URL(".github/workflows/ci.yml", repository), "utf8");
   const deploy = workflow.match(/^  deploy:\n([\s\S]*)$/m)?.[1];
   assert.ok(deploy);
-  assert.match(deploy, /^    if: vars\.DEPLOY_ENABLED == 'true' && vars\.DEPLOY_HOST != ''$/m);
+  assert.match(deploy, /^    if: vars\.DEPLOY_ENABLED == 'true'$/m);
+  assert.match(deploy, /^          DEPLOY_HOST: \$\{\{ secrets\.DEPLOY_HOST \}\}$/m);
+  assert.match(deploy, /^          DEPLOY_USER: \$\{\{ secrets\.DEPLOY_USER \}\}$/m);
   assert.match(deploy, /^          DEPLOY_REQUIRE_ROOTLESS: 'true'$/m);
   assert.match(deploy, /^          DEPLOY_REQUIRE_PUBLIC_HEALTH: 'true'$/m);
   assert.match(deploy, /^          ELEVENLABS_API_KEY: \$\{\{ secrets\.ELEVENLABS_API_KEY \}\}$/m, "the narration key comes only from a secret");
