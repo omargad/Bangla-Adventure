@@ -1,13 +1,10 @@
-import { and, eq } from "drizzle-orm";
-import { getDb } from "@/db";
-import { activitySubmissions, classActivities, studentClassEnrollments } from "@/db/schema";
-import type { QuizQuestion } from "@/lib/classroom";
-import { gradeAnswers } from "@/lib/classroom";
 import { checkRateLimit, tooManyRequests } from "@/lib/rate-limit";
 import { getStudentAccess } from "@/lib/student-auth";
+import { submitActivityWork } from "@/lib/student-work";
 
 export const dynamic = "force-dynamic";
 
+/** Hands in a class activity once; see submitActivityWork. */
 export async function POST(request: Request) {
   const student = await getStudentAccess();
   if (student instanceof Response) return student;
@@ -18,61 +15,10 @@ export async function POST(request: Request) {
 
   try {
     const body = (await request.json().catch(() => ({}))) as { activityId?: unknown; answers?: unknown };
-    const activityId = typeof body.activityId === "string" ? body.activityId : "";
-    if (!activityId) return Response.json({ error: "Choose an activity." }, { status: 400 });
-
-    const db = await getDb();
-    return db.transaction((tx) => {
-      const activity = tx.select().from(classActivities).where(and(eq(classActivities.id, activityId), eq(classActivities.approvalStatus, "approved"))).get();
-      if (!activity) return Response.json({ error: "Activity not found." }, { status: 404 });
-      if (activity.status !== "open") return Response.json({ error: "This activity is closed." }, { status: 409 });
-
-      const enrollment = tx
-        .select({ classStudentId: studentClassEnrollments.classStudentId })
-        .from(studentClassEnrollments)
-        .where(and(eq(studentClassEnrollments.studentId, student.id), eq(studentClassEnrollments.classId, activity.classId), eq(studentClassEnrollments.active, true)))
-        .get();
-      if (!enrollment) return Response.json({ error: "Your teacher must allocate you to this class before you can submit." }, { status: 403 });
-
-      const questions = parseQuestions(activity.questionsJson);
-      if (!questions.length || !Array.isArray(body.answers) || body.answers.length !== questions.length ||
-        !body.answers.every((answer, index) => Number.isInteger(answer) && answer >= 0 && answer < questions[index].options.length)) {
-        return Response.json({ error: "Answer every question with one of the available options." }, { status: 400 });
-      }
-      const { score, total, picked } = gradeAnswers(questions, body.answers);
-      tx.insert(activitySubmissions).values({
-        id: crypto.randomUUID(),
-        activityId,
-        studentId: enrollment.classStudentId,
-        answersJson: JSON.stringify(picked),
-        score,
-        total,
-        submittedAt: new Date().toISOString(),
-      }).onConflictDoUpdate({ target: [activitySubmissions.activityId, activitySubmissions.studentId],
-        set: { answersJson: JSON.stringify(picked), score, total, submittedAt: new Date().toISOString() } }).run();
-
-      return Response.json({
-        score,
-        total,
-        review: questions.map((question, index) => ({
-          prompt: question.prompt,
-          picked: picked[index],
-          answer: question.answer,
-          correct: picked[index] === question.answer,
-        })),
-      });
-    });
+    const { status, body: answer } = await submitActivityWork(student.id, body.activityId, body.answers);
+    return Response.json(answer, { status });
   } catch (error) {
     return databaseError(error);
-  }
-}
-
-function parseQuestions(json: string): QuizQuestion[] {
-  try {
-    const parsed = JSON.parse(json);
-    return Array.isArray(parsed) ? (parsed as QuizQuestion[]) : [];
-  } catch {
-    return [];
   }
 }
 
