@@ -21,6 +21,8 @@ services:
       MEDIA_ROOT: /app/.data/media
       PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:?Set PUBLIC_ORIGIN to the public HTTPS address}
       NEXT_TELEMETRY_DISABLED: "1"
+      # Proxies that append to X-Forwarded-For in front of the app; empty means one (the Nginx site).
+      TRUSTED_PROXY_HOPS: ${TRUSTED_PROXY_HOPS:-}
       # Optional server-side narration; bundled audio needs no provider credential.
       ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY:-}
       ELEVENLABS_VOICE_ID: ${ELEVENLABS_VOICE_ID:-}

@@ -78,9 +78,9 @@ server {
         proxy_set_header Host $host;
         proxy_set_header X-Forwarded-Host $host;
         proxy_set_header X-Forwarded-Proto https;
-        # The sign-in rate limit keys on the first X-Forwarded-For address (lib/rate-limit.ts),
-        # so both replace any client-sent value instead of appending to it. Revisit if a CDN is
-        # put in front.
+        # The sign-in rate limit keys on the right-most X-Forwarded-For address (lib/rate-limit.ts).
+        # Both replace any client-sent value instead of appending to it. With a CDN in front, append
+        # instead ($proxy_add_x_forwarded_for) and set TRUSTED_PROXY_HOPS=2 in the app's environment.
         proxy_set_header X-Forwarded-For $remote_addr;
         proxy_set_header X-Real-IP $remote_addr;
     }

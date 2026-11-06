@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-const { checkRateLimit, clearRateLimit, peekRateLimit, recordRateLimit, resetRateLimits, clientKey, tooManyRequests } = await import("../lib/rate-limit.ts");
+const { checkRateLimit, clearRateLimit, peekRateLimit, recordRateLimit, resetRateLimits, clientKey, tooManyRequests, trustedProxyHops } = await import("../lib/rate-limit.ts");
 
 test("allows up to the limit inside a window, then blocks", () => {
   resetRateLimits();
@@ -68,12 +68,34 @@ test("clearing a window forgets its attempts and leaves other keys alone", () =>
   assert.equal(peekRateLimit("overall", 3, start).allowed, false);
 });
 
-test("clientKey prefers first x-forwarded-for hop", () => {
-  const withHeader = new Request("http://localhost/", {
-    headers: { "x-forwarded-for": "203.0.113.9, 10.0.0.1" },
-  });
-  assert.equal(clientKey(withHeader), "203.0.113.9");
+test("clientKey uses the address the nearest proxy added, not one the client sent", () => {
+  const forwarded = (value) => new Request("http://localhost/", { headers: { "x-forwarded-for": value } });
+  // A client sends its own X-Forwarded-For; a proxy that appends adds the real address on the right.
+  assert.equal(clientKey(forwarded("203.0.113.9, 10.0.0.1")), "10.0.0.1");
+  assert.equal(clientKey(forwarded("spoofed-1, 198.51.100.4")), "198.51.100.4");
+  assert.equal(clientKey(forwarded("spoofed-2, 198.51.100.4")), "198.51.100.4", "changing the sent value does not give a new key");
+  // The shipped Nginx file replaces the header with one address.
+  assert.equal(clientKey(forwarded("198.51.100.4")), "198.51.100.4");
   assert.equal(clientKey(new Request("http://localhost/")), "local");
+  // Behind two proxies (a CDN, then Nginx), the CDN's entry is the client.
+  assert.equal(clientKey(forwarded("spoofed, 198.51.100.4, 192.0.2.7"), 2), "198.51.100.4");
+  assert.equal(clientKey(forwarded("198.51.100.4"), 2), "198.51.100.4");
+});
+
+test("TRUSTED_PROXY_HOPS is a small whole number, 1 when unset or invalid", () => {
+  assert.equal(trustedProxyHops(undefined), 1);
+  assert.equal(trustedProxyHops(""), 1);
+  assert.equal(trustedProxyHops("2"), 2);
+  for (const bad of ["0", "-1", "1.5", "eleven", "99"]) assert.equal(trustedProxyHops(bad), 1, bad);
+});
+
+test("checkRateLimit also says when the window ends", () => {
+  resetRateLimits();
+  const start = 6_000_000;
+  assert.deepEqual(checkRateLimit("reset", 2, 60_000, start), { allowed: true, retryAfterSeconds: 0, resetAt: start + 60_000 });
+  assert.equal(checkRateLimit("reset", 2, 60_000, start + 5).resetAt, start + 60_000, "the window starts at the first attempt");
+  assert.deepEqual(checkRateLimit("reset", 2, 60_000, start + 1_000), { allowed: false, retryAfterSeconds: 59, resetAt: start + 60_000 });
+  assert.equal(peekRateLimit("untouched", 2, start).resetAt, start);
 });
 
 test("the 429 answer says when to retry, in English and Bangla", async () => {

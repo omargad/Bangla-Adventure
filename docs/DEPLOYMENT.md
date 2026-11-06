@@ -111,6 +111,9 @@ Put the HTTPS proxy in front of `127.0.0.1:3000`, or the configured `APP_PORT`
 The native Caddy example uses port `3300`; change its upstream for Compose.
 The Nginx site [`deploy/nginx/bangla-adventures.conf.example`](../deploy/nginx/bangla-adventures.conf.example)
 uses `3001` and sets the upload size, read timeout and forwarded headers the app expects.
+The per-address sign-in and sign-up limits use the right-most `X-Forwarded-For` value, the one the
+nearest proxy added, so a value the browser sends cannot change it; behind a CDN, let Nginx append
+(`$proxy_add_x_forwarded_for`) and set `TRUSTED_PROXY_HOPS=2`.
 Keep the same Compose project name so recreations reuse the same named volume.
 Never run `docker compose down -v` during an upgrade. The CI Docker smoke test
 validates a disposable container; record its actual result before accepting a
