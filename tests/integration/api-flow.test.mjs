@@ -181,6 +181,36 @@ test("learner profiles list the most recently created or edited first", async ()
   for (const { id } of [rafi, nadia]) assert.equal((await fetch(`${BASE}/api/profiles/${id}`, { method: "DELETE", headers: { cookie } })).status, 200);
 });
 
+test("editing a profile accepts only the listed age bands, as creating one does", async () => {
+  const headers = { "Content-Type": "application/json", cookie };
+  for (const ageBand of ["any text up to 20", "", 9, null]) {
+    const refused = await fetch(`${BASE}/api/profiles/${profileId}`, { method: "PATCH", headers, body: JSON.stringify({ ageBand }) });
+    assert.equal(refused.status, 400, JSON.stringify(ageBand));
+    assert.deepEqual(await refused.json(), { error: "Choose one of the listed age bands.", errorBn: "তালিকার একটি বয়সসীমা বেছে নিন।" });
+  }
+  const changed = await fetch(`${BASE}/api/profiles/${profileId}`, { method: "PATCH", headers, body: JSON.stringify({ ageBand: "9-12" }) });
+  assert.equal(changed.status, 200);
+  assert.equal((await changed.json()).profile.ageBand, "9-12");
+  // Leaving it out keeps it.
+  const renamed = await fetch(`${BASE}/api/profiles/${profileId}`, { method: "PATCH", headers, body: JSON.stringify({ displayName: "Nila" }) });
+  assert.equal((await renamed.json()).profile.ageBand, "9-12");
+});
+
+test("a body of the wrong type gets 400 in both languages, never a server error", async () => {
+  const form = () => { const body = new FormData(); body.set("profileId", profileId); return body; };
+  // A same-origin upload passes the origin check, so the JSON routes must refuse the form themselves.
+  for (const [route, method] of [["/api/assignments", "POST"], ["/api/assignments", "PATCH"], ["/api/progress", "POST"], ["/api/profiles", "POST"], [`/api/profiles/${profileId}`, "PATCH"], ["/api/studio/reviews", "POST"]]) {
+    const response = await fetch(`${BASE}${route}`, { method, headers: { cookie, origin: BASE }, body: form() });
+    assert.equal(response.status, 400, `${method} ${route}`);
+    const payload = await response.json();
+    assert.equal(payload.error, "Send a valid JSON object with the required fields.", `${method} ${route}`);
+    assert.match(payload.errorBn, /[ঀ-৿]/, `${method} ${route}`);
+  }
+  const upload = await fetch(`${BASE}/api/studio/media`, { method: "POST", headers: { cookie, "Content-Type": "application/json" }, body: JSON.stringify({ lessonId: "hello-me" }) });
+  assert.equal(upload.status, 400);
+  assert.match((await upload.json()).errorBn, /[ঀ-৿]/);
+});
+
 test("recovery code resets the password and consumes the code", async () => {
   const recovered = await fetch(`${BASE}/api/auth/recover`, {
     method: "POST",

@@ -5,6 +5,7 @@ import { getSessionAdult, getStaffAccess } from "@/lib/auth";
 import { canTeach } from "@/lib/roles";
 import { putMediaObject } from "@/lib/storage";
 import { lessonErrorResponse, readLessonBody, reviewRecording } from "@/lib/lesson-approval";
+import { readFormData } from "@/lib/request-security";
 
 export const dynamic = "force-dynamic";
 const maxBytes = 12 * 1024 * 1024;
@@ -12,9 +13,10 @@ const slots = /^(dialogue|reading|word-[1-6]|pattern-[1-2])$/;
 
 export async function POST(request: Request) {
   const user = await getSessionAdult();
-  if (user && !canTeach(user)) return Response.json({ error: "An approved teacher account is required." }, { status: 403 });
-  if (!user) return Response.json({ error: "Sign in required." }, { status: 401 });
-  const form = await request.formData();
+  if (user && !canTeach(user)) return Response.json({ error: "An approved teacher account is required.", errorBn: "অনুমোদিত শিক্ষকের অ্যাকাউন্ট প্রয়োজন।" }, { status: 403 });
+  if (!user) return Response.json({ error: "Sign in required.", errorBn: "সাইন ইন করা প্রয়োজন।" }, { status: 401 });
+  const form = await readFormData(request);
+  if (form instanceof Response) return form;
   const file = form.get("file");
   const lessonId = value(form.get("lessonId"), 60);
   const slot = value(form.get("slot"), 30);
