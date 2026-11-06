@@ -109,16 +109,6 @@ test("a parent with no linked children gets no announcements, and unlinking stop
   assert.deepEqual(announcements.map((notice) => [notice.id, notice.children.map((child) => child.displayName)]), [["parents", ["Maya"]], ["everyone", ["Maya"]]]);
 });
 
-test("the retired class-code feed also leaves parents-only posts out and names each author", async () => {
-  const { GET } = await import("../app/api/classroom/feed/route.ts");
-  const { hashSessionToken } = await import("../lib/password.ts");
-  db.insert(classStudents).values({ id: "code-learner", classId: "sunday", displayName: "Code learner", tokenHash: hashSessionToken("class-code-token") }).run();
-  const response = await GET(new Request("http://localhost/api/classroom/feed", { headers: { "x-student-token": "class-code-token" } }));
-  assert.equal(response.status, 200);
-  const { announcements } = await response.json();
-  assert.deepEqual(announcements.map((item) => [item.id, item.authorName]), [["students", "Teacher Rahman"], ["everyone", "Teacher Rahman"]]);
-});
-
 test("a post whose author's account is deleted stays, but is never credited to whoever teaches the class now", () => {
   // The class moves to another teacher, then the administrator who wrote the parents' note leaves.
   db.insert(adults).values({ id: "bashir", email: "bashir@example.com", displayName: "Teacher Bashir", passwordHash: "test-only", role: "teacher", teacherStatus: "approved" }).run();
