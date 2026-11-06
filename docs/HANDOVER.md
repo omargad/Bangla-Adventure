@@ -6,6 +6,9 @@ Hand over a specific commit or release with its verification evidence.
 [`CONTRIBUTIONS.md`](../CONTRIBUTIONS.md) records Jira responsibility areas; it does
 not reconstruct authorship for the original source snapshot.
 
+The handover deliverables are indexed in [`DELIVERABLES.md`](DELIVERABLES.md).
+User guides for each role are in [`user-guides/`](user-guides/README.md).
+
 ## Open and run
 
 Use Node.js 22 and npm, from a checkout or extracted source release:

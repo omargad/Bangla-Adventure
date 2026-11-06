@@ -1,57 +1,39 @@
 # Bangla Adventures — Administrator guide
 
-This guide is for the school's administrators: the office staff or lead teacher who looks
-after Bangla Adventures for everyone else. As an administrator you approve new accounts,
+This guide is for the school's Administrators: the office staff or lead teacher who looks
+after Bangla Adventures for everyone else. As an Administrator you approve new accounts,
 create accounts and reset passwords, import families, set up classes for teachers, keep the
 NCTB textbook links up to date, and look after results and attendance in every class. You
 also decide what students and parents see: no topic, lesson, recording, video or class
-activity reaches them until an administrator has checked and approved it.
+activity reaches them until an Administrator has checked and approved it.
 
 The pictures in this guide use made-up people and example addresses. Passwords, recovery
 codes and the website address are blurred on purpose.
 
 ## Contents
 
-- [Setting up the first administrator](#setting-up-the-first-administrator)
-- [Before you start](#before-you-start)
-- [Signing in](#signing-in)
-- [Approving or declining new accounts](#approving-or-declining-new-accounts)
-- [Creating an account](#creating-an-account)
-- [Resetting a password](#resetting-a-password)
-- [Other account tasks](#other-account-tasks)
-- [Importing families from a CSV file](#importing-families-from-a-csv-file)
-- [Classes: creating them and handing them over](#classes-creating-them-and-handing-them-over)
-- [Working inside any class](#working-inside-any-class)
-- [Keeping the NCTB textbook links up to date](#keeping-the-nctb-textbook-links-up-to-date)
-- [Results: reviewing, exporting and resetting](#results-reviewing-exporting-and-resetting)
-- [Attendance: checking and correcting](#attendance-checking-and-correcting)
-- [Approving content before students see it](#approving-content-before-students-see-it)
-- [Optional narration (computer voice)](#optional-narration-computer-voice)
-- [Recent changes (the record of actions)](#recent-changes-the-record-of-actions)
-- [Your own account](#your-own-account)
-- [Switching language](#switching-language)
-- [Privacy and safety](#privacy-and-safety)
-- [Troubleshooting](#troubleshooting)
-- [Getting help](#getting-help)
-
-## Setting up the first administrator
-
-This is a **one-time step on the server**, done by whoever runs the server for your school.
-You cannot do it from the website, and creating an account on the website never makes
-anyone an administrator. There are no ready-made administrator passwords.
-
-In short:
-
-1. The person who will be the first administrator creates a grown-up account on the
-   website and keeps the recovery codes it shows. The account then waits for approval.
-2. The person who runs the server turns that account into an administrator account. The
-   steps are in [First administrator and recovery](../DEPLOYMENT.md#first-administrator-and-recovery)
-   in the deployment guide.
-3. The new administrator signs in again at the web address that ends in
-   `/grown-ups?returnTo=/admin&switchAccount=1`.
-
-After that, you can make more administrators yourself from the website (see
-[Making someone an administrator](#making-someone-an-administrator)).
+1. [Before you start](#before-you-start)
+2. [Setting up the first Administrator](#setting-up-the-first-administrator)
+3. [Signing in](#signing-in)
+4. [Approving or declining new accounts](#approving-or-declining-new-accounts)
+5. [Creating an account](#creating-an-account)
+6. [Resetting a password](#resetting-a-password)
+7. [Other account tasks](#other-account-tasks)
+8. [Importing families from a CSV file](#importing-families-from-a-csv-file)
+9. [Classes: creating them and handing them over](#classes-creating-them-and-handing-them-over)
+10. [Working inside any class](#working-inside-any-class)
+11. [Keeping the NCTB textbook links up to date](#keeping-the-nctb-textbook-links-up-to-date)
+12. [Results: reviewing, exporting and resetting](#results-reviewing-exporting-and-resetting)
+13. [Attendance: checking and correcting](#attendance-checking-and-correcting)
+14. [Approving content before students see it](#approving-content-before-students-see-it)
+15. [Optional narration (computer voice)](#optional-narration-computer-voice)
+16. [Recent changes (the record of actions)](#recent-changes-the-record-of-actions)
+17. [Other pages in your menu](#other-pages-in-your-menu)
+18. [Looking after your account](#looking-after-your-account)
+19. [Switching language](#switching-language)
+20. [Privacy and safety](#privacy-and-safety)
+21. [Troubleshooting](#troubleshooting)
+22. [Getting help](#getting-help)
 
 ## Before you start
 
@@ -60,17 +42,36 @@ You need:
 - **A web browser** on a computer, such as Chrome, Edge, Firefox or Safari. A laptop or
   desktop is easiest for this work, because many pages have tables.
 - **Your school's Bangla Adventures web address.**
-- **An administrator account.** Either the server operator set you up as the first
-  administrator, or another administrator made your account and gave it the
-  Administrator role. If another administrator made your account, they will give you a
+- **An Administrator account.** Either the server operator set you up as the first
+  Administrator (see the next section), or another Administrator made your account and gave
+  it the Administrator role. If another Administrator made your account, they will give you a
   printed sheet with a temporary password.
 
 Anyone else who creates their own account (students, parents and teachers) has to wait
-until an administrator approves it. That administrator is you.
+until an Administrator approves it. That Administrator is you.
+
+## Setting up the first Administrator
+
+This is a **one-time step on the server**, done by whoever runs the server for your school.
+You cannot do it from the website, and creating an account on the website never makes
+anyone an Administrator. There are no ready-made Administrator passwords.
+
+In short:
+
+1. The person who will be the first Administrator creates a grown-up account on the
+   website and keeps the recovery codes it shows. The account then waits for approval.
+2. The person who runs the server turns that account into an Administrator account. The
+   steps are in [First administrator and recovery](../DEPLOYMENT.md#first-administrator-and-recovery)
+   in the deployment guide.
+3. The new Administrator signs in again at the web address that ends in
+   `/grown-ups?returnTo=/admin&switchAccount=1`.
+
+After that, you can make more Administrators yourself from the website (see
+[Making someone an Administrator](#making-someone-an-administrator)).
 
 ## Signing in
 
-1. Open the administrator sign-in page: your school's web address followed by
+1. Open the Administrator sign-in page: your school's web address followed by
    `/grown-ups?returnTo=/admin&switchAccount=1`. It shows the heading
    **Administrator sign in**. Bookmark it for next time.
 2. Type your **Email** and **Password**.
@@ -93,7 +94,7 @@ You can also sign in with **Teacher sign in** on the home page. You then arrive 
 
 ### Your first sign-in with a temporary password
 
-If another administrator made your account, the first sign-in asks you to choose your own
+If another Administrator made your account, the first sign-in asks you to choose your own
 password.
 
 1. Sign in with your email and the **Temporary password** from your sheet.
@@ -120,8 +121,8 @@ There is no email reset. Recovery codes are the way back in.
 **What you'll see:** you are signed in and taken to the **Users** page. That code is now
 used up, and any other device signed in to your account is signed out.
 
-If you have no recovery codes left, ask another administrator to reset your password (see
-[Resetting a password](#resetting-a-password)). If you are the only administrator and have
+If you have no recovery codes left, ask another Administrator to reset your password (see
+[Resetting a password](#resetting-a-password)). If you are the only Administrator and have
 lost both your password and your codes, ask the person who runs the server. The deployment
 guide covers this under [First administrator and recovery](../DEPLOYMENT.md#first-administrator-and-recovery).
 
@@ -133,7 +134,10 @@ Select **Sign out** at the bottom of the left-hand menu. You go back to the
 ## Approving or declining new accounts
 
 Students, parents and teachers who create their own account cannot sign in until you
-approve them. A teacher's own account arrives as a **Teacher request**.
+approve them. A teacher's own account arrives as a **Teacher request**. (The other guides
+show what each person does: [students](student.md#creating-your-own-account),
+[parents](parent.md#way-1-create-your-own-account) and
+[teachers](teacher.md#asking-for-a-teacher-account).)
 
 1. Select **Users** in the menu.
 2. Find the box **Waiting for approval**. The number in brackets is how many people are
@@ -147,11 +151,11 @@ approve them. A teacher's own account arrives as a **Teacher request**.
 
 **What you'll see:**
 
-- After approving: for example, "Ms Rahman is approved as a teacher and can now sign in.
-  The action has been recorded." Parents and students get the same message without
+- After approving: for example, *"Ms Rahman is approved as a teacher and can now sign in.
+  The action has been recorded."* Parents and students get the same message without
   "as a teacher".
-- After declining: "Unknown Visitor was declined and cannot sign in. You can approve the
-  account later. The action has been recorded."
+- After declining: *"Unknown Visitor was declined and cannot sign in. You can approve the
+  account later. The action has been recorded."*
 - The person disappears from **Waiting for approval**. The count **Awaiting approval** at
   the top of the page goes down.
 
@@ -174,8 +178,8 @@ give the person a printed or copied sheet.
    Students do not need an email address or a birth date.
 5. Select **Create account**.
 
-**What you'll see:** the message "Account created. Give the person their sign-in details
-privately." and a box called **Account created:** followed by the name. It holds the
+**What you'll see:** the message *"Account created. Give the person their sign-in details
+privately."* and a box called **Account created:** followed by the name. It holds the
 sign-in sheet: the name, the email or username, the **Temporary password** and the
 **Sign in at** address. Sheets for parents and teachers also list eight **Recovery codes**.
 
@@ -186,15 +190,16 @@ sign-in sheet: the name, the email or username, the **Temporary password** and t
 
 ![The Account created sheet with the temporary password and recovery codes blurred](images/admin/03-account-created.jpg)
 
-At their first sign-in, the person must choose their own password. Until they do, their row
-in the accounts list says **Temporary password not yet changed**.
+At their first sign-in, the person must choose their own password (see, for example,
+[First sign-in](student.md#first-sign-in-choosing-your-own-password) in the Student guide).
+Until they do, their row in the accounts list says **Temporary password not yet changed**.
 
 ## Resetting a password
 
 Use this when a student, parent or teacher has forgotten their password. Students cannot
 reset their own password, so they always come to you. Their sign-in page tells them:
-"Forgot your password? Ask your teacher or a grown-up to ask an administrator for a new
-one."
+*"Forgot your password? Ask your teacher or a grown-up to ask an administrator for a new
+one."*
 
 1. On the **Users** page, choose **Adults** or **Students** above the list.
 2. Type a name, email or username in **Search users** and select **Search**.
@@ -202,7 +207,7 @@ one."
 4. A box explains that they will be signed out everywhere and must choose a new password at
    their next sign-in. Select **OK**.
 
-**What you'll see:** "Password reset. The action has been recorded." and a box called
+**What you'll see:** *"Password reset. The action has been recorded."* and a box called
 **Password reset:** followed by the name, with a new **Temporary password**. Print it with
 **Print sign-in details** or copy it, then select **Hide sign-in details**. Their row says
 **Temporary password not yet changed** until they choose a new password.
@@ -211,7 +216,7 @@ one."
 
 Each row in the accounts list has buttons: **Edit**, **Suspend**, **Revoke sessions** and
 **Reset password**. Student rows also have **Family access**. Most changes ask you to
-confirm first, and most messages end with "The action has been recorded."
+confirm first, and most messages end with *"The action has been recorded."*
 
 Use the filter beside **Search** to show **All accounts**, **Waiting for approval**,
 **Declined**, **Parent**, **Teacher**, **Administrator** or **Suspended**.
@@ -225,21 +230,21 @@ Use the filter beside **Search** to show **All accounts**, **Waiting for approva
 
 Changing a role signs the person out, so they sign in again with the new role.
 
-### Making someone an administrator
+### Making someone an Administrator
 
 1. Create an account for them (choose **Parent** in **Account type**), or find their
    existing adult account.
 2. Select **Edit**, choose **Administrator** in **Role** and select **Save changes**.
 
 Their row now shows **Administrator**. When they sign in, they arrive at the **Users** page.
-Give administrator access only to people the school trusts with every family's details.
+Give Administrator access only to people the school trusts with every family's details.
 
 ### Suspending and reactivating
 
 **Suspend** stops someone signing in. Their learning records are kept. The row then shows
 **Suspended** and a **Reactivate** button. Nothing on this page deletes an account for
-good: "Suspension preserves learning records. No permanent user deletion is performed
-here."
+good: *"Suspension preserves learning records. No permanent user deletion is performed
+here."*
 
 ### Revoke sessions
 
@@ -253,9 +258,11 @@ signed in on a shared or lost device. Their password stays the same.
 3. Tick **I verified this adult is authorized to view this student's learning records.**
 4. Select **Link parent**.
 
-**What you'll see:** "Parent linked. Their dashboard can now show this student's learning
-records." The parent's name appears in the box, with **Remove access** beside it. A linked
-parent can see the student's classes, activities and results, but cannot change them.
+**What you'll see:** *"Parent linked. Their dashboard can now show this student's learning
+records."* The parent's name appears in the box, with **Remove access** beside it. A linked
+parent can see the student's classes, activities and results, but cannot change them (see
+[Seeing your children's learning](parent.md#seeing-your-childrens-learning) in the Parent
+guide).
 
 ## Importing families from a CSV file
 
@@ -301,8 +308,8 @@ Things to know:
    **No class for now** to skip this.
 4. Select **Upload and create accounts**.
 
-**What you'll see:** a message such as "3 student accounts and 2 new parent accounts
-created. The students were added to Sunday 11:30 Level 2." Under it is a sign-in sheet for
+**What you'll see:** a message such as *"3 student accounts and 2 new parent accounts
+created. The students were added to Sunday 11:30 Level 2."* Under it is a sign-in sheet for
 each family: the parent's email and temporary password, and each child's username and
 temporary password. The sheet is in English and Bangla.
 
@@ -314,21 +321,23 @@ temporary password. The sheet is in English and Bangla.
    only their own page, privately.
 6. Select **Hide passwords** when you have finished.
 
-Everyone chooses their own password at their first sign-in.
+Everyone chooses their own password at their first sign-in. The Parent guide explains the
+sheet to families (see
+[Way 2: the school creates your account for you](parent.md#way-2-the-school-creates-your-account-for-you)).
 
 **If something is wrong in the file**, nothing is created. A list called **Rows to fix**
-shows each problem with its line number, for example: "Line 3: Parent e-mail
-"sadia.khan-at-example" is not a valid e-mail address." Fix the file and upload it again.
+shows each problem with its line number, for example: *"Line 3: Parent e-mail
+"sadia.khan-at-example" is not a valid e-mail address."* Fix the file and upload it again.
 
 **A parent who already has an account** (an approved parent account with the same name and
 email) is linked to their new child, and their password does not change. The message says,
-for example, "1 student account and 0 new parent accounts created. 1 existing parent account
-was linked." Their sheet says "Existing account, password unchanged".
+for example, *"1 student account and 0 new parent accounts created. 1 existing parent account
+was linked."* Their sheet says *"Existing account, password unchanged"*.
 
 **Uploading the same list twice** does not make second accounts. Nothing is created, and
-**Rows to fix** explains each line, for example: "Line 2: "Tara Haque" is already linked to
+**Rows to fix** explains each line, for example: *"Line 2: "Tara Haque" is already linked to
 this parent as tara.haque4010. Remove this row: the student already has an account. To put
-them in a class, use "Allocate students" on that class."
+them in a class, use "Allocate students" on that class."*
 
 ## Classes: creating them and handing them over
 
@@ -337,7 +346,7 @@ a class to a different teacher. Select **Class allocation** in the menu. The pag
 **Classes and allocation**.
 
 The teacher must already have an approved teacher account. If there is none, the page says
-"There are no approved teachers yet. Approve a teacher account in Users first."
+*"There are no approved teachers yet. Approve a teacher account in Users first."*
 
 ### Creating a class for a teacher
 
@@ -346,8 +355,8 @@ The teacher must already have an approved teacher account. If there is none, the
 2. Choose the **Teacher**.
 3. Select **Create class**.
 
-**What you'll see:** "Sunday 11:30 Level 2 was created for Ms Rahman. Add its students
-below." The new class is selected in **Choose a class**.
+**What you'll see:** *"Sunday 11:30 Level 2 was created for Ms Rahman. Add its students
+below."* The new class is selected in **Choose a class**.
 
 ### Adding students to the class
 
@@ -356,15 +365,17 @@ below." The new class is selected in **Choose a class**.
 2. Tick the students. **Select all shown** ticks everyone in the list.
 3. Select **Add selected** (the button shows how many you ticked).
 
-**What you'll see:** for example "2 students added to this class." They appear under
+**What you'll see:** for example *"2 students added to this class."* They appear under
 **Students in this class**. The class appears on their dashboard straight away; no class
 code is needed.
 
 Further down, **Add students from a CSV file** makes new student accounts for this class
 from a list with a "name" column (and, optionally, a "username" column). Choose the file in
 **Student list (CSV file)** and select **Upload and create accounts**. The message is, for
-example, "1 student account created and added to this class." The temporary passwords are
-shown once, as with the family import.
+example, *"1 student account created and added to this class."* The temporary passwords are
+shown once, as with the family import. The file format is the same one teachers use (see
+[Adding students from a CSV class list](teacher.md#adding-students-from-a-csv-class-list) in
+the Teacher guide).
 
 ### Handing a class to another teacher
 
@@ -376,7 +387,7 @@ shown once, as with the family import.
    announcements, results and attendance stay with the class, and that the old teacher will
    no longer be able to open it. Select **OK**.
 
-**What you'll see:** "Saturday 10:00 Level 1 is now taught by Mr Das."
+**What you'll see:** *"Saturday 10:00 Level 1 is now taught by Mr Das."*
 
 ![The Class teacher box with a new teacher chosen in Change teacher](images/admin/05-class-allocation.jpg)
 
@@ -391,7 +402,8 @@ Administrators can open every teacher's class.
 
 The menu now shows **Current class** with the class's sections: **Students**,
 **Activities & quizzes**, **Results**, **Attendance**, **Announcements** and
-**Class sources**. Select **← All classes** to go back.
+**Class sources**. Select **← All classes** to go back. These sections work as they do for
+teachers (see the [Teacher guide](teacher.md)).
 
 In a class you can, for example:
 
@@ -413,27 +425,27 @@ this year's link for each book. Students, parents and teachers then see the new 
 
 1. Select **Textbook links** in the menu.
 2. Find the book. Each book shows where readers go now, for example
-   "Readers now go to: Official NCTB page".
+   *"Readers now go to: Official NCTB page"*.
 3. Paste the new link in the box. For a book that covers several classes, there is a box for
    the **Whole book (all classes)** and one for each class. A class's own link is used
    first; the whole-book link is used for any class without one.
 4. Select **Save link** beside that box.
 
-**What you'll see:** "Link saved. Sources & references, the textbook library and topic
-sources now use it." The book now says "Readers now go to: Your link" and
+**What you'll see:** *"Link saved. Sources & references, the textbook library and topic
+sources now use it."* The book now says *"Readers now go to: Your link"* and
 "Last changed by" your name and the date.
 
 ![A textbook card showing Your link, Remove my link and Last changed by](images/admin/06-textbook-link.jpg)
 
 Good to know:
 
-- If you paste a link that is not on the NCTB website, a note warns you: "This link is not
+- If you paste a link that is not on the NCTB website, a note warns you: *"This link is not
   on the NCTB website (nctb.gov.bd). You can still save it, but check that it is the
-  official textbook before students use it."
-- **Remove my link** goes back to the original link: "Your link was removed. Readers see the
-  official NCTB page again."
-- **Hide from readers** hides a book from readers ("Hidden from readers. You can show it
-  again below."). **Show to readers** brings it back.
+  official textbook before students use it."*
+- **Remove my link** goes back to the original link: *"Your link was removed. Readers see the
+  official NCTB page again."*
+- **Hide from readers** hides a book from readers (*"Hidden from readers. You can show it
+  again below."*). **Show to readers** brings it back.
 - For a new NCTB book that is not listed, use **Add a source** at the bottom of the page.
   Give the **Title (English)**, **Title (Bangla)**, **Classes (English)**,
   **Classes (Bangla)**, **Level** and **Link**, then select **Add source**.
@@ -473,7 +485,7 @@ when it was submitted, how much work is done, and their attendance.
 1. In **Submissions**, find the row and select **Reset**.
 2. A box warns that the score is deleted and the student can submit again. Select **OK**.
 
-**What you'll see:** "Submission reset. The student can submit the activity again." The
+**What you'll see:** *"Submission reset. The student can submit the activity again."* The
 reset is recorded under **Recent changes** on the **Users** page as "Quiz answers reset".
 
 Select **Close** to close the class's results.
@@ -486,11 +498,11 @@ gradebook shows each student's. To correct a day's attendance, open the class:
 1. Select **All classes**, open the class, then select **Attendance**.
 2. In **Class date**, choose the date of the class.
 3. Tick students who were present and untick students who were absent. The count, for
-   example "4 of 5 present", changes as you go, and "Changes not saved yet" reminds you to
+   example "4 of 5 present", changes as you go, and **Changes not saved yet** reminds you to
    save.
 4. Select **Save attendance for** (the button shows the date).
 
-**What you'll see:** for example "Attendance saved for Sun, 1 Nov 2026: 5 of 5 present."
+**What you'll see:** for example *"Attendance saved for Sun, 1 Nov 2026: 5 of 5 present."*
 and "Last saved by" with your name and the time. **Past sessions** lists each saved date,
 with an **Open** button to look at that day.
 
@@ -503,7 +515,7 @@ of what you changed and why.
 ## Approving content before students see it
 
 Teachers write and submit learning content. Students and parents see it only after an
-administrator approves the exact version. On a new installation, all 15 topics and all 18
+Administrator approves the exact version. On a new installation, all 15 topics and all 18
 lessons start as waiting for approval, so none of them reaches students until you approve
 it.
 
@@ -518,8 +530,12 @@ it.
 
 Approving the text of a lesson does **not** approve its video. Each video needs its own
 decision. The longer technical explanation is in [Content approval](../CONTENT_APPROVAL.md).
+The [Teacher guide](teacher.md) shows how teachers submit each kind of content.
 
 ### Topics
+
+Teachers write topics as described in
+[Writing topics in English and Bangla](teacher.md#writing-topics-in-english-and-bangla).
 
 1. Select **Topics** in the menu. (The older address ending `/admin/curriculum` opens this
    same page.)
@@ -531,29 +547,29 @@ decision. The longer technical explanation is in [Content approval](../CONTENT_A
    English and Bangla**. The approve button stays greyed out until you tick it.
 6. Select **Approve and publish to students**.
 
-**What you'll see:** "Approved. Students now see version 1 of this topic." **Version history**
-lists who wrote the version and that you reviewed it.
+**What you'll see:** *"Approved. Students now see version 1 of this topic."*
+**Version history** lists who wrote the version and that you reviewed it.
 
 ![The Your decision box for a topic, with the reading tick box, approve button and note for the author](images/admin/09-topic-decision.jpg)
 
 **To send it back** instead: type in **Note for the author (needed to send it back)** and
-select **Send back to the author**. The message is "Sent back to the author with your note.
-Students keep seeing the approved version." The topic list then shows
+select **Send back to the author**. The message is *"Sent back to the author with your note.
+Students keep seeing the approved version."* The topic list then shows
 **Sent back · not published**.
 
 **To take an approved topic away from students:** open it, type in
 **Why are you withdrawing it? (needed)** and select **Withdraw from students**. The message
-is "Withdrawn. Students and parents no longer see this topic. Approve it again once it is
-fixed." To bring it back, tick the reading box again and select
-**Approve again and show to students**. The message is "Approved again. Students see this
-topic once more."
+is *"Withdrawn. Students and parents no longer see this topic. Approve it again once it is
+fixed."* To bring it back, tick the reading box again and select
+**Approve again and show to students**. The message is *"Approved again. Students see this
+topic once more."*
 
 ### Lessons
 
 1. Select **Lessons** in the menu. The top of the page counts lessons that are
    **Available to students** and **Hidden from students**, and recordings waiting.
 2. Select **Preview lesson** beside a lesson. Each lesson shows its status, for example
-   "Waiting for approval · hidden from students".
+   **Waiting for approval · hidden from students**.
 3. In the **Student view preview**, open **every part** of the lesson: **Overview**,
    **Listen**, **Read**, **Speak**, **Write**, **Watch** and **Mastery**. Switch between
    **English** and **বাংলা** to read both.
@@ -563,20 +579,21 @@ topic once more."
 6. Select **Approve revision for students** (for a lesson that was approved before and
    withdrawn, the button says **Approve for students**).
 
-**What you'll see:** "Approved. Students can open this lesson again." The
+**What you'll see:** *"Approved. Students can open this lesson again."* The
 **Approval history** records your name and the date.
 
 ![The Your decision box for a lesson, showing 7 of 7 parts opened and the review tick box](images/admin/10-lesson-decision.jpg)
 
 **To withdraw an approved lesson:** type in **Why are you withdrawing it? (needed)** and
 select **Withdraw from students**. Students and parents stop seeing it straight away, and
-their saved progress is kept. The lesson list then shows "Withdrawn · hidden from students"
+their saved progress is kept. The lesson list then shows **Withdrawn · hidden from students**
 with your reason.
 
 ### Recordings of real voices
 
-Teachers can upload recordings of a real person reading part of a lesson. Learners hear an
-approved recording instead of the computer voice.
+Teachers can upload recordings of a real person reading part of a lesson (see
+[Sending in a recording](teacher.md#sending-in-a-recording) in the Teacher guide). Learners
+hear an approved recording instead of the computer voice.
 
 1. Select **Lessons**. The box **Recordings waiting for review** lists every waiting
    recording. Select **Review in the lesson** beside one.
@@ -587,19 +604,19 @@ approved recording instead of the computer voice.
    you do.
 5. Select **Approve recording**.
 
-**What you'll see:** "Recording approved. Learners now hear it for this part of the lesson
-instead of a computer voice." The recording now says **Approved · in use**. To stop using
+**What you'll see:** *"Recording approved. Learners now hear it for this part of the lesson
+instead of a computer voice."* The recording now says **Approved · in use**. To stop using
 it later, select **Stop using it**; it then says **Retired**.
 
 ### Lesson videos (a separate decision)
 
 Lessons can include a YouTube video. On a new installation, learners see no video until an
-administrator records a decision for it. The lesson list shows "video review pending" for
+Administrator records a decision for it. The lesson list shows "video review pending" for
 any lesson whose video still needs a decision.
 
 1. Open the lesson in **Lessons** and scroll to **Video check**. Until someone checks it,
-   it says "Nobody has checked this video yet. Learners do not see this video, and no
-   replacement is set."
+   it says *"Nobody has checked this video yet. Learners do not see this video, and no
+   replacement is set."*
 2. Select **Watch on YouTube** and watch the whole video.
 3. Choose a **Decision**: **Approved**, **Replace this video** or
    **Unavailable on YouTube**.
@@ -610,16 +627,18 @@ any lesson whose video still needs a decision.
    and add **Notes**.
 7. Select **Save video check**.
 
-**What you'll see:** "Video check saved." and "Last checked by" your name, with
-"Learners see this video." Choosing **Replace this video**, **Unavailable on YouTube** or
+**What you'll see:** *"Video check saved."* and "Last checked by" your name, with
+*"Learners see this video."* Choosing **Replace this video**, **Unavailable on YouTube** or
 **Unsuitable for children** takes the video out of the lesson for learners.
 
 ![The Video check form with Decision, Captions and Suitable for children chosen](images/admin/11-video-check.jpg)
 
 ### Class activities and class sources
 
-Teachers submit activities, quizzes and links for their own class. Students and parents see
-only the approved ones.
+Teachers submit activities, quizzes and links for their own class (see
+[Setting activities and quizzes](teacher.md#setting-activities-and-quizzes) and
+[Adding class sources](teacher.md#adding-class-sources) in the Teacher guide). Students and
+parents see only the approved ones.
 
 1. Select **All classes** and open the class.
 2. Select **Activities & quizzes**. Items waiting say
@@ -654,8 +673,8 @@ computer voice. This narration is optional.
   the server. See [Narration key](../VPS_DEPLOYMENT.md#narration-key).
 - Never paste a key into a page, an email or a chat. It belongs only on the server.
 - Until a key is added, the site works normally with its existing recorded audio. Only new
-  narration is missing: the button shows "New narration is not configured. Saved audio is
-  still available." and **Try again**.
+  narration is missing: the button shows *"New narration is not configured. Saved audio is
+  still available."* and **Try again**.
 
 ## Recent changes (the record of actions)
 
@@ -666,29 +685,29 @@ or "Class deleted"), which account or item it was about, and when.
 
 The list does not show who made each change, and attendance corrections are not included.
 
-## Your own account
+## Other pages in your menu
+
+**Home learners** (under **Teacher workspace**) is a separate space for guiding a learner
+without giving them an account. You add a profile with a **Display name** and select
+**Create learner profile**. The profile then shows the learner's progress and an
+**Assign next** section for choosing lessons. No child email, birthday, photo or school is
+asked for. Most Administrators will not need it.
+
+## Looking after your account
 
 Select **Account & recovery** in the menu.
 
 - **Change password:** type your **Current password** and a **New password** (at least 10
-  characters), then select **Change password**. The message is "Password changed. Any other
-  signed-in devices have been signed out."
+  characters), then select **Change password**. The message is *"Password changed. Any other
+  signed-in devices have been signed out."*
 - **Sign out everywhere:** ends every session on every device at once, including this one.
   Use it if a shared or public computer may still be signed in.
 - **Recovery codes:** type your **Current password** and select
   **Generate new recovery codes**. Eight new codes appear once. Save them; every older code
   stops working.
 
-You cannot change your own role or suspend your own account. Ask another administrator if
+You cannot change your own role or suspend your own account. Ask another Administrator if
 that is needed.
-
-### Home learners
-
-**Home learners** (under **Teacher workspace**) is a separate space for guiding a learner
-without giving them an account. You add a profile with a **Display name** and select
-**Create learner profile**. The profile then shows the learner's progress and an
-**Assign next** section for choosing lessons. No child email, birthday, photo or school is
-asked for. Most administrators will not need it.
 
 ## Switching language
 
@@ -703,14 +722,14 @@ language until you do something else.
 
 ## Privacy and safety
 
-What you can see:
+**What you can see**
 
 - Every adult account's name, email, role and status, and every student's name and
   username.
 - Every class, with its students, activities, results, attendance, announcements and class
   sources.
 
-What you cannot see or do:
+**What you cannot see or do**
 
 - You cannot see anyone's password. A temporary password is shown **once only**, when you
   create an account or reset a password, and nothing is sent by email.
@@ -718,7 +737,7 @@ What you cannot see or do:
 - The **Users** page never deletes an account for good. Suspending keeps the person's
   learning records.
 
-Good habits:
+**Keeping things safe**
 
 - Approve only people you can identify. Link a parent to a child only after you have
   checked that the adult is allowed to see that child's records.
@@ -727,70 +746,38 @@ Good habits:
 - Sign out on shared computers.
 - Keep your recovery codes private and somewhere safe.
 
-What the platform stores: grown-up accounts hold only an email, a display name and a
-securely stored password. Student accounts need no child email or birth date. Parents who
-are linked to a child can see that child's classes, activities and results, but cannot
-change them, and cannot see other families' children.
+**What the platform stores**
 
-Your actions on the **Users** page show "The action has been recorded." and appear in
+Grown-up accounts hold only an email, a display name and a securely stored password.
+Student accounts need no child email or birth date. Parents who are linked to a child can
+see that child's classes, activities and results, but cannot change them, and cannot see
+other families' children.
+
+Your actions on the **Users** page show *"The action has been recorded."* and appear in
 **Recent changes**.
 
 ## Troubleshooting
 
-**"Your account is waiting for an administrator to approve it. You can sign in once it is
-approved."**
-The person created their own account and is in your **Waiting for approval** box. Approve
-them on the **Users** page.
-
-**"An administrator has not approved this account. Please contact your administrator."**
-The account was declined. If that was a mistake, filter the accounts list by **Declined**
-and select **Approve**.
-
-**"That email and password do not match."**
-The email or password is wrong. Check for typing mistakes and try again. The same message
-appears for a suspended account, so if the details are right, check whether the person's
-row says **Suspended** and select **Reactivate** if they should have access again. For a
-forgotten password, see [Resetting a password](#resetting-a-password).
-
-**"This account does not have administrator access. Sign in with your administrator
-account."**
-You used the administrator sign-in page with a parent or teacher account. Sign in with your
-administrator account.
-
-**A page says "Administrator access required"**
-You are signed in with an account that is not an administrator, for example a teacher
-account. Select **Sign in as administrator** and use your administrator account.
-
-**"There are no approved teachers yet. Approve a teacher account in Users first."**
-You can only make a class for an approved teacher. Approve their teacher request on the
-**Users** page, or create their account with **Approved teacher**.
-
-**The approve button is greyed out**
-Approval buttons stay greyed out until you have done the check: tick the review box for a
-topic or class item, open all 7 parts of a lesson, or listen and tick for a recording.
-Sending something back or withdrawing it needs a note first.
-
-**A family upload shows "Rows to fix"**
-Nothing was created. Correct each line listed (for example an email address without "@")
-and upload the whole file again.
-
-**You lost a sign-in sheet before printing it**
-The passwords cannot be shown again. Select **Reset password** for each person to make a
-new temporary password.
-
-**"New narration is not configured. Saved audio is still available."**
-No ElevenLabs key has been added on the server. See
-[Optional narration](#optional-narration-computer-voice).
-
-**Students cannot see a topic, lesson, video or activity**
-It is probably still waiting for approval, or it was withdrawn. Check its status in
-**Topics**, **Lessons** (including **Video check**) or the class's
-**Activities & quizzes**.
+| What you see or what happens | What it means | What to do |
+| --- | --- | --- |
+| *"Your account is waiting for an administrator to approve it. You can sign in once it is approved."* | The person created their own account and is in your **Waiting for approval** box. | Approve them on the **Users** page. |
+| *"An administrator has not approved this account. Please contact your administrator."* | The account was declined. | If that was a mistake, filter the accounts list by **Declined** and select **Approve**. |
+| *"That email and password do not match."* | The email or password is wrong. The same message appears for a suspended account. | Check for typing mistakes and try again. If the details are right, check whether the person's row says **Suspended** and select **Reactivate** if they should have access again. For a forgotten password, see [Resetting a password](#resetting-a-password). |
+| *"This account does not have administrator access. Sign in with your administrator account."* | You used the Administrator sign-in page with a parent or teacher account. | Sign in with your Administrator account. |
+| A page says **Administrator access required** | You are signed in with an account that is not an Administrator, for example a teacher account. | Select **Sign in as administrator** and use your Administrator account. |
+| *"There are no approved teachers yet. Approve a teacher account in Users first."* | You can only make a class for an approved teacher. | Approve their teacher request on the **Users** page, or create their account with **Approved teacher**. |
+| The approve button is greyed out | Approval buttons stay greyed out until you have done the check. Sending something back or withdrawing it needs a note first. | Tick the review box for a topic or class item, open all 7 parts of a lesson, or listen and tick for a recording. To send back or withdraw, type the note. |
+| A family upload shows **Rows to fix** | Nothing was created. | Correct each line listed (for example an email address without "@") and upload the whole file again. |
+| You lost a sign-in sheet before printing it | The passwords cannot be shown again. | Select **Reset password** for each person to make a new temporary password. |
+| *"New narration is not configured. Saved audio is still available."* | No ElevenLabs key has been added on the server. | See [Optional narration](#optional-narration-computer-voice). |
+| Students cannot see a topic, lesson, video or activity | It is probably still waiting for approval, or it was withdrawn. | Check its status in **Topics**, **Lessons** (including **Video check**) or the class's **Activities & quizzes**. |
 
 ## Getting help
 
-- **For help with the website:** ask another administrator at your school.
-- **For server problems** (the website is down, you are the only administrator and are
+- **For help with the website:** ask another Administrator at your school.
+- **For server problems** (the website is down, you are the only Administrator and are
   locked out, or narration needs a key): contact the person who runs your school's server.
-- Teachers, parents and students should come to you, their school's administrator, for new
-  accounts, password resets and linking parents to children.
+- Teachers, parents and students should come to you, their school's Administrator, for new
+  accounts, password resets and linking parents to children. Their guides are the
+  [Teacher guide](teacher.md), the [Parent guide](parent.md) and the
+  [Student guide](student.md); the [user guides index](README.md) lists them all.

@@ -11,13 +11,10 @@ Bangla.
 The pictures in this guide use made-up people: a student called Maya, her teacher Ms Rahman
 and a class called River Explorers. Your screens will show your own name, classes and topics.
 
----
-
 ## Contents
 
 1. [Before you start](#before-you-start)
-2. [Signing in](#signing-in): first sign-in, creating your own account, forgotten password,
-   signing out
+2. [Signing in](#signing-in)
 3. [My Learning: your home page](#my-learning-your-home-page)
 4. [Reading topics and doing their quizzes](#reading-topics-and-doing-their-quizzes)
 5. [Class activities](#class-activities)
@@ -32,8 +29,6 @@ and a class called River Explorers. Your screens will show your own name, classe
 14. [Privacy and safety](#privacy-and-safety)
 15. [Troubleshooting](#troubleshooting)
 16. [Getting help](#getting-help)
-
----
 
 ## Before you start
 
@@ -63,9 +58,9 @@ somewhere private until you have chosen your own password.
 approve the account before you can sign in.
 
 > **Tip for grown-ups:** the sign-in page says *"Ask a grown-up for help. Use a nickname; no
-> child email or birthday is needed."*
-
----
+> child email or birthday is needed."* Teachers make accounts as described in
+> [Adding students from a CSV class list](teacher.md#adding-students-from-a-csv-class-list),
+> and Administrators as described in [Creating an account](administrator.md#creating-an-account).
 
 ## Signing in
 
@@ -125,7 +120,9 @@ The temporary password no longer works.
 
 **What you'll see:** the message *"Your account is waiting for an administrator to approve
 it. You can sign in once it is approved."* You cannot sign in until the Administrator has
-approved the account. Ask your teacher or grown-up to let the school know.
+approved the account. Ask your teacher or grown-up to let the school know. (The
+Administrator does this as described in
+[Approving or declining new accounts](administrator.md#approving-or-declining-new-accounts).)
 
 If someone already has that username, you will see *"That username is already taken."*
 Choose a different one.
@@ -138,7 +135,8 @@ Ask your teacher or a grown-up to ask an administrator for a new one."*
 This is what happens:
 
 1. The Administrator resets your password and gives you a new sign-in details sheet with a
-   new **Temporary password**.
+   new **Temporary password** (see
+   [Resetting a password](administrator.md#resetting-a-password) in the Administrator guide).
 2. Your old password stops working straight away. If you were still signed in on a device,
    that device is signed out.
 3. Sign in with your username and the new temporary password.
@@ -153,8 +151,6 @@ This is what happens:
 
 Always sign out on a shared or school computer. After you sign out, the learning pages ask
 you to sign in again.
-
----
 
 ## My Learning: your home page
 
@@ -190,8 +186,6 @@ you to sign in again.
 
 If you have not been put in a class yet, **Classes I’m in** shows *0* and the activities page
 says *"Your teacher will add your class"*. You can still read topics while you wait.
-
----
 
 ## Reading topics and doing their quizzes
 
@@ -236,8 +230,6 @@ Either way, **Topics read** goes up by one.
 - **Try again** lets you do the quiz again. **Pick another topic** takes you back to the list.
 - From then on, the quiz shows *"Your best so far:"* with your best score. On My Learning,
   the topic card shows **quiz best** and your best score.
-
----
 
 ## Class activities
 
@@ -284,8 +276,6 @@ again and submit new answers. Your newest result replaces the earlier one.
 The **Listen to instructions** and **Listen to question** buttons are for hearing the text read
 aloud. See [Troubleshooting](#troubleshooting) if they show a message instead.
 
----
-
 ## My results
 
 Select **My results** in the menu.
@@ -303,8 +293,6 @@ If you have not submitted anything yet, it says *"Complete a class activity to s
 results here."* Your topic quiz scores are not in this table. They show on the topic itself and
 on its card.
 
----
-
 ## Attendance
 
 Your teacher records who came to each class. You can see your attendance in two places:
@@ -313,8 +301,6 @@ Your teacher records who came to each class. You can see your attendance in two 
 - Each class box in **My activities**, for example *"You attended 3 of 4 classes"*.
 
 You can only look at your attendance. If you think it is wrong, tell your teacher.
-
----
 
 ## Announcements
 
@@ -329,8 +315,6 @@ message, who posted it and when (*Posted:*).
 - Only announcements from your own classes appear.
 - With none yet: *"No class announcements yet. Notices from your allocated classes will appear
   here."*
-
----
 
 ## Sources & references
 
@@ -348,8 +332,6 @@ Select **Sources & references** in the menu.
 
 Links marked **↗** open another website in a new tab. A grown-up should check outside
 websites with younger children.
-
----
 
 ## Lessons and other learning pages
 
@@ -408,8 +390,6 @@ in.
 | **Printable worksheets** | A practice sheet to print for each available lesson. |
 | **Make a certificate** | A printable certificate to celebrate a milestone. |
 
----
-
 ## Changing your password
 
 You can change your password whenever you like.
@@ -425,8 +405,6 @@ are signed in will be signed out."* This really happens: if you are signed in on
 computer or tablet, it goes back to the sign-in page. To leave without changing anything,
 select **Back to My Learning**.
 
----
-
 ## Using a phone or tablet
 
 Bangla Adventures works on phones. On a small screen the menu is hidden.
@@ -435,8 +413,6 @@ Bangla Adventures works on phones. On a small screen the menu is hidden.
 2. Select the page you want. The menu closes by itself.
 
 ![On a phone, the Menu button opens the student menu with My Learning, My activities, My results, Learning topics, Sources & references, Change password and Sign out.](images/student/11-phone-menu.jpg)
-
----
 
 ## Switching language
 
@@ -457,14 +433,14 @@ Every student page can be shown in English or Bangla.
   translated.
 - The lessons page has its own **EN** and **বাংলা** switch at the top.
 
----
-
 ## Privacy and safety
 
-**What a student needs to give:** a name (a nickname is fine), a username and a password. No
-email address, birthday or class code is needed.
+**What a student needs to give**
 
-**What you can see:**
+A name (a nickname is fine), a username and a password. No email address, birthday or class
+code is needed.
+
+**What you can see**
 
 - your own classes, with your teacher's name
 - your own activity results, topic quiz scores and attendance
@@ -472,18 +448,20 @@ email address, birthday or class code is needed.
 - activities and class sources in your classes, once the Administrator has approved them
 - topics and lessons the Administrator has approved
 
-**What you cannot see:**
+**What you cannot see**
 
 - other students' results or attendance
 - classes you are not in, and their announcements
 - announcements meant only for parents
 - activities, topics, lessons or links that are still waiting for approval
-- teacher, administrator and parent pages. If you open one, it asks for a grown-up to sign in.
+- teacher, Administrator and parent pages. If you open one, it asks for a grown-up to sign in.
 
-**Who can see your work:** the screens tell you that your teacher can see your saved activity
-results and your best topic quiz score.
+**Who can see your work**
 
-**Keeping your account safe:**
+The screens tell you that your teacher can see your saved activity results and your best topic
+quiz score.
+
+**Keeping things safe**
 
 - Do not share your password with friends.
 - Sign out on shared computers.
@@ -496,16 +474,14 @@ results and your best topic quiz score.
 Grown-ups can read more on the **Safety & privacy** page, linked at the top of the sign-in
 page.
 
----
-
 ## Troubleshooting
 
-| What you see | What it means | What to do |
+| What you see or what happens | What it means | What to do |
 | --- | --- | --- |
 | *"That username and password do not match."* | The username or password is wrong. | Check the spelling. Capitals matter in the password. If you still cannot sign in, ask your teacher or grown-up to ask the Administrator for a new password. |
 | *"Your account is waiting for an administrator to approve it. You can sign in once it is approved."* | You created your own account and it has not been approved yet. | Wait, and ask your teacher or grown-up to tell the school's Administrator. |
 | *"An administrator has not approved this account. Ask your teacher or a grown-up for help."* | The Administrator declined the account. | Ask your teacher or grown-up to contact the school's Administrator. |
-| *"Too many attempts. Please wait a moment and try again."* | The wrong password was typed many times. | Wait a while before trying again. Do not keep guessing. Ask for a new password if you have forgotten it. |
+| *"Too many attempts. Please wait a moment and try again."* | The wrong password was typed many times. | Wait up to 15 minutes before trying again. Do not keep guessing. Ask for a new password if you have forgotten it. |
 | The **Choose your own password** page keeps coming back. | You are still using a temporary password. | Fill in the form and select **Save my new password**. |
 | *"Your current password is incorrect."* | On the password form, the temporary or current password was typed wrongly. | Type it again carefully. |
 | *"The two new passwords do not match."* | The two new password boxes are different. | Type the same new password in both boxes. |
@@ -523,8 +499,6 @@ page.
 | The **The 18 lessons** card opens My Learning. | A known problem with that card. | Use **Guided language practice** on the More language activities page. |
 | A page asks a grown-up to sign in (for example **Administrator sign in** or **Help your child’s next adventure begin.**) | You opened a page for staff or parents. | Go back to your school's address and choose **Student sign in**. |
 
----
-
 ## Getting help
 
 - **Your teacher** is the first person to ask about classes, activities, results, attendance
@@ -532,4 +506,6 @@ page.
 - **Your school's Administrator** looks after accounts. Ask them, through your teacher or
   grown-up, to approve a new account, give you a new password, or put you in the right class.
 - **Grown-ups** can use the **Safety & privacy** link on the sign-in page for information about
-  how the platform handles children's data.
+  how the platform handles children's data. The [Parent guide](parent.md) explains what a
+  parent can see once the school links their account to a child.
+- The [user guides index](README.md) lists the guides for every role.

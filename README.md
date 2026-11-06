@@ -404,6 +404,8 @@ The [contribution register](CONTRIBUTIONS.md) links every assigned item to its i
 
 | Document | What it covers |
 | --- | --- |
+| [Handover deliverables](docs/DELIVERABLES.md) | Index of the source code, technical documentation, user guides and status at handover |
+| [User guides](docs/user-guides/README.md) | Step-by-step guides for students, parents, teachers and administrators |
 | [Deployment guide](docs/DEPLOYMENT.md) | Current custom application setup, upgrades and rollback |
 | [CI/CD systems](docs/CI_CD.md) | The pipeline on GitHub Actions, GitLab, Jenkins, Bitbucket, CircleCI, Azure, TeamCity, AWS, Google Cloud Build or Travis CI |
 | [Backup and restore](docs/BACKUP_RESTORE.md) | Database and media backup, verification and recovery drill |

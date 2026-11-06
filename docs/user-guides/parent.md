@@ -14,21 +14,21 @@ Arif, and their teacher Ms Rahman. Passwords, recovery codes and web addresses a
 
 ## Contents
 
-- [Before you start](#before-you-start)
-- [Signing in](#signing-in)
-- [Getting linked to your child](#getting-linked-to-your-child)
-- [Seeing your children's learning](#seeing-your-childrens-learning)
-- [Reading results and attendance](#reading-results-and-attendance)
-- [Opening class sources](#opening-class-sources)
-- [Reading announcements](#reading-announcements)
-- [Sources & references](#sources--references)
-- [Looking after your account](#looking-after-your-account)
-- [Using a phone](#using-a-phone)
-- [If you also teach at the school](#if-you-also-teach-at-the-school)
-- [Switching language](#switching-language)
-- [Privacy and safety](#privacy-and-safety)
-- [Troubleshooting](#troubleshooting)
-- [Getting help](#getting-help)
+1. [Before you start](#before-you-start)
+2. [Signing in](#signing-in)
+3. [Getting linked to your child](#getting-linked-to-your-child)
+4. [Seeing your children's learning](#seeing-your-childrens-learning)
+5. [Reading results and attendance](#reading-results-and-attendance)
+6. [Opening class sources](#opening-class-sources)
+7. [Reading announcements](#reading-announcements)
+8. [Sources & references](#sources--references)
+9. [Looking after your account](#looking-after-your-account)
+10. [Using a phone](#using-a-phone)
+11. [If you also teach at the school](#if-you-also-teach-at-the-school)
+12. [Switching language](#switching-language)
+13. [Privacy and safety](#privacy-and-safety)
+14. [Troubleshooting](#troubleshooting)
+15. [Getting help](#getting-help)
 
 ## Before you start
 
@@ -39,7 +39,8 @@ You need:
   also printed on the family sign-in sheet (see below).
 - A parent account. There are two ways to get one, shown below.
 - Your child needs their own student account. You do not need to know its password. Only the
-  school's Administrator can link your account to your child.
+  school's Administrator can link your account to your child. The [Student guide](student.md)
+  explains how your child signs in.
 
 ### Way 1: create your own account
 
@@ -70,18 +71,20 @@ You need:
 11. Tell the school's Administrator that you have created an account, and which email you
     used.
 
-An Administrator approves every new account before it can sign in. Until then, signing in
-shows: **Your account is waiting for an administrator to approve it. You can sign in once it
-is approved.**
+An Administrator approves every new account before it can sign in (see
+[Approving or declining new accounts](administrator.md#approving-or-declining-new-accounts)).
+Until then, signing in shows: *"Your account is waiting for an administrator to approve it.
+You can sign in once it is approved."*
 
 ![The sign-in form showing the "waiting for an administrator to approve it" message](images/parent/04-waiting-for-approval.jpg)
 
-If you try to create a second account with the same email, you see **An account with this
-email already exists. Sign in instead.**
+If you try to create a second account with the same email, you see *"An account with this
+email already exists. Sign in instead."*
 
 ### Way 2: the school creates your account for you
 
-The Administrator can create parent and student accounts together from one family list.
+The Administrator can create parent and student accounts together from one family list (see
+[Importing families from a CSV file](administrator.md#importing-families-from-a-csv-file)).
 Nothing is sent by email. Instead, the school gives you a printed **family sign-in sheet**,
 one page per family. It shows:
 
@@ -89,7 +92,7 @@ one page per family. It shows:
 - **E-mail / ইমেইল**: the email address your account uses. You sign in with this.
 - **Temporary password / অস্থায়ী পাসওয়ার্ড**: a one-time password for your first sign-in.
   If you already had a parent account with the same name and email, it says
-  **Existing account, password unchanged**. Keep using your own password.
+  *"Existing account, password unchanged"*. Keep using your own password.
 - **Sign in at / সাইন ইনের ঠিকানা**: the web address for parents.
 - A table with each child's name, **Username** and **Temporary password**. Children sign in
   with their username at the student address printed under the table.
@@ -161,7 +164,8 @@ works only once, so cross it off your list.
 
 To go back without resetting, select **Back to sign in**.
 
-**No codes left?** Ask the school's Administrator to reset your password. They give you a new
+**No codes left?** Ask the school's Administrator to reset your password (see
+[Resetting a password](administrator.md#resetting-a-password)). They give you a new
 temporary password privately. Your old password stops working, and at your next sign-in you
 choose your own password, as in
 [First sign-in with a temporary password](#first-sign-in-with-a-temporary-password). If you
@@ -180,7 +184,8 @@ The Administrator links you in one of two ways:
 - **Family access.** On the Administrator's **Users** page, they find your child, select
   **Family access**, type your account email in **Parent account email**, tick
   **I verified this adult is authorized to view this student's learning records.** and
-  select **Link parent**.
+  select **Link parent** (see
+  [Linking a parent to a student](administrator.md#linking-a-parent-to-a-student)).
 - **Import families (CSV).** They upload one list with the columns **student name**,
   **parent name** and **parent email**. Brothers and sisters share one parent email. If your
   email already belongs to your approved parent account with the same name, your children are
@@ -217,8 +222,8 @@ Select **My children** in the menu.
 - **Announcements** from your children's teachers (see
   [Reading announcements](#reading-announcements)).
 - One panel for each child, with their classes, activities and results.
-- At the bottom: **Updates automatically every 30 seconds while this page is visible. Only
-  linked children are shown.**
+- At the bottom: *"Updates automatically every 30 seconds while this page is visible. Only
+  linked children are shown."*
 
 ## Reading results and attendance
 
@@ -250,8 +255,8 @@ Scroll down to your child's panel.
   - **Result**: the score, for example **2 / 2**, or **—** when there is no score yet.
 
 Some activities also show a **Listen to instructions** button, labelled as a computer voice.
-If it changes to **Try again** with the message **Could not prepare the voice. Check your
-connection and try again.**, the voice could not be prepared. The instructions are still there
+If it changes to **Try again** with the message *"Could not prepare the voice. Check your
+connection and try again."*, the voice could not be prepared. The instructions are still there
 to read on the screen.
 
 You cannot change anything here. Only your child and their teacher update class work. New
@@ -259,7 +264,8 @@ activities appear only after the school's Administrator has approved them.
 
 ## Opening class sources
 
-Teachers can share useful links with a class, such as songs, stories or reading. An
+Teachers can share useful links with a class, such as songs, stories or reading (see
+[Adding class sources](teacher.md#adding-class-sources) in the Teacher guide). An
 Administrator approves each link before families see it.
 
 1. In your child's panel, find **Class sources** under the class name.
@@ -272,8 +278,9 @@ Check a website yourself before your child uses it.
 
 ## Reading announcements
 
-Announcements are short messages from your children's teachers. They are in the
-**Announcements** box near the top of **My children**, newest first.
+Announcements are short messages from your children's teachers (see
+[Posting announcements](teacher.md#posting-announcements) in the Teacher guide). They are in
+the **Announcements** box near the top of **My children**, newest first.
 
 Each announcement shows:
 
@@ -309,9 +316,9 @@ and shows **Signed in as** with your name and email.
 2. Type a **New password** of at least 10 characters.
 3. Select **Change password**.
 
-**What you'll see:** **Password changed. Any other signed-in devices have been signed out.**
+**What you'll see:** *"Password changed. Any other signed-in devices have been signed out."*
 You stay signed in on this device. If the current password is wrong, you see
-**Your current password is incorrect.**
+*"Your current password is incorrect."*
 
 ### Get new recovery codes
 
@@ -319,7 +326,7 @@ Do this if you have used most of your codes, or think someone else has seen them
 
 1. Under **Recovery codes**, type your **Current password**.
 2. Select **Generate new recovery codes**.
-3. Save the eight new codes. The page says **Save these now — they are shown only once.**
+3. Save the eight new codes. The page says *"Save these now — they are shown only once."*
 
 Every older code stops working.
 
@@ -371,9 +378,9 @@ Please talk to the school's Administrator first. One account is either a parent 
 teacher account. When an Administrator approves the request, the same account opens as a
 teacher account instead: **My children** no longer lists your linked children, and the
 Administrator's **Family access** screen shows your link as
-**Access inactive because of account role or status.** If you want to keep the parent view,
+*"Access inactive because of account role or status."* If you want to keep the parent view,
 ask the Administrator how they would like to set up your teacher account (for example, with a
-different email address).
+different email address). The [Teacher guide](teacher.md) explains the teacher workspace.
 
 ## Switching language
 
@@ -426,21 +433,21 @@ choice on this device, including the next time you sign in.
 
 ## Troubleshooting
 
-| What you see | What it means and what to do |
-| --- | --- |
-| **Your account is waiting for an administrator to approve it. You can sign in once it is approved.** | Your account is new. Ask the school's Administrator to approve it, then sign in again. |
-| **An administrator has not approved this account. Please contact your administrator.** | The Administrator declined the account. Contact them. They can approve it later. |
-| **That email and password do not match.** | Check the email address for typing mistakes, and check Caps Lock. If you forgot your password, use a recovery code. This message also appears if your account has been suspended or deleted, so if you are sure your details are right, contact the Administrator. |
-| **Too many attempts. Please wait a moment and try again.** | Too many wrong passwords in a row. Wait 15 minutes, then try again with the right password, or use a recovery code. |
-| **An account with this email already exists. Sign in instead.** | You already have an account. Use **Sign in**, or **Forgot your password? Use a recovery code**. |
-| **That email and recovery code do not match, or the code was already used.** | Check the email and the code. Each code works once. Try another unused code, or ask the Administrator to reset your password. |
-| **The two new passwords do not match.** | When choosing your own password, type exactly the same new password in both boxes. |
-| **Choose a new password that is different from the temporary one.** | Pick a new password that is not the temporary one. |
-| **Your current password is incorrect.** | On **Account & recovery**, the **Current password** box must hold the password you sign in with now. |
-| **No children linked yet** | The Administrator has not linked your account to your child yet. Give them your account's name and email, and your child's name. |
-| A child, activity or class link is missing | Select **Refresh progress**. Only linked children are shown, a child appears in a class once the teacher adds them, and new activities and class sources appear after the Administrator approves them. If something is still missing, ask the teacher or the Administrator. |
-| **Could not prepare the voice. Check your connection and try again.** (on **Listen to instructions**) | The computer voice could not play. Read the instructions on screen instead. If it keeps happening, tell the school. |
-| I lost the temporary password, or the family sign-in sheet | Ask the Administrator to reset your password. You get a new temporary password and the old one stops working. |
+| What you see or what happens | What it means | What to do |
+| --- | --- | --- |
+| *"Your account is waiting for an administrator to approve it. You can sign in once it is approved."* | Your account is new. | Ask the school's Administrator to approve it, then sign in again. |
+| *"An administrator has not approved this account. Please contact your administrator."* | The Administrator declined the account. | Contact them. They can approve it later. |
+| *"That email and password do not match."* | The email or password is wrong. This message also appears if your account has been suspended or deleted. | Check the email address for typing mistakes, and check Caps Lock. If you forgot your password, use a recovery code. If you are sure your details are right, contact the Administrator. |
+| *"Too many attempts. Please wait a moment and try again."* | Too many wrong passwords in a row. | Wait up to 15 minutes, then try again with the right password, or use a recovery code. |
+| *"An account with this email already exists. Sign in instead."* | You already have an account. | Use **Sign in**, or **Forgot your password? Use a recovery code**. |
+| *"That email and recovery code do not match, or the code was already used."* | The email or the code is wrong, or the code was used before. Each code works once. | Check the email and the code. Try another unused code, or ask the Administrator to reset your password. |
+| *"The two new passwords do not match."* | When choosing your own password, the two new password boxes are different. | Type exactly the same new password in both boxes. |
+| *"Choose a new password that is different from the temporary one."* | The new password is the same as the temporary one. | Pick a new password that is not the temporary one. |
+| *"Your current password is incorrect."* | On **Account & recovery**, the **Current password** box does not hold the password you sign in with now. | Type the password you sign in with now. |
+| **No children linked yet** | The Administrator has not linked your account to your child yet. | Give them your account's name and email, and your child's name. |
+| A child, activity or class link is missing | Only linked children are shown, a child appears in a class once the teacher adds them, and new activities and class sources appear after the Administrator approves them. | Select **Refresh progress**. If something is still missing, ask the teacher or the Administrator. |
+| *"Could not prepare the voice. Check your connection and try again."* (on **Listen to instructions**) | The computer voice could not play. | Read the instructions on screen instead. If it keeps happening, tell the school. |
+| You lost the temporary password, or the family sign-in sheet | It cannot be shown again. | Ask the Administrator to reset your password. You get a new temporary password and the old one stops working. |
 
 ## Getting help
 
@@ -449,3 +456,5 @@ choice on this device, including the next time you sign in.
 - **Classwork, results, attendance or an announcement:** contact your child's teacher. Their
   name is shown next to each class.
 - Never send your password or recovery codes to anyone, including school staff.
+- The [user guides index](README.md) lists the guides for every role, including the
+  [Student guide](student.md) for your child.

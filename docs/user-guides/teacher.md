@@ -3,12 +3,17 @@
 This guide is for teachers at community Bangla schools who use Bangla Adventures with their classes.
 It explains, step by step, how to get your account, set up classes, add students, set activities,
 read results, take attendance, post announcements, share class links, write topics, preview lessons
-and send in recordings. You do not need any technical knowledge. The names in the pictures
-(Ms Rahman, Maya, Arif, Nadia and others) are made up for this guide.
+and send in recordings. You do not need any technical knowledge.
+
+The pictures in this guide use made-up people: the teacher Ms Rahman, her students Maya, Arif,
+Nadia and others, and classes such as Saturday Bangla Level 2. Passwords and web addresses are
+blurred.
 
 One rule runs through everything a teacher does: **students and parents only see new learning
 content after your school's Administrator approves it.** This includes activities, topics,
-recordings and class links. Class lists, attendance and announcements do not need approval.
+recordings and class links. Class lists, attendance and announcements do not need approval. The
+[Administrator guide](administrator.md#approving-content-before-students-see-it) shows the other
+side of each approval.
 
 ## Contents
 
@@ -27,7 +32,7 @@ recordings and class links. Class lists, attendance and announcements do not nee
 13. [Previewing lessons](#previewing-lessons)
 14. [Sending in a recording](#sending-in-a-recording)
 15. [Other pages in your menu](#other-pages-in-your-menu)
-16. [Your account and recovery codes](#your-account-and-recovery-codes)
+16. [Looking after your account](#looking-after-your-account)
 17. [Switching language](#switching-language)
 18. [Privacy and safety](#privacy-and-safety)
 19. [Troubleshooting](#troubleshooting)
@@ -71,7 +76,9 @@ eight **recovery codes**.
 
 You cannot sign in yet. If you try, you will see: *"Your account is waiting for an administrator
 to approve it. You can sign in once it is approved."* Let your Administrator know you have asked
-for an account. Once they approve it, you can sign in as a teacher.
+for an account. Once they approve it (see
+[Approving or declining new accounts](administrator.md#approving-or-declining-new-accounts)),
+you can sign in as a teacher.
 
 ## Signing in
 
@@ -104,8 +111,8 @@ password? Ask your administrator to reset it."*
 
 Select **Sign out** at the bottom of the menu on the left. Always sign out on a shared computer.
 
-**What you'll see:** the grown-up sign-in page. The top of the page may say *Parent sign in*. That
-is fine: teachers can sign in there too, and are taken straight to **My classes**.
+**What you'll see:** the grown-up sign-in page. The top of the page may say **Parent sign in**.
+That is fine: teachers can sign in there too, and are taken straight to **My classes**.
 
 ### If you forget your password
 
@@ -119,7 +126,8 @@ is fine: teachers can sign in there too, and are taken straight to **My classes*
 on. As the form explains, the code you used is used up and every signed-in device is signed out.
 Cross that code off your list.
 
-If you have no recovery codes left, ask your school's Administrator for help.
+If you have no recovery codes left, ask your school's Administrator to reset your password (see
+[Resetting a password](administrator.md#resetting-a-password)).
 
 ## Your workspace at a glance
 
@@ -159,6 +167,10 @@ classes, **Enrolments**, **Activities** and **Submissions** across all your clas
 - **To go back to the list,** select **← My classes** or **My classes** in the menu.
 - **To delete a class,** open it and select **Delete class** (top right). You are asked
   *"Delete this class, its activities and submissions?"* Select **OK** only if you are sure.
+
+Your Administrator can also create a class for you, or hand one of your classes to another
+teacher (see
+[Classes: creating them and handing them over](administrator.md#classes-creating-them-and-handing-them-over)).
 
 ## Adding students by searching and ticking
 
@@ -254,7 +266,8 @@ If you try to leave the class while the passwords are still on screen, you are a
 the temporary passwords on screen? Download or print the sign-in sheet first — they cannot be
 shown again."*
 
-The first time each student signs in, they are asked to **Choose your own password**.
+The first time each student signs in, they are asked to **Choose your own password** (see
+[First sign-in](student.md#first-sign-in-choosing-your-own-password) in the Student guide).
 
 ### If the upload is refused
 
@@ -301,7 +314,9 @@ approval · not published**.
 
 ![A new activity awaiting Admin approval above an approved one](images/teacher/05-activity-awaiting-approval.jpg)
 
-After the Administrator's decision, the line changes to one of these:
+After the Administrator's decision (see
+[Class activities and class sources](administrator.md#class-activities-and-class-sources) in the
+Administrator guide), the line changes to one of these:
 
 - **Approved by Admin · published** — your students can now answer it.
 - **Changes requested · not published** — read the **Review note** under it. Select
@@ -377,7 +392,9 @@ of 2 sessions"*. The date also appears under **Past sessions** with how many wer
 - **Students added to the class after a saved date** show *"Not recorded for this date"* on that
   date. Select **Record for this date** only if they were at that class.
 
-Attendance totals also appear in the **Attendance** column of the gradebook.
+Attendance totals also appear in the **Attendance** column of the gradebook. Students and their
+linked parents see them too (see [Attendance](student.md#attendance) in the Student guide and
+[Reading results and attendance](parent.md#reading-results-and-attendance) in the Parent guide).
 
 ## Posting announcements
 
@@ -400,7 +417,8 @@ Good to know:
 - **Your choice under Who can see it stays the same for your next post.** Check it each time.
 - Students see *Everyone* and *Students only* posts. Parents see *Everyone* and *Parents only*
   posts. Students never see *Parents only* posts, and parents never see *Students only* posts.
-- Parents only see announcements once the Administrator has linked them to a student in the class.
+- Parents only see announcements once the Administrator has linked them to a student in the class
+  (see [Linking a parent to a student](administrator.md#linking-a-parent-to-a-student)).
 - **To remove a post,** select **Remove** and confirm. Students and parents will no longer see it.
 
 Announcements do not need Administrator approval. They appear as soon as you post them.
@@ -421,8 +439,9 @@ page. Each link is checked by the Administrator before students and parents can 
 yet."* The link appears in the list with **Awaiting Admin approval · not published**.
 
 Once the Administrator approves it, it shows **Approved by Admin · published**. Students in the
-class then see it on their **Sources & references** page, and their linked parents see it in the
-parent portal.
+class then see it on their **Sources & references** page, and their linked parents see it on
+their **My children** page (see [Opening class sources](parent.md#opening-class-sources) in the
+Parent guide).
 
 - **To change a link,** select **Edit**. The form changes to **Edit source**. Make your changes
   and select **Submit source for Admin approval**. You will see *"Source updated and submitted for
@@ -431,11 +450,12 @@ parent portal.
 - **To remove a link,** select **Remove** and confirm.
 
 The NCTB textbook links that everyone sees are looked after by the Administrator, not by
-teachers.
+teachers (see
+[Keeping the NCTB textbook links up to date](administrator.md#keeping-the-nctb-textbook-links-up-to-date)).
 
 ## Writing topics in English and Bangla
 
-A topic is a short reading lesson with an optional quiz, for example about a festival or a place.
+A topic is a short reading with an optional quiz, for example about a festival or a place.
 Every topic is written in English and Bangla. Topics are shared by the whole school, not one class.
 
 ### Writing a new topic
@@ -478,7 +498,8 @@ The page also shows **What changed** and a **Version history** table. To fix som
 ### Following your topic
 
 Select **← All topics** to go back to the list. Your topic is listed under
-**Waiting for approval** until the Administrator decides. Its label tells you where it is:
+**Waiting for approval** until the Administrator decides (see
+[Topics](administrator.md#topics) in the Administrator guide). Its label tells you where it is:
 
 - **New · waiting for approval** — not seen by students yet.
 - **Sent back · not published** — the Administrator wants changes. Open it with
@@ -515,7 +536,8 @@ transcripts, English support and correct answers shown, whether or not it has be
   to move around. Nothing you do in the preview is saved.
 - **Approval history** — the decisions made on this lesson.
 - **Video check** — what the Administrator decided about the lesson's video. Only an
-  Administrator can approve, replace or remove a video.
+  Administrator can approve, replace or remove a video (see
+  [Lesson videos](administrator.md#lesson-videos-a-separate-decision) in the Administrator guide).
 
 Select **← All lessons** to go back.
 
@@ -554,7 +576,8 @@ child, a parent or guardian must agree too.
 **What you'll see:** *"Uploaded for administrator review. Learners will hear it only after an
 administrator listens and approves it."* The recording is listed with *Waiting for review*, the
 speaker, the dialect and *consent confirmed*. It also appears on the **Lessons** page under
-**Recordings waiting for review**, with **Preview in the lesson**.
+**Recordings waiting for review**, with **Preview in the lesson**. The Administrator then listens
+to it (see [Recordings of real voices](administrator.md#recordings-of-real-voices)).
 
 ## Other pages in your menu
 
@@ -566,7 +589,7 @@ speaker, the dialect and *consent confirmed*. It also appears on the **Lessons**
   draw on, with links to each book. The Administrator keeps these links up to date.
 - **Topics as students see them** — the approved topics only, as students see them.
 
-## Your account and recovery codes
+## Looking after your account
 
 Select **Account & recovery** in the menu. The page is headed **Your data, in your hands.**
 
@@ -599,7 +622,7 @@ Names you type, such as class names and student names, stay exactly as typed.
 
 ## Privacy and safety
 
-What you **can** see:
+**What you can see**
 
 - **Your own classes only.** Other teachers' classes do not appear in your **My classes**, and you
   cannot open them.
@@ -609,16 +632,16 @@ What you **can** see:
   attendance or other details.
 - **All shared topics and all 18 lessons,** including those still waiting for approval.
 
-What you **cannot** do:
+**What you cannot do**
 
 - **Publish anything yourself.** Activities, topics, lessons, recordings and class sources all
   wait for the Administrator. You will not find approve buttons on your pages.
-- **Open Administrator pages.** If you try, you will see *"Administrator access required"*.
+- **Open Administrator pages.** If you try, you will see **Administrator access required**.
 - **Reset a student's password.** Temporary passwords from a CSV upload are shown once only. If a
   student loses theirs, ask the Administrator.
 - **Link parents to students.** Only the Administrator does this.
 
-Keeping students safe:
+**Keeping things safe**
 
 - **Hand out temporary passwords privately,** and keep or destroy printed sign-in sheets safely.
 - **Only upload recordings when the speaker has agreed** to the use and credit (and a guardian,
@@ -634,7 +657,7 @@ Keeping students safe:
 | *"Your account is waiting for an administrator to approve it. You can sign in once it is approved."* | Your teacher request has not been approved yet. | Ask your Administrator to approve it, then sign in again. |
 | *"An administrator has not approved this account. Please contact your administrator."* | Your request was declined. | Contact your Administrator. They can approve the account later. |
 | *"That email and password do not match."* | The email or password is wrong. | Check for typing mistakes and Caps Lock. If you have forgotten your password, use a recovery code. |
-| *"Too many attempts. Please wait a moment and try again."* | There were too many wrong passwords in a row. | Wait a little, then try again carefully. |
+| *"Too many attempts. Please wait a moment and try again."* | There were too many wrong passwords in a row. | Wait up to 15 minutes, then try again carefully. |
 | *"That email and recovery code do not match, or the code was already used."* | The recovery code is wrong or already used. | Try another unused code from your list. If none are left, ask your Administrator. |
 | *"The two new passwords do not match."* | The two new passwords are different. | Type the same new password in both boxes. |
 | *"Your current password is incorrect."* | On **Account & recovery**, the current password is wrong. | Type your current password again. |
@@ -648,6 +671,10 @@ Keeping students safe:
 
 ## Getting help
 
-For any problem with your account, your classes or approvals, contact **your school's
-Administrator**. They can approve accounts, link parents to students, review your activities,
-topics, recordings and class sources, and help students who have lost their passwords.
+- For any problem with your account, your classes or approvals, contact **your school's
+  Administrator**. They can approve accounts, link parents to students, review your activities,
+  topics, recordings and class sources, and help students who have lost their passwords.
+- The [Administrator guide](administrator.md) shows what the Administrator does with what you
+  submit. The [Student guide](student.md) and [Parent guide](parent.md) show what your students
+  and their parents see.
+- The [user guides index](README.md) lists the guides for every role.
