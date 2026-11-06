@@ -91,10 +91,11 @@ you can sign in as a teacher.
 
 ### Your first sign-in with a temporary password
 
-If your Administrator created your account, the first sign-in takes you to a page headed
+If your Administrator created your account, sign in as described above, using your email and
+the temporary password from your sheet. The first sign-in takes you to a page headed
 **Choose your own password**.
 
-1. In **Temporary password**, type the password your Administrator gave you.
+1. In **Temporary password**, type the temporary password again.
 2. In **New password**, type a new password of at least 10 characters. Only you should know it.
 3. Type it again in **Type the new password again**.
 4. Select **Save my new password**.
@@ -131,7 +132,8 @@ If you have no recovery codes left, ask your school's Administrator to reset you
 
 ## Your workspace at a glance
 
-The menu on the left is the same on every teacher page. On a phone, select **Menu** at the top to
+The menu on the left is the same on every teacher page. Its items are in two groups, headed
+**Teacher workspace** and **Lessons & topics**. On a phone, select **Menu** at the top left to
 open it.
 
 | Menu item | What it is for |
@@ -167,6 +169,7 @@ classes, **Enrolments**, **Activities** and **Submissions** across all your clas
 - **To go back to the list,** select **← My classes** or **My classes** in the menu.
 - **To delete a class,** open it and select **Delete class** (top right). You are asked
   *"Delete this class, its activities and submissions?"* Select **OK** only if you are sure.
+  You go back to **My classes**, and the class is no longer listed.
 
 Your Administrator can also create a class for you, or hand one of your classes to another
 teacher (see
@@ -179,10 +182,11 @@ themselves and were approved by your Administrator).
 
 1. Open the class. The **Students** section is shown first.
 2. Under **Allocate students**, type part of a student's name or username in **Find students**.
-   The list below shows matching students.
+   The list below shows matching students. (Before you type, it shows every student you can
+   add.)
 3. Tick each student you want. Your ticks are kept while you search for more names.
    - **Select all shown** ticks everyone in the list.
-   - **Clear selection** removes all your ticks.
+   - **Clear selection** removes all your ticks. It appears once you have ticked someone.
 4. Select **Add selected** (the button shows how many you have ticked, for example
    **Add selected (3)**).
 
@@ -252,7 +256,9 @@ Replace the example names with your students before uploading.
 
 **What you'll see:** for example *"2 student accounts created and added to this class."* and a
 **Student sign-in sheet** with each student's **Name**, **Username** and **Temporary password**.
-The sheet also tells students the address to sign in at.
+The sheet also tells students the address to sign in at. If the file listed students who
+already had an account, they are shown separately under **Already had an account**. They keep
+their own password, so they are not on the sign-in sheet.
 
 ![The sign-in sheet after an upload. The address and temporary passwords are blurred in this picture.](images/teacher/04-csv-sign-in-sheet.jpg)
 
@@ -277,7 +283,8 @@ rows listed and upload the file again."* and a list of the rows to fix, for exam
 - *Line 3: Enter the student's name.*
 - *Line 4: Username "tanvir ahmed" must be 3–40 letters, numbers, dots, dashes or underscores.*
 - *Line 1: The first row must be a header with a name column ("name", "student name" or "display
-  name") and, optionally, "username".*
+  name") and, optionally, "username". Found: "student".* (The end of the message shows what your
+  first row says.)
 - *Line 1: Unknown column "age". Use only "name" and, optionally, "username".*
 
 If a name matches a student who already has an account, you will see a message such as *"A
@@ -303,9 +310,9 @@ Administrator before students can see it.
 5. Under **Question 1**, type the question, then type the answers in **Option 1** and
    **Option 2**.
 6. Select the round button next to the **correct answer**.
-   - **+ Add option** adds another answer.
+   - **+ Add option** adds another answer. **✕** next to an answer removes it.
    - **+ Add question** adds another question.
-   - **Remove question** removes a question.
+   - **Remove question** removes a question (it appears when there is more than one).
 7. Select **Submit for Admin approval**.
 
 **What you'll see:** *"Activity submitted for Admin approval. Students and parents cannot see it
@@ -320,8 +327,9 @@ Administrator guide), the line changes to one of these:
 
 - **Approved by Admin · published** — your students can now answer it.
 - **Changes requested · not published** — read the **Review note** under it. Select
-  **Revise as a new activity** to copy it into the form, make your changes and submit it again.
-  The original and its results are kept.
+  **Revise as a new activity** to copy it into the form. You will see *"A copy is ready in the
+  form below. Edit it and submit it for a new Admin review; the original and its results are
+  retained."* Make your changes and select **Submit for Admin approval** again.
 
 Other buttons on each activity:
 
@@ -342,12 +350,16 @@ Other buttons on each activity:
   print.
 - **Done** — how many activities the student has submitted, out of the total (for example *1/2*).
 - **Average** — the average score of the work they **have** submitted.
-- **Attendance** — sessions attended, for example *1 of 2*.
+- **Attendance** — sessions attended, for example *1 of 2*. It shows — until you take
+  attendance for that student.
 - **One column for each activity**, newest first, showing the score (for example *2/2*).
 - **—** means the student has not submitted that work yet. A real score of zero shows as *0/2*,
   not —.
-- An activity that is still waiting for Administrator approval also gets a column, with — for
-  everyone, and is counted in each student's **Done** total.
+- An activity that students cannot see yet also gets a column, with — for everyone, and is
+  counted in each student's **Done** total. This includes activities still waiting for
+  Administrator approval and activities sent back with **Changes requested**. So a student who
+  has done every published activity can still show, for example, *2/3*. Delete a sent-back
+  activity you no longer need, and it stops being counted.
 
 Useful tools:
 
@@ -379,7 +391,7 @@ Further down the **Results** section:
 5. Select **Save attendance for** (the button shows the date, for example
    **Save attendance for Sat, 31 Oct 2026**).
 
-![Attendance for 31 October with Arif unticked](images/teacher/07-attendance.jpg)
+![Attendance for 31 October 2026: Arif is unticked, with the count and the save button below the list](images/teacher/07-attendance.jpg)
 
 **What you'll see:** *"Attendance saved for Sat, 31 Oct 2026: 4 of 5 present."* and *"Last saved
 by Ms Rahman at …"*. Next to each student you can see their total so far, for example *"Attended 1
@@ -444,10 +456,10 @@ their **My children** page (see [Opening class sources](parent.md#opening-class-
 Parent guide).
 
 - **To change a link,** select **Edit**. The form changes to **Edit source**. Make your changes
-  and select **Submit source for Admin approval**. You will see *"Source updated and submitted for
-  Admin approval. It is hidden until approved again."* Students do not see it until it is approved
-  again.
-- **To remove a link,** select **Remove** and confirm.
+  and select **Submit source for Admin approval** (or **Cancel** to leave it as it was). You will
+  see *"Source updated and submitted for Admin approval. It is hidden until approved again."*
+  Students do not see it until it is approved again.
+- **To remove a link,** select **Remove** and confirm. You will see *"Source removed."*
 
 The NCTB textbook links that everyone sees are looked after by the Administrator, not by
 teachers (see
@@ -479,6 +491,8 @@ Every topic is written in English and Bangla. Topics are shared by the whole sch
 7. If you like, say where the content comes from under **Source note (optional)**, in both
    languages.
 8. Select **Submit for administrator review**. (Select **Cancel** to leave without saving.)
+   If a box that must be filled in is still empty, the page jumps to it and asks you to fill
+   it in.
 
 ![The Write a new topic form with English and Bangla boxes side by side](images/teacher/09-topic-editor.jpg)
 
@@ -497,16 +511,22 @@ The page also shows **What changed** and a **Version history** table. To fix som
 
 ### Following your topic
 
-Select **← All topics** to go back to the list. Your topic is listed under
-**Waiting for approval** until the Administrator decides (see
-[Topics](administrator.md#topics) in the Administrator guide). Its label tells you where it is:
+Select **← All topics** to go back to the list. While it waits for the Administrator (see
+[Topics](administrator.md#topics) in the Administrator guide), your topic is listed at the top
+under **Waiting for approval**, with **Preview submission** and **Edit**. Every topic is also
+listed further down under its category, with **Preview & history** and **Edit**. The label under
+the title tells you where it is:
 
 - **New · waiting for approval** — not seen by students yet.
-- **Sent back · not published** — the Administrator wants changes. Open it with
-  **Preview & history** or **Edit** to read their note, for example *"Sent back by (Administrator):
-  Please add a second section about the tea pickers."*, then edit and submit again.
+- **Sent back · not published** — the Administrator wants changes. The topic is no longer under
+  **Waiting for approval**; find it under its category. Open it with **Preview & history** or
+  **Edit** to read their note, for example *"Sent back by (Administrator): Please add a second
+  section about the tea pickers."* (the preview also shows the date). Then edit it and submit it
+  again.
+- **Approved** — students can read it.
 - **Approved · new version waiting** — you edited an approved topic. Students keep seeing the
-  approved version until the Administrator approves your changes.
+  approved version until the Administrator approves your changes. The preview's **What changed**
+  box lists your changes.
 
 You can also edit any existing topic with **Edit**, and look at any topic with
 **Preview & history** or **Preview submission**. Teachers cannot approve or publish topics.
@@ -528,9 +548,10 @@ transcripts, English support and correct answers shown, whether or not it has be
 
 **What you'll see:**
 
-- **Lesson details** — the title in English and Bangla and its status, for example
-  *"Approved by (Administrator), (date)."* or *"Nobody has approved this lesson yet, so students
-  cannot see it."*
+- **At the top** — the lesson's title in English and Bangla and its status, for example
+  **Approved** with *"Approved by (Administrator), (date)."*, or
+  **Waiting for approval · hidden from students** with *"Nobody has approved this lesson yet, so
+  students cannot see it."*
 - **Student view preview** — the lesson as students see it. Use **English** and **বাংলা** to switch
   its language, and the lesson's own tabs (*Overview, Listen, Read, Speak, Write, Watch, Mastery*)
   to move around. Nothing you do in the preview is saved.
@@ -546,11 +567,13 @@ Select **← All lessons** to go back.
 At the bottom of a lesson, **Detailed specialist checks (optional)** lets staff record internal
 notes, for example a Bangla language check.
 
-1. Select **Detailed specialist checks (optional)** to open it.
+1. Select **Detailed specialist checks (optional)** to open it. The number after it, for
+   example **(0)**, is how many checks have been saved.
 2. Under **Record your check**, choose the **Check** (for example *Bangla language*) and the
    **Status** (for example *Check complete*).
 3. Type the **Reviewer name** and any **Notes**.
-4. Select **Save check**. You will see *"Check saved."*
+4. Select **Save check**. You will see *"Check saved."* and your check is listed in a table
+   above the form.
 
 A specialist check is a note only. It does not publish anything.
 
@@ -599,13 +622,16 @@ Select **Account & recovery** in the menu. The page is headed **Your data, in yo
   incorrect."*
 - **Download data export (JSON)** — downloads a copy of what is stored for your account
   (*bangla-adventures-export.json*).
-- **Sign out everywhere** — signs your account out on every device, including this one. Use it if
-  you think you stayed signed in on a shared or public computer.
+- **Sign out everywhere** — signs your account out on every device, including this one, and
+  takes you back to the welcome page. Use it if you think you stayed signed in on a shared or
+  public computer.
 - **Generate new recovery codes** — type your **Current password** and select
   **Generate new recovery codes**. Eight new codes appear with *"Save these now — they are shown
   only once."* Your old codes stop working. Do this when you are running out of codes.
-- **Delete account** — permanently removes your account and everything it owns. It cannot be
-  undone. Talk to your Administrator before you use it.
+- **Delete account** — permanently removes your account and everything it owns. It asks for your
+  **Current password** and for you to type **DELETE**, then you select
+  **Permanently delete account**. It cannot be undone. Talk to your Administrator before you use
+  it.
 
 ## Switching language
 
@@ -614,7 +640,8 @@ Bangla Adventures works in English and Bangla.
 - **In your teacher workspace,** select **বাংলা** at the top right. Menus, buttons and messages
   change to Bangla, and the button changes to **English**. Select **English** to switch back.
   Bangla Adventures remembers your choice on the next page and after you reload.
-- **On the sign-in page,** select **বাংলায় দেখুন** at the top right.
+- **On the sign-in page,** select **বাংলায় দেখুন** at the top right. To switch back, select
+  **View in English**.
 - **In topic and lesson previews,** use the preview's own **English** and **বাংলা** buttons
   (and **Side by side** for topics). These change only the preview.
 
@@ -664,6 +691,8 @@ Names you type, such as class names and student names, stay exactly as typed.
 | A student is not in the **Find students** list, or you see *"No student who can be added matches this search. Only approved, active students who are not in this class are listed."* | The student is already in the class, has no account, or their account is not approved yet. | Check **Students in this class**. Otherwise ask the Administrator to approve the student, or add them with a CSV class list. |
 | *"Nothing was created. Fix the rows listed and upload the file again."* | Something in the CSV file needs fixing. | Fix each line listed and upload the whole file again. See [If the upload is refused](#if-the-upload-is-refused). |
 | You left the page before saving the temporary passwords. | They cannot be shown again. | Ask the Administrator to help the students affected. |
+| *"Enter a public HTTPS link (https://…) without a password in it."* | A class source link does not start with **https://**. | Copy the full address from your browser's address bar. It must start with **https://**. |
+| *"Speaker credit and recorded consent confirmation are required."* | A recording was sent without the speaker's name or without the consent tick. | Fill in **Speaker name (for the credit)**, tick the consent box and select **Upload for review** again. |
 | Students cannot see your activity, topic, recording or class source. | It is still **Awaiting Admin approval** or was sent back. | Check its status line. Ask the Administrator to review it, or read their note and resubmit. |
 | A student cannot answer an activity. | The activity may be closed, or not approved yet. | Check **Activities & quizzes**. Select **Reopen** if you closed it. |
 | *"These attendance changes are not saved yet. Discard them?"* | You changed the date or left the page before saving attendance. | Select **Cancel**, then save the attendance. |
