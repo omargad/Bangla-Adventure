@@ -23,14 +23,25 @@ readonly origin=http://127.0.0.1:3001
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
 work="$(mktemp -d)"
 chmod 700 "$work"
-incoming='' tunnel_pid='' qa_hook='' qa_id=''
+incoming='' tunnel_pid='' qa_hook='' qa_id='' evidence=''
+attempt_phase=bootstrap
+qa_cleanup_verified=false
 quote() { printf "'%s'" "${1//\'/\'\\\'\'}"; }
 cleanup() {
   local status=$?
   trap - EXIT
   if [ -n "$tunnel_pid" ]; then kill "$tunnel_pid" 2>/dev/null || true; wait "$tunnel_pid" 2>/dev/null || true; fi
   if [ -n "$qa_hook" ] && [ -x "$qa_hook" ]; then
-    "$qa_hook" cleanup "$qa_id" >/dev/null 2>&1 || { printf 'private staging: disposable QA cleanup could not be verified.\n' >&2; status=1; }
+    if "$qa_hook" cleanup "$qa_id" > "$work/qa-cleanup-trap.json"; then
+      qa_cleanup_verified=true
+      if [ -n "$evidence" ]; then cp -- "$work/qa-cleanup-trap.json" "$evidence/qa-cleanup.json"; fi
+    else printf 'private staging: disposable QA cleanup could not be verified.\n' >&2; status=1; fi
+  fi
+  if [ -n "$evidence" ] && [ -d "$evidence" ]; then
+    if [ -f "$work/qa-diagnostics.json" ]; then cp -- "$work/qa-diagnostics.json" "$evidence/qa-diagnostics.json"; fi
+    if [ "$status" -ne 0 ]; then
+      printf '{"overall":"failed","phase":"%s","qaBrowserLoginVerified":false,"qaCleanupVerified":%s}\n' "$attempt_phase" "$qa_cleanup_verified" > "$evidence/attempt-status.json"
+    fi
   fi
   if [[ "$incoming" =~ ^/opt/bangla-adventures/\.private-stage-payload\.[a-zA-Z0-9]+$ ]]; then
     ssh "${ssh_options[@]}" -o ClearAllForwardings=yes "$user@$host" \
@@ -264,6 +275,17 @@ if any(not isinstance(replacement.get(k),str) or not re.fullmatch(r"[a-f0-9]{64}
 if replacement["beforeAppId"]==replacement["afterAppId"] or x["cleanVerifier"]["stateDigest"]!=x["restartVerifier"]["stateDigest"]: refuse()
 PY
 
+# Retain only already-validated actual-stage proof, even if later disposable QA fails.
+evidence="${PRIVATE_STAGING_EVIDENCE_DIR:?An isolated evidence directory is required.}"
+[ ! -L "$evidence" ] || fail 'Evidence directory must not be a symlink.'
+mkdir -p -- "$evidence"
+chmod 700 "$evidence"
+cp -- "$work/inventory.json" "$evidence/inventory.json"
+cp -- "$work/result.json" "$evidence/staging-result.json"
+cp -- "$work/known_hosts" "$evidence/staging_known_hosts"
+printf '{"overall":"in-progress","phase":"stage-tunnel","qaBrowserLoginVerified":false,"qaCleanupVerified":false}\n' > "$evidence/attempt-status.json"
+attempt_phase=stage-tunnel
+
 # A real SSH TCP-to-Unix tunnel is tested on the runner; the VPS publishes no TCP listener.
 ssh "${ssh_options[@]}" -o ClearAllForwardings=no -o ExitOnForwardFailure=yes -o GatewayPorts=no \
   -N -L "127.0.0.1:3001:$socket" "$user@$host" > "$work/tunnel.log" 2>&1 &
@@ -280,6 +302,7 @@ http_status() { curl --noproxy '*' --silent --output /dev/null --write-out '%{ht
 [ "$(http_status "$origin/welcome")" = 200 ] || fail 'Welcome did not return 200 through the tunnel.'
 [ "$(http_status "$origin/api/profiles")" = 401 ] || fail 'Anonymous protected access did not return 401.'
 [ "$(http_status -X POST -H 'Content-Type: application/json' -H 'Origin: https://invalid.example' --data '{}' "$origin/api/auth/sign-up")" = 403 ] || fail 'Cross-origin account mutation was not rejected.'
+printf '{"transport":"SSH TCP-to-Unix","origin":"%s","health":200,"welcome":200,"protected":401,"crossOriginDenied":403,"stageAccountsCreated":0,"qaBrowserLoginVerified":false}\n' "$origin" > "$evidence/tunnel-probes.json"
 
 # Browser sign-in is tested on a disposable, positively identified QA clone only.
 kill "$tunnel_pid" 2>/dev/null || true
@@ -288,6 +311,7 @@ tunnel_pid=''
 qa_id="$(python3 -c 'import secrets;print(secrets.token_hex(12))')"
 qa_socket="/opt/bangla-adventures/private-staging/qa/$qa_id/runtime/http.sock"
 qa_hook="$work/qa-controller"
+attempt_phase=qa-prepare
 python3 - "$qa_hook" "$work/qa-config.json" "$qa_id" "$image" "$revision" "${ssh_options[@]}" <<'HOOK'
 import json,os,sys
 hook,config,qa_id,image,revision=sys.argv[1:6]
@@ -295,38 +319,62 @@ with open(config,"w") as output: json.dump({"ssh":["ssh",*sys.argv[6:],"-o","Cle
 source=r'''#!/usr/bin/env python3
 import json,subprocess,sys
 from pathlib import Path
-def fail(): raise SystemExit("Private QA controller verification failed; remote output withheld.")
+action="invalid"
+helper_codes={"arguments","platform","real-stage","prepare-path","prepare-network","prepare-volume","prepare-app","prepare-proof-copy","prepare-app-start","prepare-proxy","prepare-proxy-start","prepare-ready","verify-resources","verify-database","approve-fixtures","cleanup"}
+def helper_diagnostic(text):
+ if isinstance(text,bytes): text=text.decode("utf-8",errors="ignore")
+ if not isinstance(text,str): return None
+ prefix=f"PRIVATE_QA_DIAGNOSTIC:{action}:"
+ matches=[line[len(prefix):] for line in text.splitlines() if line.startswith(prefix) and line[len(prefix):] in helper_codes]
+ return matches[-1] if matches else None
+def fail(code="verification-refused",exit_code=None,helper_code=None):
+ safe_actions={"invalid","prepare","verify","approve-fixtures","cleanup"}
+ codes={"verification-refused","invalid-request","remote-exit","remote-timeout","invalid-json","identity-mismatch","attestation-mismatch","socket-mismatch","counts-mismatch","prepare-mismatch","approval-mismatch","cleanup-mismatch","local-operation-failed"}
+ if action not in safe_actions or code not in codes: raise SystemExit("Private QA controller failed safely.")
+ helper_code=helper_code if helper_code in helper_codes else None
+ entry={"action":action,"code":code,"remoteExitCode":exit_code if type(exit_code) is int and 0<=exit_code<=255 else None,"helperCode":helper_code}
+ path=Path(__file__).with_name("qa-diagnostics.json")
+ try:
+  history=json.loads(path.read_text()) if path.exists() else []
+  if not isinstance(history,list): history=[]
+  path.write_text(json.dumps((history+[entry])[-8:]))
+ except (OSError,ValueError): pass
+ suffix=f" helper={helper_code}" if helper_code else ""
+ raise SystemExit(f"Private QA controller failed [action={action} code={code}{suffix}]; remote output withheld.")
 try:
  cfg=json.loads(Path(__file__).with_name("qa-config.json").read_text())
- if len(sys.argv)!=3 or sys.argv[1] not in {"prepare","verify","approve-fixtures","cleanup"} or sys.argv[2]!=cfg["id"]: fail()
+ if len(sys.argv)!=3 or sys.argv[1] not in {"prepare","verify","approve-fixtures","cleanup"} or sys.argv[2]!=cfg["id"]: fail("invalid-request")
  action=sys.argv[1]
  command=f"bash /opt/bangla-adventures/private-staging/tools/private-staging-qa.sh {action} {cfg['id']}"
  response=subprocess.run([*cfg["ssh"],command],input="",text=True,capture_output=True,timeout=240)
- if response.returncode: fail()
- x=json.loads(response.stdout)
- if x.get("verified") is not True or x.get("qaId")!=cfg["id"]: fail()
+ if response.returncode: fail("remote-exit",response.returncode,helper_diagnostic(response.stderr))
+ try: x=json.loads(response.stdout)
+ except ValueError: fail("invalid-json")
+ if not isinstance(x,dict) or x.get("verified") is not True or x.get("qaId")!=cfg["id"]: fail("identity-mismatch")
  clean={"users":0,"pendingTopics":15,"pendingLessons":18}
  if action in {"prepare","verify"}:
-  if x.get("kind")!="bangla-private-qa" or x.get("imageDigest")!=cfg["image"].split("@")[1] or x.get("baseURL")!="http://127.0.0.1:3001" or x.get("isolated") is not True or x.get("actualStage")!=clean: fail()
-  if x.get("socket")!=f"/opt/bangla-adventures/private-staging/qa/{cfg['id']}/runtime/http.sock": fail()
+  if x.get("kind")!="bangla-private-qa" or x.get("imageDigest")!=cfg["image"].split("@")[1] or x.get("baseURL")!="http://127.0.0.1:3001" or x.get("isolated") is not True or x.get("actualStage")!=clean: fail("attestation-mismatch")
+  if x.get("socket")!=f"/opt/bangla-adventures/private-staging/qa/{cfg['id']}/runtime/http.sock": fail("socket-mismatch")
   qa=x.get("qa",{})
-  if set(qa)!={"users","pendingTopics","pendingLessons"} or type(qa.get("users")) is not int or qa["users"] not in {0,1,2} or qa.get("pendingTopics")!=15 or qa.get("pendingLessons")!=18: fail()
-  if action=="prepare" and (x.get("prepared") is not True or qa["users"]!=0): fail()
+  if set(qa)!={"users","pendingTopics","pendingLessons"} or type(qa.get("users")) is not int or qa["users"] not in {0,1,2} or qa.get("pendingTopics")!=15 or qa.get("pendingLessons")!=18: fail("counts-mismatch")
+  if action=="prepare" and (x.get("prepared") is not True or qa["users"]!=0): fail("prepare-mismatch")
   safe={k:x[k] for k in ("verified","kind","qaId","imageDigest","baseURL","isolated","actualStage","qa","socket")}
   if action=="prepare": safe["prepared"]=True
  elif action=="approve-fixtures":
-  if x.get("approvedAdults")!=1 or x.get("approvedStudents")!=1 or x.get("noContentApprovals") is not True: fail()
+  if x.get("approvedAdults")!=1 or x.get("approvedStudents")!=1 or x.get("noContentApprovals") is not True: fail("approval-mismatch")
   safe={k:x[k] for k in ("verified","qaId","approvedAdults","approvedStudents","noContentApprovals")}
  else:
-  if x.get("removed") is not True or x.get("actualStage")!=clean: fail()
+  if x.get("removed") is not True or x.get("actualStage")!=clean: fail("cleanup-mismatch")
   safe={k:x[k] for k in ("verified","qaId","removed","actualStage")}
  print(json.dumps(safe))
-except (OSError,ValueError,KeyError,subprocess.TimeoutExpired): fail()
+except subprocess.TimeoutExpired as error: fail("remote-timeout",helper_code=helper_diagnostic(error.stderr))
+except (OSError,ValueError,KeyError,TypeError): fail("local-operation-failed")
 '''
 with open(hook,"w") as output: output.write(source)
 os.chmod(hook,0o700)
 HOOK
 "$qa_hook" prepare "$qa_id" > "$work/qa-prepare.json"
+attempt_phase=qa-tunnel
 require_free_local_port
 ssh "${ssh_options[@]}" -o ClearAllForwardings=no -o ExitOnForwardFailure=yes -o GatewayPorts=no \
   -N -L "127.0.0.1:3001:$qa_socket" "$user@$host" > "$work/qa-tunnel.log" 2>&1 &
@@ -340,23 +388,20 @@ for attempt in {1..30}; do
 done
 [ "$ready" = true ] || fail 'The disposable QA clone did not become healthy.'
 mkdir "$work/qa-evidence"
+attempt_phase=qa-browser
 if ! PRIVATE_QA_ID="$qa_id" PRIVATE_QA_CONTROLLER="$qa_hook" PRIVATE_QA_BASE_URL="$origin" PRIVATE_QA_ARTIFACTS="$work/qa-evidence" \
   node "$root/tests/staging/browser-auth-smoke.mjs" > "$work/qa-browser.log" 2>&1; then
   fail 'Disposable QA browser sign-in validation failed; raw logs are withheld.'
 fi
+attempt_phase=qa-cleanup
 "$qa_hook" cleanup "$qa_id" > "$work/qa-cleanup.json"
+qa_cleanup_verified=true
 qa_hook=''
-
-evidence="${PRIVATE_STAGING_EVIDENCE_DIR:?An isolated evidence directory is required.}"
-[ ! -L "$evidence" ] || fail 'Evidence directory must not be a symlink.'
-mkdir -p -- "$evidence"
-chmod 700 "$evidence"
-cp -- "$work/inventory.json" "$evidence/inventory.json"
-cp -- "$work/result.json" "$evidence/staging-result.json"
-cp -- "$work/known_hosts" "$evidence/staging_known_hosts"
 cp -- "$work/qa-cleanup.json" "$evidence/qa-cleanup.json"
 cp -R -- "$work/qa-evidence" "$evidence/qa-browser"
 printf '{"transport":"SSH TCP-to-Unix","origin":"%s","health":200,"welcome":200,"protected":401,"crossOriginDenied":403,"stageAccountsCreated":0,"qaBrowserLoginVerified":true}\n' "$origin" > "$evidence/tunnel-probes.json"
+attempt_phase=completed
+printf '{"overall":"passed","phase":"completed","qaBrowserLoginVerified":true,"qaCleanupVerified":true}\n' > "$evidence/attempt-status.json"
 printf 'private staging: verified pinned image and clean private stage through SSH; health=200, welcome=200, anonymous protected=401, cross-origin=403. No accounts created.\n'
 if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
   printf '## Private staging\n\nPinned revision `%s` is available only through the authenticated SSH tunnel. VPS published TCP ports: **0**.\n\nHealth and welcome: 200; anonymous protected endpoint: 401; cross-origin mutation: 403; actual stage accounts: 0. Parent/student browser sign-in passed on a disposable QA clone; clone removal and unchanged clean stage were verified.\n\nThe access artifact contains a verified public server known-hosts line, sanitized evidence and synthetic QA screenshots. Production deployment remains disabled.\n' "$revision" >> "$GITHUB_STEP_SUMMARY"

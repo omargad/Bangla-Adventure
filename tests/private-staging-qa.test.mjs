@@ -56,21 +56,22 @@ if(kind==='container'&&op==='create'){
  if(role==='proxy'&&env.MOCK_FAIL_PROXY_CREATE)fail();
  const network=option(a,'--network'),imageIndex=a.indexOf(env.MOCK_IMAGE);if(imageIndex<0)fail();
  const mounts=options(a,'--mount').map(v=>{const m=Object.fromEntries(v.split(',').map(s=>s.split('=')));return {Type:m.type,...(m.type==='volume'?{Name:m.source,Source:state.volumes[m.source].Mountpoint}:{Source:m.source}),Destination:m.target,RW:!('readonly'in m)}});
- const x={Id:id(),Name:'/'+name,Image:env.MOCK_IMAGE_ID,Config:{Image:env.MOCK_IMAGE,Labels:Object.fromEntries(options(a,'--label').map(x=>x.split('='))),User:option(a,'--user'),Env:options(a,'--env'),Entrypoint:role==='proxy'?['node']:['scripts/docker-start.sh'],Cmd:role==='proxy'?a.slice(imageIndex+1):['node','next']},HostConfig:{PortBindings:{},Privileged:false,VolumesFrom:null,Devices:[],CapDrop:options(a,'--cap-drop'),SecurityOpt:options(a,'--security-opt'),ReadonlyRootfs:a.includes('--read-only')},NetworkSettings:{Ports:{'3000/tcp':null},Networks:{[network]:{NetworkID:state.networks[network].Id}}},Mounts:mounts,role};
+ const x={Id:id(),Name:'/'+name,Image:env.MOCK_IMAGE_ID,Config:{Image:env.MOCK_IMAGE,Labels:Object.fromEntries(options(a,'--label').map(x=>x.split('='))),User:option(a,'--user'),Env:options(a,'--env'),Entrypoint:role==='proxy'?['node']:['scripts/docker-start.sh'],Cmd:role==='proxy'?a.slice(imageIndex+1):['node','next']},HostConfig:{PortBindings:{},PublishAllPorts:false,Privileged:false,VolumesFrom:null,Devices:[],CapDrop:options(a,'--cap-drop'),SecurityOpt:options(a,'--security-opt'),ReadonlyRootfs:a.includes('--read-only')},NetworkSettings:{Ports:null,Networks:{[network]:{NetworkID:state.networks[network].Id}}},Mounts:mounts,role};
  if(a.some(x=>['--publish','-p','--publish-all','-P','--privileged','--volumes-from'].includes(x)))fail();
  state.containers[name]=x;save();out(x.Id);process.exit(0);
 }
 if(a[0]==='cp'){
  const [source,destination]=a.slice(1),[target,inside]=destination.split(':'),x=get(target);
- if(!x||x.role!=='app'||inside!=='/app/public/__private-staging-qa.json'||(fs.statSync(source).mode&511)!==420)fail();
+ if(!x||x.role!=='app'||inside!=='/app/public/robots.txt'||(fs.statSync(source).mode&511)!==420)fail();
  x.proof=JSON.parse(fs.readFileSync(source));save();process.exit(0);
 }
 if(kind==='container'&&op==='start'){
  const x=get(name);if(!x)fail();
+ x.NetworkSettings.Ports={'3000/tcp':null};
  const network=Object.keys(x.NetworkSettings.Networks)[0];state.networks[network].Containers[x.Id]={Name:x.Name.slice(1)};
  if(x.role==='app'){
   if(!x.proof||x.proof.expectedrevision!==env.MOCK_REVISION)fail();
-  x.db=path.join(x.Mounts[0].Source,'bangla-adventures.db');fs.copyFileSync(env.MOCK_TEMPLATE,x.db);
+  x.db=path.join(x.Mounts[0].Source,'bangla-adventures.db');if(!env.MOCK_DEFER_DB_UNTIL_HEALTH)fs.copyFileSync(env.MOCK_TEMPLATE,x.db);
  }else{
   const socket=path.join(x.Mounts.find(m=>m.Destination==='/runtime').Source,'http.sock');
   fs.writeFileSync(socket,'offline socket sentinel');x.socket=socket;
@@ -81,7 +82,10 @@ if(a[0]==='exec'){
  const offset=a[1]==='-i'?2:1,x=get(a[offset]);if(!x)fail();
  if(x.Id===env.MOCK_REAL_ID){out({verified:true,counts:{...JSON.parse(env.MOCK_COUNTS),...(env.MOCK_DIRTY_STAGE?{users:1}:{})}});process.exit(0)}
  if(x.role==='proxy'){
-  const app=Object.values(state.containers).find(y=>y.role==='app');if(!app?.proof||app.proof.qa_id!==x.Config.Labels['io.bangla.private-qa.id'])fail();process.exit(0);
+  const app=Object.values(state.containers).find(y=>y.role==='app');if(!app?.proof||app.proof.qa_id!==x.Config.Labels['io.bangla.private-qa.id'])fail();
+  const probe=a.join(' ');if(!probe.includes("path:'/robots.txt'"))fail();
+  if(env.MOCK_DEFER_DB_UNTIL_HEALTH&&probe.includes("path:'/api/health'")&&!fs.existsSync(app.db))fs.copyFileSync(env.MOCK_TEMPLATE,app.db);
+  process.exit(0);
  }
  const input=fs.readFileSync(0,'utf8').replaceAll('/app/.data/bangla-adventures.db',x.db);
  const args=a.slice(offset+1);if(args[0]!=='node'||args[1]!=='--input-type=module'||args[2]!=='-')fail();
@@ -154,7 +158,16 @@ const okay=result=>{assert.equal(result.status,0,result.stderr);return JSON.pars
 
  test('a partial prepare failure removes only its owned ephemeral app, network and volume',async t=>{
   const f=await fixture(t),result=f.run('prepare',qaId,{MOCK_FAIL_PROXY_CREATE:'1'});assert.notEqual(result.status,0);
+  assert.match(result.stderr,/PRIVATE_QA_DIAGNOSTIC:prepare:prepare-proxy/,'only a fixed phase is exposed for controller diagnostics');
   assert.deepEqual(Object.keys(f.state().containers),['real-stage-app']);assert.deepEqual(f.state().networks,{});assert.deepEqual(f.state().volumes,{});assert.equal(existsSync(path.join(f.stage,'qa',qaId)),false);
+  assert.equal(okay(f.run('cleanup')).removed,true);
+ });
+
+ test('a static identity marker alone cannot race the fresh database initialization',async t=>{
+  const f=await fixture(t),prepared=okay(f.run('prepare',qaId,{MOCK_DEFER_DB_UNTIL_HEALTH:'1'}));
+  assert.deepEqual(prepared.qa,{users:0,pendingTopics:15,pendingLessons:18});
+  const probes=f.calls().filter(x=>x[0]==='exec'&&x.join(' ').includes("path:'/robots.txt'"));
+  assert.ok(probes.length>0&&probes.every(x=>x.join(' ').includes("path:'/api/health'")));
   assert.equal(okay(f.run('cleanup')).removed,true);
  });
 

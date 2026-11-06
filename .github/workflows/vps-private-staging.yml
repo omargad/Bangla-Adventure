@@ -134,10 +134,10 @@ jobs:
           PRIVATE_STAGING_EVIDENCE_DIR: ${{ runner.temp }}/private-staging-evidence
         run: bash scripts/private-staging.sh
       - name: Retain sanitized private staging access evidence
-        if: ${{ success() }}
+        if: ${{ always() }}
         uses: actions/upload-artifact@v6
         with:
           name: private-staging-access
           path: ${{ runner.temp }}/private-staging-evidence/
-          if-no-files-found: error
+          if-no-files-found: ignore
           retention-days: 7

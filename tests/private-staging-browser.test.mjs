@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
+import { isPublicPath } from "../lib/learning-policy.ts";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const qaId = "a".repeat(24);
@@ -15,6 +16,14 @@ const valid = {
   baseURL: "http://127.0.0.1:3001", socket: `/private/qa-${qaId}/http.sock`,
   actualStage: stage, qa: { users: 0, pendingTopics: 15, pendingLessons: 18 },
 };
+
+test("clone identity uses an existing anonymous public asset without changing application access policy", () => {
+  const source = fs.readFileSync(path.join(root, "tests/staging/browser-auth-smoke.mjs"), "utf8");
+  const marker = source.match(/const response = await fetch\("([^"]+)"/)[1];
+  assert.ok(isPublicPath(new URL(marker, valid.baseURL)), "the browser must reach clone identity before signing in");
+  assert.equal(isPublicPath(new URL("/__private-staging-qa.json", valid.baseURL)), false, "learning assets remain gated");
+  assert.ok(fs.existsSync(path.join(root, "public", marker.slice(1))), "only an existing public static asset is replaced inside QA");
+});
 
 function refused(verify, { baseURL = valid.baseURL, id = qaId, cleanupVerified = true } = {}) {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "bangla-private-browser-"));

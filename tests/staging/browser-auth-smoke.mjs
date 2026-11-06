@@ -45,7 +45,8 @@ async function verifyController(expectedUsers) {
 async function verifyHttp(page, expectedUsers) {
   await verifyController(expectedUsers);
   const proof = await page.evaluate(async () => {
-    const response = await fetch("/__private-staging-qa.json", { cache: "no-store", credentials: "omit" });
+    // Only the disposable clone replaces this existing public file with its identity document.
+    const response = await fetch("/robots.txt", { cache: "no-store", credentials: "omit" });
     if (response.status !== 200 || !response.headers.get("content-type")?.includes("application/json")) return null;
     return response.json();
   });

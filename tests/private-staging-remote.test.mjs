@@ -192,3 +192,22 @@ test("final proof sanitizes reports and rejects unchanged IDs, changed state or 
   const failed = structuredClone(drill); failed.checks.sourceUnchanged = false;
   assert.notEqual(check({ drill: failed }).status, 0);
 });
+
+test("upgrade backup permissions are set while root owns the isolated directory, including retries", () => {
+  const line = script.split("\n").find((value) => value.includes('--volume "$backup_volume:/backups"') && value.includes("--user root"));
+  assert.ok(line);
+  assert.match(line, /--cap-drop ALL --cap-add CHOWN --cap-add DAC_OVERRIDE/);
+  assert.doesNotMatch(line, /FOWNER|data_volume|--privileged/);
+  const command = line.match(/-c '([^']+)'$/)?.[1];
+  assert.ok(command);
+  const shell = `fixture_owner="$1";chown(){ [ "$2" = /backups ] || exit 91;fixture_owner="$1";printf 'chown %s %s\\n' "$1" "$2"; };chmod(){ [ "$1" = 0700 ] && [ "$2" = /backups ] && [ "$fixture_owner" = 0:0 ] || exit 92;printf 'chmod %s %s\\n' "$1" "$2"; };\n${command}\n[ "$fixture_owner" = 1000:1000 ]`;
+  for (const owner of ["0:0", "1000:1000"]) {
+    const run = spawnSync("bash", ["-c", shell, "backup-permission-test", owner], { encoding: "utf8" });
+    assert.equal(run.status, 0, run.stderr);
+    assert.deepEqual(run.stdout.trim().split("\n"), ["chown 0:0 /backups", "chmod 0700 /backups", "chown 1000:1000 /backups"]);
+  }
+  const stop = script.indexOf('stop_own "$previous"', script.indexOf('transaction="$(mktemp'));
+  const backup = script.indexOf('scripts/backup.sh /backups 14 --application-stopped', stop);
+  const swap = script.indexOf('cp -- "$payload/compose.yaml"', backup);
+  assert.ok(stop < backup && backup < swap);
+});

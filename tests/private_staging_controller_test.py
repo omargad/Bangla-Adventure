@@ -70,6 +70,11 @@ elif tool=="ssh":
  elif "tar --extract" in command: record("upload",hasToken="REGISTRY_TOKEN_MUST_NOT_LEAK" in data)
  elif "private-staging-qa.sh" in command:
   action,qid=command.split()[-2:];record("qa_"+action)
+  if action=="prepare" and os.environ.get("FIXTURE_QA_REMOTE_FAIL"):
+   print("REGISTRY_TOKEN_MUST_NOT_LEAK",file=sys.stderr)
+   print("PRIVATE_QA_DIAGNOSTIC:prepare:untrusted-REGISTRY_TOKEN_MUST_NOT_LEAK",file=sys.stderr)
+   print("PRIVATE_QA_DIAGNOSTIC:prepare:prepare-ready",file=sys.stderr)
+   sys.exit(7)
   clean={"users":0,"pendingTopics":15,"pendingLessons":18}
   if action in ["prepare","verify"]:
    digest=os.environ["FIXTURE_IMAGE"].split("@")[1]
@@ -128,7 +133,8 @@ elif tool=="ssh":
         self.assertIn("ClearAllForwardings=no", tunnel)
         self.assertIn("StrictHostKeyChecking=yes", tunnel)
         evidence = self.root / "evidence"
-        self.assertEqual(set(path.name for path in evidence.iterdir()), {"inventory.json", "staging-result.json", "staging_known_hosts", "tunnel-probes.json", "qa-cleanup.json", "qa-browser"})
+        self.assertEqual(set(path.name for path in evidence.iterdir()), {"inventory.json", "staging-result.json", "staging_known_hosts", "tunnel-probes.json", "qa-cleanup.json", "qa-browser", "attempt-status.json"})
+        self.assertEqual(json.loads((evidence/"attempt-status.json").read_text())["overall"],"passed")
         self.assertEqual(json.loads((evidence / "tunnel-probes.json").read_text())["stageAccountsCreated"], 0)
         self.assertTrue(json.loads((evidence / "tunnel-probes.json").read_text())["qaBrowserLoginVerified"])
         proof=json.loads((evidence / "staging-result.json").read_text())
@@ -158,7 +164,10 @@ elif tool=="ssh":
     def test_protected_endpoint_failure_never_publishes_success_evidence(self):
         result = self.run_controller(FIXTURE_PROTECTED_STATUS="200")
         self.assertNotEqual(result.returncode, 0)
-        self.assertFalse((self.root / "evidence").exists())
+        evidence=self.root/"evidence"
+        self.assertTrue((evidence/"staging-result.json").exists())
+        self.assertEqual(json.loads((evidence/"attempt-status.json").read_text())["overall"],"failed")
+        self.assertFalse((evidence/"qa-browser").exists())
 
     def test_unattested_qa_clone_never_reaches_browser_and_is_cleaned(self):
         result = self.run_controller(FIXTURE_QA_BAD_IMAGE="1")
@@ -166,7 +175,24 @@ elif tool=="ssh":
         kinds = [call["kind"] for call in self.calls()]
         self.assertNotIn("qa_browser", kinds)
         self.assertIn("qa_cleanup", kinds)
-        self.assertFalse((self.root / "evidence").exists())
+        evidence=self.root/"evidence"
+        status=json.loads((evidence/"attempt-status.json").read_text())
+        self.assertEqual(status,{"overall":"failed","phase":"qa-prepare","qaBrowserLoginVerified":False,"qaCleanupVerified":True})
+        self.assertTrue((evidence/"staging-result.json").exists())
+        self.assertFalse(json.loads((evidence/"tunnel-probes.json").read_text())["qaBrowserLoginVerified"])
+        self.assertFalse((evidence/"qa-browser").exists())
+
+    def test_remote_qa_failure_retains_only_allowlisted_diagnostics_and_prior_stage_proof(self):
+        result=self.run_controller(FIXTURE_QA_REMOTE_FAIL="1")
+        self.assertNotEqual(result.returncode,0)
+        self.assertIn("action=prepare code=remote-exit helper=prepare-ready",result.stderr)
+        evidence=self.root/"evidence"
+        diagnostics=json.loads((evidence/"qa-diagnostics.json").read_text())
+        self.assertEqual(diagnostics,[{"action":"prepare","code":"remote-exit","remoteExitCode":7,"helperCode":"prepare-ready"}])
+        self.assertEqual(json.loads((evidence/"attempt-status.json").read_text())["overall"],"failed")
+        self.assertFalse((evidence/"qa-browser").exists())
+        for path in evidence.rglob("*"):
+            if path.is_file(): self.assertNotIn("REGISTRY_TOKEN_MUST_NOT_LEAK",path.read_text())
 
     def test_unknown_aggregate_proof_keys_are_refused_without_export(self):
         result = self.run_controller(FIXTURE_UNKNOWN_PROOF_KEY="1")

@@ -261,7 +261,7 @@ if [ "$existing" = true ]; then
   stop_own "$previous"
   docker volume create --label "com.docker.compose.project=$project" --label io.bangla.scope=private-staging "$backup_volume" >/dev/null
   check_volume "$backup_volume" || fail 'backup volume ownership is invalid.'
-  docker run --rm --network none --user root --cap-drop ALL --cap-add CHOWN --cap-add DAC_OVERRIDE --security-opt no-new-privileges:true --entrypoint sh --volume "$backup_volume:/backups" "$previous" -c 'chown 1000:1000 /backups && chmod 0700 /backups'
+  docker run --rm --network none --user root --cap-drop ALL --cap-add CHOWN --cap-add DAC_OVERRIDE --security-opt no-new-privileges:true --entrypoint sh --volume "$backup_volume:/backups" "$previous" -c 'chown 0:0 /backups && chmod 0700 /backups && chown 1000:1000 /backups'
   if ! docker run --rm --network none --user node --read-only --cap-drop ALL --security-opt no-new-privileges:true --tmpfs /tmp:rw,noexec,nosuid,size=128m --volume "$data_volume:/app/.data:ro" --volume "$backup_volume:/backups" --entrypoint bash "$previous" scripts/backup.sh /backups 14 --application-stopped; then
     healthy_start "$previous" || true
     fail 'the staging backup failed; the candidate was not installed.'

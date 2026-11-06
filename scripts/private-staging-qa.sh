@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Disposable authentication QA only. Never mount the real staging or production data volume.
-set -euo pipefail
+set -Eeuo pipefail
 set +x
 umask 077
 readonly stage=/opt/bangla-adventures/private-staging
@@ -8,10 +8,14 @@ readonly socketDaemon=/run/user/1002/docker.sock
 readonly image=ghcr.io/omargad/bangla-adventure@sha256:fc6f52720d3ecf55998e56a2432ffd5a782d3db231323874daf0b6d0357efca2
 readonly revision=95b6308ac7ad3d5b6bb2d951df9d65a23ff77107
 readonly digest=sha256:fc6f52720d3ecf55998e56a2432ffd5a782d3db231323874daf0b6d0357efca2
-fail() { printf 'private QA refused: %s\n' "$*" >&2; exit 1; }
+diagnostic_action=arguments diagnostic_phase=arguments
+diagnostic() { printf 'PRIVATE_QA_DIAGNOSTIC:%s:%s\n' "$diagnostic_action" "$diagnostic_phase" >&2; }
+fail() { diagnostic; printf 'private QA refused: %s\n' "$*" >&2; exit 1; }
+trap diagnostic ERR
 [ "$#" -eq 2 ] || fail 'Expected prepare, verify, approve-fixtures or cleanup and a 24-character hexadecimal ID.'
 readonly action="$1" qaId="$2"
 case "$action" in prepare|verify|approve-fixtures|cleanup) ;; *) fail 'Unknown action.' ;; esac
+diagnostic_action="$action"
 [[ "$qaId" =~ ^[a-f0-9]{24}$ ]] || fail 'Invalid QA ID.'
 readonly qaRoot="$stage/qa" qaDir="$stage/qa/$qaId"
 readonly socket="$qaDir/runtime/http.sock" prefix="ba-private-qa-$qaId"
@@ -19,6 +23,7 @@ readonly app="$prefix-app" proxy="$prefix-proxy" network="$prefix-net" volume="$
 docker() { command env -u DOCKER_HOST -u DOCKER_CONTEXT docker --host "unix://$socketDaemon" "$@"; }
 owned_dir() { [ -d "$1" ] && [ ! -L "$1" ] && [ "$(realpath -e -- "$1")" = "$1" ] && [ "$(stat -c '%u:%a' -- "$1")" = 1002:700 ]; }
 platform() {
+  diagnostic_phase=platform
   [ "$(id -un)" = deployer ] && [ "$(id -u)" = 1002 ] || fail 'The dedicated deployment user is required.'
   owned_dir "$stage" || fail 'The private staging directory is not the expected private directory.'
   [ -f "$stage/.private-staging-marker" ] && [ ! -L "$stage/.private-staging-marker" ] && [ "$(stat -c %u -- "$stage/.private-staging-marker")" = 1002 ] || fail 'Missing owned staging marker.'
@@ -49,7 +54,9 @@ if kind=="container":
  assert x["Name"]=="/"+name and x["Config"]["Image"]==image and x["Image"]==imageid
  assert not expected or x["Id"]==expected
  h=x["HostConfig"]; assert not h.get("PortBindings") and not h.get("Privileged") and not h.get("VolumesFrom") and not h.get("Devices")
- assert all(not value for value in x["NetworkSettings"].get("Ports",{}).values())
+ assert not h.get("PublishAllPorts")
+ ports=x["NetworkSettings"].get("Ports")
+ assert ports is None or isinstance(ports,dict) and all(not value for value in ports.values())
  assert list(x["NetworkSettings"]["Networks"])==[net] and x["Config"]["User"]=="node"
  assert "ALL" in h["CapDrop"] and any(v.startswith("no-new-privileges") for v in h["SecurityOpt"])
  mounts=x["Mounts"]
@@ -79,6 +86,7 @@ else:
 }
 remember() { [[ "$2" =~ ^[a-f0-9]{64}$ ]] || fail 'Invalid resource ID.'; printf '%s\n' "$2" > "$qaDir/$1.id"; }
 real_stage() {
+  diagnostic_phase=real-stage
   local stageId report
   stageId="$(docker ps -aq --no-trunc --filter label=com.docker.compose.project=bangla-adventures-staging --filter label=com.docker.compose.service=app)"
   [[ "$stageId" =~ ^[a-f0-9]{64}$ ]] || fail 'Exactly one real staging app is required.'
@@ -121,16 +129,19 @@ try {
 JS
 }
 verify_all() {
+  diagnostic_phase=verify-resources
   qa_path
   inspect_owned network "$network" net >/dev/null
   inspect_owned volume "$volume" data >/dev/null
   inspect_owned container "$app" app >/dev/null
   inspect_owned container "$proxy" proxy >/dev/null
   [ -d "$qaDir/runtime" ] && [ ! -L "$qaDir/runtime" ] && [ "$(realpath -e "$qaDir/runtime")" = "$qaDir/runtime" ] && [ -S "$socket" ] || fail 'QA Unix socket is missing or redirected.'
+  diagnostic_phase=verify-database
   qaCounts="$(qa_database inspect)" || fail 'Disposable QA database verification failed.'
   real_stage
 }
 cleanup_owned() {
+  diagnostic_phase=cleanup
   qa_path
   local name role target
   # Validate the entire owned graph before removing its first resource.
@@ -159,6 +170,7 @@ cleanup_owned() {
 platform
 if [ "$action" != cleanup ]; then real_stage; fi
 if [ "$action" = prepare ]; then
+  diagnostic_phase=prepare-path
   if [ ! -e "$qaRoot" ] && [ ! -L "$qaRoot" ]; then mkdir -m 700 -- "$qaRoot"; fi
   owned_dir "$qaRoot" || fail 'QA parent is not private.'
   [ ! -e "$qaDir" ] && [ ! -L "$qaDir" ] || fail 'QA ID already exists.'
@@ -175,30 +187,41 @@ if [ "$action" = prepare ]; then
   printf '{"qa":true,"qa_id":"%s","expectedrevision":"%s"}\n' "$qaId" "$revision" > "$qaDir/proof.json"
   chmod 644 "$qaDir/proof.json"
   labels=(--label io.bangla.scope=private-qa --label "io.bangla.private-qa.id=$qaId")
+  diagnostic_phase=prepare-network
   remember net "$(docker network create --internal "${labels[@]}" --label io.bangla.private-qa.kind=net "$network")"
   inspect_owned network "$network" net >/dev/null
+  diagnostic_phase=prepare-volume
   docker volume create "${labels[@]}" --label io.bangla.private-qa.kind=data "$volume" >/dev/null
   inspect_owned volume "$volume" data >/dev/null
+  diagnostic_phase=prepare-app
   remember app "$(docker container create --name "$app" "${labels[@]}" --label io.bangla.private-qa.kind=app --network "$network" --network-alias app --user node --init --cap-drop ALL --security-opt no-new-privileges:true --memory 512m --pids-limit 128 --mount "type=volume,source=$volume,target=/app/.data" --env NODE_ENV=production --env PORT=3000 --env PLATFORM_MODE=legacy --env DATABASE_PATH=/app/.data/bangla-adventures.db --env MEDIA_ROOT=/app/.data/media --env PUBLIC_ORIGIN=http://127.0.0.1:3001 --env NEXT_TELEMETRY_DISABLED=1 "$image")"
   appTarget="$(inspect_owned container "$app" app)"
-  docker cp "$qaDir/proof.json" "$appTarget:/app/public/__private-staging-qa.json"
+  diagnostic_phase=prepare-proof-copy
+  docker cp "$qaDir/proof.json" "$appTarget:/app/public/robots.txt"
   inspect_owned container "$app" app >/dev/null
+  diagnostic_phase=prepare-app-start
   docker container start "$(cat "$qaDir/app.id")" >/dev/null
+  diagnostic_phase=prepare-proxy
   remember proxy "$(docker container create --name "$proxy" "${labels[@]}" --label io.bangla.private-qa.kind=proxy --network "$network" --user node --init --read-only --cap-drop ALL --security-opt no-new-privileges:true --memory 128m --pids-limit 64 --entrypoint node --mount "type=bind,source=$qaDir/runtime,target=/runtime" --mount "type=bind,source=$qaDir/private-staging-proxy.mjs,target=/app/staging-tools/private-staging-proxy.mjs,readonly" "$image" /app/staging-tools/private-staging-proxy.mjs)"
   inspect_owned container "$proxy" proxy >/dev/null
+  diagnostic_phase=prepare-proxy-start
   docker container start "$(cat "$qaDir/proxy.id")" >/dev/null
+  diagnostic_phase=prepare-ready
   ready=false
   for attempt in {1..30}; do
     proxyTarget="$(inspect_owned container "$proxy" proxy)"
-    if docker exec "$proxyTarget" node -e "require('node:http').get({socketPath:'/runtime/http.sock',path:'/__private-staging-qa.json'},r=>{let s='';r.on('data',x=>s+=x);r.on('end',()=>{try{const x=JSON.parse(s);process.exit(r.statusCode===200&&x.qa===true&&x.qa_id==='$qaId'&&x.expectedrevision==='$revision'?0:1)}catch{process.exit(1)}})}).on('error',()=>process.exit(1))" >/dev/null 2>&1; then ready=true; break; fi
+    # Static public files can be ready before getDb() creates the fresh database.
+    # First attest this clone's marker, then require the database-backed health route.
+    if docker exec "$proxyTarget" node -e "require('node:http').get({socketPath:'/runtime/http.sock',path:'/robots.txt'},r=>{let s='';r.on('data',x=>s+=x);r.on('end',()=>{try{const x=JSON.parse(s);if(!(r.statusCode===200&&x.qa===true&&x.qa_id==='$qaId'&&x.expectedrevision==='$revision'))process.exit(1);require('node:http').get({socketPath:'/runtime/http.sock',path:'/api/health'},h=>{h.resume();process.exit(h.statusCode===200?0:1)}).on('error',()=>process.exit(1))}catch{process.exit(1)}})}).on('error',()=>process.exit(1))" >/dev/null 2>&1; then ready=true; break; fi
     sleep 1
   done
-  [ "$ready" = true ] || fail 'QA app did not expose its clone-only identity proof.'
+  [ "$ready" = true ] || fail 'QA app did not expose its clone-only identity proof and database health.'
   verify_all
   trap - EXIT
 elif [ "$action" = verify ]; then
   verify_all
 elif [ "$action" = approve-fixtures ]; then
+  diagnostic_phase=approve-fixtures
   qa_path
   trap 'status=$?; trap - EXIT; if [ "$status" -ne 0 ]; then cleanup_owned || true; fi; exit "$status"' EXIT
   verify_all
