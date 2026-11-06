@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { issueRecoveryCodes, registerAdult } from "../../../../lib/auth";
-import { checkRateLimit, clientKey, tooManyRequests } from "../../../../lib/rate-limit";
+import { checkRateLimit, clientKey } from "../../../../lib/rate-limit";
+import { SIGN_UPS_PER_HOUR, tooManyAttempts } from "../../../../lib/rate-limit-reply";
 import { approvalNotice } from "../../../../lib/roles";
 
 export const dynamic = "force-dynamic";
@@ -12,8 +13,8 @@ const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
  * so no session starts here; the recovery codes are the owner's own and are shown once.
  */
 export async function POST(request: Request) {
-  const limit = checkRateLimit(`sign-up:${clientKey(request)}`, 5, 60 * 60 * 1000);
-  if (!limit.allowed) return tooManyRequests(limit.retryAfterSeconds);
+  const limit = checkRateLimit(`sign-up:${clientKey(request)}`, SIGN_UPS_PER_HOUR, 60 * 60 * 1000);
+  if (!limit.allowed) return tooManyAttempts(limit.retryAfterSeconds);
 
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   if ((typeof body.email === "string" && body.email.trim().length > 120) || (typeof body.displayName === "string" && body.displayName.trim().length > 60)) return NextResponse.json({ error: "Use an email of at most 120 characters and a name of at most 60 characters.", errorBn: "ইমেইল সর্বোচ্চ ১২০ অক্ষরের আর নাম সর্বোচ্চ ৬০ অক্ষরের হতে পারে।" }, { status: 400 });

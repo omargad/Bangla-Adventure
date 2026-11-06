@@ -5,7 +5,8 @@ import {
   getSignedInAdult,
   verifyAdultCredentials,
 } from "../../../../lib/auth";
-import { checkRateLimit, tooManyRequests } from "../../../../lib/rate-limit";
+import { checkRateLimit } from "../../../../lib/rate-limit";
+import { tooManyAttempts } from "../../../../lib/rate-limit-reply";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +18,7 @@ export async function POST(request: Request) {
 
   // Per account, not per address, shared with the other account changes.
   const limit = checkRateLimit(`account:${adult.id}`, 10, 15 * 60 * 1000);
-  if (!limit.allowed) return tooManyRequests(limit.retryAfterSeconds);
+  if (!limit.allowed) return tooManyAttempts(limit.retryAfterSeconds);
 
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const currentPassword = typeof body.currentPassword === "string" ? body.currentPassword : "";

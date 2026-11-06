@@ -5,7 +5,8 @@ import {
   sessionCookieOptions,
   verifyAdultCredentials,
 } from "../../../../lib/auth";
-import { checkRateLimit, clearRateLimit, clientKey, peekRateLimit, recordRateLimit, tooManyRequests } from "../../../../lib/rate-limit";
+import { checkRateLimit, clearRateLimit, clientKey, peekRateLimit, recordRateLimit } from "../../../../lib/rate-limit";
+import { tooManyAttempts } from "../../../../lib/rate-limit-reply";
 import { INSECURE_SIGN_IN, insecureSignIn } from "../../../../lib/request-security";
 import { approvalNotice, canManageUsers } from "@/lib/roles";
 
@@ -18,7 +19,7 @@ export async function POST(request: Request) {
 
   // A staff room shares one address and this counts every sign-in, so the per-address cap is coarse.
   const address = checkRateLimit(`sign-in:${clientKey(request)}`, 100, WINDOW_MS);
-  if (!address.allowed) return tooManyRequests(address.retryAfterSeconds);
+  if (!address.allowed) return tooManyAttempts(address.retryAfterSeconds);
 
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const email = typeof body.email === "string" ? body.email.trim().slice(0, 120) : "";
@@ -33,7 +34,7 @@ export async function POST(request: Request) {
   const fromHere = `sign-in-account-here:${clientKey(request)}:${normalized}`;
   const overall = `sign-in-account:${normalized}`;
   for (const limit of [peekRateLimit(fromHere, 10), peekRateLimit(overall, 50)]) {
-    if (!limit.allowed) return tooManyRequests(limit.retryAfterSeconds);
+    if (!limit.allowed) return tooManyAttempts(limit.retryAfterSeconds);
   }
 
   const adult = await verifyAdultCredentials(email, password);

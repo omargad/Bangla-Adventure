@@ -6,7 +6,8 @@ import {
   studentCookieOptions,
   verifyStudentCredentials,
 } from "@/lib/student-auth";
-import { checkRateLimit, clearRateLimit, clientKey, peekRateLimit, recordRateLimit, tooManyRequests } from "@/lib/rate-limit";
+import { checkRateLimit, clearRateLimit, clientKey, peekRateLimit, recordRateLimit } from "@/lib/rate-limit";
+import { tooManyAttempts } from "@/lib/rate-limit-reply";
 import { INSECURE_SIGN_IN, insecureSignIn } from "@/lib/request-security";
 import { approvalNotice } from "@/lib/roles";
 
@@ -20,7 +21,7 @@ export async function POST(request: Request) {
   // A whole class signs in from one school network after a CSV import, so the per-address cap
   // only stops password spraying.
   const address = checkRateLimit(`student-sign-in-ip:${clientKey(request)}`, 200, WINDOW_MS);
-  if (!address.allowed) return tooManyRequests(address.retryAfterSeconds);
+  if (!address.allowed) return tooManyAttempts(address.retryAfterSeconds, "student");
 
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const username = typeof body.username === "string" ? body.username : "";
@@ -33,7 +34,7 @@ export async function POST(request: Request) {
   const fromHere = `student-sign-in-here:${clientKey(request)}:${normalized}`;
   const overall = `student-sign-in:${normalized}`;
   for (const limit of [peekRateLimit(fromHere, 10), peekRateLimit(overall, 50)]) {
-    if (!limit.allowed) return tooManyRequests(limit.retryAfterSeconds);
+    if (!limit.allowed) return tooManyAttempts(limit.retryAfterSeconds, "student");
   }
 
   const student = await verifyStudentCredentials(username, password);

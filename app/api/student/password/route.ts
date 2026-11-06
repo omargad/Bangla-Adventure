@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { changeStudentPassword, getSessionStudent, getStudentSessionToken, verifyStudentCredentials } from "@/lib/student-auth";
-import { checkRateLimit, tooManyRequests } from "@/lib/rate-limit";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { tooManyAttempts } from "@/lib/rate-limit-reply";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +12,7 @@ export async function POST(request: Request) {
   if (!student || !token) return NextResponse.json({ error: "Student sign in required.", errorBn: "শিক্ষার্থী হিসেবে সাইন ইন করো।" }, { status: 401 });
   // Per student rather than per address: a whole class may change passwords from one school network.
   const limit = checkRateLimit(`student-password:${student.id}`, 10, 15 * 60 * 1000);
-  if (!limit.allowed) return tooManyRequests(limit.retryAfterSeconds);
+  if (!limit.allowed) return tooManyAttempts(limit.retryAfterSeconds, "student");
 
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const currentPassword = typeof body.currentPassword === "string" ? body.currentPassword : "";

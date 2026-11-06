@@ -6,7 +6,8 @@ import {
   recoverAdultPassword,
   sessionCookieOptions,
 } from "../../../../lib/auth";
-import { checkRateLimit, clientKey, tooManyRequests } from "../../../../lib/rate-limit";
+import { checkRateLimit, clientKey } from "../../../../lib/rate-limit";
+import { tooManyAttempts } from "../../../../lib/rate-limit-reply";
 import { INSECURE_SIGN_IN, insecureSignIn } from "../../../../lib/request-security";
 import { approvalNotice } from "../../../../lib/roles";
 
@@ -18,7 +19,7 @@ export async function POST(request: Request) {
   if (insecureSignIn(request)) return NextResponse.json(INSECURE_SIGN_IN, { status: 400 });
 
   const limit = checkRateLimit(`recover:${clientKey(request)}`, 5, 15 * 60 * 1000);
-  if (!limit.allowed) return tooManyRequests(limit.retryAfterSeconds);
+  if (!limit.allowed) return tooManyAttempts(limit.retryAfterSeconds);
 
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const email = typeof body.email === "string" ? body.email.trim().slice(0, 120) : "";

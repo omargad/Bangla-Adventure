@@ -16,7 +16,8 @@ import {
   getSessionAdult,
   verifyAdultCredentials,
 } from "../../../../lib/auth";
-import { checkRateLimit, tooManyRequests } from "../../../../lib/rate-limit";
+import { checkRateLimit } from "../../../../lib/rate-limit";
+import { tooManyAttempts } from "../../../../lib/rate-limit-reply";
 import { deleteMediaObject } from "../../../../lib/storage";
 
 export const dynamic = "force-dynamic";
@@ -35,7 +36,7 @@ export async function POST(request: Request) {
 
   // Per account, not per address, shared with the other account changes.
   const limit = checkRateLimit(`account:${adult.id}`, 10, 15 * 60 * 1000);
-  if (!limit.allowed) return tooManyRequests(limit.retryAfterSeconds);
+  if (!limit.allowed) return tooManyAttempts(limit.retryAfterSeconds);
 
   if (adult.role === "admin") return NextResponse.json({ error: "Ask another administrator to change your role before deleting this account." }, { status: 409 });
 
