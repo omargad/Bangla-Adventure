@@ -1159,13 +1159,14 @@ export default function AdventureApp({ approvedLessonIds, snapshots, videos, rec
               বাংলা
             </button>
           </div>
-          {/* Signed in, the header leads home (My Learning, or a grown-up's own workspace) instead of to the sign-in pages. */}
+          {/* Signed in, the header leads home (My Learning, or a grown-up's own workspace) instead of to the sign-in pages.
+              A grown-up still sees Student login: on a shared family device the child signs in from here. */}
           {viewer?.kind === "student" ? (
             <Link className="student-login-link" href={viewer.home.href} title={viewer.name}>
               <span aria-hidden="true">★</span>
               <span>{language === "en" ? viewer.home.label[0] : viewer.home.label[1]}</span>
             </Link>
-          ) : !viewer && (
+          ) : (
             <Link className="student-login-link" href="/student" aria-label={language === "en" ? "Student login" : "শিক্ষার্থী লগইন"}>
               <span aria-hidden="true">★</span>
               <span>{t.studentLogin}</span>

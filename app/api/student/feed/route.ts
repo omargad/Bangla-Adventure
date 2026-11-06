@@ -12,6 +12,7 @@ import { listAnnouncements } from "@/lib/class-announcements";
 import { attendanceKey, studentAttendance } from "@/lib/class-attendance";
 import { sourcesOf } from "@/lib/class-sources";
 import { getStudentAccess } from "@/lib/student-auth";
+import { studentServerError } from "@/lib/student-errors";
 import { parseQuestions, rosterInEnrolledClass } from "@/lib/student-work";
 
 export const dynamic = "force-dynamic";
@@ -95,12 +96,6 @@ export async function GET() {
       })),
     });
   } catch (error) {
-    return databaseError(error);
+    return studentServerError("GET /api/student/feed", error);
   }
-}
-
-function databaseError(error: unknown) {
-  const message = error instanceof Error ? error.message : "Unexpected database error";
-  const unavailable = message.includes("no such table") || message.includes("SQLITE");
-  return Response.json({ error: unavailable ? "The student service is still being set up." : message }, { status: 500 });
 }

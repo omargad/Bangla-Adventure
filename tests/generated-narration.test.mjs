@@ -43,6 +43,17 @@ test("narration is generated once, persisted, and available after the key is rem
   assert.equal((await fs.stat(path.join(cacheRoot(env), "daily-budget.json"))).mode & 0o777, 0o600);
 });
 
+test("a saved-only request plays saved audio and never calls the provider", async () => {
+  const env = fixture("saved-only");
+  let calls = 0;
+  const generate = createGeneratedNarration({ env: () => env, now: () => now, transport: async () => { calls += 1; return stream(); } });
+  await assert.rejects(generate("Draft activity", "en", "teacher", { savedOnly: true }), (error) => errorStatus(409)(error) && /approved, open activities/.test(error.message) && /কার্যক্রম/.test(error.messageBn));
+  assert.equal(calls, 0);
+  assert.deepEqual(await generate("Draft activity", "en", "learner"), { audio, cached: false });
+  assert.deepEqual(await generate("Draft activity", "en", "teacher", { savedOnly: true }), { audio, cached: true });
+  assert.equal(calls, 1);
+});
+
 test("changed text, language, voice and model cannot reuse a stale cache entry", async () => {
   const env = fixture("variants");
   let calls = 0;

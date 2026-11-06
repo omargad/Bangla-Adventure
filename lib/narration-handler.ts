@@ -1,13 +1,15 @@
 import { createHash } from "node:crypto";
 import { NarrationError } from "./generated-narration";
 import { splitNarration, type NarrationLanguage } from "./narration-model";
-import { NarrationSourceError, type NarrationActor, type NarrationSourceRequest } from "./narration-source";
+import { NarrationSourceError, type NarrationActor, type NarrationSourceRequest, type ResolvedNarration } from "./narration-source";
 import type { RateLimitResult } from "./rate-limit";
 
 type NarrationDependencies = {
   getActor: () => Promise<NarrationActor>;
-  resolveSource: (actor: NarrationActor, source: NarrationSourceRequest) => Promise<string>;
-  generate: (text: string, language: NarrationLanguage, actorKey: string) => Promise<{ audio: Buffer; cached: boolean }>;
+  /** The text alone, or with `savedOnly` when only audio saved earlier may be played (see resolveNarration). */
+  resolveSource: (actor: NarrationActor, source: NarrationSourceRequest) => Promise<string | ResolvedNarration>;
+  /** Called with a fourth argument, `{ savedOnly: true }`, when it must not make new audio. */
+  generate: (text: string, language: NarrationLanguage, actorKey: string, options?: { savedOnly: true }) => Promise<{ audio: Buffer; cached: boolean }>;
   rateLimit: (key: string, limit: number, windowMs: number) => RateLimitResult;
 };
 
@@ -61,6 +63,10 @@ function parseBody(body: unknown): NarrationRequest {
   return { kind, id, slot: slot as string, language, hash: hash.toLowerCase(), part };
 }
 
+function resolved(source: string | ResolvedNarration): { text: string; savedOnly?: true } {
+  return typeof source === "string" ? { text: source } : source.savedOnly ? { text: source.text, savedOnly: true } : { text: source.text };
+}
+
 /** Generate only text derived from accessible stored content, never arbitrary client text. */
 export function createNarrationHandler({ getActor, resolveSource, generate, rateLimit }: NarrationDependencies) {
   return async function handleNarration(request: Request) {
@@ -69,20 +75,20 @@ export function createNarrationHandler({ getActor, resolveSource, generate, rate
       const limit = rateLimit(`narration:${actor.key}`, 120, 60_000);
       if (!limit.allowed) return failure(429, "Too many narration requests. Please wait a moment.", { "Retry-After": String(limit.retryAfterSeconds) });
       const source = parseBody(await readBody(request));
-      const text = await resolveSource(actor, source);
+      const { text, savedOnly } = resolved(await resolveSource(actor, source));
       if (createHash("sha256").update(text, "utf8").digest("hex") !== source.hash) {
         return failure(409, "This content has changed. Refresh it before listening.");
       }
       const chunk = splitNarration(text)[source.part];
       if (!chunk) return failure(400, "Choose a valid narration part.");
-      const generated = await generate(chunk, source.language, actor.key);
+      const generated = savedOnly ? await generate(chunk, source.language, actor.key, { savedOnly }) : await generate(chunk, source.language, actor.key);
       // A provider call can take time; an intervening withdrawal, enrollment
       // change or edit must not return audio the reader may no longer hear.
       const currentActor = await getActor();
       if (currentActor.kind !== actor.kind || currentActor.id !== actor.id) {
         return failure(401, "Sign in to listen to this content.");
       }
-      if (await resolveSource(actor, source) !== text) {
+      if (resolved(await resolveSource(actor, source)).text !== text) {
         return failure(409, "This content has changed. Refresh it before listening.");
       }
       return new Response(new Uint8Array(generated.audio), { headers: {

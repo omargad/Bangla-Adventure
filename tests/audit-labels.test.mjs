@@ -28,7 +28,8 @@ function labelledActions() {
 
 /**
  * The action codes written to the audit log: `action: "…"` in an insert, the code given to an audit
- * helper (`audit(tx, …, "…")`, `auditClass(tx, …, "…")`, `record(tx, …, "…")`), and the codes those helpers are handed in a variable.
+ * helper (`audit(tx, …, "…")`, `auditClass(tx, …, "…")`, `auditOwnAccount(tx, …, "…")`, `record(tx, …, "…")`), and the codes
+ * those helpers are handed in a variable.
  */
 function writtenActions() {
   const codes = new Set();
@@ -39,7 +40,7 @@ function writtenActions() {
     for (const match of text.matchAll(/\baction(?:_?[A-Za-z]*)?:\s*"([a-z][a-z-]*)"/g)) codes.add(match[1]);
     for (const line of text.split("\n")) {
       // An audit helper call or a line choosing the action code: every kebab-case literal on it is a code.
-      if (!/\b(?:audit|auditClass|record)\(tx,|const action = |audited = /.test(line)) continue;
+      if (!/\b(?:audit|auditClass|auditOwnAccount|record)\(tx,|const action = |audited = /.test(line)) continue;
       for (const match of line.matchAll(/"([a-z]+(?:-[a-z]+)+)"/g)) codes.add(match[1]);
       for (const match of line.matchAll(/`([a-z]+(?:-[a-z]+)*)-\$\{/g)) codes.add(`${match[1]}-*`);
     }
@@ -74,6 +75,19 @@ test("the scan sees the codes written through the class audit helper", () => {
   for (const code of ["attendance-saved", "class-activity-opened", "class-activity-closed", "class-created", "announcement-posted", "class-source-added", "class-deleted"]) {
     assert.ok(written.has(code), code);
   }
+});
+
+test("the scan sees the codes written through the own-account audit helper", () => {
+  const written = writtenActions();
+  for (const code of ["password-recovered", "recovery-codes-replaced", "signed-out-everywhere", "password-changed"]) {
+    assert.ok(written.has(code), code);
+  }
+});
+
+test("class activity labels use the word the class pages use for an activity (কার্যক্রম)", () => {
+  const activityLabels = [...labelledActions()].filter(([code]) => code.startsWith("class-activity-"));
+  assert.equal(activityLabels.length, 5);
+  for (const [code, [, bn]] of activityLabels) assert.match(bn, /^ক্লাসের কার্যক্রম /, code);
 });
 
 test("the action codes agreed for account and class events are labelled", () => {

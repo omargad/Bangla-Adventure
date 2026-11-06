@@ -5,7 +5,8 @@ import { adults, contentApprovals, shippedContentState, studentTopicProgress, to
 import { topics as shippedTopics, type Bilingual, type Topic, type TopicQuizQuestion } from "../app/topics-content";
 import { topicSourceLinks, type SourceOverride } from "./library-links";
 import { currentMembers } from "./class-roster";
-import { markTopicQuiz } from "./learner-topic";
+import { SCORED_QUIZ_TRIES_PER_DAY, markTopicQuiz } from "./learner-topic";
+import { peekRateLimit, recordRateLimit } from "./rate-limit";
 import { canPublishContent, canTeach } from "./roles";
 import {
   canRestartFromApproved, checkReview, checkTopicDecision, describeTopicChanges, newTopicId, readConfirmationMissing, statusesAfterApproval,
@@ -397,30 +398,38 @@ function currentScore(row: typeof studentTopicProgress.$inferSelect, key: string
   return key !== null && row.quizKey === key && row.quizBestScore !== null && row.quizTotal ? { best: row.quizBestScore, total: row.quizTotal } : null;
 }
 
+// The day's scored tries (SCORED_QUIZ_TRIES_PER_DAY) are counted in memory (lib/rate-limit), so a restart starts the count again.
+const SCORED_QUIZ_WINDOW_MS = 24 * 60 * 60 * 1000;
+
 /**
  * Records that a student read a topic. With quiz answers it also marks the quiz on
  * the server and keeps the student's best score (finishing the quiz counts as reading).
+ * Only the day's first SCORED_QUIZ_TRIES_PER_DAY tries can raise that score; `saved` says whether this one could.
  */
-export async function recordTopicProgress(studentId: string, topicId: unknown, answers?: unknown) {
+export async function recordTopicProgress(studentId: string, topicId: unknown, answers?: unknown, now: number = Date.now()) {
   const topic = await findApprovedTopic(topicId);
   if (!topic) throw new TopicError("Choose a valid learning topic.", "একটি সঠিক শেখার বিষয় বেছে নাও।");
   const result = answers === undefined ? null : markTopicQuiz(topic.quiz, answers);
   if (answers !== undefined && !result) throw new TopicError("Answer every quiz question first.", "আগে সব প্রশ্নের উত্তর দাও।");
+  const triesKey = `topic-quiz-scored:${studentId}:${topic.id}`;
+  const saved = result !== null && peekRateLimit(triesKey, SCORED_QUIZ_TRIES_PER_DAY, now).allowed;
   const db = await getDb();
-  return db.transaction((tx) => {
-    const now = new Date().toISOString();
+  const answer = db.transaction((tx) => {
+    const at = new Date(now).toISOString();
     const where = and(eq(studentTopicProgress.studentId, studentId), eq(studentTopicProgress.topicId, topic.id));
     const existing = tx.select().from(studentTopicProgress).where(where).get();
-    if (!existing) tx.insert(studentTopicProgress).values({ studentId, topicId: topic.id, completedAt: now }).run();
+    if (!existing) tx.insert(studentTopicProgress).values({ studentId, topicId: topic.id, completedAt: at }).run();
     if (!result) return { read: true, topicId: topic.id, quiz: null };
     // A score earned on a quiz that has since been changed is replaced, not compared.
     const key = quizKey(topic.quiz);
     const previous = existing ? currentScore(existing, key)?.best ?? null : null;
-    const best = Math.max(previous ?? -1, result.score);
-    if (best !== previous) tx.update(studentTopicProgress).set({ quizBestScore: best, quizTotal: result.total, quizKey: key, quizCompletedAt: now }).where(where).run();
+    const best = saved ? Math.max(previous ?? -1, result.score) : previous;
+    if (saved && best !== previous) tx.update(studentTopicProgress).set({ quizBestScore: best, quizTotal: result.total, quizKey: key, quizCompletedAt: at }).where(where).run();
     // Whether each pick was right, not which option is: the reader can try again from the topic.
-    return { read: true, topicId: topic.id, quiz: { score: result.score, total: result.total, best, correct: result.correct } };
+    return { read: true, topicId: topic.id, quiz: { score: result.score, total: result.total, best, correct: result.correct, saved } };
   });
+  if (saved) recordRateLimit(triesKey, SCORED_QUIZ_WINDOW_MS, now);
+  return answer;
 }
 
 /** Each approved topic's id with the fingerprint of its current quiz (null when it has none). */

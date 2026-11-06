@@ -7,19 +7,23 @@ import {
   recoverAdultPassword,
   sessionCookieOptions,
 } from "../../../../lib/auth";
-import { checkRateLimit, clientKey } from "../../../../lib/rate-limit";
+import { checkRateLimit, clientKey, peekRateLimit, recordRateLimit } from "../../../../lib/rate-limit";
 import { tooManyAttempts } from "../../../../lib/rate-limit-reply";
 import { INSECURE_SIGN_IN, insecureSignIn } from "../../../../lib/request-security";
 import { approvalNotice } from "../../../../lib/roles";
 
 export const dynamic = "force-dynamic";
 
+const WINDOW_MS = 15 * 60 * 1000;
+/** Wrong recovery codes for one account in WINDOW_MS, from any address. */
+const RECOVERY_FAILURES_PER_ACCOUNT = 10;
+
 /** Reset a forgotten password with a one-time recovery code. */
 export async function POST(request: Request) {
   // Checked first: on a plain http:// address the code would be used up and the new session cookie dropped.
   if (insecureSignIn(request)) return NextResponse.json(INSECURE_SIGN_IN, { status: 400 });
 
-  const limit = checkRateLimit(`recover:${clientKey(request)}`, 5, 15 * 60 * 1000);
+  const limit = checkRateLimit(`recover:${clientKey(request)}`, 5, WINDOW_MS);
   if (!limit.allowed) return tooManyAttempts(limit.retryAfterSeconds);
 
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
@@ -36,8 +40,15 @@ export async function POST(request: Request) {
     );
   }
 
+  // Wrong codes for one account from all addresses together, so changing address (or a forged
+  // X-Forwarded-For on a directly reachable app port) does not give unlimited guesses.
+  const account = `recover-account:${email.toLowerCase()}`;
+  const accountLimit = peekRateLimit(account, RECOVERY_FAILURES_PER_ACCOUNT);
+  if (!accountLimit.allowed) return tooManyAttempts(accountLimit.retryAfterSeconds);
+
   const adult = await consumeRecoveryCode(email, recoveryCode);
   if (!adult) {
+    recordRateLimit(account, WINDOW_MS);
     return NextResponse.json(
       { error: "That email and recovery code do not match, or the code was already used.", errorBn: "এই ইমেইল ও পুনরুদ্ধার কোড মেলেনি, অথবা কোডটি আগেই ব্যবহার করা হয়েছে।" },
       { status: 401 },

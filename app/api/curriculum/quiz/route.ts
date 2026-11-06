@@ -8,14 +8,15 @@ export const dynamic = "force-dynamic";
 /**
  * Marks an approved topic's quiz for a grown-up (a parent or staff member) without
  * saving anything: GET /api/curriculum sends no answers, so the topic page asks here.
- * Students use POST /api/student/topic-progress, which also keeps their best score.
+ * Students use POST /api/student/topic-progress, which also keeps their best score and has its own limits.
  * Only whether each pick was right comes back, never which option is.
  */
 export async function POST(request: Request) {
   const adult = await getSessionAdult();
   if (!adult) return Response.json({ error: "Sign in as a grown-up to check this quiz.", errorBn: "এই কুইজ মিলিয়ে দেখতে বড়দের অ্যাকাউন্টে সাইন ইন করুন।" }, { status: 401 });
   const limit = checkRateLimit(`topic-quiz:${adult.id}`, 120, 10 * 60 * 1000);
-  if (!limit.allowed) return tooManyRequests(limit.retryAfterSeconds, "student");
+  // Grown-ups only, so the wait is asked for politely (the default voice).
+  if (!limit.allowed) return tooManyRequests(limit.retryAfterSeconds);
   const body = await request.json().catch(() => null) as { topicId?: unknown; answers?: unknown } | null;
   try {
     const topic = await findApprovedTopic(body?.topicId);

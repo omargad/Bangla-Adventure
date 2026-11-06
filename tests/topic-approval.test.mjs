@@ -215,12 +215,12 @@ test("finishing a topic quiz counts as reading and keeps the best server-side sc
   await assert.rejects(catalog.recordTopicProgress("maya", "pohela-boishakh", [0]), /Answer every quiz question/);
   const first = await catalog.recordTopicProgress("maya", "pohela-boishakh", wrong);
   const allWrong = topic.quiz.map(() => false);
-  assert.deepEqual(first.quiz, { score: 0, total: topic.quiz.length, best: 0, correct: allWrong });
+  assert.deepEqual(first.quiz, { score: 0, total: topic.quiz.length, best: 0, correct: allWrong, saved: true });
   const second = await catalog.recordTopicProgress("maya", "pohela-boishakh", right);
   assert.equal(second.quiz.best, topic.quiz.length);
   assert.deepEqual(second.quiz.correct, topic.quiz.map(() => true), "each pick is marked right or wrong, without the answers");
   const third = await catalog.recordTopicProgress("maya", "pohela-boishakh", wrong);
-  assert.deepEqual(third.quiz, { score: 0, total: topic.quiz.length, best: topic.quiz.length, correct: allWrong });
+  assert.deepEqual(third.quiz, { score: 0, total: topic.quiz.length, best: topic.quiz.length, correct: allWrong, saved: true });
   await catalog.recordTopicProgress("maya", "folk-tales");
   const progress = await catalog.topicProgressFor("maya", await catalog.getCatalog());
   assert.deepEqual(progress.readTopicIds.sort(), ["folk-tales", "pohela-boishakh"]);
@@ -277,6 +277,33 @@ test("after an edit is sent back, the next edit can start again from the approve
   await assert.rejects(catalog.submitTopicEdit("author", topicId, { ...draft({ title: pair("Hill tracts", "পার্বত্য চট্টগ্রাম"), minutes: 7 }), baseVersion: 0 }), (error) => error.status === 409);
 });
 
+test("only the day's first three quiz tries can raise the saved score, so the answers cannot be found by trying each option", async () => {
+  const { SCORED_QUIZ_TRIES_PER_DAY } = await import("../lib/learner-topic.ts");
+  assert.equal(SCORED_QUIZ_TRIES_PER_DAY, 3);
+  const id = "pohela-boishakh";
+  const topic = await catalog.findApprovedTopic(id);
+  const right = topic.quiz.map((question) => question.answer);
+  const options = Math.max(...topic.quiz.map((question) => question.options.length));
+  // Rohan tries every question with the same option each time, as in the reported attack.
+  const start = Date.UTC(2026, 10, 10, 9);
+  const tries = [];
+  for (let option = 0; option < options; option++) {
+    tries.push((await catalog.recordTopicProgress("rohan", id, topic.quiz.map((question) => Math.min(option, question.options.length - 1)), start + option * 1000)).quiz);
+  }
+  assert.deepEqual(tries.map((quiz) => quiz.saved), tries.map((_, index) => index < 3), "tries after the third are practice");
+  const savedBest = Math.max(...tries.slice(0, 3).map((quiz) => quiz.score));
+  // Now knowing every answer, the same day's full score is marked but not saved.
+  const known = await catalog.recordTopicProgress("rohan", id, right, start + 60_000);
+  assert.deepEqual(known.quiz, { score: right.length, total: right.length, best: savedBest, correct: right.map(() => true), saved: false });
+  const scores = async () => (await catalog.topicProgressFor("rohan", await catalog.getCatalog())).quizScores[id];
+  assert.deepEqual(await scores(), { best: savedBest, total: right.length }, "the teacher sees the score of the scored tries");
+  // Reading still counts while the quiz tries are used up, and the next day's tries count again.
+  assert.equal((await catalog.recordTopicProgress("rohan", id, undefined, start + 61_000)).read, true);
+  const nextDay = await catalog.recordTopicProgress("rohan", id, right, start + 25 * 60 * 60 * 1000);
+  assert.equal(nextDay.quiz.saved, true);
+  assert.deepEqual(await scores(), { best: right.length, total: right.length });
+});
+
 test("a quiz score counts only while the topic still has the quiz it was earned on", async () => {
   const id = "pohela-boishakh";
   const before = await catalog.findApprovedTopic(id);
@@ -300,7 +327,9 @@ test("a quiz score counts only while the topic still has the quiz it was earned 
   assert.equal((await scores())[id], undefined);
   assert.equal((await catalog.classTopicProgress("class")).students[0].quizzesDone, 0);
   const wrong = right.map((answer, index) => (answer + 1) % rewritten[index].options.length);
-  assert.deepEqual((await catalog.recordTopicProgress("maya", id, wrong)).quiz, { score: 0, total: right.length, best: 0, correct: right.map(() => false) }, "the new quiz starts afresh");
+  // The test above used the day's scored tries at this topic, so this try is made on the next day.
+  const tomorrow = Date.now() + 25 * 60 * 60 * 1000;
+  assert.deepEqual((await catalog.recordTopicProgress("maya", id, wrong, tomorrow)).quiz, { score: 0, total: right.length, best: 0, correct: right.map(() => false), saved: true }, "the new quiz starts afresh");
   assert.deepEqual((await scores())[id], { best: 0, total: right.length });
 
   // The quiz removed: the topic still counts as read, but no quiz result is reported.

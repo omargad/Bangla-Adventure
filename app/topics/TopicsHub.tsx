@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useLanguage } from "../../lib/use-language";
-import type { LearnerTopic, TopicQuizMarks } from "@/lib/learner-topic";
+import { SCORED_QUIZ_TRIES_PER_DAY, type LearnerTopic, type TopicQuizMarks } from "@/lib/learner-topic";
 import { formatNumber, formatWhen, groupByCategory } from "@/lib/topic-model";
 import TopicReader from "./TopicReader";
 import { scrollToTop } from "@/lib/scroll-to-top";
@@ -31,7 +31,8 @@ export default function TopicsHub() {
   const [pendingCount, setPendingCount] = useState(0);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState("");
-  const [quizSaved, setQuizSaved] = useState(false);
+  // After a student's quiz: "saved" when the try could raise their saved best score, "practice" after the day's scored tries.
+  const [quizSaved, setQuizSaved] = useState<"saved" | "practice" | null>(null);
   // The open topic has its own address (?topic=), given in place with history.replaceState, and follows the address as the
   // topic studio's view does (see app/teach/topics/TopicStudio.tsx), so the sidebar's link to this page shows the list again.
   const params = useSearchParams();
@@ -43,7 +44,7 @@ export default function TopicsHub() {
     setShownAt(address);
     const named = params.get("topic");
     if (named !== activeId) {
-      setActiveId(named); setQuizSaved(false);
+      setActiveId(named); setQuizSaved(null);
       // A topic or the list a link opened starts at its top; after Back or Forward the place is left to the browser.
       if (!justReturnedTo(address ? `${path}?${address}` : path)) setLinkedViews((count) => count + 1);
     }
@@ -64,21 +65,21 @@ export default function TopicsHub() {
 
   const openTopic = (id: string) => {
     setActiveId(id);
-    setQuizSaved(false);
+    setQuizSaved(null);
     window.history.replaceState(null, "", `/topics?topic=${encodeURIComponent(id)}`);
     scrollToTop();
   };
-  const closeTopic = () => { setActiveId(null); setQuizSaved(false); window.history.replaceState(null, "", "/topics"); };
+  const closeTopic = () => { setActiveId(null); setQuizSaved(null); window.history.replaceState(null, "", "/topics"); };
 
   async function saveProgress(topicId: string, answers?: number[]): Promise<TopicQuizMarks | null> {
-    setError(""); setQuizSaved(false);
+    setError(""); setQuizSaved(null);
     try {
       const response = await fetch("/api/student/topic-progress", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ topicId, ...(answers ? { answers } : {}) }) });
       const data = await response.json(); if (!response.ok) throw new Error(language === "bn" && data.errorBn ? data.errorBn : data.error);
       setReadIds((current) => current.includes(topicId) ? current : [...current, topicId]);
       if (data.quiz) {
-        setScores((current) => ({ ...current, [topicId]: { best: data.quiz.best, total: data.quiz.total } }));
-        setQuizSaved(true);
+        if (data.quiz.best !== null) setScores((current) => ({ ...current, [topicId]: { best: data.quiz.best, total: data.quiz.total } }));
+        setQuizSaved(data.quiz.saved === false ? "practice" : "saved");
         return { score: data.quiz.score, total: data.quiz.total, correct: data.quiz.correct };
       }
     } catch (error) { setError(error instanceof Error ? error.message : s("Could not save progress.", "অগ্রগতি সংরক্ষণ করা যায়নি।")); }
@@ -134,7 +135,11 @@ export default function TopicsHub() {
             language={language}
             best={scores[active.id]}
             checkQuiz={(answers) => canRecord ? saveProgress(active.id, answers) : markQuiz(active.id, answers)}
-            quizNote={quizSaved ? s("Saved. This topic now counts as read, and your teacher can see your best score.", "সংরক্ষিত। বিষয়টি এখন পড়া হিসেবে গোনা হবে, আর শিক্ষক তোমার সেরা ফল দেখতে পাবেন।") : undefined}
+            quizNote={quizSaved === "saved" ? s("Saved. This topic now counts as read, and your teacher can see your best score.", "সংরক্ষিত। বিষয়টি এখন পড়া হিসেবে গোনা হবে, আর শিক্ষক তোমার সেরা ফল দেখতে পাবেন।")
+              : quizSaved === "practice" ? s(
+                `This try was practice, so its score was not saved: only the first ${SCORED_QUIZ_TRIES_PER_DAY} tries at a quiz each day count. Your teacher sees your best saved score. Try again tomorrow to improve it.`,
+                `এই চেষ্টাটি অনুশীলন ছিল, তাই এর ফল সংরক্ষণ হয়নি: প্রতিদিন একটি কুইজের শুধু প্রথম ${n(SCORED_QUIZ_TRIES_PER_DAY)}টি চেষ্টা গোনা হয়। শিক্ষক তোমার সংরক্ষিত সেরা ফল দেখেন। ফল বাড়াতে কাল আবার চেষ্টা করো।`)
+              : undefined}
             onPickAnother={closeTopic}
             beforeQuiz={canRecord && (
               <button type="button" className="primary-button" disabled={read} onClick={() => void saveProgress(active.id)}>

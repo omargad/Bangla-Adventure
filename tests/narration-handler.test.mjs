@@ -155,3 +155,36 @@ test("a used-up account share is answered 429 in English and Bangla", async () =
   assert.equal(body.error, "This account's narration allowance for today has been used. Saved audio is still available.");
   assert.match(body.errorBn, /[ঀ-৿]/);
 });
+
+test("staff hear an activity that is not approved and open only from saved audio, never newly generated", async () => {
+  const { resolveNarration } = await import("../lib/narration-source.ts");
+  const { createGeneratedNarration } = await import("../lib/generated-narration.ts");
+  const item = fixture();
+  const calls = [];
+  const handlerFor = (role, generate) => createNarrationHandler({
+    getActor: async () => item.actor(role), resolveSource: resolveNarration, rateLimit: () => ({ allowed: true, retryAfterSeconds: 0, resetAt: 0 }),
+    generate: generate ?? (async (...args) => { calls.push(args); return { audio, cached: true }; }),
+  });
+  // Approved and open: generated as usual, for learners and staff alike.
+  assert.deepEqual(await resolveNarration(item.actor("teacher"), item.source), { text: item.text, savedOnly: false });
+  assert.equal((await handlerFor("student")(item.request())).status, 200);
+  assert.deepEqual(calls.at(-1), [item.text, "en", item.actor("student").key]);
+
+  // The owning teacher's activity sent back for changes: their preview may only play saved audio.
+  db.update(classActivities).set({ approvalStatus: "pending" }).where(eq(classActivities.id, item.ids.activity)).run();
+  for (const role of ["teacher", "admin"]) {
+    assert.deepEqual(await resolveNarration(item.actor(role), item.source), { text: item.text, savedOnly: true });
+    assert.equal((await handlerFor(role)(item.request())).status, 200);
+    assert.deepEqual(calls.at(-1), [item.text, "en", item.actor(role).key, { savedOnly: true }]);
+  }
+  // With nothing saved, the real generator refuses without calling the provider.
+  let provider = 0;
+  const generator = createGeneratedNarration({ env: () => ({ MEDIA_ROOT: path.join(directory, "saved-only"), ELEVENLABS_API_KEY: "offline-narration-key" }), transport: async () => { provider += 1; throw new Error("must not call"); } });
+  const refused = await handlerFor("teacher", generator)(item.request());
+  assert.equal(refused.status, 409);
+  assert.deepEqual(await refused.json(), { error: "New narration is made only for approved, open activities. Saved audio still plays.", errorBn: "নতুন কণ্ঠ শুধু অনুমোদিত ও খোলা কার্যক্রমের জন্য তৈরি হয়। সংরক্ষিত অডিও এখনো শোনা যাবে।" });
+  assert.equal(provider, 0);
+  // A closed activity is treated the same way.
+  db.update(classActivities).set({ approvalStatus: "approved", status: "closed" }).where(eq(classActivities.id, item.ids.activity)).run();
+  assert.equal((await resolveNarration(item.actor("teacher"), item.source)).savedOnly, true);
+});

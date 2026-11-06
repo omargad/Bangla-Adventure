@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, count, desc, eq, inArray, ne, or } from "drizzle-orm";
 import { getDb } from "../db";
 import { adults, students, parentStudentLinks, classes, classStudents, studentClassEnrollments, classActivities, activitySubmissions, userAuditEvents } from "../db/schema";
 import { canManageUsers } from "./roles";
@@ -66,6 +66,9 @@ export async function getParentOverview(parentId: string) {
     const children = tx.select({ id: students.id, username: students.username, displayName: students.displayName, status: students.status })
       .from(parentStudentLinks).innerJoin(students, eq(parentStudentLinks.studentId, students.id))
       .where(and(eq(parentStudentLinks.parentId, parent.id), eq(students.status, "active"), eq(students.approvalStatus, "approved"))).orderBy(students.displayName, students.id).all();
+    // How many linked children are left out for that reason, so the page can say why someone is missing (no names or records).
+    const unavailableChildren = tx.select({ value: count() }).from(parentStudentLinks).innerJoin(students, eq(parentStudentLinks.studentId, students.id))
+      .where(and(eq(parentStudentLinks.parentId, parent.id), or(ne(students.status, "active"), ne(students.approvalStatus, "approved")))).get()?.value ?? 0;
     const ids = children.map((child) => child.id);
     const enrollments = ids.length ? tx.select({ studentId: studentClassEnrollments.studentId, classStudentId: classStudents.id, classId: classes.id, name: classes.name, teacherName: adults.displayName })
       .from(studentClassEnrollments)
@@ -87,7 +90,7 @@ export async function getParentOverview(parentId: string) {
       return { id: notice.id, body: notice.body, audience: notice.audience, authorName: notice.authorName, createdAt: notice.createdAt,
         className: inClass[0]?.name ?? "", children: children.filter((child) => inClass.some((enrollment) => enrollment.studentId === child.id)).map((child) => ({ id: child.id, displayName: child.displayName })) };
     });
-    return { announcements, children: children.map((child) => {
+    return { announcements, unavailableChildren, children: children.map((child) => {
       const childClasses = enrollments.filter((enrollment) => enrollment.studentId === child.id).map((enrollment) => ({
         id: enrollment.classId, name: enrollment.name, teacherName: enrollment.teacherName,
         // Sessions attended of the sessions the teacher recorded for this child in this class.

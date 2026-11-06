@@ -32,10 +32,22 @@ export async function getNarrationActor(): Promise<NarrationActor> {
 }
 
 /**
+ * The text to narrate, and whether only audio saved earlier may be played for it (`savedOnly`): a class's
+ * staff can preview an activity that is not approved and open, but new narration is generated only for
+ * approved, open activities, so a teacher's own drafts cannot spend the site's narration allowance.
+ */
+export type ResolvedNarration = { text: string; savedOnly: boolean };
+
+/** resolveNarration's text alone. */
+export async function resolveNarrationSource(actor: NarrationActor, source: NarrationSourceRequest): Promise<string> {
+  return (await resolveNarration(actor, source)).text;
+}
+
+/**
  * Resolve only stored, currently accessible text. Called before every generated
  * audio/cache read, so withdrawing content or removing an enrollment revokes it.
  */
-export async function resolveNarrationSource(actor: NarrationActor, source: NarrationSourceRequest): Promise<string> {
+export async function resolveNarration(actor: NarrationActor, source: NarrationSourceRequest): Promise<ResolvedNarration> {
   const db = await getDb();
   const adult = actor.kind === "adult"
     ? db.select().from(adults).where(eq(adults.id, actor.id)).get()
@@ -53,7 +65,7 @@ export async function resolveNarrationSource(actor: NarrationActor, source: Narr
     if (!topic) throw unavailable();
     const text = topicNarrationText(topic, source.slot, source.language);
     if (!text) throw new NarrationSourceError(400, "Choose a valid part of this topic.");
-    return text;
+    return { text, savedOnly: false };
   }
 
   const found = db.select({ activity: classActivities, teacherId: classes.teacherId })
@@ -86,5 +98,5 @@ export async function resolveNarrationSource(actor: NarrationActor, source: Narr
   const text = activityNarrationText(activity, source.slot);
   if (!text) throw new NarrationSourceError(400, "Choose a valid part of this activity.");
   if (detectNarrationLanguage(text) !== source.language) throw new NarrationSourceError(400, "Choose the language of this activity text.");
-  return text;
+  return { text, savedOnly: activity.approvalStatus !== "approved" || activity.status !== "open" };
 }

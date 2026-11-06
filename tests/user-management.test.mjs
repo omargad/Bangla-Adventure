@@ -242,6 +242,7 @@ test("recent changes name what each change was about, in both languages, without
     { id: "label-topic", actorId: "admin", targetId: "pohela-boishakh", targetType: "topic", action: "topic-version-approved", detailsJson: "{}", createdAt: later },
     { id: "label-book", actorId: "admin", targetId: "history-9-10", targetType: "library-source", action: "library-link-updated", detailsJson: "{}", createdAt: later },
     { id: "label-gone", actorId: "admin", targetId: "deleted-class", targetType: "class", action: "class-deleted", detailsJson: JSON.stringify({ name: "Old class" }), createdAt: later },
+    { id: "label-unnamed", actorId: "admin", targetId: "deleted-unnamed-class", targetType: "class", action: "class-deleted", detailsJson: "{}", createdAt: later },
   ]).run();
   const { audit } = await listUsers("admin", new URLSearchParams());
   const label = (predicate) => audit.find(predicate)?.targetLabel;
@@ -249,7 +250,8 @@ test("recent changes name what each change was about, in both languages, without
   assert.deepEqual(label((event) => event.id === "label-lesson"), { en: "Hello, this is me", bn: "হ্যালো, এই আমি" });
   assert.deepEqual(label((event) => event.id === "label-topic"), { en: "Pohela Boishakh — the Bengali New Year", bn: "পহেলা বৈশাখ — বাংলা নববর্ষ" });
   assert.deepEqual(label((event) => event.id === "label-book"), { en: "History of Bangladesh and World Civilization", bn: "বাংলাদেশের ইতিহাস ও বিশ্বসভ্যতা" });
-  assert.equal(label((event) => event.id === "label-gone"), null, "a deleted target has no name");
+  assert.deepEqual(label((event) => event.id === "label-gone"), { en: "Old class", bn: "Old class" }, "a class deleted before targetLabel existed keeps the name its row stored");
+  assert.equal(label((event) => event.id === "label-unnamed"), null, "a deleted target with no stored name has none");
   assert.ok(audit.every((event) => event.detailsJson === undefined && event.actorId === undefined));
   const adultEvent = audit.find((event) => event.targetType === "adult");
   if (adultEvent) assert.equal(typeof adultEvent.targetLabel.en, "string");

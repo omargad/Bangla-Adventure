@@ -11,7 +11,8 @@ import { currentMembers } from "./class-roster";
 export type Tx = Parameters<Parameters<Awaited<ReturnType<typeof getDb>>["transaction"]>[0]>[0];
 function authorize(tx: Tx, actorId: string, classId: string) {
   const actor = tx.select().from(adults).where(eq(adults.id, actorId)).get();
-  if (!actor || !canTeach(actor)) throw new UserManagementError("Approved teacher access required.", 403, "অনুমোদিত শিক্ষকের অ্যাকাউন্ট প্রয়োজন।");
+  // Checked here as well as in the proxy, as the class activity and source writes do.
+  if (!actor || !canTeach(actor) || actor.approvalStatus !== "approved" || actor.mustChangePassword) throw new UserManagementError("Approved teacher access required.", 403, "অনুমোদিত শিক্ষকের অ্যাকাউন্ট প্রয়োজন।");
   const classroom = tx.select().from(classes).where(eq(classes.id, classId)).get();
   if (!classroom || (actor.role !== "admin" && classroom.teacherId !== actor.id)) throw new UserManagementError("Class not found.", 404, "ক্লাসটি পাওয়া যায়নি।");
 }

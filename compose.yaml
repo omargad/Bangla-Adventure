@@ -23,6 +23,8 @@ services:
       NEXT_TELEMETRY_DISABLED: "1"
       # Proxies that append to X-Forwarded-For in front of the app; empty means one (the Nginx site).
       TRUSTED_PROXY_HOPS: ${TRUSTED_PROXY_HOPS:-}
+      # A client-address header the proxy in front replaces (for example cf-connecting-ip); empty means none.
+      CLIENT_IP_HEADER: ${CLIENT_IP_HEADER:-}
       # Optional server-side narration; bundled audio needs no provider credential.
       ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY:-}
       ELEVENLABS_VOICE_ID: ${ELEVENLABS_VOICE_ID:-}

@@ -1,5 +1,6 @@
 import { checkRateLimit, tooManyRequests } from "@/lib/rate-limit";
 import { getStudentAccess } from "@/lib/student-auth";
+import { studentServerError } from "@/lib/student-errors";
 import { submitActivityWork } from "@/lib/student-work";
 
 export const dynamic = "force-dynamic";
@@ -18,12 +19,6 @@ export async function POST(request: Request) {
     const { status, body: answer } = await submitActivityWork(student.id, body.activityId, body.answers);
     return Response.json(answer, { status });
   } catch (error) {
-    return databaseError(error);
+    return studentServerError("POST /api/student/submit", error, "submit");
   }
-}
-
-function databaseError(error: unknown) {
-  const message = error instanceof Error ? error.message : "Unexpected database error";
-  const unavailable = message.includes("no such table") || message.includes("SQLITE");
-  return Response.json({ error: unavailable ? "The student service is still being set up." : message }, { status: 500 });
 }

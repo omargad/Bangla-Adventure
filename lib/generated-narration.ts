@@ -163,7 +163,8 @@ export function createGeneratedNarration({ env, now = Date.now, transport = prov
     return reservation;
   }
 
-  return async function generate(text: string, language: Language, actorKey: string): Promise<{ audio: Buffer; cached: boolean }> {
+  /** With `savedOnly` (a staff preview of an activity not yet approved), only audio saved earlier is returned. */
+  return async function generate(text: string, language: Language, actorKey: string, options?: { savedOnly?: boolean }): Promise<{ audio: Buffer; cached: boolean }> {
     if (typeof window !== "undefined") throw new NarrationError(503, "Narration is only available on the server.");
     if (typeof text !== "string" || !text.trim() || [...text].length > 1500 || !["bn", "en"].includes(language) || typeof actorKey !== "string" || !actorKey.trim() || actorKey.length > 512) throw new NarrationError(400, "This narration request is invalid.");
     const configuration = env();
@@ -174,6 +175,11 @@ export function createGeneratedNarration({ env, now = Date.now, transport = prov
     const hash = narrationCacheKey(text, language, voiceId, modelId);
     const file = path.join(root, `${hash}.ogg`);
     const identity = `${root}/${hash}`;
+    if (options?.savedOnly) {
+      const saved = await readAudio(file);
+      if (saved) return { audio: saved, cached: true };
+      throw new NarrationError(409, "New narration is made only for approved, open activities. Saved audio still plays.", "নতুন কণ্ঠ শুধু অনুমোদিত ও খোলা কার্যক্রমের জন্য তৈরি হয়। সংরক্ষিত অডিও এখনো শোনা যাবে।");
+    }
     const pending = inFlight.get(identity);
     if (pending) return pending;
 

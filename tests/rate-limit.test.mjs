@@ -87,6 +87,36 @@ test("TRUSTED_PROXY_HOPS is a small whole number, 1 when unset or invalid", () =
   assert.equal(trustedProxyHops(""), 1);
   assert.equal(trustedProxyHops("2"), 2);
   for (const bad of ["0", "-1", "1.5", "eleven", "99"]) assert.equal(trustedProxyHops(bad), 1, bad);
+  // Render's proxy adds its own address after the client's, so there the default is 2; the setting still wins.
+  assert.equal(trustedProxyHops(undefined, 2), 2);
+  assert.equal(trustedProxyHops("1", 2), 1);
+});
+
+test("a two-hop X-Forwarded-For with the default setting gives every visitor the platform proxy's key", () => {
+  const twoHop = (client) => new Request("http://localhost/", { headers: { "x-forwarded-for": `${client}, 10.1.2.3` } });
+  // One hop trusted: the right-most value is the platform's own proxy, the same for everyone.
+  assert.equal(clientKey(twoHop("198.51.100.4"), 1, null), "10.1.2.3");
+  assert.equal(clientKey(twoHop("203.0.113.9"), 1, null), "10.1.2.3");
+  // Which is why such a host needs TRUSTED_PROXY_HOPS=2 (the default on Render) or its client-address header.
+  assert.equal(clientKey(twoHop("198.51.100.4"), 2, null), "198.51.100.4");
+  assert.equal(clientKey(twoHop("203.0.113.9"), trustedProxyHops(undefined, 2), null), "203.0.113.9");
+});
+
+test("a platform's client-address header is used where the platform sets one, and can be named or turned off", async () => {
+  const { clientIpHeader } = await import("../lib/rate-limit.ts");
+  assert.equal(clientIpHeader({}), null);
+  assert.equal(clientIpHeader({ RAILWAY_ENVIRONMENT: "production" }), "x-real-ip");
+  assert.equal(clientIpHeader({ FLY_APP_NAME: "bangla" }), "fly-client-ip");
+  assert.equal(clientIpHeader({ CLIENT_IP_HEADER: "CF-Connecting-IP", FLY_APP_NAME: "bangla" }), "cf-connecting-ip");
+  assert.equal(clientIpHeader({ CLIENT_IP_HEADER: "none", RAILWAY_ENVIRONMENT: "production" }), null);
+  assert.equal(clientIpHeader({ CLIENT_IP_HEADER: "bad header!" }), null);
+  const request = (headers) => new Request("http://localhost/", { headers });
+  // On Railway a sent X-Forwarded-For changes nothing: the edge's X-Real-IP names the visitor.
+  assert.equal(clientKey(request({ "x-real-ip": "198.51.100.4", "x-forwarded-for": "spoofed, 10.1.2.3" }), 1, "x-real-ip"), "198.51.100.4");
+  assert.equal(clientKey(request({ "fly-client-ip": " 203.0.113.9 " }), 1, "fly-client-ip"), "203.0.113.9");
+  // Without the header (a health check from inside the platform), X-Forwarded-For is read as before.
+  assert.equal(clientKey(request({ "x-forwarded-for": "198.51.100.4" }), 1, "x-real-ip"), "198.51.100.4");
+  assert.equal(clientKey(request({}), 1, "x-real-ip"), "local");
 });
 
 test("checkRateLimit also says when the window ends", () => {

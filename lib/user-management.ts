@@ -130,7 +130,7 @@ export async function listUsers(actorId: string, params: URLSearchParams) {
   const audit = events.map(({ detailsJson, actorId: eventActor, ...event }) => ({
     ...event,
     // The target's name now, or the one stored with the event when the target is gone (a deleted class, say).
-    targetLabel: labels.get(`${event.targetType}:${event.targetId}`) ?? storedTargetLabel(detailsJson),
+    targetLabel: labels.get(`${event.targetType}:${event.targetId}`) ?? storedTargetLabel(detailsJson, event.targetType),
     // Who made the change: an account still here, the server operator (no actor), or an account deleted since.
     actor: eventActor === null ? { kind: "server" as const } : actors.has(eventActor) ? { kind: "account" as const, name: actors.get(eventActor)! } : { kind: "deleted" as const },
   }));
@@ -147,11 +147,17 @@ function auditActorNames(tx: Transaction, events: Array<{ actorId: string | null
   return names;
 }
 
-/** The target's name as it was when the change was recorded (`targetLabel` in the details), if one was stored. */
-function storedTargetLabel(detailsJson: string): Bilingual | null {
+/**
+ * The target's name as it was when the change was recorded (`targetLabel` in the details), if one was stored.
+ * Class changes recorded before targetLabel existed stored the class's name as `name` ({ classId, name, teacherId }),
+ * so a class deleted then is still named.
+ */
+export function storedTargetLabel(detailsJson: string, targetType?: string): Bilingual | null {
   try {
-    const label = (JSON.parse(detailsJson) as { targetLabel?: Partial<Bilingual> }).targetLabel;
+    const details = JSON.parse(detailsJson) as { targetLabel?: Partial<Bilingual>; name?: unknown };
+    const label = details.targetLabel;
     if (label && typeof label.en === "string" && label.en) return { en: label.en, bn: typeof label.bn === "string" && label.bn ? label.bn : label.en };
+    if (targetType === "class" && typeof details.name === "string" && details.name.trim()) return { en: details.name, bn: details.name };
   } catch { /* unreadable details carry no label */ }
   return null;
 }

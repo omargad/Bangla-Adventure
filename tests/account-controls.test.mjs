@@ -173,3 +173,21 @@ test("two student sign-ups racing for one username: one account, and the other i
   // The same name in other letter case is the same username.
   assert.equal((await studentAuth.registerStudent("Racing-Name", "Third", "third-password")).error, "That username is already taken.");
 });
+
+test("a class deleted before targetLabel was stored is still named on Recent changes", async () => {
+  const { storedTargetLabel } = await import("../lib/user-management.ts");
+  // Rows written by the earlier deleteClass: { classId, name, teacherId }, and the class row is gone.
+  db.insert(userAuditEvents).values([
+    { id: "old-class-deleted", actorId: "admin", targetId: "gone-class-id", targetType: "class", action: "class-deleted", detailsJson: JSON.stringify({ classId: "gone-class-id", name: "রবিবার ১১:৩০", teacherId: "teacher" }), createdAt: "2999-01-01 00:00:00" },
+    { id: "old-student-row", actorId: "admin", targetId: "gone-student-id", targetType: "student", action: "class-allocated", detailsJson: JSON.stringify({ name: "Not a class name" }), createdAt: "2999-01-01 00:00:00" },
+  ]).run();
+  const listed = (await listUsers("admin", new URLSearchParams())).audit;
+  assert.deepEqual(listed.find((event) => event.id === "old-class-deleted").targetLabel, { en: "রবিবার ১১:৩০", bn: "রবিবার ১১:৩০" });
+  assert.equal(listed.find((event) => event.id === "old-student-row").targetLabel, null, "only class rows stored their name as `name`");
+  // A stored targetLabel still comes first, and unreadable or empty details give none.
+  assert.deepEqual(storedTargetLabel(JSON.stringify({ name: "Old", targetLabel: { en: "New", bn: "নতুন" } }), "class"), { en: "New", bn: "নতুন" });
+  assert.equal(storedTargetLabel("not json", "class"), null);
+  assert.equal(storedTargetLabel(JSON.stringify({ name: " " }), "class"), null);
+  db.delete(userAuditEvents).where(eq(userAuditEvents.targetId, "gone-class-id")).run();
+  db.delete(userAuditEvents).where(eq(userAuditEvents.targetId, "gone-student-id")).run();
+});

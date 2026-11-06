@@ -103,7 +103,9 @@ test("a suspended child disappears from the parent view, cannot be newly linked,
   try {
     const overview = await getParentOverview("parent-b");
     assert.deepEqual(overview.children, [], "no classes, results or attendance of a suspended child");
+    assert.equal(overview.unavailableChildren, 1, "but the parent is told a linked child is not shown, without names or records");
     assert.deepEqual(overview.announcements, []);
+    assert.equal((await getParentOverview("parent-a")).unavailableChildren, 1);
     assert.deepEqual(await parentClassSources("parent-b"), {}, "no class sources either");
     assert.ok(!(await getParentOverview("parent-a")).children.some((child) => child.id === "child-b"));
     await unlinkParent("admin", "child-b", "parent-b");
@@ -112,6 +114,7 @@ test("a suspended child disappears from the parent view, cannot be newly linked,
   } finally { db.update(students).set({ status: "active" }).where(eq(students.id, "child-b")).run(); }
   await linkParent("admin", "child-b", "b@example.com");
   assert.deepEqual((await getParentOverview("parent-b")).children.map((child) => child.id), ["child-b"]);
+  assert.equal((await getParentOverview("parent-b")).unavailableChildren, 0);
 });
 
 test("only administration can unlink and revoked links stop exposing data immediately", async () => {

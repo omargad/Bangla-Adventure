@@ -113,7 +113,11 @@ The Nginx site [`deploy/nginx/bangla-adventures.conf.example`](../deploy/nginx/b
 uses `3001` and sets the upload size, read timeout and forwarded headers the app expects.
 The per-address sign-in and sign-up limits use the right-most `X-Forwarded-For` value, the one the
 nearest proxy added, so a value the browser sends cannot change it; behind a CDN, let Nginx append
-(`$proxy_add_x_forwarded_for`) and set `TRUSTED_PROXY_HOPS=2`.
+(`$proxy_add_x_forwarded_for`) and set `TRUSTED_PROXY_HOPS=2`. This holds only while the app port
+is reachable through the proxy alone: keep it bound to `127.0.0.1` (as the Compose file does) or
+firewalled, because a client that reaches the port directly sends the only value there is.
+Per-account limits (wrong passwords, wrong recovery codes) apply from every address together.
+For other hosts, see [Client addresses on each host](#client-addresses-on-each-host).
 Keep the same Compose project name so recreations reuse the same named volume.
 Never run `docker compose down -v` during an upgrade. The CI Docker smoke test
 validates a disposable container; record its actual result before accepting a
@@ -150,7 +154,8 @@ log warns that `/app/.data` is not on a persistent volume.
 | Port | A host that sets `PORT` is followed automatically. Where the host asks for the container port instead (Fly.io `internal_port`, CapRover "Container HTTP Port", Kubernetes `targetPort`), enter 3000 |
 | Health check | `/api/health` (200 only when a database query succeeds). Most hosts ignore the Dockerfile's own check, so set it on the host |
 | Upload size | Lesson audio can be 12 MB. Let requests of 13 MB through any proxy in front: ingress-nginx `nginx.ingress.kubernetes.io/proxy-body-size: 13m`, Dokku `dokku nginx:set APP client-max-body-size 13m`, nginx `client_max_body_size 13m;` (set in [`deploy/nginx/bangla-adventures.conf.example`](../deploy/nginx/bangla-adventures.conf.example)) |
-| `PUBLIC_ORIGIN` | Optional, and recommended once the address is final. Set it to the one address people use, scheme and host only (`https://learn.example.org`), and only requests from that address can sign in or save. Unset, the app accepts the address each request arrives on, for example both a platform address and a custom domain |
+| `PUBLIC_ORIGIN` | Optional, and recommended once the address is final. Set it to the one address people use, scheme and host only (`https://learn.example.org`), and only requests from that address can sign in or save. Unset, the app accepts the address each request arrives on, for example both a platform address and a custom domain. It works that address out from the `Host` (or `X-Forwarded-Host`) and `X-Forwarded-Proto` headers, so the HTTPS proxy in front must forward both: a proxy that drops `X-Forwarded-Proto`, or rewrites `Host` without setting `X-Forwarded-Host`, makes every sign-in and save fail with "The request origin could not be verified". The shipped Nginx, Caddy and Compose setups forward them; elsewhere, set `PUBLIC_ORIGIN` |
+| `CLIENT_IP_HEADER`, `TRUSTED_PROXY_HOPS` | How the per-address limits find the visitor's address; see [Client addresses on each host](#client-addresses-on-each-host) |
 
 The image already sets `NODE_ENV`, `PORT`, `PLATFORM_MODE`, `DATABASE_PATH` and
 `MEDIA_ROOT`; leave them unless the disk is mounted elsewhere. Do not set `NEXT_DIST_DIR`.
@@ -208,6 +213,34 @@ the shell already runs as uid 1000 (Kubernetes `kubectl exec`), `npm run admin:g
 Trial plan's 0.5 GB volume is for testing). A deployment's Redeploy button rebuilds that
 deployment's own commit; to build the newest commit, push to the branch or use
 "Deploy Latest Commit" from the command palette (Ctrl+K or Cmd+K).
+
+### Client addresses on each host
+
+Sign-up, sign-in and password recovery are limited per visitor address (for example 30 sign-ups
+an hour and 5 recovery attempts in 15 minutes from one address). If the app reads the wrong
+address, every visitor shares one key and those limits apply to the whole site. The app takes the
+address from, in order:
+
+1. the header named in `CLIENT_IP_HEADER`, when that header is present (`none` turns this off);
+2. otherwise, a header the platform's own edge sets, where the platform says so in its
+   environment: `X-Real-IP` on Railway (`RAILWAY_ENVIRONMENT` is set), `Fly-Client-IP` on Fly.io
+   (`FLY_APP_NAME` is set);
+3. otherwise, `X-Forwarded-For`, counting `TRUSTED_PROXY_HOPS` values from the right (1 by
+   default, 2 on Render, which sets `RENDER`).
+
+| Host | What the app reads by default | Set |
+| --- | --- | --- |
+| Nginx site, Caddy or Compose on a server | Right-most `X-Forwarded-For` value | Nothing. Behind a CDN that appends too, `TRUSTED_PROXY_HOPS=2` |
+| Railway | `X-Real-IP`, set by Railway's edge | Nothing |
+| Fly.io | `Fly-Client-IP`, set by Fly's proxy | Nothing. Behind another proxy or CDN, Fly-Client-IP is that proxy: set `CLIENT_IP_HEADER` to the CDN's header instead |
+| Render | Second value from the right of `X-Forwarded-For` (Render's proxy appends its own address after the client's) | Nothing |
+| Behind Cloudflare | As above | `CLIENT_IP_HEADER=cf-connecting-ip`, only when every request reaches the app through Cloudflare |
+| Kubernetes and others | Right-most `X-Forwarded-For` value | `TRUSTED_PROXY_HOPS` to the number of proxies that append to it |
+
+Name a header in `CLIENT_IP_HEADER` only when the proxy in front replaces any value the browser
+sends. To check a host, sign up from two different networks: neither should be refused while the
+other is used. Platforms change their proxies; if one adds another hop, raise `TRUSTED_PROXY_HOPS`
+by one.
 
 ## Automatic deployment
 

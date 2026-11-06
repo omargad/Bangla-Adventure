@@ -155,3 +155,71 @@ test("topic quiz answers stay on the server for every reader", async ({ page }) 
   // A wrong pick is marked wrong, but the right option is not revealed.
   await expect(page.locator(".topic-option.is-right")).toHaveCount(quiz.score);
 });
+
+test("only the day's first three tries at a topic quiz are saved, and topic saves are limited per student", async ({ page }) => {
+  const suffix = randomUUID().slice(0, 8);
+  await studentInClass(page, suffix);
+  await page.goto("/topics");
+  const catalog = await browserApi(page, "GET", "/api/curriculum");
+  const topic = (catalog.body.topics as Array<{ id: string; quiz: Array<{ options: unknown[] }> }>).find((item) => item.quiz.length > 0)!;
+  // Trying the options in turn, as someone looking for the answers would.
+  const tries = [];
+  for (let option = 0; option < 3; option += 1) {
+    const answers = topic.quiz.map((question) => Math.min(option, question.options.length - 1));
+    tries.push((await browserApi(page, "POST", "/api/student/topic-progress", { topicId: topic.id, answers })).body.quiz);
+  }
+  expect(tries.map((quiz) => quiz.saved)).toEqual([true, true, true]);
+  const best = Math.max(...tries.map((quiz) => quiz.score));
+
+  await page.goto(`/topics?topic=${topic.id}`);
+  const questions = page.locator(".topic-question");
+  for (let index = 0; index < topic.quiz.length; index += 1) await questions.nth(index).locator(".topic-option").first().click();
+  const marked = page.waitForResponse((response) => response.url().endsWith("/api/student/topic-progress"));
+  await page.getByRole("button", { name: "Check my answers", exact: true }).click();
+  const fourth = (await (await marked).json()).quiz;
+  expect(fourth.saved).toBe(false);
+  expect(fourth.best).toBe(best);
+  await expect(page.getByText("This try was practice, so its score was not saved: only the first 3 tries at a quiz each day count.", { exact: false })).toBeVisible();
+  expect(fixture((db) => db.prepare("SELECT quiz_best_score AS best FROM student_topic_progress WHERE topic_id = ? AND student_id = (SELECT id FROM students WHERE username = ?)").get(topic.id, `integrity-${suffix}`))).toEqual({ best });
+
+  // 60 saves in 10 minutes per student (readings and quiz tries together), then an informal 429.
+  const statuses = await page.evaluate(async (topicId) => {
+    const results: number[] = [];
+    for (let i = 0; i < 57; i += 1) results.push((await fetch("/api/student/topic-progress", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ topicId }) })).status);
+    return results;
+  }, topic.id);
+  expect(statuses.slice(0, 56).every((status) => status === 200)).toBe(true);
+  expect(statuses[56]).toBe(429);
+  const limited = await browserApi(page, "POST", "/api/student/topic-progress", { topicId: topic.id });
+  expect(limited.status).toBe(429);
+  expect(limited.body.error).toMatch(/^Too many attempts\. Please wait \d+ minutes? and try again\.$/);
+  expect(limited.body.errorBn).toMatch(/চেষ্টা করো।$/);
+});
+
+test("a grown-up's quiz checks are limited politely, and the learner header still offers Student login", async ({ page }) => {
+  const suffix = randomUUID().slice(0, 8), email = `quiz-adult-${suffix}@example.com`, password = "Grown-up-quiz-password-2026";
+  await page.context().setExtraHTTPHeaders({ "x-forwarded-for": `quiz-adult-${suffix}` });
+  expect((await page.request.post("/api/auth/sign-up", { data: { email, displayName: `Quiz parent ${suffix}`, password } })).status()).toBe(201);
+  fixture((db) => db.prepare("UPDATE adults SET approval_status = 'approved' WHERE email = ?").run(email));
+  expect((await page.request.post("/api/auth/sign-in", { data: { email, password } })).status()).toBe(200);
+
+  // On a shared family device the child signs in from the learner header while the grown-up is signed in.
+  await page.goto("/adventure");
+  const header = page.locator(".site-header");
+  await expect(header.getByRole("link", { name: "Student login", exact: true })).toHaveAttribute("href", "/student");
+  await expect(header.getByRole("link", { name: "Grown-up sign in", exact: true })).toHaveCount(0);
+
+  await page.goto("/topics");
+  const catalog = await browserApi(page, "GET", "/api/curriculum");
+  const topic = (catalog.body.topics as Array<{ id: string; quiz: unknown[] }>).find((item) => item.quiz.length > 0)!;
+  const statuses = await page.evaluate(async ({ topicId, answers }) => {
+    const results: number[] = [];
+    for (let i = 0; i < 121; i += 1) results.push((await fetch("/api/curriculum/quiz", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ topicId, answers }) })).status);
+    return results;
+  }, { topicId: topic.id, answers: topic.quiz.map(() => 0) });
+  expect(statuses.slice(0, 120).every((status) => status === 200)).toBe(true);
+  expect(statuses[120]).toBe(429);
+  const limited = await browserApi(page, "POST", "/api/curriculum/quiz", { topicId: topic.id, answers: topic.quiz.map(() => 0) });
+  expect(limited.status).toBe(429);
+  expect(limited.body.errorBn).toMatch(/অপেক্ষা করে আবার চেষ্টা করুন।$/);
+});

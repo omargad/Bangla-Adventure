@@ -80,6 +80,21 @@ test("only the class's teacher or an administrator may search or allocate for it
   assert.deepEqual(allocations("class-b"), [{ studentId: "in-b", active: true }]);
 });
 
+test("the class's own teacher is refused while their account awaits approval or has a temporary password", async () => {
+  const { roster } = await import("../lib/enrollments.ts");
+  for (const change of [{ approvalStatus: "pending" }, { mustChangePassword: true }]) {
+    db.update(adults).set(change).where(eq(adults.id, "teacher-a")).run();
+    try {
+      await assert.rejects(availableStudents("teacher-a", "class-a"), (error) => error.status === 403 && error.messageBn === "অনুমোদিত শিক্ষকের অ্যাকাউন্ট প্রয়োজন।", JSON.stringify(change));
+      await assert.rejects(roster("teacher-a", "class-a"), (error) => error.status === 403, JSON.stringify(change));
+      await assert.rejects(allocateStudents("teacher-a", "class-a", ["maya"]), (error) => error.status === 403, JSON.stringify(change));
+    } finally {
+      db.update(adults).set({ approvalStatus: "approved", mustChangePassword: false }).where(eq(adults.id, "teacher-a")).run();
+    }
+  }
+  assert.ok((await roster("teacher-a", "class-a")).length > 0, "restored, the teacher has access again");
+});
+
 test("ticked students are allocated together and each allocation is audited", async () => {
   const result = await allocateStudents("teacher-a", "class-a", ["maya", "arif", "removed", "member", "maya"]);
   assert.deepEqual(result, { allocated: 3, alreadyAllocated: 1 });

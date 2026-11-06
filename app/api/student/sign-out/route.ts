@@ -6,6 +6,11 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const safeReturnTo = safeReturnPath(url.searchParams.get("returnTo"), "/student");
-  await destroyBrowserSessions();
+  try {
+    await destroyBrowserSessions();
+  } catch (error) {
+    // As in the adult sign-out: the cookies are cleared regardless, so a database fault cannot leave this browser signed in.
+    console.error("GET /api/student/sign-out:", error);
+  }
   return browserLogoutResponse(safeReturnTo);
 }

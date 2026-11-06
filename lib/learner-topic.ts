@@ -16,6 +16,13 @@ export function withoutQuizAnswers<T extends { quiz: TopicQuizQuestion[] }>(topi
   return { ...topic, quiz: topic.quiz.map(({ question, options }) => ({ question, options })) };
 }
 
+/**
+ * How many tries at one topic's quiz can raise a student's saved best score in a day. Every try says which
+ * picks were right, so with unlimited scored tries a student could find each answer by trying the options in
+ * turn and the teacher would see that score. Later tries are still marked, as practice, but change nothing.
+ */
+export const SCORED_QUIZ_TRIES_PER_DAY = 3;
+
 /** A marked topic quiz: the score and, for each question, whether the pick was right (never which option is). */
 export type TopicQuizMarks = { score: number; total: number; correct: boolean[] };
 

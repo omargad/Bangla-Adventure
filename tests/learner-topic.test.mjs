@@ -31,6 +31,6 @@ test("learner topics carry no quiz answers, and marking says only whether each p
   assert.equal(markTopicQuiz(topic.quiz, [0]), null);
 
   const saved = await recordTopicProgress("maya", topic.id, wrong);
-  assert.deepEqual(saved.quiz, { score: 0, total: topic.quiz.length, best: 0, correct: topic.quiz.map(() => false) });
+  assert.deepEqual(saved.quiz, { score: 0, total: topic.quiz.length, best: 0, correct: topic.quiz.map(() => false), saved: true });
   assert.equal(JSON.stringify(saved).includes('"answer"'), false);
 });
