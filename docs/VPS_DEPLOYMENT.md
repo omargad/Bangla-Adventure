@@ -114,6 +114,14 @@ below is the confirmed name, for example `learn.example.org`.
    site: `nginx -t` rejects its HTTPS server until certbot has created
    `/etc/letsencrypt/live/DOMAIN/`.
 
+   The site shares ports 80 and 443 with the server's other sites, which keep
+   their own files. On Nginx 1.24 the `http2` flag on its two 443 `listen` lines
+   turns HTTP/2 on for every site listening on 443 there, not just this one:
+   confirm that suits the other sites (or they already use it), otherwise
+   remove `http2` from both lines. If no existing site on 443 is marked
+   `default_server`, Nginx answers names it does not know with the first site
+   file it loads, which may then be this one; mark the intended default first.
+
    ```sh
    sudo certbot certonly --nginx -d DOMAIN
    sudo ln -s /etc/nginx/sites-available/bangla-adventures.conf /etc/nginx/sites-enabled/

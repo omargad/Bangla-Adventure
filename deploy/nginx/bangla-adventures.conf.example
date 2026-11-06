@@ -1,7 +1,8 @@
 # Bangla Adventures site for the server's existing Nginx 1.24 (Ubuntu 24.04) and Let's Encrypt.
 # Install as /etc/nginx/sites-available/bangla-adventures.conf with example.org replaced by the
 # confirmed domain throughout (server names and certificate paths). Steps: docs/VPS_DEPLOYMENT.md,
-# "Going live". The server's other sites and TLS settings stay as they are.
+# "Going live". It shares ports 80 and 443 with the server's other sites: read the notes on the
+# 443 listen lines before enabling it.
 
 # The app container, published on loopback only (compose.yaml with APP_PORT=3001).
 upstream bangla_adventures {
@@ -34,7 +35,11 @@ server {
 
 server {
     # Nginx 1.24 form. From 1.25.1 the http2 parameter is deprecated in favour of
-    # "listen 443 ssl;" plus "http2 on;".
+    # "listen 443 ssl;" plus "http2 on;". Before 1.25.1 it belongs to the address and port, not
+    # this site: every other site listening on 443 here starts offering HTTP/2 too. If that does
+    # not suit them, remove http2 from both lines; the app works the same over HTTP/1.1.
+    # No default_server here: if no other site on 443 has it, Nginx answers names it does not
+    # know with the first site file it loads, which may then be this one.
     listen 443 ssl http2;
     listen [::]:443 ssl http2;
     server_name example.org;
