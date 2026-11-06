@@ -716,6 +716,38 @@ test("GitHub deployment requires the explicit gate and newest-check lookup error
 });
 
 
+test("VPS preflights accept the server address secrets at either level and name them without showing their values", () => {
+  const message = name => `the ${name} secret is missing or invalid (set it as a repository secret or a production environment secret, named exactly ${name}).`;
+  for (const file of ["vps-ssh-preflight.yml", "vps-image-preflight.yml"]) {
+    const workflow = readFileSync(new URL(`.github/workflows/${file}`, repository), "utf8");
+    assert.doesNotMatch(workflow, /repository secret DEPLOY_(HOST|USER)/, file);
+    assert.match(workflow, /^    environment: production$/m, `${file} reads production environment secrets`);
+    for (const name of ["DEPLOY_HOST", "DEPLOY_USER"]) {
+      assert.match(workflow, new RegExp(`^          ${name}: \\$\\{\\{ secrets\\.${name} \\}\\}$`, "m"), file);
+    }
+    // Run the workflow's own two checks, so the message and the unchanged patterns are both proved.
+    const checks = workflow.split("\n").map(line => line.trim()).filter(line => /^\[\[ "\$\{DEPLOY_(HOST|USER):-\}" =~ /.test(line));
+    assert.equal(checks.length, 2, file);
+    const script = `set -euo pipefail\nfail() { printf '%s\\n' "$*" >&2; exit 1; }\n${checks.join("\n")}\necho valid\n`;
+    const run = env => spawnSync("bash", ["-c", script], { encoding: "utf8", env: { PATH: process.env.PATH, ...env } });
+    const valid = run({ DEPLOY_HOST: "demo.example.invalid", DEPLOY_USER: "fixture-deploy" });
+    assert.equal(valid.status, 0, valid.stderr);
+    assert.equal(valid.stdout, "valid\n");
+    for (const [env, name] of [
+      [{ DEPLOY_USER: "fixture-deploy" }, "DEPLOY_HOST"],
+      [{ DEPLOY_HOST: "demo.example.invalid;id", DEPLOY_USER: "fixture-deploy" }, "DEPLOY_HOST"],
+      [{ DEPLOY__HOST: "demo.example.invalid", DEPLOY_USER: "fixture-deploy" }, "DEPLOY_HOST"],
+      [{ DEPLOY_HOST: "demo.example.invalid" }, "DEPLOY_USER"],
+      [{ DEPLOY_HOST: "demo.example.invalid", DEPLOY_USER: "Fixture Deploy" }, "DEPLOY_USER"],
+    ]) {
+      const result = run(env);
+      assert.equal(result.status, 1, file);
+      assert.equal(result.stderr, `${message(name)}\n`, file);
+      assert.doesNotMatch(result.stderr + result.stdout, /demo\.example|Fixture/, file);
+    }
+  }
+});
+
 test("VPS templates stay disabled and choose loopback 3001 without changing the generic 3000 default", t => {
   const settings = file => Object.fromEntries(readFileSync(new URL(file, repository), "utf8").split("\n").filter(line => /^[A-Z_]+=/.test(line)).map(line => {
     const separator = line.indexOf("=");

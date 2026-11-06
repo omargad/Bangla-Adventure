@@ -35,7 +35,7 @@ jobs:
           REPOSITORY_DEPLOY_USER_STATE: ${{ secrets.DEPLOY_USER == '' && 'unset' || 'set' }}
         run: |
           set -euo pipefail
-          printf 'repository gate scope (production environment not loaded): DEPLOY_ENABLED=%s; DEPLOY_HOST=%s; DEPLOY_USER=%s.\n' "$REPOSITORY_DEPLOY_ENABLED_STATE" "$REPOSITORY_DEPLOY_HOST_STATE" "$REPOSITORY_DEPLOY_USER_STATE"
+          printf 'repository gate scope (production environment not loaded): DEPLOY_ENABLED=%s; repository-level DEPLOY_HOST=%s; DEPLOY_USER=%s (unset is expected when they are production environment secrets).\n' "$REPOSITORY_DEPLOY_ENABLED_STATE" "$REPOSITORY_DEPLOY_HOST_STATE" "$REPOSITORY_DEPLOY_USER_STATE"
           if [ "$REPOSITORY_DEPLOY_ENABLED_STATE" != disabled ]; then
             printf '::error::Repository DEPLOY_ENABLED must be absent or exactly false before this preflight may contact the VPS.\n'
             exit 1
@@ -103,8 +103,8 @@ jobs:
 
           [[ "${PREFLIGHT_IMAGE_REF:-}" =~ ^ghcr\.io/omargad/bangla-adventure@sha256:[0-9a-f]{64}$ ]] || fail 'image_ref must be an immutable digest in this repository GHCR package.'
           [[ "${PREFLIGHT_EXPECTED_REVISION:-}" =~ ^[0-9a-f]{40}$ ]] || fail 'expected_revision must be a full lowercase 40-character commit SHA.'
-          [[ "${DEPLOY_HOST:-}" =~ ^[a-zA-Z0-9][a-zA-Z0-9.:-]*$ ]] || fail 'repository secret DEPLOY_HOST is missing or invalid.'
-          [[ "${DEPLOY_USER:-}" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]] || fail 'repository secret DEPLOY_USER is missing or invalid.'
+          [[ "${DEPLOY_HOST:-}" =~ ^[a-zA-Z0-9][a-zA-Z0-9.:-]*$ ]] || fail 'the DEPLOY_HOST secret is missing or invalid (set it as a repository secret or a production environment secret, named exactly DEPLOY_HOST).'
+          [[ "${DEPLOY_USER:-}" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]] || fail 'the DEPLOY_USER secret is missing or invalid (set it as a repository secret or a production environment secret, named exactly DEPLOY_USER).'
 
           readonly host="$DEPLOY_HOST"
           readonly user="$DEPLOY_USER"

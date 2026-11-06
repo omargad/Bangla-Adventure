@@ -324,11 +324,15 @@ from the deployment folder: `docker compose exec app npm run admin:grant -- EMAI
 | `DEPLOY_SSH_KEY` | Secret | The deploy user's private key |
 | `STATUS_SSH_KEY` | `production-status` environment secret | The private half of the daily production status check's own key, which the server limits to reading status; never the deploy key. That environment also needs `DEPLOY_HOST`, `DEPLOY_USER` and `DEPLOY_KNOWN_HOSTS` when they are `production` environment settings ([Alerting](PRODUCTION_OPERATIONS.md#alerting)) |
 | `STATUS_SSH_PUBLIC_KEY` | Repository variable | The one line of that key's `status_key.pub` (`ssh-ed25519 AAAA... bangla-adventures-status`). The reviewer-approved production operations `install` adds it to the server's `authorized_keys`, restricted to running status; `remove` makes the next install delete that line |
-| `ELEVENLABS_API_KEY` | Secret | Optional; the client's narration key, written into the server `.env` on each deploy. Empty leaves the server's own value |
+| `ELEVENLABS_API_KEY` | `production` environment or repository secret | Optional, and the client's responsibility: the client buys an ElevenLabs plan, or obtains nonprofit credits from ElevenLabs, and adds their own key here; the team never needs to see it. Written into the server `.env` on each deploy; empty leaves the server's own value. Until it is added, the site works normally with its existing recorded audio and only newly generated narration reports that it is not configured ([Narration key](VPS_DEPLOYMENT.md#narration-key)) |
 | `ELEVENLABS_VOICE_ID`, `ELEVENLABS_MODEL_ID`, `ELEVENLABS_DAILY_CHARACTER_LIMIT` | Variable | Optional narration settings, written the same way |
 
-The configurable variables other than `DEPLOY_ENABLED`, and the `DEPLOY_SSH_KEY` and `ELEVENLABS_API_KEY` secrets, may be set on the
-`production` environment instead (Settings > Environments). To approve each deploy before it runs,
+The configurable variables other than `DEPLOY_ENABLED`, and the `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY` and
+`ELEVENLABS_API_KEY` secrets, may be set on the `production` environment instead (Settings > Environments); GitHub
+masks secrets at either level, and an environment value replaces a repository one of the same name. Names must match
+exactly (`DEPLOY__HOST` is not read). Only jobs in that environment see its settings, so the daily status check's
+`production-status` environment needs its own copies of those it reads ([Alerting](PRODUCTION_OPERATIONS.md#alerting);
+[Server address secrets](VPS_DEPLOYMENT.md#server-address-secrets)). To approve each deploy before it runs,
 add required reviewers to that environment. Only the newest commit on the default branch is marked
 `latest` and deployed: a run whose commit is no longer the newest, such as an old run started
 again, skips those steps with a notice. If the newest commit cannot be verified,

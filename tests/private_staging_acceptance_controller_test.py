@@ -139,7 +139,9 @@ class AcceptanceControllerTests(unittest.TestCase):
     def test_missing_or_invalid_server_variables_prevent_remote_contact(self):
         for changes in [dict(DEPLOY_HOST=''),dict(DEPLOY_USER=''),dict(DEPLOY_HOST='192.0.2.10;id'),dict(DEPLOY_USER='Example User')]:
             result=self.run_controller(**changes);self.assertNotEqual(result.returncode,0)
-            self.assertRegex(result.stderr,r'The DEPLOY_(HOST|USER) repository secret is missing or invalid\.');self.assertEqual(self.kinds(),[])
+            name='HOST'if'DEPLOY_HOST'in changes else'USER'
+            self.assertIn(f'The DEPLOY_{name} secret is missing or invalid (set it as a repository secret or a production environment secret, named exactly DEPLOY_{name}).',result.stderr)
+            self.assertNotIn('192.0.2.10',result.stderr);self.assertEqual(self.kinds(),[])
 
     def test_pinned_host_key_must_name_the_configured_server(self):
         result=self.run_controller(DEPLOY_HOST='192.0.2.11');self.assertNotEqual(result.returncode,0)

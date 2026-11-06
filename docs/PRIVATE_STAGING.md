@@ -20,8 +20,9 @@ production settings file or existing database is changed by staging.
 | Image | `ghcr.io/omargad/bangla-adventure@sha256:5f9ac5508771eb97c6b1e4aa4bff8db0fe69569b1f00b08a2e0e02e263d93f13` |
 | Expected image revision | `a709cb3d2bc9fb0a271e6814bc96d1f16444c94f` |
 
-`DEPLOY_USER` and `DEPLOY_HOST` are the repository secrets holding the SSH
-account and address from the server handover email; see
+`DEPLOY_USER` and `DEPLOY_HOST` are the secrets (repository or `production`
+environment) holding the SSH account and address from the server handover
+email; see
 [Server address secrets](VPS_DEPLOYMENT.md#server-address-secrets). The pinned host
 key, not the address, establishes the server's identity.
 
@@ -68,8 +69,8 @@ Download the successful workflow's `private-staging-access` artifact and extract
 it. Use its verified `staging_known_hosts` file without altering the key; the
 `HostKeyAlias` option below makes SSH look the key up under its fixed name. The
 private key remains the existing `bangla_deploy` file on your own laptop. Fill in
-the account and address from the server handover email (the `DEPLOY_USER` and
-`DEPLOY_HOST` repository secrets).
+the account and address from the server handover email (the values of the
+`DEPLOY_USER` and `DEPLOY_HOST` secrets).
 
 ```powershell
 $deployUser = "<from the handover email>"

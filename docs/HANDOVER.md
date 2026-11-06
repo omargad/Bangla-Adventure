@@ -42,9 +42,16 @@ The client also owns the ElevenLabs account and API key. Bundled Bangla clips
 play without a runtime key; their offline generation and native-speaker review
 are documented in [`MEDIA_REVIEW.md`](MEDIA_REVIEW.md#a-better-bangla-computer-voice-elevenlabs).
 Optional automatic narration of newly approved topic and class activity text
-requires a client-owned key in the server's private runtime environment. It is
-never exposed to browsers or committed. Confirm the spending limit, key rotation
-owner and persistent audio storage before enabling it. See the separate
+requires a client-owned key in the server's private runtime environment. The
+client buys an ElevenLabs plan, or obtains nonprofit credits from ElevenLabs,
+and adds their own key as the `ELEVENLABS_API_KEY` secret in the repository's
+`production` environment (or as a repository secret); each deploy writes it into
+the server's private `.env`, so the team never needs to see it. It is never
+exposed to browsers or committed. Until it is added, the site works normally
+with its existing recorded audio and only newly generated narration reports that
+it is not configured. Confirm the spending limit, key rotation owner and
+persistent audio storage before enabling it. See
+[Narration key](VPS_DEPLOYMENT.md#narration-key) and the separate
 [runtime narration configuration](MEDIA_REVIEW.md#automatic-narration-of-teacher-content).
 
 ## Administrator and role handover
