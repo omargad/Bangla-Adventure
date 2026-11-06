@@ -151,7 +151,7 @@ export async function runRoleAcceptance({ browser, baseURL, qaId, outputDirector
     check(ROLE_SCREENSHOTS.includes(filename));
     operation("loaded-data");
     await ready();
-    await expect(handle.page.getByText(/^Loading(?:[\s…]|$)/)).toHaveCount(0);
+    await expect(handle.page.getByText(/^Loading(?:[\s…]|$)/).filter({ visible: true })).toHaveCount(0);
     check(await handle.page.locator('input[type="password"]').count() === 0);
     operation("screenshot");
     await handle.page.evaluate((role) => {
@@ -236,10 +236,14 @@ export async function runRoleAcceptance({ browser, baseURL, qaId, outputDirector
     await expect(review).toContainText(questions[0].prompt); await expect(review).toContainText(questions[1].prompt);
     await guarded(admin.page);
     await review.getByRole("checkbox", { name: "I have reviewed all the content above.", exact: true }).check();
-    await review.getByRole("button", { name: "Approve and publish", exact: true }).click();
+    const [reviewResponse] = await Promise.all([
+      admin.page.waitForResponse((response) => response.url() === `${baseURL}/api/classes/${classId}/activities` && response.request().method() === "PATCH"),
+      review.getByRole("button", { name: "Approve and publish", exact: true }).click(),
+    ]);
+    onStatus(reviewResponse.status()); check(reviewResponse.status() === 200);
     await capture(admin, "admin-class-publication.png", async () => {
       await expect(review).toContainText("Approved by Admin · published");
-      await expect(admin.page.getByText("Awaiting Admin approval", { exact: true })).toBeVisible();
+      await expect(admin.page.getByRole("region", { name: "Activities and submissions", exact: true }).getByText("Awaiting Admin approval · not published", { exact: true })).toBeVisible();
     });
     const after = await api(student, "/api/student/feed", undefined, "GET");
     check(after.classes[0].activities.length === 1 && after.classes[0].activities[0].id === activityId);

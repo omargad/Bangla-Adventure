@@ -1,11 +1,11 @@
 import { defineConfig, devices } from "@playwright/test";
-import os from "node:os";
 import path from "node:path";
+import { acceptanceCiState } from "./tests/staging/acceptance-ci-state.mjs";
 
-const state = process.env.BANGLA_ACCEPTANCE_DB ? path.dirname(process.env.BANGLA_ACCEPTANCE_DB) : path.join(os.tmpdir(), `bangla-acceptance-${process.pid}`);
-if (!path.resolve(state).startsWith(path.join(os.tmpdir(), "bangla-acceptance-"))) throw new Error("Acceptance requires a fresh temporary database.");
-const database = path.join(state, "acceptance.db");
+const owned = acceptanceCiState({ database: process.env.BANGLA_ACCEPTANCE_DB, qaId: process.env.BANGLA_ACCEPTANCE_QA_ID });
+const state = owned.directory, database = owned.database;
 process.env.BANGLA_ACCEPTANCE_DB = database;
+process.env.BANGLA_ACCEPTANCE_QA_ID = owned.qaId;
 
 export default defineConfig({
   testDir: "./tests/acceptance", fullyParallel: false, workers: 1, retries: 0,

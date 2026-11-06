@@ -7,6 +7,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { acceptanceIdentities, ROLE_SCREENSHOTS } from "./staging/role-acceptance-scenario.mjs";
 import { isPublicPath } from "../lib/learning-policy.ts";
+import { acceptanceCiState } from "./staging/acceptance-ci-state.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url)), qaId = "a".repeat(24);
 const clean = { users: 0, pendingTopics: 15, pendingLessons: 18 };
@@ -25,6 +26,27 @@ test("four-role fixture identities are a bounded disposable namespace with one p
 test("anonymous clone identity stays on the existing public robots asset", () => {
   assert.equal(isPublicPath(new URL("/robots.txt", proof.baseURL)), true);
   assert.equal(isPublicPath(new URL("/__private-staging-qa.json", proof.baseURL)), false);
+});
+
+test("CI ownership requires a fresh private marker and rejects symlinked databases and changed markers", () => {
+  const owned = acceptanceCiState();
+  const external = fs.mkdtempSync(path.join(os.tmpdir(), "bangla-acceptance-external-"));
+  try {
+    assert.equal(fs.statSync(owned.directory).mode & 0o777, 0o700);
+    assert.deepEqual(acceptanceCiState(owned), owned);
+    assert.throws(() => acceptanceCiState({ database: owned.database, qaId: "b".repeat(24) }));
+    const file = path.join(external, "database"); fs.writeFileSync(file, "fixture");
+    fs.symlinkSync(file, owned.database);
+    assert.throws(() => acceptanceCiState({ ...owned, requireDatabase: true }));
+    fs.unlinkSync(owned.database);
+    fs.writeFileSync(owned.database, "fixture", { mode: 0o600 });
+    assert.equal(acceptanceCiState({ ...owned, requireDatabase: true }).database, owned.database);
+    fs.chmodSync(owned.directory, 0o755);
+    assert.throws(() => acceptanceCiState(owned));
+    fs.chmodSync(owned.directory, 0o700);
+    const marker = path.join(owned.directory, ".acceptance-owner.json"); fs.unlinkSync(marker); fs.symlinkSync(file, marker);
+    assert.throws(() => acceptanceCiState(owned));
+  } finally { fs.rmSync(owned.directory, { recursive: true, force: true }); fs.rmSync(external, { recursive: true, force: true }); }
 });
 
 function refuse(value, { baseURL = proof.baseURL, cleanup = true } = {}) {

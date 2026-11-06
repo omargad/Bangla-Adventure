@@ -1,0 +1,11 @@
+# bangla-private-staging-operations-v1
+[Unit]
+Description=Daily private Bangla staging snapshot, UTC
+
+[Timer]
+OnCalendar=*-*-* 03:30:00 UTC
+Persistent=true
+Unit=ba-private-stage-backup.service
+
+[Install]
+WantedBy=timers.target

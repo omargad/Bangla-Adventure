@@ -1,0 +1,16 @@
+# bangla-private-staging-operations-v1
+[Unit]
+Description=Private Bangla staging local snapshot
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash /opt/bangla-adventures/private-staging/tools/private-staging-ops.sh backup
+UMask=0077
+NoNewPrivileges=true
+TimeoutStartSec=10min
+TimeoutStopSec=4min
+SuccessExitStatus=75
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ba-private-stage-backup

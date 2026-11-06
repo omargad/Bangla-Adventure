@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { tmpdir } from 'node:os';
 import Database from 'better-sqlite3';
+import { createHash } from 'node:crypto';
 import { bootstrapSql } from '../db/bootstrap.ts';
 import { migrateAccessControl } from '../db/access-migration.ts';
 import { migrateContent } from '../db/content-migration.ts';
@@ -131,6 +132,36 @@ async function fixture(t) {
 }
 const okay=result=>{assert.equal(result.status,0,result.stderr);return JSON.parse(result.stdout.trim());};
 
+function acceptanceIdentities(f) {
+  const db=f.qaDb();
+  for(const kind of ['parent','teacher','admin'])db.prepare('INSERT INTO adults(id,email,display_name,password_hash,role,teacher_status,approval_status)VALUES(?,?,?,?,?,?,?)').run(`fixture-${kind}`,`qa-${qaId}${kind==='parent'?'':`-${kind}`}@example.invalid`,`QA ${kind}`,'fixture-hash','parent',kind==='teacher'?'pending':'none','pending');
+  for(let index=1;index<=4;index++)db.prepare('INSERT INTO students(id,username,display_name,password_hash,approval_status)VALUES(?,?,?,?,?)').run(`fixture-student-${index}`,`qa-${qaId}-student${index===1?'':`-${index}`}`,`QA Student ${index}`,'fixture-hash','pending');
+  db.close();
+}
+
+function acceptanceClass(f) {
+  const db=f.qaDb();
+  db.prepare("UPDATE adults SET approval_status='approved',role=CASE WHEN id='fixture-teacher' THEN 'teacher' ELSE role END,teacher_status=CASE WHEN id='fixture-teacher' THEN 'approved' ELSE teacher_status END WHERE id IN ('fixture-parent','fixture-teacher')").run();
+  db.prepare("UPDATE students SET approval_status='approved' WHERE id IN ('fixture-student-1','fixture-student-2','fixture-student-3')").run();
+  db.prepare("INSERT INTO classes(id,teacher_id,name,join_code)VALUES('fixture-class','fixture-teacher','QA River Journeys','QA-RIVER')").run();
+  for(let index=1;index<=3;index++){
+    db.prepare('INSERT INTO class_students(id,class_id,display_name,token_hash)VALUES(?,?,?,?)').run(`fixture-roster-${index}`,'fixture-class',`QA Student ${index}`,`fixture-token-${index}`);
+    db.prepare('INSERT INTO student_class_enrollments(id,student_id,class_id,class_student_id)VALUES(?,?,?,?)').run(`fixture-enrollment-${index}`,`fixture-student-${index}`,'fixture-class',`fixture-roster-${index}`);
+    for(const date of ['2026-10-30','2026-11-06'])db.prepare('INSERT INTO class_attendance(id,class_id,student_id,session_date,present,recorded_by)VALUES(?,?,?,?,?,?)').run(`fixture-attendance-${index}-${date}`,'fixture-class',`fixture-student-${index}`,date,index===3?0:1,'fixture-teacher');
+  }
+  db.prepare("INSERT INTO parent_student_links(id,parent_id,student_id)VALUES('fixture-family','fixture-parent','fixture-student-1')").run();
+  const questions=JSON.stringify([{prompt:'What travels on a river?',options:['Boat','Train'],answer:0},{prompt:'Which month begins the Bengali year?',options:['Boishakh','Poush'],answer:0}]);
+  for(let index=1;index<=2;index++)db.prepare('INSERT INTO class_activities(id,class_id,title,questions_json,created_by,approval_status,reviewed_by)VALUES(?,?,?,?,?,?,?)').run(`fixture-activity-${index}`,'fixture-class',`QA River Activity ${index}`,questions,'fixture-teacher',index===1?'approved':'pending',index===1?'fixture-admin':null);
+  for(let index=1;index<=2;index++)db.prepare('INSERT INTO activity_submissions(id,activity_id,student_id,answers_json,score,total)VALUES(?,?,?,?,?,?)').run(`fixture-result-${index}`,'fixture-activity-1',`fixture-roster-${index}`,'[0,0]',index===1?2:1,2);
+  for(const audience of ['all','parents','students'])db.prepare('INSERT INTO class_announcements(id,class_id,body,audience,author_id)VALUES(?,?,?,?,?)').run(`fixture-announcement-${audience}`,'fixture-class',`QA River notice for ${audience}`,audience,'fixture-teacher');
+  const topic=db.prepare("SELECT * FROM topic_versions WHERE topic_id='pohela-boishakh'").get();
+  db.prepare("UPDATE topic_versions SET status='superseded',reviewed_by='fixture-admin' WHERE id=?").run(topic.id);
+  db.prepare("INSERT INTO topic_versions(id,topic_id,version,data_json,status,baseline,created_by,reviewed_by)VALUES('fixture-topic-v2','pohela-boishakh',2,?,'approved',0,'fixture-teacher','fixture-admin')").run(topic.data_json);
+  db.prepare("UPDATE lesson_versions SET status='approved',reviewed_by='fixture-admin' WHERE lesson_id='hello-me'").run();
+  db.prepare("INSERT INTO content_approvals(id,content_type,content_id,status,baseline,changed_by,changed_at)VALUES('fixture-lesson-review','lesson','hello-me','approved',0,'fixture-admin','2026-11-06T00:00:00Z')").run();
+  db.close();
+}
+
  test('disposable QA remains isolated, approves only browser-created parent/student, and cleans up idempotently',async t=>{
   const f=await fixture(t),prepared=okay(f.run('prepare'));
   assert.equal(prepared.prepared,true);assert.deepEqual(prepared.qa,{users:0,pendingTopics:15,pendingLessons:18});
@@ -198,4 +229,48 @@ const okay=result=>{assert.equal(result.status,0,result.stderr);return JSON.pars
   assert.notEqual(f.run('prepare').status,0);assert.deepEqual(f.state(),before);
   assert.equal(f.calls().slice(prior).some(x=>x[1]==='rm'||x[1]==='create'),false);
   okay(f.run('cleanup'));
+ });
+
+ test('four-role bootstrap grants only the fixed namespace administrator and supports a bounded connected class',async t=>{
+  const f=await fixture(t);okay(f.run('prepare'));acceptanceIdentities(f);
+  assert.equal(okay(f.run('verify')).qa.users,7);
+  assert.deepEqual(okay(f.run('bootstrap-admin')),{verified:true,qaId,bootstrapAdmin:true,approvedAdults:1,approvedStudents:0,noContentApprovals:true});
+  let db=f.qaDb();
+  assert.deepEqual(db.prepare('SELECT role,approval_status FROM adults WHERE id=?').get('fixture-admin'),{role:'admin',approval_status:'approved'});
+  assert.equal(db.prepare("SELECT count(*) n FROM adults WHERE approval_status='pending'").get().n,2);
+  assert.equal(db.prepare("SELECT count(*) n FROM students WHERE approval_status='pending'").get().n,4);
+  assert.equal(db.prepare('SELECT count(*) n FROM content_approvals').get().n,0);db.close();
+  acceptanceClass(f);
+  assert.deepEqual(okay(f.run('verify')).qa,{users:7,pendingTopics:14,pendingLessons:17});
+  db=f.qaDb();assert.equal(db.prepare("SELECT approval_status FROM students WHERE id='fixture-student-4'").get().approval_status,'pending');db.close();
+  assert.equal(okay(f.run('cleanup')).removed,true);assert.deepEqual(Object.keys(f.state().containers),['real-stage-app']);
+ });
+
+ test('class membership and parent access cannot escape the fixed roster even inside QA',async t=>{
+  const f=await fixture(t);okay(f.run('prepare'));acceptanceIdentities(f);okay(f.run('bootstrap-admin'));acceptanceClass(f);
+  let db=f.qaDb();db.prepare("UPDATE parent_student_links SET student_id='fixture-student-2'").run();db.close();
+  assert.notEqual(f.run('verify').status,0,'the parent is limited to the first fixed child');
+  db=f.qaDb();db.prepare("UPDATE parent_student_links SET student_id='fixture-student-1'").run();db.prepare("UPDATE student_class_enrollments SET student_id='fixture-student-4' WHERE student_id='fixture-student-3'").run();db.close();
+  assert.notEqual(f.run('verify').status,0,'the pending fourth student cannot be put in the class');
+  assert.equal(okay(f.run('cleanup')).removed,true);assert.deepEqual(Object.keys(f.state().containers),['real-stage-app']);
+ });
+
+ test('the private baseline detects rewritten shipped content even with a matching forged source fingerprint',async t=>{
+  const f=await fixture(t);okay(f.run('prepare'));const db=f.qaDb();
+  const topic=db.prepare("SELECT * FROM topic_versions WHERE topic_id!='pohela-boishakh' LIMIT 1").get();
+  const data=JSON.parse(topic.data_json);data.qaTamper=true;
+  const normalize=x=>Array.isArray(x)?x.map(normalize):x&&typeof x==='object'?Object.fromEntries(Object.keys(x).sort().map(k=>[k,normalize(x[k])])):x;
+  const fingerprint=createHash('sha256').update(JSON.stringify(normalize(data))).digest('hex');
+  db.prepare('UPDATE topic_versions SET data_json=? WHERE id=?').run(JSON.stringify(data),topic.id);
+  db.prepare("UPDATE shipped_content_state SET last_source_fingerprint=? WHERE content_type='topic' AND content_id=?").run(fingerprint,topic.topic_id);db.close();
+  assert.notEqual(f.run('verify').status,0,'a self-consistent rewrite still differs from the prepare-time immutable snapshot');
+  assert.equal(okay(f.run('cleanup')).removed,true);assert.deepEqual(Object.keys(f.state().containers),['real-stage-app']);
+ });
+
+ test('a redirected shared deployment lock refuses before QA resource creation or stage reads',async t=>{
+  const f=await fixture(t),sentinel=path.join(f.root,'unrelated-lock');writeFileSync(sentinel,'retain');
+  symlinkSync(sentinel,path.join(f.stage,'.deploy.lock'));
+  const result=f.run('prepare');assert.notEqual(result.status,0);assert.match(result.stderr,/PRIVATE_QA_DIAGNOSTIC:prepare:stage-lock/);
+  assert.equal(f.calls().some(value=>value[1]==='create'||value[0]==='exec'),false);
+  assert.equal(readFileSync(sentinel,'utf8'),'retain');assert.deepEqual(Object.keys(f.state().containers),['real-stage-app']);
  });

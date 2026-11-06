@@ -1,0 +1,11 @@
+# bangla-private-staging-operations-v1
+[Unit]
+Description=Five-minute private Bangla staging checks
+
+[Timer]
+OnActiveSec=5min
+OnUnitActiveSec=5min
+Unit=ba-private-stage-monitor.service
+
+[Install]
+WantedBy=timers.target

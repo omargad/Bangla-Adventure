@@ -1,15 +1,13 @@
 import { test, expect } from "@playwright/test";
 import Database from "better-sqlite3";
-import { randomBytes } from "node:crypto";
-import os from "node:os";
 import path from "node:path";
 import fs from "node:fs";
 import { acceptanceIdentities, runRoleAcceptance } from "../staging/role-acceptance-scenario.mjs";
+import { acceptanceCiState } from "../staging/acceptance-ci-state.mjs";
 
 test("fresh production server completes the same disposable four-role VPS acceptance scenario", async ({ browser, baseURL, request }, testInfo) => {
-  const qaId = randomBytes(12).toString("hex"), identities = acceptanceIdentities(qaId);
-  const database = process.env.BANGLA_ACCEPTANCE_DB;
-  if (!database || !path.resolve(database).startsWith(path.join(os.tmpdir(), "bangla-acceptance-")) || path.basename(database) !== "acceptance.db") throw new Error("Explicit owned temporary acceptance database required.");
+  const owned = acceptanceCiState({ database: process.env.BANGLA_ACCEPTANCE_DB, qaId: process.env.BANGLA_ACCEPTANCE_QA_ID });
+  const qaId = owned.qaId, database = owned.database, identities = acceptanceIdentities(qaId);
   const marker = { qa: true, qa_id: qaId, expectedrevision: "95b6308ac7ad3d5b6bb2d951df9d65a23ff77107" };
   // The production server already knows this public static file. Only this temporary CI checkout
   // replaces its bytes; the actual HTTP response and the separate owned database are both checked.
@@ -21,6 +19,7 @@ test("fresh production server completes the same disposable four-role VPS accept
   const emails = [identities.admin.email, identities.teacher.email, identities.parent.email];
   const names = identities.students.map((item) => item.username);
   const inspect = (expected: { users: number }) => {
+    acceptanceCiState({ database, qaId, requireDatabase: true });
     const db = new Database(database, { readonly: true, fileMustExist: true });
     try {
       const adults = db.prepare("SELECT id,email,role,status FROM adults WHERE email LIKE ?").all(`qa-${qaId}%`) as Array<{ id: string; email: string; role: string; status: string }>;
