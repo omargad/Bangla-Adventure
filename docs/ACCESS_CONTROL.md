@@ -1,4 +1,4 @@
-# Role and access management
+# Role and access management (RBAC)
 
 Bangla Adventures uses **role-based access control (RBAC)**. Every person who signs in has one role
 (student, parent, teacher or administrator), and what they may see or change depends on that role, on
@@ -30,12 +30,95 @@ fixes that followed it). The tables describe the behaviour now; each gap in [Kno
 says whether it is fixed, partly fixed, open or a product decision. Evidence is given as `file:line`;
 the line numbers were taken at `c4cb7ae` and can be a few lines off in files changed since.
 
-**Contents:** [Roles and account states](#roles-and-account-states) ·
-[RBAC table](#role-based-access-control-rbac-table) · [Page access](#page-access) ·
+**Contents:** [RBAC table](#role-based-access-control-rbac-table) · [Detailed access rules](#detailed-access-rules) · [Roles and account states](#roles-and-account-states) ·
+[Detailed capability matrix](#detailed-capability-matrix) · [Page access](#page-access) ·
 [API access](#api-access) · [Data scoping rules](#data-scoping-rules) ·
 [Account management rules](#account-management-rules) · [Global protections](#global-protections) ·
 [Operational access](#operational-access-outside-the-app) · [Known gaps](#known-gaps) ·
 [How this was verified](#how-this-was-verified)
+
+## Role-based access control (RBAC) table
+
+One table of who can do what. **Download:** [RBAC.csv](RBAC.csv) · [Excel workbook](RBAC.xlsx). The CSV is
+the source; after changing it, rebuild the workbook with `python3 scripts/build-rbac-workbook.py`.
+
+✅ can do it · ❌ cannot. The notes say when a right is limited, for example to a teacher's own classes or a
+parent's linked children, or when it needs an administrator's approval. "Teacher" means an approved teacher
+account. Signed-out visitors can only open the welcome, safety and sign-in pages, and a new account can do
+nothing until an administrator approves it.
+
+| Feature | Student | Parent | Teacher | Administrator | Notes |
+| --- | :-: | :-: | :-: | :-: | --- |
+| **Accounts** | | | | | |
+| Create own account (sign up) | ✅ | ✅ | ✅ | ❌ | Every new account waits for an administrator to approve it. A teacher signs up and applies as a teacher. Nobody can sign up as an administrator: the first one is set up on the server, and an administrator can make others administrators. |
+| Approve or decline new accounts | ❌ | ❌ | ❌ | ✅ | Includes teacher requests. |
+| Ask to become a teacher | ❌ | ✅ | ❌ | ❌ | From the parent's Teachers page; an administrator approves it. Once approved, the account becomes a teacher account and no longer shows the linked children. |
+| Create accounts for other people | ❌ | ❌ | ✅ | ✅ | Teacher: student accounts only, by importing a class list. Administrator: parent, teacher and student accounts (not administrators), each with a one-time temporary password. |
+| Reset someone's password | ❌ | ❌ | ❌ | ✅ | Gives a one-time temporary password; not for their own account. |
+| Change someone's role, or suspend or reactivate an account | ❌ | ❌ | ❌ | ✅ | Other accounts only. |
+| Make someone an administrator | ❌ | ❌ | ❌ | ✅ | Other approved accounts only. |
+| See recent changes (the audit log) | ❌ | ❌ | ❌ | ✅ | Shows who changed what, and when. |
+| **Classes and students** | | | | | |
+| Create a class | ❌ | ❌ | ✅ | ✅ | Teacher: for themselves. Administrator: for any teacher. |
+| Give a class to another teacher | ❌ | ❌ | ❌ | ✅ |  |
+| Delete a class | ❌ | ❌ | ✅ | ✅ | Teacher: own classes only. Deletes its roster and activities. |
+| Add students to a class | ❌ | ❌ | ✅ | ✅ | Teacher: into own classes. Search and tick from all approved students. |
+| Remove a student from a class | ❌ | ❌ | ✅ | ✅ | Teacher: own classes only. |
+| Import students from a CSV class list | ❌ | ❌ | ✅ | ✅ | Teacher: own classes only. Creates student accounts with temporary passwords. |
+| **Attendance** | | | | | |
+| Take attendance | ❌ | ❌ | ✅ | ✅ | Teacher: own classes. Any date, past dates included; everyone starts as present. |
+| Change attendance for a past date | ❌ | ❌ | ✅ | ✅ | Teacher: own classes only. Every save is recorded in the audit log. |
+| See attendance | ✅ | ✅ | ✅ | ✅ | Student: their own, on My Learning. Parent: their linked children. Teacher: own classes. |
+| **Announcements** | | | | | |
+| Post an announcement (to everyone, students only or parents only) | ❌ | ❌ | ✅ | ✅ | Teacher: own classes. Published at once, no approval step. |
+| Remove an announcement | ❌ | ❌ | ✅ | ✅ | Teacher: own classes only. |
+| See announcements | ✅ | ✅ | ✅ | ✅ | Student: on My Learning, those for everyone or for students. Parent: on the family page, those for everyone or for parents. Teacher: own classes. |
+| **Class activities and results** | | | | | |
+| Create class activities and quizzes | ❌ | ❌ | ✅ | ✅ | Teacher: own classes; waits for an administrator to approve it. Administrator: approved at once. |
+| Approve or send back a class activity | ❌ | ❌ | ❌ | ✅ |  |
+| Answer an activity or quiz | ✅ | ❌ | ❌ | ❌ | Own classes, while the activity is open. One submission; the teacher can reset it for another try. |
+| Reset a student's answers | ❌ | ❌ | ✅ | ✅ | Teacher: own classes only. |
+| See own results | ✅ | ❌ | ❌ | ❌ |  |
+| See a child's results | ❌ | ✅ | ❌ | ❌ | Linked children only. Read-only. |
+| Gradebook (students down, activities across) | ❌ | ❌ | ✅ | ✅ | Teacher: own classes. Counts only published activities. |
+| Export results (CSV) | ❌ | ❌ | ✅ | ✅ | Teacher: own classes. Administrator: every class, from Grades & results. |
+| See results across all classes | ❌ | ❌ | ❌ | ✅ |  |
+| **Learning content** | | | | | |
+| Read approved topics and lessons | ✅ | ✅ | ✅ | ✅ | Signed-in accounts only; students see approved versions only. |
+| Take topic quizzes | ✅ | ✅ | ✅ | ✅ | Student: the score counts towards Topics read (the day's first three tries can raise the best score). Grown-ups: marked but not saved. |
+| Hear lesson audio and narration | ✅ | ✅ | ✅ | ✅ | Students and parents hear approved content only. |
+| Use the textbook library, references and worksheets | ✅ | ✅ | ✅ | ✅ |  |
+| **Topics and lessons** | | | | | |
+| Write a new topic | ❌ | ❌ | ✅ | ✅ | Teacher: waits for an administrator's approval while the approval switch is on (the default); publishes at once while it is off. Administrator: publishes at once. |
+| Edit a topic | ❌ | ❌ | ✅ | ✅ | Same as writing a topic. A teacher's edit of a withdrawn topic always waits. |
+| Preview topics and lessons before they are approved | ❌ | ❌ | ✅ | ✅ |  |
+| Approve or send back a topic | ❌ | ❌ | ❌ | ✅ |  |
+| Withdraw a topic from students or restore it | ❌ | ❌ | ❌ | ✅ |  |
+| Turn "Teachers' topics need an administrator's approval" on or off | ❌ | ❌ | ❌ | ✅ | On by default. Every change is recorded in the audit log. |
+| Approve lessons and decide on their videos | ❌ | ❌ | ❌ | ✅ |  |
+| Upload a lesson recording | ❌ | ❌ | ✅ | ✅ | Teacher: waits for an administrator's approval. Administrator: approved at once. |
+| Approve, send back or retire a recording | ❌ | ❌ | ❌ | ✅ |  |
+| **Class sources and textbooks** | | | | | |
+| Add or edit class sources | ❌ | ❌ | ✅ | ✅ | Teacher: own classes; waits for an administrator's approval. Administrator: approved at once. |
+| Approve or send back class sources | ❌ | ❌ | ❌ | ✅ |  |
+| See class sources | ✅ | ✅ | ✅ | ✅ | Student: own classes, approved only. Parent: their children's classes, approved only. Teacher: own classes. |
+| Update textbook links | ❌ | ❌ | ❌ | ✅ |  |
+| **Families** | | | | | |
+| Import families from a CSV file | ❌ | ❌ | ❌ | ✅ | Creates student and parent accounts and links them. |
+| Link or unlink a parent and a child | ❌ | ❌ | ❌ | ✅ |  |
+| See linked children | ❌ | ✅ | ❌ | ❌ | Their classes, results, attendance, sources and parent announcements. |
+| **Own account** | | | | | |
+| Change own password | ✅ | ✅ | ✅ | ✅ |  |
+| Reset a forgotten password with a recovery code | ❌ | ✅ | ✅ | ✅ | A student asks a teacher or administrator for a new temporary password. |
+| Sign out on every device | ❌ | ✅ | ✅ | ✅ |  |
+| Download own data | ❌ | ✅ | ✅ | ✅ |  |
+| Delete own account | ❌ | ✅ | ✅ | ❌ | Teacher: only once they teach no classes (an administrator moves them first). An administrator's role must first be changed by another administrator. |
+
+## Detailed access rules
+
+The sections below give the full rules behind the table: account states, a capability matrix with the
+exact scope of each right, every page and API route, how data is limited to each role, and how this was
+checked.
 
 ## Roles and account states
 
@@ -78,9 +161,9 @@ document they are in the **Parent** column (with home page `/teach` while the re
 | **Temporary password must be changed** (`mustChangePassword`) | Accounts created or reset by an administrator (adults and students), or created by an import | **Adults:** the proxy lets them reach only `/account/password`, `/api/account/password`, public paths and static files. Other APIs answer 403 `{error:"Choose your own password before you continue.", mustChangePassword:true}`, other pages redirect to `/account/password?returnTo=…` (`proxy.ts:53-56`). Cleared by changing the password or by recovery. **Students:** every student data API answers the same 403 (`lib/student-auth.ts:114-119`) and learner pages redirect to `/student/password` (`lib/student-auth.ts:122-124`). |
 | **Expired session** | Everyone | Sessions last 30 days (`lib/auth.ts:36`, `lib/student-auth.ts:19`). An expired session counts as signed out. |
 
-## Role-based access control (RBAC) table
+## Detailed capability matrix
 
-This is the capability matrix. Each row is something a person can do; the cells say whether each role
+This is the detailed capability matrix. Each row is something a person can do; the cells say whether each role
 can do it, and over which records.
 
 **Legend:** ✅ allowed · ❌ not allowed · *text* = allowed, limited to that scope ·

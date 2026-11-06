@@ -80,6 +80,7 @@ Documents a maintainer or operator needs, in the order they are usually read.
 | [Private staging](PRIVATE_STAGING.md) | The separate private staging deployment on the VPS, used before the public domain is ready |
 | [Private staging operations](PRIVATE_STAGING_OPERATIONS.md) | The backup and monitoring jobs that apply to private staging only |
 | [Private staging rollback](PRIVATE_STAGING_ROLLBACK.md) | Rehearsing a release rollback with the real release engine against a disposable project |
+| [Role and access management (RBAC)](ACCESS_CONTROL.md) | One table of who can do what for students, parents, teachers and administrators (also as [CSV](RBAC.csv) and an [Excel workbook](RBAC.xlsx)), then account states, every page and API route, data scoping, operational access and known gaps |
 | [Content approval](CONTENT_APPROVAL.md) | Who submits and who approves each kind of content (topics, lessons, recordings, videos, class activities and class links), and how existing records are treated |
 | [Media review](MEDIA_REVIEW.md) | Checking lesson videos and playlists, which voice learners hear, human recordings, generating Bangla clips with ElevenLabs, and automatic narration |
 | [Acceptance record](ACCEPTANCE.md) | The release acceptance and review record: release identity, evidence ledger, role journeys and the sign-off rule |

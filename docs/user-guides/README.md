@@ -19,6 +19,10 @@ made-up people and example addresses, and passwords and recovery codes are blurr
 | Teacher | Teachers who run classes, add students, set activities, take attendance, post announcements and write topics | [Teacher guide](teacher.md) |
 | Administrator | The school's office staff or lead teacher who approves accounts and content and looks after every class | [Administrator guide](administrator.md) |
 
+For one table of who can do what in every role, see the
+[RBAC table](../ACCESS_CONTROL.md#role-based-access-control-rbac-table) (also as an
+[Excel workbook](../RBAC.xlsx)).
+
 If you are a parent who also teaches at the school, read
 [If you also teach at the school](parent.md#if-you-also-teach-at-the-school) before you ask
 for teacher access.
