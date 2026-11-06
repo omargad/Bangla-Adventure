@@ -28,17 +28,18 @@ function labelledActions() {
 
 /**
  * The action codes written to the audit log: `action: "…"` in an insert, the code given to an audit
- * helper (`audit(tx, …, "…")`, `record(tx, …, "…")`), and the codes those helpers are handed in a variable.
+ * helper (`audit(tx, …, "…")`, `auditClass(tx, …, "…")`, `record(tx, …, "…")`), and the codes those helpers are handed in a variable.
  */
 function writtenActions() {
   const codes = new Set();
   for (const file of [...sources("lib", "app"), ...sources("scripts")]) {
     const text = readFileSync(file, "utf8");
-    if (!/userAuditEvents|user_audit_events/.test(text)) continue;
+    // A file that writes audit rows itself, or through the class audit helper (lib/class-audit.ts).
+    if (!/userAuditEvents|user_audit_events|\bauditClass\(/.test(text)) continue;
     for (const match of text.matchAll(/\baction(?:_?[A-Za-z]*)?:\s*"([a-z][a-z-]*)"/g)) codes.add(match[1]);
     for (const line of text.split("\n")) {
       // An audit helper call or a line choosing the action code: every kebab-case literal on it is a code.
-      if (!/\b(?:audit|record)\(tx,|const action = |audited = /.test(line)) continue;
+      if (!/\b(?:audit|auditClass|record)\(tx,|const action = |audited = /.test(line)) continue;
       for (const match of line.matchAll(/"([a-z]+(?:-[a-z]+)+)"/g)) codes.add(match[1]);
       for (const match of line.matchAll(/`([a-z]+(?:-[a-z]+)*)-\$\{/g)) codes.add(`${match[1]}-*`);
     }
@@ -65,6 +66,13 @@ test("every action written to the audit log has a label in both languages on Rec
   for (const [code, [en, bn]] of labels) {
     assert.ok(en.trim() && bn.trim(), code);
     assert.notEqual(en, bn, `${code} needs a Bangla label`);
+  }
+});
+
+test("the scan sees the codes written through the class audit helper", () => {
+  const written = writtenActions();
+  for (const code of ["attendance-saved", "class-activity-opened", "class-activity-closed", "class-created", "announcement-posted", "class-source-added", "class-deleted"]) {
+    assert.ok(written.has(code), code);
   }
 });
 
