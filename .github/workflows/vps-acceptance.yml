@@ -1,0 +1,141 @@
+name: VPS private acceptance
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/vps-acceptance.yml
+      - scripts/private-staging-acceptance.sh
+      - scripts/private-staging-qa.sh
+      - scripts/private-staging-rollback.sh
+      - scripts/private-staging-ops*
+      - deploy/private-staging-ops/**
+      - tests/staging/browser-role-acceptance.mjs
+      - tests/staging/role-acceptance-scenario.mjs
+      - tests/acceptance/**
+      - playwright.acceptance.config.ts
+      - tests/private_staging_acceptance_controller_test.py
+  workflow_dispatch:
+    inputs:
+      confirm_acceptance:
+        description: Exercise only private operational checks and disposable rollback/classroom QA
+        type: boolean
+        required: true
+        default: false
+
+permissions:
+  contents: read
+
+# Exclude the older private-stage workflow and all acceptance runs from each other.
+concurrency:
+  group: vps-private-staging
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    if: github.repository == 'omargad/Bangla-Adventure' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install runner dependencies without environment credentials
+        run: |
+          set -euo pipefail
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Check available acceptance helpers and offline isolation tests
+        run: |
+          set -euo pipefail
+          for script in scripts/private-staging-{acceptance,rollback,ops,ops-install,qa}.sh; do
+            if [ -f "$script" ]; then bash -n "$script"; fi
+          done
+          node --check tests/staging/browser-role-acceptance.mjs
+          node --check tests/staging/role-acceptance-scenario.mjs
+          python3 -m unittest discover -s tests -p 'private_staging_*test.py' -v
+          node --import tsx --test tests/private-staging*.test.mjs
+          node <<'JS'
+          const f=require("node:fs"),y=require("js-yaml");
+          const x=y.load(f.readFileSync(".github/workflows/vps-acceptance.yml","utf8"));
+          if(x.jobs.acceptance.environment!=="production"||!x.jobs.acceptance.needs.includes("validate")||!x.jobs.acceptance.needs.includes("repository-settings"))throw Error("Missing pre-SSH gates");
+          const ci=y.load(f.readFileSync(".github/workflows/ci.yml","utf8"));
+          const deploy=ci.jobs.deploy.steps.filter(s=>s.env&&Object.hasOwn(s.env,"DEPLOY_REQUIRE_ROOTLESS"));
+          if(deploy.length!==1||deploy[0].env.DEPLOY_REQUIRE_ROOTLESS!=="true"||deploy[0].env.DEPLOY_REQUIRE_PUBLIC_HEALTH!=="true")throw Error("Fixed production rootless/public-health gates changed");
+          JS
+      - name: Run the exact four-role scenario against a fresh local production server before SSH
+        env:
+          NODE_NO_WARNINGS: '1'
+        run: npx playwright test -c playwright.acceptance.config.ts --project=chromium
+
+      - name: Retain only synthetic local scenario screenshots and fixed diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: private-acceptance-local
+          path: |
+            test-results/**/role-acceptance-*/*.png
+            test-results/**/role-acceptance-*/ci-result.json
+            test-results/**/role-acceptance-*/ci-diagnostics.json
+          if-no-files-found: ignore
+          retention-days: 7
+
+  repository-settings:
+    if: >-
+      github.repository == 'omargad/Bangla-Adventure' && github.ref == 'refs/heads/main' &&
+      ((github.event_name == 'push' && contains(github.event.head_commit.message, '[vps-acceptance-run]')) ||
+       (github.event_name == 'workflow_dispatch' && inputs.confirm_acceptance == true))
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: Require repository production deployment to remain disabled before loading its environment
+        env:
+          REPOSITORY_DEPLOY_ENABLED_STATE: ${{ (vars.DEPLOY_ENABLED == '' || vars.DEPLOY_ENABLED == 'false') && 'disabled' || 'refused' }}
+        run: |
+          set -euo pipefail
+          [ "$REPOSITORY_DEPLOY_ENABLED_STATE" = disabled ] || { printf '::error::Repository DEPLOY_ENABLED must be unset or exactly false.\n'; exit 1; }
+
+  acceptance:
+    needs: [repository-settings, validate]
+    if: >-
+      github.repository == 'omargad/Bangla-Adventure' && github.ref == 'refs/heads/main' &&
+      needs.repository-settings.result == 'success' && needs.validate.result == 'success' &&
+      ((github.event_name == 'push' && contains(github.event.head_commit.message, '[vps-acceptance-run]')) ||
+       (github.event_name == 'workflow_dispatch' && inputs.confirm_acceptance == true))
+    environment: production
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install private runner browser dependencies before loading SSH credentials
+        run: |
+          set -euo pipefail
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Exercise existing private staging, disposable failed-release rollback and four-role QA
+        env:
+          REPOSITORY_GATE_CONFIRMED: disabled
+          DEPLOY_ENABLED: ${{ vars.DEPLOY_ENABLED }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ vars.DEPLOY_KNOWN_HOSTS }}
+          PRIVATE_ACCEPTANCE_EVIDENCE_DIR: ${{ runner.temp }}/private-acceptance-evidence
+          NODE_NO_WARNINGS: '1'
+        run: bash scripts/private-staging-acceptance.sh
+      - name: Retain only sanitized acceptance evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: private-staging-acceptance
+          path: ${{ runner.temp }}/private-acceptance-evidence/
+          if-no-files-found: ignore
+          retention-days: 7
