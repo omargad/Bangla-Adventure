@@ -103,6 +103,13 @@ test("the 429 answer says when to retry, in English and Bangla", async () => {
   assert.equal(response.status, 429);
   assert.equal(response.headers.get("retry-after"), "42");
   const body = await response.json();
-  assert.equal(body.error, "Too many attempts. Please wait a moment and try again.");
-  assert.match(body.errorBn, /[ঀ-৿]/);
+  assert.equal(body.error, "Too many attempts. Please wait 42 seconds and try again.");
+  assert.equal(body.errorBn, "অনেকবার চেষ্টা করা হয়েছে। ৪২ সেকেন্ড অপেক্ষা করে আবার চেষ্টা করুন।");
+  assert.equal(body.retryAfterSeconds, 42);
+});
+
+test("the 429 answer to a student uses the informal Bangla form", async () => {
+  const body = await tooManyRequests(900, "student").json();
+  assert.equal(body.error, "Too many attempts. Please wait 15 minutes and try again.");
+  assert.equal(body.errorBn, "অনেকবার চেষ্টা করা হয়েছে। ১৫ মিনিট অপেক্ষা করে আবার চেষ্টা করো।");
 });

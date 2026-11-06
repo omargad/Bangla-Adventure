@@ -11,7 +11,7 @@ export async function POST(request: Request) {
 
   // Per student, not per address: a whole class may submit from one school network.
   const limit = checkRateLimit(`student-submit:${student.id}`, 60, 10 * 60 * 1000);
-  if (!limit.allowed) return tooManyRequests(limit.retryAfterSeconds);
+  if (!limit.allowed) return tooManyRequests(limit.retryAfterSeconds, "student");
 
   try {
     const body = (await request.json().catch(() => ({}))) as { activityId?: unknown; answers?: unknown };

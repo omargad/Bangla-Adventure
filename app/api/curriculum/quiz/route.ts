@@ -15,7 +15,7 @@ export async function POST(request: Request) {
   const adult = await getSessionAdult();
   if (!adult) return Response.json({ error: "Sign in as a grown-up to check this quiz.", errorBn: "এই কুইজ মিলিয়ে দেখতে বড়দের অ্যাকাউন্টে সাইন ইন করুন।" }, { status: 401 });
   const limit = checkRateLimit(`topic-quiz:${adult.id}`, 120, 10 * 60 * 1000);
-  if (!limit.allowed) return tooManyRequests(limit.retryAfterSeconds);
+  if (!limit.allowed) return tooManyRequests(limit.retryAfterSeconds, "student");
   const body = await request.json().catch(() => null) as { topicId?: unknown; answers?: unknown } | null;
   try {
     const topic = await findApprovedTopic(body?.topicId);

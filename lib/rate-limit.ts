@@ -5,6 +5,8 @@
  * shared store instead.
  */
 
+import { tooManyAttempts, type Voice } from "./rate-limit-reply";
+
 type Bucket = { count: number; resetAt: number };
 
 const store = new Map<string, Bucket>();
@@ -72,11 +74,12 @@ export function clientKey(request: Request, hops: number = trustedProxyHops()): 
   return chosen || "local";
 }
 
-export function tooManyRequests(retryAfterSeconds: number): Response {
-  return Response.json(
-    { error: "Too many attempts. Please wait a moment and try again.", errorBn: "অনেকবার চেষ্টা করা হয়েছে। একটু অপেক্ষা করে আবার চেষ্টা করুন।" },
-    { status: 429, headers: { "Retry-After": String(retryAfterSeconds) } },
-  );
+/**
+ * 429 for a limited route, saying how long to wait (lib/rate-limit-reply): adults are addressed politely,
+ * students (voice "student") informally.
+ */
+export function tooManyRequests(retryAfterSeconds: number, voice: Voice = "adult"): Response {
+  return tooManyAttempts(retryAfterSeconds, voice);
 }
 
 /** Test hook: clear all tracked windows. */
