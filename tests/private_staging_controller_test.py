@@ -54,7 +54,12 @@ elif tool=="node":
   if p.returncode: sys.exit(1)
  if os.environ.get("FIXTURE_BROWSER_FAIL"):
   step="REGISTRY_TOKEN_MUST_NOT_LEAK" if os.environ.get("FIXTURE_BROWSER_UNKNOWN_STEP") else "parent-browser-login"
-  print(json.dumps({"kind":"disposable-qa-browser-auth","passed":False,"failedStep":step,"cleanupVerified":True,"secret":"REGISTRY_TOKEN_MUST_NOT_LEAK"}))
+  report={"kind":"disposable-qa-browser-auth","passed":False,"failedStep":step,"cleanupVerified":True,"secret":"REGISTRY_TOKEN_MUST_NOT_LEAK"}
+  if os.environ.get("FIXTURE_BROWSER_SUBSTEP"):
+   report.update({"failedOperation":"submit-and-response","errorCode":"sign-in-response-not-successful","loginResponseStatus":403})
+  if os.environ.get("FIXTURE_BROWSER_UNSAFE_SUBSTEP"): report["failedOperation"]="REGISTRY_TOKEN_MUST_NOT_LEAK"
+  if os.environ.get("FIXTURE_BROWSER_INVALID_STATUS"): report["loginResponseStatus"]=600
+  print(json.dumps(report))
   sys.exit(1)
  out=Path(os.environ["PRIVATE_QA_ARTIFACTS"])/f"qa-browser-{qid}"
  out.mkdir();(out/"result.json").write_text('{"fixtureBrowser":true}')
@@ -222,6 +227,22 @@ elif tool=="ssh":
         self.assertFalse((evidence/"qa-browser").exists())
         for path in evidence.rglob("*"):
             if path.is_file(): self.assertNotIn("REGISTRY_TOKEN_MUST_NOT_LEAK",path.read_text())
+
+    def test_browser_static_substep_and_response_status_are_exported_without_other_fields(self):
+        result=self.run_controller(FIXTURE_BROWSER_FAIL="1",FIXTURE_BROWSER_SUBSTEP="1")
+        self.assertNotEqual(result.returncode,0)
+        report=json.loads((self.root/"evidence/qa-browser-failure.json").read_text())
+        self.assertEqual(report,{"passed":False,"failedStep":"parent-browser-login","cleanupVerified":True,"failedOperation":"submit-and-response","errorCode":"sign-in-response-not-successful","loginResponseStatus":403})
+        self.assertIn("failedOperation=submit-and-response; errorCode=sign-in-response-not-successful; loginResponseStatus=403",result.stderr)
+
+    def test_unknown_browser_substep_and_out_of_range_status_are_refused(self):
+        for flag in ("FIXTURE_BROWSER_UNSAFE_SUBSTEP","FIXTURE_BROWSER_INVALID_STATUS"):
+            with self.subTest(flag=flag):
+                result=self.run_controller(FIXTURE_BROWSER_FAIL="1",FIXTURE_BROWSER_SUBSTEP="1",**{flag:"1"})
+                self.assertNotEqual(result.returncode,0)
+                self.assertFalse((self.root/"evidence/qa-browser-failure.json").exists())
+                for path in (self.root/"evidence").rglob("*"):
+                    if path.is_file(): self.assertNotIn("REGISTRY_TOKEN_MUST_NOT_LEAK",path.read_text())
 
 
 if __name__ == "__main__":

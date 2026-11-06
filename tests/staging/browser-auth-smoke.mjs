@@ -6,7 +6,7 @@ import { execFile } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { chromium } from "@playwright/test";
+import { chromium, expect } from "@playwright/test";
 
 const BASE = "http://127.0.0.1:3001";
 const REVISION = "95b6308ac7ad3d5b6bb2d951df9d65a23ff77107";
@@ -17,7 +17,8 @@ const artifacts = process.env.PRIVATE_QA_ARTIFACTS;
 const check = (condition, code) => { if (!condition) throw new Error(code); };
 const stageClean = (stage) => stage?.users === 0 && stage.pendingTopics === 15 && stage.pendingLessons === 18;
 const report = { kind: "disposable-qa-browser-auth", passed: false, origin: BASE, revision: REVISION, imageDigest: IMAGE, roles: [], cleanupVerified: false };
-let browser, directory, mayCleanup = false, step = "configuration";
+const SAFE_LOGIN_ERRORS = new Set(["browser-operation-failed", "sign-in-response-not-successful", "browser-session-not-persisted", "secure-session-cookie-required", "session-cookie-readable-by-script", "session-cookie-lost-on-reload", "credentials-form-still-visible"]);
+let browser, directory, mayCleanup = false, step = "configuration", operation;
 
 /** The controller is a constrained executable; secrets never enter its argv/stdin/output. */
 async function hook(action) {
@@ -84,22 +85,51 @@ async function authenticated(page, role) {
 
 async function loginAndCapture({ context, page }, role, password) {
   const adult = role === "parent";
+  operation = "navigate-sign-in";
   await page.goto(adult ? "/grown-ups?returnTo=%2Ffamily" : "/student", { waitUntil: "domcontentloaded" });
+  operation = "hydrate-form";
+  // SSR inputs can be interactive before their controlled React state hydrates over SSH.
+  // A harmless tab transition proves the client handlers work before entering credentials.
+  const signupName = page.getByLabel(adult ? "Your name" : "Student name", { exact: true });
+  await expect(async () => {
+    await page.getByRole("tab", { name: "Create account", exact: true }).click();
+    await expect(signupName).toBeVisible({ timeout: 1000 });
+  }).toPass({ timeout: 15_000, intervals: [250, 500, 1000] });
+  await page.getByRole("tab", { name: "Sign in", exact: true }).click();
+  await expect(signupName).toHaveCount(0);
+  operation = "fill-identity";
   await page.getByLabel(adult ? "Email" : "Username", { exact: true }).fill(adult ? `qa-${qaId}@example.invalid` : `qa-${qaId}-student`);
+  operation = "fill-password";
   await page.getByLabel("Password", { exact: true }).fill(password);
-  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  operation = "submit-and-response";
+  const endpoint = adult ? "/api/auth/sign-in" : "/api/student/sign-in";
+  const [response] = await Promise.all([
+    page.waitForResponse((response) => response.url() === BASE + endpoint && response.request().method() === "POST", { timeout: 15_000 }),
+    page.getByRole("button", { name: "Sign in", exact: true }).click(),
+  ]);
+  report.loginResponseStatus = response.status();
+  check(report.loginResponseStatus === 200, "sign-in-response-not-successful");
+  operation = "destination";
   if (adult) await page.waitForURL(`${BASE}/family`);
   else await page.getByRole("heading", { name: "My Learning", exact: true }).waitFor();
+  operation = "server-session";
   await authenticated(page, role);
+  operation = "cookie-attributes";
   const name = adult ? "ba_adult_session" : "ba_student_session";
   // Inspect the isolated jar directly: Playwright's HTTP URL filter excludes Secure 127.0.0.1 cookies.
   const cookie = (await context.cookies()).find((item) => item.name === name && item.domain === "127.0.0.1");
   check(cookie?.secure === true && cookie.httpOnly === true && cookie.sameSite === "Lax" && cookie.domain === "127.0.0.1" && cookie.path === "/", "secure-session-cookie-required");
+  operation = "cookie-script-read";
   check(await page.evaluate((name) => !document.cookie.split(";").some((part) => part.trim().startsWith(`${name}=`)), name), "session-cookie-readable-by-script");
+  operation = "reload";
   await page.reload({ waitUntil: "domcontentloaded" });
+  operation = "reloaded-session";
   await authenticated(page, role);
+  operation = "reloaded-cookie";
   check((await context.cookies()).find((item) => item.name === name && item.domain === "127.0.0.1")?.value === cookie.value, "session-cookie-lost-on-reload");
+  operation = "credentials-form-absent";
   check(await page.locator('input[type="password"]').count() === 0, "credentials-form-still-visible");
+  operation = "screenshot";
   await page.evaluate((role) => {
     const banner = document.createElement("div");
     banner.textContent = `DISPOSABLE QA CLONE — FICTIONAL ${role.toUpperCase()} — NOT ACTUAL STAGING USERS`;
@@ -109,6 +139,7 @@ async function loginAndCapture({ context, page }, role, password) {
   }, role);
   await page.screenshot({ path: path.join(directory, `qa-${role}.png`), fullPage: true });
   report.roles.push({ role, realFormLogin: true, secureHttpOnlyCookie: true, cookieSurvivedReload: true, serverSessionAuthenticated: true });
+  operation = undefined;
 }
 
 try {
@@ -144,9 +175,13 @@ try {
   await verifyController(2);
   report.fixtureCounts = { adults: 1, students: 1, pendingTopics: 15, pendingLessons: 18, contentApprovals: 0 };
   report.passed = true;
-} catch {
+} catch (error) {
   // Do not serialize Playwright diagnostics, response bodies, credentials or environment.
   report.failedStep = step;
+  if (operation) {
+    report.failedOperation = operation;
+    report.errorCode = SAFE_LOGIN_ERRORS.has(error?.message) ? error.message : "browser-operation-failed";
+  }
   report.error = "Private QA browser authentication proof failed; inspect only sanitized controller status.";
 } finally {
   if (browser) await browser.close().catch(() => {});

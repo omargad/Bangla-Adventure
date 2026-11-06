@@ -394,6 +394,8 @@ if ! PRIVATE_QA_ID="$qa_id" PRIVATE_QA_CONTROLLER="$qa_hook" PRIVATE_QA_BASE_URL
   python3 - "$work/qa-browser.log" "$evidence/qa-browser-failure.json" <<'BROWSER_FAILURE'
 import json,pathlib,sys
 allowed={"configuration","verify-clean-clone","browser-start","guarded-fixture-signups","fixture-approval","parent-browser-login","student-browser-login","final-clone-counts","cleanup"}
+operations={"navigate-sign-in","hydrate-form","fill-identity","fill-password","submit-and-response","destination","server-session","cookie-attributes","cookie-script-read","reload","reloaded-session","reloaded-cookie","credentials-form-absent","screenshot"}
+codes={"browser-operation-failed","sign-in-response-not-successful","browser-session-not-persisted","secure-session-cookie-required","session-cookie-readable-by-script","session-cookie-lost-on-reload","credentials-form-still-visible"}
 try:
  data=pathlib.Path(sys.argv[1]).read_bytes()
  if len(data)>65536: raise ValueError("bounded report required")
@@ -402,9 +404,15 @@ try:
   except ValueError: continue
   if not isinstance(report,dict) or report.get("kind")!="disposable-qa-browser-auth": continue
   if report.get("passed") is not False or report.get("failedStep") not in allowed or type(report.get("cleanupVerified")) is not bool: break
+  if "failedOperation" in report and (type(report["failedOperation"]) is not str or report["failedOperation"] not in operations): break
+  if "errorCode" in report and (type(report["errorCode"]) is not str or report["errorCode"] not in codes): break
+  if "loginResponseStatus" in report and (type(report["loginResponseStatus"]) is not int or not (report["loginResponseStatus"]==0 or 100<=report["loginResponseStatus"]<=599)): break
   safe={key:report[key] for key in ("passed","failedStep","cleanupVerified")}
+  for key in ("failedOperation","errorCode","loginResponseStatus"):
+   if key in report: safe[key]=report[key]
   pathlib.Path(sys.argv[2]).write_text(json.dumps(safe)+"\n")
-  print("Private QA browser report: failedStep="+safe["failedStep"]+"; cleanupVerified="+str(safe["cleanupVerified"]).lower()+".",file=sys.stderr)
+  details="".join("; "+key+"="+str(safe[key]) for key in ("failedOperation","errorCode","loginResponseStatus") if key in safe)
+  print("Private QA browser report: failedStep="+safe["failedStep"]+"; cleanupVerified="+str(safe["cleanupVerified"]).lower()+details+".",file=sys.stderr)
   break
 except (OSError,ValueError,TypeError): pass
 BROWSER_FAILURE

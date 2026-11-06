@@ -40,6 +40,20 @@ test("browser identity reader accepts Next's actual text-asset MIME and parses e
   assert.deepEqual(result, marker);
 });
 
+test("login failures retain only fixed operations and allowlisted codes, never Playwright credential diagnostics", () => {
+  const source = fs.readFileSync(path.join(root, "tests/staging/browser-auth-smoke.mjs"), "utf8");
+  const codes = source.match(/^const SAFE_LOGIN_ERRORS = [^\n]+/m)[0];
+  const handler = source.match(/\} catch \(error\) \{\n([\s\S]*?)^\} finally \{/m)[1];
+  for (const [message, expected] of [["secure-session-cookie-required", "secure-session-cookie-required"], ["locator.fill failed with password=SENSITIVE_FIXTURE_VALUE", "browser-operation-failed"]]) {
+    const report = {};
+    vm.runInNewContext(`${codes}\n${handler}`, { error: new Error(message), report, step: "parent-browser-login", operation: "cookie-attributes" });
+    assert.equal(report.failedStep, "parent-browser-login");
+    assert.equal(report.failedOperation, "cookie-attributes");
+    assert.equal(report.errorCode, expected);
+    assert.doesNotMatch(JSON.stringify(report), /SENSITIVE_FIXTURE_VALUE|locator.fill/);
+  }
+});
+
 function refused(verify, { baseURL = valid.baseURL, id = qaId, cleanupVerified = true } = {}) {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "bangla-private-browser-"));
   try {
