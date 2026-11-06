@@ -8,6 +8,7 @@ import {
   type CatalogBook, type HeldLinks, type SourceOverride,
 } from "./library-links";
 import type { Staff } from "./class-access";
+import { canPublishContent } from "./roles";
 
 /**
  * The textbook catalogue as everyone sees it: the shipped NCTB records merged with
@@ -113,6 +114,17 @@ function describedFields(raw: Record<string, unknown>): SourceOverride {
   return out;
 }
 
+/**
+ * The acting account, read again inside the change's transaction: an administrator demoted, suspended or
+ * given a temporary password since the route checked the session can no longer change the catalogue.
+ */
+function requireAdministrator(tx: Transaction, actorId: string) {
+  const current = tx.select({
+    role: adults.role, status: adults.status, teacherStatus: adults.teacherStatus, approvalStatus: adults.approvalStatus, mustChangePassword: adults.mustChangePassword,
+  }).from(adults).where(eq(adults.id, actorId)).get();
+  if (!current || !canPublishContent(current)) throw refuse({ en: "Administrator access required.", bn: "প্রশাসকের অ্যাকাউন্ট প্রয়োজন।" }, 403);
+}
+
 function audit(tx: Transaction, actorId: string, bookId: string, action: string, details: Record<string, unknown>) {
   tx.insert(userAuditEvents).values({ id: crypto.randomUUID(), actorId, targetId: bookId, targetType: "library-source", action, detailsJson: JSON.stringify(details) }).run();
 }
@@ -138,6 +150,7 @@ const warningsFor = (urls: Array<string | null>) => (urls.some((url) => url && !
 export async function updateLibrarySource(actor: Staff & { email: string }, id: string, raw: Record<string, unknown>) {
   const db = await getDb();
   return db.transaction((tx) => {
+    requireAdministrator(tx, actor.id);
     const isBaseline = libraryBooks.some((book) => book.id === id);
     const row = tx.select().from(knowledgeSources).where(eq(knowledgeSources.id, id)).get();
     if (!isBaseline && !row) throw refuse({ en: "Source not found.", bn: "উৎসটি পাওয়া যায়নি।" }, 404);
@@ -220,6 +233,7 @@ export async function addLibrarySource(actor: Staff & { email: string }, raw: Re
   const data: SourceOverride = { level: "secondary", status: "confirm", subjectArea: { en: "Added by an administrator", bn: "প্রশাসকের যোগ করা" }, ...fields, downloadUrl: url };
   const db = await getDb();
   db.transaction((tx) => {
+    requireAdministrator(tx, actor.id);
     store(tx, actor, id, data);
     audit(tx, actor.id, id, "library-source-added", { bookId: id, title: fields.titleEn, url });
   });
@@ -230,6 +244,7 @@ export async function addLibrarySource(actor: Staff & { email: string }, raw: Re
 export async function resetLibrarySource(actor: Staff, id: string) {
   const db = await getDb();
   return db.transaction((tx) => {
+    requireAdministrator(tx, actor.id);
     const removed = tx.delete(knowledgeSources).where(eq(knowledgeSources.id, id)).returning().get();
     if (!removed) throw refuse({ en: "This source has no changes to undo.", bn: "এই উৎসে ফেরানোর মতো কোনো পরিবর্তন নেই।" }, 404);
     audit(tx, actor.id, id, "library-source-reset", { bookId: id, previous: removed.dataJson });
