@@ -245,5 +245,41 @@ class InstallerTests(unittest.TestCase):
             self.assertIn('UMask=0077', service); self.assertIn('SuccessExitStatus=75', service)
             self.assertNotIn('User=root', service); self.assertNotIn('/etc/systemd/system', service)
 
+    def test_unit_directories_allow_only_the_users_private_group_to_write(self):
+        def info(mode, uid=1002, gid=1002, kind=0o040000):
+            return os.stat_result((kind | mode, 0, 0, 1, uid, gid, 0, 0, 0, 0))
+        problem = installer.unit_directory_problem
+        self.assertIsNone(problem(info(0o700), True, 1002))
+        self.assertIsNone(problem(info(0o755), True, None))
+        # Ubuntu's 002 umask for a user private group.
+        self.assertIsNone(problem(info(0o775), True, 1002))
+        self.assertEqual(problem(info(0o775), True, None), 'writable')
+        self.assertEqual(problem(info(0o775, gid=100), True, 1002), 'writable')
+        self.assertEqual(problem(info(0o757), True, 1002), 'writable')
+        self.assertEqual(problem(info(0o1777), True, 1002), 'writable')
+        self.assertEqual(problem(info(0o700, uid=0), True, 1002), 'owner')
+        self.assertEqual(problem(info(0o700), False, 1002), 'type')
+        self.assertEqual(problem(info(0o700, kind=0o120000), True, 1002), 'type')
+
+    def test_private_group_requires_a_group_nobody_else_can_use(self):
+        user = installer.ops.pwd.struct_passwd(('deployer', 'x', 1002, 1002, '', '/home/deployer', '/bin/bash'))
+        other = installer.ops.pwd.struct_passwd(('someone', 'x', 1003, 1002, '', '/home/someone', '/bin/bash'))
+        def group(name, members):
+            return installer.grp.struct_group((name, 'x', 1002, members))
+        cases = [(group('deployer', []), [user], 1002), (group('deployer', ['deployer']), [user], 1002),
+                 (group('deployer', ['someone']), [user], None), (group('staff', []), [user], None),
+                 (group('deployer', []), [user, other], None)]
+        for entry, users, expected in cases:
+            with patch.object(installer.grp, 'getgrgid', return_value=entry), patch.object(installer.ops.pwd, 'getpwall', return_value=users):
+                self.assertEqual(installer.private_group(user), expected)
+        with patch.object(installer.grp, 'getgrgid', side_effect=KeyError(1002)):
+            self.assertIsNone(installer.private_group(user))
+
+    def test_every_specific_unit_directory_code_is_reported_by_acceptance(self):
+        script = (ROOT / 'scripts/private-staging-acceptance.sh').read_text()
+        for part in installer.UNIT_PARTS:
+            for kind in ('type', 'owner', 'writable'):
+                self.assertIn(f' unsafe-unit-directory-{part}-{kind} ', script)
+
 
 if __name__ == '__main__': unittest.main()

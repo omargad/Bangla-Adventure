@@ -44,6 +44,14 @@ A deferred/busy result or an older successful receipt cannot pass installation.
 Failure restores the prior managed files and timer states under the deployment
 lock. No root system unit, Nginx setting or firewall rule is installed.
 
+The units run as the deployment user, so every folder from its home directory
+down to `~/.config/systemd/user` must be a real directory owned by that user that
+nobody else can write to. Group write is accepted only when the group is the
+user's own private group with no other members, which is Ubuntu's default (its
+`002` umask makes such folders group-writable). Installation never changes these
+permissions; a refusal names the folder and the reason, for example
+`unsafe-unit-directory-config-writable`.
+
 The runtime entry point is:
 
 ```sh

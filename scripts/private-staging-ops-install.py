@@ -2,6 +2,7 @@
 """Install managed private-staging user units; no root/system units or offsite jobs."""
 from __future__ import annotations
 
+import grp
 import importlib.util
 import json
 import os
@@ -32,14 +33,42 @@ def userctl(*args: str, okay: bool = False):
     return ops.command(["systemctl", "--user", "--no-pager", *args], okay=okay, extra_env={"XDG_RUNTIME_DIR": str(runtime), "DBUS_SESSION_BUS_ADDRESS": "unix:path=" + str(bus)})
 
 
+UNIT_PARTS = ("home", "config", "systemd", "user")
+
+
+def private_group(user: ops.pwd.struct_passwd) -> int | None:
+    """The user's own group when nobody else can be in it (Ubuntu's user private group)."""
+    try:
+        group = grp.getgrgid(user.pw_gid)
+    except KeyError:
+        return None
+    others = [entry for entry in ops.pwd.getpwall() if entry.pw_gid == user.pw_gid and entry.pw_uid != user.pw_uid]
+    return user.pw_gid if group.gr_name == user.pw_name and set(group.gr_mem) <= {user.pw_name} and not others else None
+
+
+def unit_directory_problem(info: os.stat_result, resolved: bool, safe_group: int | None) -> str | None:
+    """Units here run as the deployment user, so only that user may be able to change the path."""
+    if not stat.S_ISDIR(info.st_mode) or not resolved:
+        return "type"
+    if info.st_uid != 1002:
+        return "owner"
+    # Ubuntu gives users with their own group a 002 umask, so their folders are group-writable.
+    # That is only safe while the group is the user's private group.
+    if info.st_mode & 0o002 or (info.st_mode & 0o020 and info.st_gid != safe_group):
+        return "writable"
+    return None
+
+
 def owned_config(path: Path, *, create: bool = False) -> None:
-    home = Path(ops.pwd.getpwuid(1002).pw_dir)
+    user = ops.pwd.getpwuid(1002)
+    home = Path(user.pw_dir)
     ops.require(path == home / ".config/systemd/user", "user-unit-path")
-    for current in (home, home / ".config", home / ".config/systemd", path):
+    safe_group = private_group(user)
+    for part, current in zip(UNIT_PARTS, (home, home / ".config", home / ".config/systemd", path)):
         if create and not current.exists():
             current.mkdir(mode=0o700)
-        info = current.lstat()
-        ops.require(stat.S_ISDIR(info.st_mode) and info.st_uid == 1002 and not(info.st_mode & 0o022) and current.resolve() == current, "unsafe-unit-directory")
+        problem = unit_directory_problem(current.lstat(), current.resolve() == current, safe_group)
+        ops.require(problem is None, f"unsafe-unit-directory-{part}-{problem}")
 
 
 def atomic(path: Path, content: bytes) -> None:
