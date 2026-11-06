@@ -46,6 +46,9 @@ MAX_MONITOR_REPORT_AGE = 20 * 60
 MAX_BACKUP_REPORT_AGE = 48 * 3600
 PRECHECK_TIMEOUT = 120
 HEALTH_TIMEOUT = 180
+# compose.yaml's stop_grace_period: Docker kills the app this long after a stop request.
+STOP_GRACE = 30
+STOP_MARGIN = 30
 BACKUP_TIMEOUT = 30 * 60
 OFFSITE_TIMEOUT = 3 * 3600
 # The whole off-site run stays inside the unit's TimeoutStartSec=4h.
@@ -356,14 +359,18 @@ class Production:
         if not os.path.lexists(path):
             raise Refused("deployment-missing")
         info = regular(path, self.s.uid)
-        # The kernel's form: "ID: FLOCK ADVISORY WRITE PID MAJ:MIN:INODE START END", device numbers in hex.
-        key = f"{os.major(info.st_dev):02x}:{os.minor(info.st_dev):02x}:{info.st_ino}"
+        # The kernel's form: "ID: FLOCK ADVISORY WRITE PID MAJ:MIN:INODE START END". Only the inode is
+        # compared: on btrfs subvolumes and some overlay set-ups stat's device is not the kernel's, which
+        # would hide every deploy. A lock on another device's file with the same inode number can only
+        # make a run defer (exit 75), the safe direction; one that lasted would show as monitor-report-stale.
+        inode = str(info.st_ino)
         try:
             table = Path("/proc/locks").read_text(encoding="ascii")
         except (OSError, ValueError) as exc:
             raise Refused("lock-state-unreadable") from exc
         # A "->" line is a waiter, not a holder; flock(1) and Python's flock both appear as FLOCK.
-        return any(len(fields) >= 6 and fields[1] == "FLOCK" and fields[5] == key for fields in map(str.split, table.splitlines()))
+        return any(len(fields) >= 6 and fields[1] == "FLOCK" and fields[5].rpartition(":")[2] == inode
+                   for fields in map(str.split, table.splitlines()))
 
     def write_status(self, action: str, value: dict) -> None:
         private_dir(self.s.ops, self.s.uid)
@@ -440,6 +447,19 @@ class Production:
                 return False
             time.sleep(3)
 
+    def wait_until_stopped(self, cfg: dict, timeout: float) -> bool:
+        """Wait for a stop the daemon may already be carrying out; False if the app still runs at the deadline."""
+        deadline = time.monotonic() + timeout
+        while True:
+            try:
+                if not self.serving_state(self.app(self.containers(cfg)))[0]:
+                    return True
+            except (Refused, ValueError):
+                pass  # A passing Docker error: keep waiting, then start the app regardless.
+            if time.monotonic() >= deadline:
+                return False
+            time.sleep(1)
+
     def wait_until_serving(self, cfg: dict, timeout: float) -> dict:
         deadline = time.monotonic() + timeout
         while True:
@@ -501,10 +521,30 @@ class Production:
         require(result.returncode == 0 and bool(lines) and lines[-1] in ("cleared", "clean"), "stale-backup-lock")
         return lines[-1] == "cleared"
 
+    def backup_writer_running(self) -> bool:
+        """Whether a running container can write to backups/, as only a backup in progress does.
+
+        This tool's labelled helpers (found as remove_owned finds them) and anything else with backups/
+        bind-mounted, such as a deploy's backup helper that outlived a killed deploy. A read-only mount,
+        like the monitor's receipt reader, cannot hold the backup lock.
+        """
+        backups = str(self.s.backups)
+        ids = set()
+        for selector in ("label=io.bangla.scope=" + SCOPE, "volume=" + backups):
+            ids.update(self.docker("ps", "--quiet", "--no-trunc", "--filter", selector).stdout.split())
+        for cid in sorted(ids):
+            require(re.fullmatch(r"[a-f0-9]{64}", cid) is not None, "container-id")
+            for mount in self.inspect("container", cid).get("Mounts") or []:
+                # Unknown shapes count as writable.
+                if not isinstance(mount, dict) or (mount.get("RW") is not False
+                                                   and {mount.get("Source"), mount.get("Destination")} & {backups, "/backups"}):
+                    return True
+        return False
+
     def receipt(self, cfg: dict, *, verify: bool) -> dict:
         """Read the newest successful-backup receipt in a short-lived container as uid 1000."""
         if not os.path.lexists(self.s.backups):
-            return {"present": False}
+            return {"present": False, "backupLock": False}
         options = ["--network", "none", "--user", "1000:1000", "--read-only", "--cap-drop", "ALL", "--security-opt", "no-new-privileges:true",
                    "--tmpfs", "/tmp:rw,noexec,nosuid,nodev,size=64m", "--mount", f"type=bind,source={self.s.backups},target=/backups,readonly"]
         if verify:
@@ -518,8 +558,10 @@ class Production:
         require(bool(lines), "backup-receipt-unreadable")
         value = json.loads(lines[-1])
         require(isinstance(value, dict) and type(value.get("present")) is bool, "backup-receipt-unreadable")
+        # backup_restore.py's lock, seen in passing: the monitor reports one that outlived its backup.
+        locked = value.get("backupLock") is True
         if not value["present"]:
-            return {"present": False}
+            return {"present": False, "backupLock": locked}
         require(isinstance(value.get("archive"), str) and ARCHIVE.fullmatch(value["archive"]) is not None
                 and isinstance(value.get("sha256"), str) and re.fullmatch(r"[0-9a-f]{64}", value["sha256"]) is not None
                 and type(value.get("bytes")) is int and value["bytes"] > 0, "backup-receipt-unreadable")
@@ -532,7 +574,7 @@ class Production:
             value = {**value, "verified": value.get("verified") is True and value.get("sha256Matches") is True, "createdEpoch": created}
         else:
             value = {**value, "createdEpoch": archive_epoch(value["archive"])}
-        return value
+        return {**value, "backupLock": locked}
 
     def backup(self) -> dict:
         self.check_user()
@@ -540,24 +582,34 @@ class Production:
         try:
             self.platform()
             cfg = self.env_settings()
-            self.wait_until_serving(cfg, PRECHECK_TIMEOUT)
-            free = self.free_bytes()
-            require(free >= MIN_FREE_BYTES, "disk-low")
             self.prepare_backups(cfg)
+            # A lock left by a run whose recovery never ran (systemd's SIGKILL, a power cut) fails this backup
+            # and every deploy's. It is provably stale here: this run holds the deploy lock, which every backup
+            # path takes, and no container that could write to backups/ is running. Cleared before the app is
+            # checked, as such a run may also have left the app stopped, and a deploy would start it again.
+            require(not self.backup_writer_running(), "backup-helper-running")
+            notices = ["stale-backup-lock-cleared-at-start"] if self.clear_stale_backup(cfg) else []
+            try:
+                self.wait_until_serving(cfg, PRECHECK_TIMEOUT)
+                free = self.free_bytes()
+                require(free >= MIN_FREE_BYTES, "disk-low")
+            except Refused as exc:
+                raise Refused(*exc.codes, *notices) from exc
             token = secrets.token_hex(12)
-            stopped = resumed = killed = False
+            stopping = stopped = resumed = killed = False
             cleaned = True
             stale = None
             failure: BaseException | None = None
             output = None
             began = back = 0.0
             try:
-                stopped = True  # Recovery also runs after a partially successful stop.
                 began = time.monotonic()
+                stopping = True  # Recovery runs from here on, also after a partial or interrupted stop.
                 try:
                     self.compose(cfg, "stop", "app", timeout=120)
                 except Refused as exc:
                     raise Refused("app-stop-failed") from exc
+                stopped = True
                 found = self.containers(cfg)
                 require(not any(((c.get("State") or {}).get("Running")) for c in found), "writers-not-stopped")
                 require(not self.docker("ps", "--quiet", "--filter", "volume=" + cfg["project"] + "_bangla-data").stdout.strip(), "source-still-in-use")
@@ -573,7 +625,7 @@ class Production:
             except BaseException as exc:
                 failure = exc
             finally:
-                if stopped:
+                if stopping:
                     previous = quiet_signals()
                     try:
                         try:
@@ -582,6 +634,13 @@ class Production:
                         except BaseException:
                             cleaned = False
                         try:
+                            if not stopped:
+                                # The daemon finishes a stop whose command was cut short: the app drains, then
+                                # exits as stopped by hand, which `restart: unless-stopped` never undoes, while
+                                # `up` meanwhile sees a running container and does nothing. So start it only once
+                                # it has exited. Still running after the grace period means the stop never reached
+                                # the daemon, which would have killed it: the app is then left as it is.
+                                self.wait_until_stopped(cfg, STOP_GRACE + STOP_MARGIN)
                             # The same container again, whatever happened: never a recreated one.
                             self.compose(cfg, "up", "--detach", "--no-build", "--no-recreate", "app", timeout=HEALTH_TIMEOUT)
                             resumed = self.wait_for_health(cfg["port"], HEALTH_TIMEOUT)
@@ -610,11 +669,13 @@ class Production:
             if not resumed:
                 codes.append("resume-failed")
             if codes:
-                raise Refused(*codes)
+                raise Refused(*codes, *notices)
             latest = self.receipt(cfg, verify=False)
-            require(latest["present"] and latest["archive"] == output["archive"] and latest["sha256"] == output["sha256"], "backup-unverified")
+            if not (latest["present"] and latest["archive"] == output["archive"] and latest["sha256"] == output["sha256"]):
+                raise Refused("backup-unverified", *notices)
+            # A passing run keeps its notice, so status shows the clean-up without failing.
             value = {"scope": SCOPE, "action": "backup", "verified": True, "status": "passed", "checkedAtEpoch": time.time(),
-                     "invocationId": invocation_id(), "overridden": self.s.overridden, "codes": [],
+                     "invocationId": invocation_id(), "overridden": self.s.overridden, "codes": notices,
                      "checks": {"appServingBefore": True, "writersStopped": True, "backupVerified": True, "appResumedHealthy": True},
                      "backup": {"archive": output["archive"], "sha256": output["sha256"], "files": output["files"],
                                 "bytes": latest["bytes"], "createdEpoch": latest["createdEpoch"], "retained": KEEP},
@@ -644,7 +705,7 @@ class Production:
             try:
                 latest = self.receipt(cfg, verify=False)
             except (Refused, ValueError, KeyError):
-                latest = {"present": False}
+                latest = {"present": False, "backupLock": False}
             last = self.read_report("backup")
             offsite = None
             if self.offsite_configured():
@@ -658,11 +719,14 @@ class Production:
                 "portsConfined": ports_confined(found, cfg["port"]), "freeDiskBytes": self.free_bytes(),
                 "backup": {"present": latest["present"], "createdEpoch": latest.get("createdEpoch")},
                 "lastBackupRunPassed": bool(last) and last.get("status") == "passed",
+                # Read with the receipt, so no extra container. A backup holds the deploy lock, and the
+                # deploy lock is checked again below before a failure is recorded.
+                "backupLockPresent": latest.get("backupLock") is True,
                 "public": self.public_facts(cfg["origin"]) if cfg["origin"] else None,
                 "offsite": offsite,
             }
             value = evaluate_monitor(facts)
-            # A deploy that began during the checks explains a stopped app: defer, do not alarm.
+            # A deploy that began during the checks explains a stopped app or a backup lock: defer, do not alarm.
             if not value["verified"] and self.deploy_busy():
                 raise Refused("transaction-busy")
             value.update(invocationId=invocation_id(), overridden=self.s.overridden)
@@ -858,11 +922,12 @@ echo "$found"
 '''
 
 RECEIPT_SCRIPT = r'''
-import hashlib,json,pathlib,re,subprocess,sys
+import hashlib,json,os,pathlib,re,subprocess,sys
 root=pathlib.Path('/backups');marker=root/'.latest-backup.json'
 pattern=re.compile(r'bangla-data-\d{8}T\d{12}Z-[0-9a-f]{12}\.tar\.gz')
+locked=os.path.lexists(root/'.bangla-backup.lock')
 def out(value):
- print(json.dumps(value));raise SystemExit(0)
+ print(json.dumps(dict(value,backupLock=locked)));raise SystemExit(0)
 try:
  if not marker.is_file() or marker.is_symlink() or marker.stat().st_size>4096:out(dict(present=False))
  receipt=json.loads(marker.read_text());name=receipt.get('archive');expected=receipt.get('sha256')
@@ -950,17 +1015,18 @@ MONITOR_CODES = {
     "loopbackHealth": "health-unavailable", "appRunning": "app-not-running", "appHealthy": "app-unhealthy",
     "appImageCurrent": "app-image-mismatch", "portsConfined": "port-exposed", "diskSpace": "disk-low",
     "backupPresent": "backup-missing", "backupFresh": "backup-stale-or-future", "lastBackupRunPassed": "backup-job-failed",
-    "publicHealth": "public-health-failed", "certificateValid": "certificate-expiring-or-invalid", "offsiteFresh": "offsite-stale",
+    "backupLockClear": "stale-backup-lock-found", "publicHealth": "public-health-failed",
+    "certificateValid": "certificate-expiring-or-invalid", "offsiteFresh": "offsite-stale",
 }
 
 
 def evaluate_monitor(facts: dict) -> dict:
     """Pure checks over bounded facts; None marks a check that does not apply."""
     expected = {"checkedAtEpoch", "loopbackHealth", "appRunning", "appHealthy", "appImageCurrent", "portsConfined",
-                "freeDiskBytes", "backup", "lastBackupRunPassed", "public", "offsite"}
+                "freeDiskBytes", "backup", "lastBackupRunPassed", "backupLockPresent", "public", "offsite"}
     if not isinstance(facts, dict) or set(facts) != expected:
         raise ValueError("Invalid monitor facts")
-    for name in ("loopbackHealth", "appRunning", "appHealthy", "appImageCurrent", "portsConfined", "lastBackupRunPassed"):
+    for name in ("loopbackHealth", "appRunning", "appHealthy", "appImageCurrent", "portsConfined", "lastBackupRunPassed", "backupLockPresent"):
         if type(facts[name]) is not bool:
             raise ValueError("Invalid monitor boolean")
     now = facts["checkedAtEpoch"]
@@ -990,6 +1056,7 @@ def evaluate_monitor(facts: dict) -> dict:
         "appImageCurrent": facts["appImageCurrent"], "portsConfined": facts["portsConfined"],
         "diskSpace": facts["freeDiskBytes"] >= MIN_FREE_BYTES, "backupPresent": backup["present"],
         "backupFresh": backup["present"] and within(created, MAX_BACKUP_AGE), "lastBackupRunPassed": facts["lastBackupRunPassed"],
+        "backupLockClear": not facts["backupLockPresent"],
         "publicHealth": None if public is None else public["health"],
         "certificateValid": None if public is None else expires is not None and expires - now >= MIN_CERTIFICATE_SECONDS,
         "offsiteFresh": None if offsite is None else within(copied, MAX_OFFSITE_AGE),
