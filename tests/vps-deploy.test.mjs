@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -26,6 +26,7 @@ const appImage = /^APP_IMAGE=(.*)$/m.exec(dotenv)?.[1] || '';
 const entry = { command, args, dockerHost: env.DOCKER_HOST || '', dockerContext: env.DOCKER_CONTEXT || '', dockerConfig: env.DOCKER_CONFIG || '', appImage };
 entry.compose = fs.existsSync('compose.yaml') ? fs.readFileSync('compose.yaml', 'utf8') : '';
 entry.project = /^COMPOSE_PROJECT_NAME=(.*)$/m.exec(dotenv)?.[1] || '';
+entry.narrationKey = /^ELEVENLABS_API_KEY=(.*)$/m.exec(dotenv)?.[1] || '';
 if (command === 'docker' && env.DOCKER_CONFIG && fs.existsSync(path.join(env.DOCKER_CONFIG, 'config.json'))) {
   entry.hasPrivateRegistryConfig = true;
   entry.hasContextMetadata = fs.existsSync(path.join(env.DOCKER_CONFIG, 'contexts', 'fixture-context'));
@@ -44,7 +45,8 @@ if (command === 'ssh') {
 if (command === 'cp') {
   const [source, destination] = args.slice(-2);
   if ((env.MOCK_COPY_FAIL === 'snapshot' && destination.includes('/.deploy-transaction.')) ||
-      (env.MOCK_COPY_FAIL === 'promotion' && destination === 'deploy-remote.sh.incoming')) done(1);
+      (env.MOCK_COPY_FAIL === 'promotion' && destination === 'deploy-remote.sh.incoming') ||
+      (env.MOCK_COPY_FAIL === 'settings' && destination === '.env.restore')) done(1);
   fs.copyFileSync(source, destination);
   fs.chmodSync(destination, fs.statSync(source).mode);
   done();
@@ -128,7 +130,7 @@ function fixture(t) {
   for (const command of ["docker", "ssh", "ssh-keygen", "curl", "git", "id", "sleep", "cp"]) {
     writeFileSync(path.join(root, "bin", command), `#!${process.execPath}\nconst command = ${JSON.stringify(command)};\n${stub}`, { mode: 0o755 });
   }
-  const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^(DEPLOY_|REGISTRY_|DOCKER_|MOCK_|PUBLIC_HEALTH_URL$)/.test(key)));
+  const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^(DEPLOY_|REGISTRY_|DOCKER_|MOCK_|ELEVENLABS_|PUBLIC_HEALTH_URL$)/.test(key)));
   Object.assign(env, {
     PATH: `${path.join(root, "bin")}:${process.env.PATH}`, TMPDIR: path.join(root, "temporary"),
     DOCKER_CONFIG: path.join(root, "docker-config"), MOCK_LOG: path.join(root, "commands.jsonl"),
@@ -157,7 +159,7 @@ function fixture(t) {
     writeFileSync(path.join(directory, "compose.yaml"), `# ${label}\nservices:\n  app:\n    ports: ["127.0.0.1:3001:3000"]\n    volumes: ["bangla-data:/app/.data"]\nvolumes:\n  bangla-data:\n`);
     return directory;
   };
-  return { root, env, calls, run, frontend, remote, stage, temporary: () => readdirSync(path.join(root, "temporary")), currentImage: () => /^APP_IMAGE=(.*)$/m.exec(readFileSync(path.join(root, "remote", ".env"), "utf8"))?.[1] };
+  return { root, env, frontEnv, calls, run, frontend, remote, stage, temporary: () => readdirSync(path.join(root, "temporary")), currentImage: () => /^APP_IMAGE=(.*)$/m.exec(readFileSync(path.join(root, "remote", ".env"), "utf8"))?.[1] };
 }
 
 const successful = result => assert.equal(result.status, 0, result.stderr + result.stdout);
@@ -304,6 +306,8 @@ test("a competing staged release is refused under the real file lock without tou
   const directory = path.join(f.root, "remote");
   const saved = ["compose.yaml", "deploy-remote.sh"].map(file => readFileSync(path.join(directory, file), "utf8"));
   const stage = f.stage("competing release");
+  writeFileSync(path.join(stage, "narration.env"), "ELEVENLABS_API_KEY=FIXTURE_NARRATION_KEY_NOT_REAL_0001\n");
+  const settings = readFileSync(path.join(directory, ".env"), "utf8");
   const holder = spawn("flock", ["-x", path.join(directory, ".deploy.lock"), "sh", "-c", "printf locked; read release"], { stdio: ["pipe", "pipe", "pipe"] });
   t.after(() => holder.kill());
   await once(holder.stdout, "data");
@@ -312,10 +316,25 @@ test("a competing staged release is refused under the real file lock without tou
   assert.match(result.stderr, /another deployment is running/);
   assert.deepEqual(["compose.yaml", "deploy-remote.sh"].map(file => readFileSync(path.join(directory, file), "utf8")), saved);
   assert.deepEqual(f.calls(), [], "the rejected attempt does not even contact Docker");
-  assert.equal(existsSync(stage), false, "only the rejected attempt's staging is removed");
+  assert.equal(existsSync(stage), false, "only the rejected attempt's staging is removed, with its narration settings");
+  assert.equal(readFileSync(path.join(directory, ".env"), "utf8"), settings);
   const exited = once(holder, "exit");
   holder.stdin.end("release\n");
   await exited;
+});
+
+test("a staged narration file that is not a regular file is refused and removed with its stage", t => {
+  const f = fixture(t);
+  const directory = path.join(f.root, "remote");
+  const settings = readFileSync(path.join(directory, ".env"), "utf8");
+  const stage = f.stage();
+  symlinkSync(path.join(directory, ".env"), path.join(stage, "narration.env"));
+  const result = f.remote({ stage });
+  failed(result);
+  assert.match(result.stderr, /staged release files must be regular files/);
+  assert.equal(readFileSync(path.join(directory, ".env"), "utf8"), settings, "the link target is untouched");
+  assert.equal(existsSync(stage), false);
+  assert.deepEqual(f.calls(), []);
 });
 
 test("an incomplete owned stage is cleaned before live files or Docker are touched", t => {
@@ -438,6 +457,220 @@ test("failed first-release settings restoration is reported and retains the reco
   assert.equal(existsSync(stage), false);
 });
 
+// Fixture values only; never a provider credential.
+const narrationKey = "FIXTURE_NARRATION_KEY_NOT_REAL_0001";
+const oldNarrationKey = "FIXTURE_OLD_NARRATION_KEY_NOT_REAL_01";
+const narrationSettings = { ELEVENLABS_API_KEY: narrationKey, ELEVENLABS_VOICE_ID: "FixtureVoice0123", ELEVENLABS_MODEL_ID: "eleven_v3", ELEVENLABS_DAILY_CHARACTER_LIMIT: "5000" };
+const mode = file => statSync(file).mode & 0o777;
+const writeSettings = (directory, text, permissions) => {
+  writeFileSync(path.join(directory, ".env"), text);
+  chmodSync(path.join(directory, ".env"), permissions);
+};
+const leftovers = directory => readdirSync(directory).filter(file => /^\.env\.|^\.deploy-(transaction|stage)\./.test(file));
+const quiet = (f, result, ...values) => {
+  const log = path.join(f.root, "remote", "deploy.log");
+  const output = `${result.stdout}${result.stderr}${existsSync(log) ? readFileSync(log, "utf8") : ""}`;
+  for (const value of values) {
+    assert.equal(output.includes(value), false, "a narration value is never printed or logged");
+    assert.equal(f.calls().some(call => call.args.some(arg => arg.includes(value))), false, "a narration value is never on a command line");
+  }
+};
+const composeUps = f => dockerCalls(f).filter(call => call.args[0] === "compose" && call.args[1] === "up" && !call.args.includes("--help"));
+
+test("staged narration settings replace or append their .env lines privately, and the staged file is deleted", t => {
+  const f = fixture(t);
+  const directory = path.join(f.root, "remote");
+  writeSettings(directory, [
+    "# operator notes stay", "PUBLIC_ORIGIN=https://demo.example.invalid", `APP_IMAGE=${previous}`, "COMPOSE_PROJECT_NAME=bangla-adventures",
+    "# ELEVENLABS_API_KEY=commented-out-example", `ELEVENLABS_API_KEY=${oldNarrationKey}`,
+    "OTHER_SETTING=kept value # with its comment", "", `ELEVENLABS_API_KEY=${oldNarrationKey}`,
+  ].join("\n"), 0o600);
+  const stage = f.stage();
+  writeFileSync(path.join(stage, "narration.env"), `ELEVENLABS_API_KEY=${narrationKey}\nELEVENLABS_VOICE_ID=FixtureVoice0123\n`, { mode: 0o600 });
+  const result = f.remote({ stage });
+  successful(result);
+  assert.equal(readFileSync(path.join(directory, ".env"), "utf8"), [
+    "# operator notes stay", "PUBLIC_ORIGIN=https://demo.example.invalid", `APP_IMAGE=${image}`, "COMPOSE_PROJECT_NAME=bangla-adventures",
+    "# ELEVENLABS_API_KEY=commented-out-example", `ELEVENLABS_API_KEY=${narrationKey}`,
+    "OTHER_SETTING=kept value # with its comment", "", `ELEVENLABS_API_KEY=${narrationKey}`,
+    "ELEVENLABS_VOICE_ID=FixtureVoice0123", "",
+  ].join("\n"), "every copy of a staged name is replaced, a missing one appended and every other line kept");
+  assert.equal(mode(path.join(directory, ".env")), 0o600);
+  const validation = dockerCalls(f).find(call => call.args.includes("config"));
+  assert.equal(validation.narrationKey, narrationKey, "Compose validates the settings it will start with");
+  assert.deepEqual(composeUps(f).map(call => call.narrationKey), [narrationKey]);
+  assert.match(result.stdout, /updating ELEVENLABS_API_KEY ELEVENLABS_VOICE_ID in \.env/);
+  assert.equal(existsSync(stage), false, "the staged secret leaves with its stage");
+  assert.deepEqual(leftovers(directory), []);
+  quiet(f, result, narrationKey, oldNarrationKey);
+});
+
+test("all four narration settings are appended to an .env without them, also after a last line without a newline", t => {
+  const f = fixture(t);
+  const directory = path.join(f.root, "remote");
+  writeFileSync(path.join(directory, ".env"), `PUBLIC_ORIGIN=https://demo.example.invalid\nAPP_IMAGE=${previous}\nCOMPOSE_PROJECT_NAME=existing-client-project`);
+  const stage = f.stage();
+  writeFileSync(path.join(stage, "narration.env"), Object.entries(narrationSettings).map(([name, value]) => `${name}=${value}\n`).join(""));
+  successful(f.remote({ stage }));
+  assert.equal(readFileSync(path.join(directory, ".env"), "utf8"), [
+    "PUBLIC_ORIGIN=https://demo.example.invalid", `APP_IMAGE=${image}`, "COMPOSE_PROJECT_NAME=existing-client-project",
+    ...Object.entries(narrationSettings).map(([name, value]) => `${name}=${value}`), "",
+  ].join("\n"));
+  assert.equal(mode(path.join(directory, ".env")), 0o600);
+  assert.ok(composeUps(f).every(call => call.project === "existing-client-project"));
+  assert.deepEqual(leftovers(directory), []);
+});
+
+test("without staged narration settings, or with only some, the server's existing key is left alone", t => {
+  for (const staged of [null, "ELEVENLABS_VOICE_ID=FixtureVoice0123\n"]) {
+    const f = fixture(t);
+    const directory = path.join(f.root, "remote");
+    const settings = `PUBLIC_ORIGIN=https://demo.example.invalid\nAPP_IMAGE=${previous}\nCOMPOSE_PROJECT_NAME=bangla-adventures\nELEVENLABS_API_KEY=${oldNarrationKey}\n`;
+    writeSettings(directory, settings, 0o640);
+    const stage = f.stage();
+    if (staged) writeFileSync(path.join(stage, "narration.env"), staged);
+    const result = f.remote({ stage });
+    successful(result);
+    const expected = settings.replace(`APP_IMAGE=${previous}`, `APP_IMAGE=${image}`) + (staged || "");
+    assert.equal(readFileSync(path.join(directory, ".env"), "utf8"), expected);
+    if (!staged) assert.equal(mode(path.join(directory, ".env")), 0o640, "an untouched .env keeps its mode");
+    assert.deepEqual(composeUps(f).map(call => call.narrationKey), [oldNarrationKey]);
+    assert.equal(existsSync(stage), false);
+    quiet(f, result, oldNarrationKey);
+  }
+});
+
+test("invalid staged narration settings are refused before .env or the app changes, without showing them", t => {
+  for (const staged of [
+    "ELEVENLABS_API_KEY=short\n", `ELEVENLABS_API_KEY=${narrationKey} trailing\n`, `ELEVENLABS_API_KEY="${narrationKey}"\n`,
+    `ELEVENLABS_API_KEY=${narrationKey}$HOME\n`, `ELEVENLABS_API_KEY=${narrationKey}\nELEVENLABS_API_KEY=${narrationKey}\n`,
+    `ELEVENLABS_API_KEY=${narrationKey}\nPUBLIC_ORIGIN=https://elsewhere.invalid\n`, `${narrationKey}\n`, "",
+    "ELEVENLABS_VOICE_ID=bad-voice\n", "ELEVENLABS_MODEL_ID=Eleven\n", "ELEVENLABS_DAILY_CHARACTER_LIMIT=0\n",
+  ]) {
+    const f = fixture(t);
+    const directory = path.join(f.root, "remote");
+    const settings = readFileSync(path.join(directory, ".env"), "utf8");
+    const stage = f.stage();
+    writeFileSync(path.join(stage, "narration.env"), staged);
+    const result = f.remote({ stage });
+    failed(result);
+    assert.match(result.stderr, /the staged narration settings are invalid/);
+    assert.equal(readFileSync(path.join(directory, ".env"), "utf8"), settings);
+    assert.equal(dockerCalls(f).some(call => call.args[0] === "pull" || call.args.includes("config") || (call.args[1] === "up" && !call.args.includes("--help"))), false);
+    assert.equal(existsSync(stage), false, `${JSON.stringify(staged)}: the refused stage is removed`);
+    assert.deepEqual(leftovers(directory), []);
+    quiet(f, result, narrationKey);
+  }
+});
+
+test("a failed deployment puts back the previous .env, whether it fails before or after the release is saved", t => {
+  const cases = [
+    { label: "failed health", options: { env: { MOCK_PUBLIC_HEALTH_FAIL: image } }, ups: [narrationKey, oldNarrationKey] },
+    { label: "failed backup", options: { backup: "1", env: { MOCK_BACKUP_FAIL: "1" } }, ups: [oldNarrationKey] },
+    { label: "invalid Compose", options: { env: { MOCK_INVALID_COMPOSE: "1" } }, ups: [] },
+    { label: "failed pull", options: { registryUser: "fixture-registry-user", env: { MOCK_PULL_EXIT: "1" } }, ups: [] },
+    { label: "failed promotion", options: { env: { MOCK_COPY_FAIL: "promotion" } }, ups: [oldNarrationKey] },
+  ];
+  for (const { label, options, ups } of cases) {
+    const f = fixture(t);
+    const directory = path.join(f.root, "remote");
+    const settings = `PUBLIC_ORIGIN=https://demo.example.invalid\nAPP_IMAGE=${previous}\nELEVENLABS_API_KEY=${oldNarrationKey}\nAPP_PORT=3001\nCOMPOSE_PROJECT_NAME=existing-client-project\n`;
+    writeSettings(directory, settings, 0o600);
+    const stage = f.stage();
+    writeFileSync(path.join(stage, "narration.env"), `ELEVENLABS_API_KEY=${narrationKey}\nELEVENLABS_DAILY_CHARACTER_LIMIT=5000\n`);
+    const result = f.remote({ stage, ...options });
+    failed(result);
+    assert.equal(readFileSync(path.join(directory, ".env"), "utf8"), settings, `${label}: the previous .env is back`);
+    assert.equal(mode(path.join(directory, ".env")), 0o600, label);
+    assert.deepEqual(composeUps(f).map(call => call.narrationKey), ups, `${label}: the candidate starts with the new key, the restored release with the old one`);
+    assert.equal(existsSync(stage), false, label);
+    assert.deepEqual(leftovers(directory), [], `${label}: no copy of either key is left behind`);
+    quiet(f, result, narrationKey, oldNarrationKey);
+  }
+});
+
+test("a failed first release with narration settings restores the operator's .env exactly", t => {
+  const f = fixture(t);
+  const directory = path.join(f.root, "remote");
+  const stage = f.stage();
+  rmSync(path.join(directory, "compose.yaml"));
+  rmSync(path.join(directory, "deploy-remote.sh"));
+  const settings = "PUBLIC_ORIGIN=https://demo.example.invalid\nAPP_PORT=3001\nCOMPOSE_PROJECT_NAME=existing-client-project\n";
+  writeSettings(directory, settings, 0o600);
+  writeFileSync(path.join(stage, "narration.env"), `ELEVENLABS_API_KEY=${narrationKey}\n`);
+  failed(f.remote({ stage, env: { MOCK_NO_CONTAINER: "1", MOCK_PUBLIC_HEALTH_FAIL: image } }));
+  assert.equal(readFileSync(path.join(directory, ".env"), "utf8"), settings);
+  assert.equal(existsSync(path.join(directory, "compose.yaml")), false);
+  assert.equal(existsSync(stage), false);
+  assert.deepEqual(leftovers(directory), []);
+});
+
+test("an .env that cannot be put back is reported and its private copy kept for recovery", t => {
+  const f = fixture(t);
+  const directory = path.join(f.root, "remote");
+  const settings = `PUBLIC_ORIGIN=https://demo.example.invalid\nAPP_IMAGE=${previous}\nCOMPOSE_PROJECT_NAME=bangla-adventures\nELEVENLABS_API_KEY=${oldNarrationKey}\n`;
+  writeSettings(directory, settings, 0o600);
+  const stage = f.stage();
+  writeFileSync(path.join(stage, "narration.env"), `ELEVENLABS_API_KEY=${narrationKey}\n`);
+  const result = f.remote({ stage, env: { MOCK_INVALID_COMPOSE: "1", MOCK_COPY_FAIL: "settings" } });
+  failed(result);
+  assert.match(result.stdout + result.stderr, /the previous \.env could not be restored; it remains in \S+\.deploy-transaction\.\S+ for recovery/);
+  const kept = readdirSync(directory).filter(file => file.startsWith(".deploy-transaction."));
+  assert.equal(kept.length, 1);
+  assert.equal(readFileSync(path.join(directory, kept[0], ".env"), "utf8"), settings);
+  assert.equal(mode(path.join(directory, kept[0], ".env")), 0o600);
+  assert.equal(existsSync(stage), false);
+  quiet(f, result, narrationKey, oldNarrationKey);
+});
+
+test("the frontend stages narration settings in a private file, never on a command line or in a trace", t => {
+  const f = fixture(t);
+  const result = f.frontend(narrationSettings);
+  successful(result);
+  const commands = f.calls().filter(call => call.command === "ssh").map(call => call.args.at(-1));
+  const uploads = commands.filter(command => command.includes("narration.env"));
+  assert.equal(uploads.length, 1);
+  assert.match(uploads[0], /^umask 077; cat > \S+\/\.deploy-stage\.Fixture123\/narration\.env\.new && mv -f /);
+  assert.ok(commands.findIndex(command => command.includes("narration.env")) < commands.findIndex(command => command.startsWith("bash ")), "staged before the remote script runs");
+  for (const command of commands.filter(command => !command.includes("narration.env"))) assert.doesNotMatch(command, /umask 077; cat/, "release files keep their usual mode");
+  quiet(f, result, narrationKey);
+  assert.deepEqual(f.temporary(), [], "the local copy is removed");
+  const traced = spawnSync("bash", ["-x", path.join(f.root, "scripts/deploy.sh"), image], { cwd: f.root, env: { ...f.env, ...f.frontEnv, ...narrationSettings }, encoding: "utf8", timeout: 20_000 });
+  assert.equal(traced.status, 0, traced.stderr);
+  assert.equal(`${traced.stdout}${traced.stderr}`.includes(narrationKey), false, "tracing the script does not reveal the key");
+});
+
+test("empty narration settings send nothing, so the server keeps its own", t => {
+  const f = fixture(t);
+  successful(f.frontend(Object.fromEntries(Object.keys(narrationSettings).map(name => [name, ""]))));
+  assert.equal(f.calls().some(call => call.command === "ssh" && call.args.at(-1).includes("narration.env")), false);
+  assert.deepEqual(f.temporary(), []);
+});
+
+test("invalid narration settings stop the frontend before any connection, with a message that hides the value", t => {
+  for (const [name, value, message] of [
+    ["ELEVENLABS_API_KEY", "short-fixture", /ELEVENLABS_API_KEY must be the key alone/],
+    ["ELEVENLABS_API_KEY", `${narrationKey} with-space`, /ELEVENLABS_API_KEY must be the key alone/],
+    ["ELEVENLABS_API_KEY", `'${narrationKey}'`, /ELEVENLABS_API_KEY must be the key alone/],
+    ["ELEVENLABS_API_KEY", `${narrationKey}\n`, /ELEVENLABS_API_KEY must be the key alone/],
+    ["ELEVENLABS_API_KEY", `${narrationKey}$`, /ELEVENLABS_API_KEY must be the key alone/],
+    ["ELEVENLABS_API_KEY", `${narrationKey}é`, /ELEVENLABS_API_KEY must be the key alone/],
+    ["ELEVENLABS_API_KEY", narrationKey.repeat(6), /ELEVENLABS_API_KEY must be the key alone/],
+    ["ELEVENLABS_VOICE_ID", "FIXTURE_VOICE-1", /ELEVENLABS_VOICE_ID must be 10 to 40 letters and digits/],
+    ["ELEVENLABS_MODEL_ID", "Eleven_V3", /ELEVENLABS_MODEL_ID must be 3 to 40 lowercase/],
+    ["ELEVENLABS_DAILY_CHARACTER_LIMIT", "0500", /ELEVENLABS_DAILY_CHARACTER_LIMIT must be a positive whole number/],
+  ]) {
+    const f = fixture(t);
+    const result = f.frontend({ ...narrationSettings, [name]: value });
+    failed(result);
+    assert.match(result.stderr, message);
+    assert.equal(f.calls().some(call => call.command === "ssh"), false, `${name}: refused before SSH`);
+    assert.equal(`${result.stdout}${result.stderr}`.includes(value.trim()), false, `${name}: the refused value is not shown`);
+    assert.equal(`${result.stdout}${result.stderr}`.includes(narrationKey), false);
+    assert.deepEqual(f.temporary(), []);
+  }
+});
+
 test("newest-commit check distinguishes current, stale and unverifiable commits", t => {
   const cases = [
     [{}, 0], [{ MOCK_GIT_TIP: later }, 1], [{ MOCK_GIT_REMOTE_FAIL: "1" }, 2],
@@ -460,6 +693,10 @@ test("GitHub deployment requires the explicit gate and newest-check lookup error
   assert.match(deploy, /^    if: vars\.DEPLOY_ENABLED == 'true' && vars\.DEPLOY_HOST != ''$/m);
   assert.match(deploy, /^          DEPLOY_REQUIRE_ROOTLESS: 'true'$/m);
   assert.match(deploy, /^          DEPLOY_REQUIRE_PUBLIC_HEALTH: 'true'$/m);
+  assert.match(deploy, /^          ELEVENLABS_API_KEY: \$\{\{ secrets\.ELEVENLABS_API_KEY \}\}$/m, "the narration key comes only from a secret");
+  for (const name of ["ELEVENLABS_VOICE_ID", "ELEVENLABS_MODEL_ID", "ELEVENLABS_DAILY_CHARACTER_LIMIT"]) {
+    assert.match(deploy, new RegExp(`^          ${name}: \\$\\{\\{ vars\\.${name} \\}\\}$`, "m"));
+  }
   const checks = [...workflow.matchAll(/^        run: \|\n((?:^          .*\n|^\n)+)/gm)]
     .map(match => match[1].split("\n").map(line => line.slice(10)).join("\n"))
     .filter(script => script.includes("bash scripts/ci/newest.sh"));

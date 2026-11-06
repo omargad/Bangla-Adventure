@@ -244,6 +244,8 @@ to `deploy.log` in the deployment folder. `deploy-remote.sh`:
 
 - checks that Compose is 2.17 or newer and that the health timeout is a number, before it stops
   anything;
+- writes any narration settings it was given (`ELEVENLABS_*`, below) into `.env`, first saving
+  a private copy of the previous file that a failed deploy puts back;
 - pulls the image, signing in to the registry with a temporary configuration for that pull only
   (nothing is stored on the server). Without a registry user, an image already on the server is
   used as it is;
@@ -316,8 +318,10 @@ from the deployment folder: `docker compose exec app npm run admin:grant -- EMAI
 | `DEPLOY_REQUIRE_PUBLIC_HEALTH` | Fixed workflow setting | GitHub enforces `true`; portable scripts accept this environment setting and default to `false` |
 | `PUBLIC_HEALTH_URL` | Variable | Optional HTTPS health URL; defaults to the server's `PUBLIC_ORIGIN` plus `/api/health` |
 | `DEPLOY_SSH_KEY` | Secret | The deploy user's private key |
+| `ELEVENLABS_API_KEY` | Secret | Optional; the client's narration key, written into the server `.env` on each deploy. Empty leaves the server's own value |
+| `ELEVENLABS_VOICE_ID`, `ELEVENLABS_MODEL_ID`, `ELEVENLABS_DAILY_CHARACTER_LIMIT` | Variable | Optional narration settings, written the same way |
 
-The configurable variables other than `DEPLOY_HOST` and `DEPLOY_ENABLED`, and the `DEPLOY_SSH_KEY` secret, may be set on the
+The configurable variables other than `DEPLOY_HOST` and `DEPLOY_ENABLED`, and the `DEPLOY_SSH_KEY` and `ELEVENLABS_API_KEY` secrets, may be set on the
 `production` environment instead (Settings > Environments). To approve each deploy before it runs,
 add required reviewers to that environment. Only the newest commit on the default branch is marked
 `latest` and deployed: a run whose commit is no longer the newest, such as an old run started
@@ -335,6 +339,7 @@ image is `ghcr.io/NEWOWNER/REPOSITORY`.
 **Other CI/CD systems** use the same settings under their own names and places; see
 [CI_CD.md](CI_CD.md). Where a system's secrets hold a single line, `DEPLOY_SSH_KEY_BASE64` and
 `DEPLOY_KNOWN_HOSTS_BASE64` take the key and the host keys as one line of base64.
+They send the narration settings by giving `scripts/deploy.sh` the same `ELEVENLABS_*` variables.
 
 **By hand, and going back.** From a Linux or macOS shell (on Windows, Git Bash or WSL) in the
 repository, with `server.keys` from step 5 above:
@@ -492,9 +497,11 @@ and saves audio on the persistent media volume. Enabling it requires the client'
 `ELEVENLABS_API_KEY` in the private server environment, with optional
 `ELEVENLABS_VOICE_ID`, `ELEVENLABS_MODEL_ID` and `ELEVENLABS_DAILY_CHARACTER_LIMIT`.
 For Compose, the operator-managed server `.env` supplies these values to the app
-container. Keep that file private; never commit it or expose a key through a
-`NEXT_PUBLIC_` variable. Without a key, bundled clips and authorized saved narration
-still play, while new narration reports that it is not configured.
+container; the automatic deployment can write them there from pipeline secrets and
+variables ([Automatic deployment](#automatic-deployment)). Keep that file private;
+never commit it or expose a key through a `NEXT_PUBLIC_` variable. Without a key,
+bundled clips and authorized saved narration still play, while new narration reports
+that it is not configured.
 
 The ElevenLabs account, plan and API key belong to the **client**, not the hosting
 operator or student team. The client controls provider spending and key rotation.

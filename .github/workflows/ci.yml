@@ -149,6 +149,11 @@ jobs:
           PUBLIC_HEALTH_URL: ${{ vars.PUBLIC_HEALTH_URL }}
           DEPLOY_KNOWN_HOSTS: ${{ vars.DEPLOY_KNOWN_HOSTS }}
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          # Optional narration settings for the server .env; an empty one leaves the server's value.
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+          ELEVENLABS_VOICE_ID: ${{ vars.ELEVENLABS_VOICE_ID }}
+          ELEVENLABS_MODEL_ID: ${{ vars.ELEVENLABS_MODEL_ID }}
+          ELEVENLABS_DAILY_CHARACTER_LIMIT: ${{ vars.ELEVENLABS_DAILY_CHARACTER_LIMIT }}
           REGISTRY_USER: ${{ github.actor }}
           REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
           IMAGE_REF: ${{ needs.container.outputs.image_ref }}
