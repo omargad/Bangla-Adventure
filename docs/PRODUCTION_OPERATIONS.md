@@ -642,6 +642,7 @@ above:
 | `missing-directory`, `unsafe-directory`, `missing-file`, `unsafe-file`, `lock-owner` | A file or folder the jobs use is missing, or not a plain file or `0700` folder owned by the deployment user (for example `ops/`, `.env` or a result file) |
 | `installation-invalid` | The installed tools or units differ from the installation record: run `install` again |
 | `container-id`, `ambiguous-resource`, `oversize-command-result` | Docker answered in an unexpected form |
+| `invalid-report` | Shown by `status` in place of a job's codes when its result file holds codes not in the fixed form |
 | `invalid-action`, `invalid-override` | The tool was run with an unknown action or an invalid `PRODUCTION_OPS_*` value |
 
 The installer adds these:

@@ -309,11 +309,11 @@ from the deployment folder: `docker compose exec app npm run admin:grant -- EMAI
 | Name | Kind | Value |
 | --- | --- | --- |
 | `DEPLOY_ENABLED` | Repository variable | Must be exactly `true` to enable deployment. Leave unset or `false` while preparing access, the domain and backups |
-| `DEPLOY_HOST` | Repository secret | The server's name or address. A secret, so that GitHub masks it in the run logs of this public repository; every VPS workflow reads it, so it stays at repository level. A deploy with `DEPLOY_ENABLED=true` and no `DEPLOY_HOST` stops with a message |
+| `DEPLOY_HOST` | `production` environment or repository secret | The server's name or address. A secret, so that GitHub masks it in the run logs of this public repository ([Server address secrets](VPS_DEPLOYMENT.md#server-address-secrets)). A deploy with `DEPLOY_ENABLED=true` and no `DEPLOY_HOST` stops with a message |
 | `DEPLOY_KNOWN_HOSTS` | Variable | The contents of `server.keys` (step 5 above) |
 | `DEPLOY_HOST_FINGERPRINT` | Variable | Expected SHA256 fingerprint; every supplied host-key line must match this pin |
 | `DEPLOY_KEY_FINGERPRINT` | Variable | Expected SHA256 fingerprint of the deployment key's public half |
-| `DEPLOY_USER` | Repository secret | The SSH account on the server; required for the prepared VPS, whose account is in the server handover email. A secret for the same reason as `DEPLOY_HOST`. When unset the portable script uses `deploy` |
+| `DEPLOY_USER` | `production` environment or repository secret | The SSH account on the server; required for the prepared VPS, whose account is in the server handover email. A secret for the same reason as `DEPLOY_HOST`. When unset the portable script uses `deploy` |
 | `DEPLOY_PORT` | Variable | Optional; default `22` |
 | `DEPLOY_PATH` | Variable | Optional; default `/opt/bangla-adventures` |
 | `DEPLOY_DOCKER_HOST` | Variable | Explicit daemon endpoint; for the prepared VPS, `unix:///run/user/1002/docker.sock` |

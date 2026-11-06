@@ -23,7 +23,8 @@ Nginx handles public ports 80 and 443.
 
 The repository is public, so the server's address and SSH account are not
 written in it. Every VPS workflow (the CI deployment, SSH preflight, image
-preflight, private staging and private acceptance) reads them from two secrets:
+preflight, private staging, private acceptance, production operations and the
+daily production status check) reads them from two secrets:
 
 | Secret | Value |
 | --- | --- |
@@ -48,10 +49,12 @@ environment's page or, with the GitHub CLI (it works in PowerShell too), run
 out of the shell history.
 
 An environment secret reaches only the jobs that run in that environment. Every
-workflow above connects from a job in `production`. The daily status check runs
-in its own `production-status` environment instead, so if these are
-`production` environment secrets, add copies of both there too (or move both to
-repository level); see [Alerting](PRODUCTION_OPERATIONS.md#alerting). For the
+workflow above except the daily status check connects from a job in
+`production`. The status check runs in its own `production-status` environment
+instead, so if these are `production` environment secrets, add copies of both
+there too, with the `DEPLOY_KNOWN_HOSTS` variable if it is a `production`
+environment variable (or move them to repository level); see
+[Alerting](PRODUCTION_OPERATIONS.md#alerting). For the
 same reason the preflights' first job, which runs before the `production`
 environment loads, reports them as unset at repository level when they are
 environment secrets; that is expected.
@@ -81,8 +84,8 @@ private staging checks also require the account to have UID `1002` on the server
 The non-secret GitHub variable template is
 [`deploy/vps.github-variables.env.example`](../deploy/vps.github-variables.env.example).
 Set `DEPLOY_ENABLED` as a **repository** variable: the job gate reads it before
-the production environment loads. `DEPLOY_HOST` and `DEPLOY_USER` are repository
-secrets (above). Keep
+the production environment loads. `DEPLOY_HOST` and `DEPLOY_USER` are secrets,
+of the `production` environment or of the repository (above). Keep
 `DEPLOY_ENABLED=false` until the checks below are complete. Other deployment
 variables and `DEPLOY_SSH_KEY` may belong to the `production` environment. Configure an environment reviewer if the
 client wants approval before each release.
