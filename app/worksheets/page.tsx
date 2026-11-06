@@ -2,6 +2,8 @@ import Link from "next/link";
 import { lessons, levelBands } from "../curriculum";
 import { getSessionAdult } from "@/lib/auth";
 import { canTeach } from "@/lib/roles";
+import { getSessionStudent } from "@/lib/student-auth";
+import { homeLink } from "@/lib/home-link";
 import { getCandidateLessonSnapshot, learnerLessonView } from "@/lib/lesson-approval";
 import { localNumber } from "@/lib/local-format";
 import { Labelled, PageTitle, Say } from "../components/PortalText";
@@ -21,7 +23,9 @@ function durationBn(duration: string) {
 
 /** Learners and parents get worksheets for approved lessons only; staff see every lesson. */
 export default async function WorksheetsIndexPage() {
-  const staff = canTeach(await getSessionAdult());
+  const [adult, student] = await Promise.all([getSessionAdult(), getSessionStudent()]);
+  const staff = canTeach(adult);
+  const home = homeLink(adult, student);
   const shown = staff
     ? (await Promise.all(lessons.map((lesson) => getCandidateLessonSnapshot(lesson.id)))).flatMap((snapshot) => snapshot ? [snapshot.lesson] : [])
     : Object.values((await learnerLessonView()).snapshots).map((snapshot) => snapshot.lesson);
@@ -38,7 +42,7 @@ export default async function WorksheetsIndexPage() {
       <PageTitle title={["Printable worksheets | Bangla Adventures", "প্রিন্ট করার ওয়ার্কশিট | Bangla Adventures"]} />
       <header className="adult-header">
         <Link className="adult-brand" href="/"><span>বা</span><span><strong>Bangla Adventures</strong><small><Say en="Printable worksheets" bn="প্রিন্ট করার ওয়ার্কশিট" /></small></span></Link>
-        <Labelled as="nav" label={["Platform information", "প্ল্যাটফর্মের তথ্য"]}><Link href="/"><Say en="Learner site" bn="শেখার সাইট" /></Link><Link className="active" href="/worksheets"><Say en="Worksheets" bn="ওয়ার্কশিট" /></Link><Link href="/resources"><Say en="Resources" bn="সম্পদ" /></Link><Link href="/certificate"><Say en="Certificates" bn="সনদ" /></Link><a href="/family"><Say en="Grown-up dashboard" bn="বড়দের ড্যাশবোর্ড" /></a><a href="/safety"><Say en="Safety & access" bn="নিরাপত্তা ও প্রবেশ" /></a></Labelled>
+        <Labelled as="nav" label={["Platform information", "প্ল্যাটফর্মের তথ্য"]}><Link href="/"><Say en="Learner site" bn="শেখার সাইট" /></Link><Link className="active" href="/worksheets"><Say en="Worksheets" bn="ওয়ার্কশিট" /></Link><Link href="/resources"><Say en="Resources" bn="সম্পদ" /></Link><Link href="/certificate"><Say en="Certificates" bn="সনদ" /></Link>{home && <a href={home.href}><Say en={home.label[0]} bn={home.label[1]} /></a>}<a href="/safety"><Say en="Safety & access" bn="নিরাপত্তা ও প্রবেশ" /></a></Labelled>
         <div className="adult-account"><span><Say en="Free to print and share" bn="বিনা খরচে প্রিন্ট ও শেয়ার করুন" /></span></div>
       </header>
 

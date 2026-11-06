@@ -223,11 +223,13 @@ export default function BooksPage() {
 
         <section className={styles.section} aria-labelledby="educator-title">
           <div className={styles.sectionHeading}>
-            <p className={styles.eyebrow}>Educator evidence room</p>
+            <p className={styles.eyebrow}><Say en="Curriculum documents" bn="শিক্ষাক্রমের দলিল" /></p>
             <h2 id="educator-title">Curriculum authority and 2026 teacher guides</h2>
             <p>
-              These long-form documents guide outcomes, pedagogy and assessment. They are for reviewers and teachers,
-              not a learner reading shelf.
+              <Say
+                en="These long-form NCTB documents set out the outcomes, teaching approach and assessment behind the textbooks. Anyone signed in can open them; they are written for teachers, so learners may find the textbooks above easier to read."
+                bn="এনসিটিবির এই দীর্ঘ দলিলগুলোতে পাঠ্যবইয়ের পেছনের শিখনফল, শেখানোর পদ্ধতি ও মূল্যায়ন বলা আছে। সাইন ইন করা যে কেউ এগুলো খুলতে পারে; এগুলো শিক্ষকদের জন্য লেখা, তাই শিক্ষার্থীদের কাছে ওপরের পাঠ্যবইগুলো পড়া সহজ মনে হতে পারে।"
+              />
             </p>
           </div>
           <div className={styles.educatorGrid}>
@@ -260,7 +262,7 @@ export default function BooksPage() {
 
           <div className={styles.tableWrap}>
             <table>
-              <caption>2026 NCTB teacher-guide collections held behind the educator-review gate</caption>
+              <caption><Say en="2026 NCTB teacher-guide collections, as published by NCTB" bn="২০২৬ সালের এনসিটিবি শিক্ষক সহায়িকা, এনসিটিবির প্রকাশিত রূপে" /></caption>
               <thead><tr><th>Class</th><th>Bangla guide</th><th>Social studies guide</th><th>Catalogue</th></tr></thead>
               <tbody>
                 {nctbTeacherGuideCollections.map((collection) => (
