@@ -3,13 +3,14 @@
 #
 #   bash deploy-remote.sh IMAGE [REGISTRY_USER] [BACKUP=1] [HEALTH_TIMEOUT=180]
 #     [DOCKER_HOST] [DOCKER_CONTEXT] [REQUIRE_ROOTLESS=true] [PUBLIC_HEALTH_URL]
-#     [REQUIRE_PUBLIC_HEALTH=false] [DEPLOYMENT_DIRECTORY] [STAGING_DIRECTORY]
+#     [REQUIRE_PUBLIC_HEALTH=false] [DEPLOYMENT_DIRECTORY] [STAGING_DIRECTORY] [NARRATION_LINES=0]
 #
 # With REGISTRY_USER, the registry password is read from standard input. The folder holds
 # compose.yaml and an operator-managed .env (PUBLIC_ORIGIN, optionally APP_PORT); this script
 # records the running image there as APP_IMAGE. Its output is also added to deploy.log there, and
-# it carries on to the end if the SSH session drops. A staged narration.env from scripts/deploy.sh
-# replaces those ELEVENLABS_* settings in .env first; a failed deployment puts the previous .env back.
+# it carries on to the end if the SSH session drops. With NARRATION_LINES, that many ELEVENLABS_*
+# NAME=VALUE lines from scripts/deploy.sh come first on standard input, ahead of the password; they
+# replace those settings in .env, and a failed deployment puts the previous .env back.
 #  1. Pulls IMAGE. Without REGISTRY_USER, an IMAGE already on the server is used as it is.
 #  2. If the app has a database: stops the app and backs up the database and media into backups/
 #     with the current image (scripts/backup.sh, 14 kept). A failed backup restarts the app and
@@ -29,6 +30,7 @@ require_public_health="${9:-${DEPLOY_REQUIRE_PUBLIC_HEALTH:-false}}"
 script_directory="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 deployment_directory="${10:-$script_directory}"
 staging_directory="${11:-}"
+narration_lines="${12:-0}"
 cd "$deployment_directory"
 deployment_directory="$PWD"
 # Only .env decides these: a value left in the operator's shell must not override it.
@@ -44,7 +46,6 @@ previous=""
 original_image=""
 had_compose=false
 had_script=false
-narration=""
 narration_names=()
 narration_values=()
 saved_env=false
@@ -60,10 +61,6 @@ if [ -n "$staging_directory" ]; then
   for artifact in compose.yaml deploy-remote.sh; do
     [ -f "$staging_directory/$artifact" ] && [ ! -L "$staging_directory/$artifact" ] || fail 'staged release files must be regular files.'
   done
-  if [ -e "$staging_directory/narration.env" ] || [ -L "$staging_directory/narration.env" ]; then
-    narration="$staging_directory/narration.env"
-    [ -f "$narration" ] && [ ! -L "$narration" ] || fail 'staged release files must be regular files.'
-  fi
 fi
 setting() { sed -n "s/^$1=//p" .env | tail -n 1; }
 # The shapes scripts/deploy.sh accepts. Compose would expand a $ in .env; quotes, backslashes and
@@ -78,7 +75,7 @@ valid_narration() {
     *) return 1 ;;
   esac
 }
-# Replaces every NAME= line of the staged names (a later duplicate would otherwise win) and appends
+# Replaces every NAME= line of the given names (a later duplicate would otherwise win) and appends
 # the missing ones, keeping all other lines. Values stay inside this shell: no command line holds
 # one. The private new file replaces .env in one rename.
 write_narration() {
@@ -191,6 +188,7 @@ trap 'exit 143' TERM
 [[ "$backup" = 0 || "$backup" = 1 ]] || fail 'backup must be 0 or 1.'
 [[ "$require_rootless" = true || "$require_rootless" = false ]] || fail 'REQUIRE_ROOTLESS must be true or false.'
 [[ "$require_public_health" = true || "$require_public_health" = false ]] || fail 'REQUIRE_PUBLIC_HEALTH must be true or false.'
+[[ "$narration_lines" =~ ^[0-4]$ ]] || fail 'NARRATION_LINES must be 0 to 4.'
 [ -z "$docker_host" ] || [ -z "$docker_context" ] || fail 'select a Docker socket or context, not both.'
 [ -z "$docker_host" ] || [[ "$docker_host" =~ ^unix:///[-a-zA-Z0-9_./]+$ ]] || fail 'Docker host must be an explicit local Unix socket.'
 [ -z "$docker_context" ] || [[ "$docker_context" =~ ^[a-zA-Z0-9][a-zA-Z0-9_.-]*$ ]] || fail 'invalid Docker context.'
@@ -230,19 +228,17 @@ if [ -n "$health_url" ]; then
   [[ "$health_url" =~ ^https://[^/@?#[:space:]]+([/?][^[:space:]]*)?$ ]] || fail 'PUBLIC_HEALTH_URL must be an HTTPS URL without credentials.'
   command -v curl >/dev/null 2>&1 || fail 'curl is required for the public HTTPS health check.'
 fi
-# Staged narration settings: NAME=VALUE lines of known names, each once. Read, then deleted at once.
-if [ -n "$narration" ]; then
-  while IFS= read -r line || [ -n "$line" ]; do
-    name="${line%%=*}"
-    [ "$name" != "$line" ] && valid_narration "$name" "${line#*=}" && \
-      [[ " ${narration_names[*]-} " != *" $name "* ]] || fail 'the staged narration settings are invalid.'
-    narration_names+=("$name")
-    narration_values+=("${line#*=}")
-  done < "$narration"
-  unset line
-  rm -f -- "$narration"
-  [ "${#narration_names[@]}" -gt 0 ] || fail 'the staged narration settings are invalid.'
-fi
+# Narration settings, read line by line so the password after them stays on standard input:
+# NAME=VALUE lines of known names, each once, every line complete. They are kept only in this shell.
+for ((index = 0; index < narration_lines; index++)); do
+  IFS= read -r line || fail 'the narration settings are invalid.'
+  name="${line%%=*}"
+  [ "$name" != "$line" ] && valid_narration "$name" "${line#*=}" && \
+    [[ " ${narration_names[*]-} " != *" $name "* ]] || fail 'the narration settings are invalid.'
+  narration_names+=("$name")
+  narration_values+=("${line#*=}")
+done
+unset line
 password=""
 [ -z "$registry_user" ] || password="$(cat)"
 # From here the deployment carries on if the SSH session drops (a cancelled job, a lost runner,

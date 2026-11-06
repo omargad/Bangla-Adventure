@@ -86,8 +86,8 @@ setting() {
   else decoded "$3"
   fi
 }
-# Narration settings are checked here, before any connection, and reach the server only in a
-# private staged file: never on a command line, in a trace or in a message.
+# Narration settings are checked here, before any connection, and reach the server only on the
+# dispatch's standard input: never on a command line, in a trace, in a message or in a staged file.
 (
   { set +x; } 2>/dev/null
   umask 077
@@ -108,6 +108,7 @@ setting() {
 )
 # Child processes such as ssh never need them.
 unset ELEVENLABS_API_KEY ELEVENLABS_VOICE_ID ELEVENLABS_MODEL_ID ELEVENLABS_DAILY_CHARACTER_LIMIT
+narration_lines=$(($(wc -l < "$work/narration.env")))
 key="$work/key"
 (umask 077; setting DEPLOY_SSH_KEY_FILE DEPLOY_SSH_KEY DEPLOY_SSH_KEY_BASE64 > "$key")
 # Derive the public key privately, with no passphrase prompt or private-key diagnostic output.
@@ -143,18 +144,17 @@ candidate="$(on_server "umask 077; mkdir -p $(quoted "$folder") && mktemp -d $(q
 stage_name="${candidate##*/}"
 [[ "$candidate" = "$folder/$stage_name" ]] && [[ "$stage_name" =~ ^\.deploy-stage\.[a-zA-Z0-9]+$ ]] || fail 'the server returned an invalid staging directory.'
 stage="$candidate"
-# A third argument makes the staged file private (0600).
 upload() {
-  on_server "${3:+umask 077; }cat > $(quoted "$stage/$1.new") && mv -f $(quoted "$stage/$1.new") $(quoted "$stage/$1")" < "$2"
+  on_server "cat > $(quoted "$stage/$1.new") && mv -f $(quoted "$stage/$1.new") $(quoted "$stage/$1")" < "$2"
 }
 upload compose.yaml compose.yaml
 upload deploy-remote.sh scripts/deploy-remote.sh
-# The remote script applies it to .env under the deployment lock and deletes it.
-[ ! -s "$work/narration.env" ] || upload narration.env "$work/narration.env" private
-# The registry password reaches the server on standard input, never on a command line.
-# The remote script must now clean its stage, including on a refused deployment.
+# The narration lines, then the registry password, reach the server on standard input, never on a
+# command line or in the stage, so a dispatch that fails leaves no secret behind. Only their count
+# is an argument. The remote script must now clean its stage, including on a refused deployment.
 stage_dispatched=true
-printf '%s' "${REGISTRY_PASSWORD:-}" | on_server "bash $(quoted "$stage/deploy-remote.sh") $(quoted "$image") \
+{ cat "$work/narration.env"; printf '%s' "${REGISTRY_PASSWORD:-}"; } | on_server "bash $(quoted "$stage/deploy-remote.sh") $(quoted "$image") \
 $(quoted "${REGISTRY_USER:-}") $(quoted "$backup") $(quoted "$health_timeout") \
 $(quoted "$docker_host") $(quoted "$docker_context") $(quoted "$require_rootless") \
-$(quoted "$health_url") $(quoted "$require_public_health") $(quoted "$folder") $(quoted "$stage")"
+$(quoted "$health_url") $(quoted "$require_public_health") $(quoted "$folder") $(quoted "$stage") \
+$(quoted "$narration_lines")"

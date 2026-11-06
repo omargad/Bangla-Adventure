@@ -340,11 +340,16 @@ image is `ghcr.io/NEWOWNER/REPOSITORY`.
 [CI_CD.md](CI_CD.md). Where a system's secrets hold a single line, `DEPLOY_SSH_KEY_BASE64` and
 `DEPLOY_KNOWN_HOSTS_BASE64` take the key and the host keys as one line of base64.
 They send the narration settings by giving `scripts/deploy.sh` the same `ELEVENLABS_*` variables.
+A deploy step sees a secret only where its system passes it on: Azure Pipelines and Jenkins pass
+only the secrets their file maps or binds, Google Cloud Build only the settings its file lists, and
+none of the three names these yet. There, add `ELEVENLABS_API_KEY` (on Cloud Build, every
+`ELEVENLABS_*` setting) to the deploy step, or set them in the server `.env` by hand.
 
 **By hand, and going back.** From a Linux or macOS shell (on Windows, Git Bash or WSL) in the
 repository, with `server.keys` from step 5 above:
 
 ```sh
+unset ELEVENLABS_API_KEY ELEVENLABS_VOICE_ID ELEVENLABS_MODEL_ID ELEVENLABS_DAILY_CHARACTER_LIMIT
 DEPLOY_ENABLED=true DEPLOY_HOST=SERVER DEPLOY_KNOWN_HOSTS="$(cat server.keys)" DEPLOY_SSH_KEY=~/.ssh/bangla_deploy \
   DEPLOY_HOST_FINGERPRINT=EXPECTED_SERVER_SHA256 DEPLOY_KEY_FINGERPRINT=EXPECTED_DEPLOY_KEY_SHA256 \
   DEPLOY_USER=deployer DEPLOY_DOCKER_HOST=unix:///run/user/1002/docker.sock \
@@ -354,8 +359,12 @@ DEPLOY_ENABLED=true DEPLOY_HOST=SERVER DEPLOY_KNOWN_HOSTS="$(cat server.keys)" D
 ```
 
 `DEPLOY_KNOWN_HOSTS` and `DEPLOY_SSH_KEY` each take either the text itself or the path of a file
-holding it. The registry settings are needed only for a private image. If the connection drops, the
-deploy still finishes on the server; `deploy.log` in the deployment folder shows how it went.
+holding it. The registry settings are needed only for a private image. Any `ELEVENLABS_*` variable
+left in the shell, such as a key exported for offline audio generation
+([MEDIA_REVIEW.md](MEDIA_REVIEW.md)), would replace that setting in the server `.env`, so the
+first line clears them; to send the client's settings on purpose, set them after it. If the
+connection drops, the deploy still finishes on the server; `deploy.log` in the deployment folder
+shows how it went.
 The example selects Faysal's rootless daemon. For a separately approved rootful host,
 explicitly use `DEPLOY_DOCKER_HOST=unix:///var/run/docker.sock`,
 `DEPLOY_REQUIRE_ROOTLESS=false` and that host's user and fingerprint pins.

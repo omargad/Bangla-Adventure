@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -32,16 +32,14 @@ if ((match = /^umask 077; mkdir -p (\S+) && mktemp -d (\S+)$/.exec(command))) {
   record({ operation: 'create', stage, ...live() });
   process.stdout.write(stage + '\n'); process.exit(0);
 }
-if ((match = /^(umask 077; )?cat > (\S+) && mv -f (\S+) (\S+)$/.exec(command))) {
-  const [, restricted, temporary, from, destination] = match, stage = path.dirname(destination), name = path.basename(destination);
-  const names = restricted ? ['narration.env'] : ['compose.yaml', 'deploy-remote.sh'];
-  if (!stagePath(stage) || !names.includes(name) || temporary !== destination + '.new' || from !== temporary) reject('Unexpected upload path');
+if ((match = /^cat > (\S+) && mv -f (\S+) (\S+)$/.exec(command))) {
+  const [, temporary, from, destination] = match, stage = path.dirname(destination), name = path.basename(destination);
+  if (!stagePath(stage) || !['compose.yaml', 'deploy-remote.sh'].includes(name) || temporary !== destination + '.new' || from !== temporary) reject('Unexpected upload path');
   const content = fs.readFileSync(0);
-  if (restricted) process.umask(0o077);
   fs.writeFileSync(temporary, content);
   if (env.MOCK_FAIL_UPLOAD === name) { record({ operation: 'failed-upload', stage, name, ...live() }); process.exit(23); }
   fs.renameSync(temporary, destination);
-  record({ operation: 'upload', stage, name, restricted: Boolean(restricted), ...live() }); process.exit(0);
+  record({ operation: 'upload', stage, name, ...live() }); process.exit(0);
 }
 if ((match = /^rm -rf -- (\S+)$/.exec(command))) {
   if (!stagePath(match[1])) reject('Cleanup outside a unique stage');
@@ -49,10 +47,14 @@ if ((match = /^rm -rf -- (\S+)$/.exec(command))) {
   record({ operation: 'cleanup', stage: match[1], ...live() }); process.exit(0);
 }
 if ((match = /^bash (\S+) (\S+) /.exec(command))) {
-  const script = match[1], stage = path.dirname(script);
-  if (!stagePath(stage) || path.basename(script) !== 'deploy-remote.sh' || !command.endsWith(' ' + folder + ' ' + stage)) reject('Unexpected staged invocation');
-  fs.readFileSync(0); // Consume the synthetic registry password without recording it.
-  record({ operation: 'dispatch', stage, command, image: match[2], compose: fs.readFileSync(path.join(stage, 'compose.yaml'), 'utf8'), script: fs.readFileSync(script, 'utf8'), ...live() });
+  const script = match[1], stage = path.dirname(script), lines = / ([0-4])$/.exec(command)?.[1];
+  if (!stagePath(stage) || path.basename(script) !== 'deploy-remote.sh' || !lines || !command.endsWith(' ' + folder + ' ' + stage + ' ' + lines)) reject('Unexpected staged invocation');
+  // Consume the synthetic settings and password; only the file names and line count are recorded.
+  const input = fs.readFileSync(0, 'utf8');
+  if (env.MOCK_INPUT) fs.writeFileSync(env.MOCK_INPUT, input);
+  const files = fs.readdirSync(stage).sort();
+  if (env.MOCK_FAIL_DISPATCH) { record({ operation: 'failed-dispatch', stage, files, ...live() }); process.exit(255); }
+  record({ operation: 'dispatch', stage, command, lines: Number(lines), files, image: match[2], compose: fs.readFileSync(path.join(stage, 'compose.yaml'), 'utf8'), script: fs.readFileSync(script, 'utf8'), ...live() });
   if (!env.MOCK_BARRIER) process.exit(0);
   fs.writeFileSync(path.join(env.MOCK_BARRIER, env.MOCK_ATTEMPT), stage);
   const deadline = Date.now() + 5000;
@@ -136,23 +138,34 @@ test("frontend uploads only into its stage and dispatches the staged handler wit
   assert.deepEqual(calls.map((call) => call.operation), ["create", "upload", "upload", "dispatch"]);
   assert.equal(dispatch.compose, "candidate compose one\n");
   assert.equal(dispatch.script, "candidate handler one\n");
-  assert.ok(dispatch.command.endsWith(` ${f.remote} ${dispatch.stage}`));
+  assert.ok(dispatch.command.endsWith(` ${f.remote} ${dispatch.stage} 0`), "no narration lines precede the password");
   assert.ok(existsSync(dispatch.stage), "after dispatch the remote handler owns stage cleanup");
   assert.equal(`${result.stdout}${result.stderr}${JSON.stringify(calls)}`.includes("FIXTURE_PRIVATE_KEY_NOT_A_REAL_CREDENTIAL"), false);
   assert.equal(`${result.stdout}${result.stderr}${JSON.stringify(calls)}`.includes("FIXTURE_REGISTRY_PASSWORD"), false);
   f.assertLiveUnchanged();
 });
 
-test("narration settings are staged privately beside the release, never on a command line", async (t) => {
-  const f = fixture(t), result = await f.run("narration", { ELEVENLABS_API_KEY: narrationKey, ELEVENLABS_MODEL_ID: "eleven_v3", ELEVENLABS_VOICE_ID: "" });
+test("narration settings travel ahead of the password on the dispatch's input, never in the stage or on a command line", async (t) => {
+  const f = fixture(t), input = path.join(f.root, "dispatch-input");
+  const result = await f.run("narration", { ELEVENLABS_API_KEY: narrationKey, ELEVENLABS_MODEL_ID: "eleven_v3", ELEVENLABS_VOICE_ID: "", MOCK_INPUT: input });
   assert.equal(result.status, 0, result.stderr);
   const calls = f.calls(), dispatch = calls.find((call) => call.operation === "dispatch");
-  assert.deepEqual(calls.map((call) => call.operation), ["create", "upload", "upload", "upload", "dispatch"]);
-  assert.deepEqual(calls.filter((call) => call.operation === "upload").map((call) => [call.name, call.restricted]), [["compose.yaml", false], ["deploy-remote.sh", false], ["narration.env", true]]);
-  const staged = path.join(dispatch.stage, "narration.env");
-  assert.equal(readFileSync(staged, "utf8"), "ELEVENLABS_API_KEY=" + narrationKey + "\nELEVENLABS_MODEL_ID=eleven_v3\n", "an empty setting is not sent");
-  assert.equal(statSync(staged).mode & 0o777, 0o600);
+  assert.deepEqual(calls.map((call) => call.operation), ["create", "upload", "upload", "dispatch"]);
+  assert.deepEqual(dispatch.files, ["compose.yaml", "deploy-remote.sh"]);
+  assert.equal(dispatch.lines, 2, "an empty setting is not sent");
+  assert.equal(readFileSync(input, "utf8"), "ELEVENLABS_API_KEY=" + narrationKey + "\nELEVENLABS_MODEL_ID=eleven_v3\nFIXTURE_REGISTRY_PASSWORD");
   assert.equal(`${result.stdout}${result.stderr}${JSON.stringify(calls)}`.includes(narrationKey), false);
+  f.assertLiveUnchanged();
+});
+
+test("a dispatch that fails before the handler starts leaves no narration settings on the server", async (t) => {
+  const f = fixture(t), result = await f.run("dropped", { ELEVENLABS_API_KEY: narrationKey, MOCK_FAIL_DISPATCH: "1" });
+  assert.equal(result.status, 255, result.stderr);
+  const calls = f.calls(), dropped = calls.find((call) => call.operation === "failed-dispatch");
+  assert.deepEqual(calls.map((call) => call.operation), ["create", "upload", "upload", "failed-dispatch"]);
+  assert.deepEqual(dropped.files, ["compose.yaml", "deploy-remote.sh"], "the stage holds only release files");
+  const remoteFiles = (folder) => readdirSync(folder, { withFileTypes: true }).flatMap((entry) => entry.isDirectory() ? remoteFiles(path.join(folder, entry.name)) : [path.join(folder, entry.name)]);
+  for (const file of remoteFiles(f.remote)) assert.equal(readFileSync(file, "utf8").includes(narrationKey), false, file);
   f.assertLiveUnchanged();
 });
 
@@ -174,7 +187,7 @@ test("two concurrent frontend attempts keep distinct complete stages without rep
 });
 
 test("a partial upload failure cleans only that attempt's stage and never dispatches or touches another attempt", async (t) => {
-  for (const name of ["compose.yaml", "deploy-remote.sh", "narration.env"]) {
+  for (const name of ["compose.yaml", "deploy-remote.sh"]) {
     const f = fixture(t), result = await f.run("failed", { MOCK_FAIL_UPLOAD: name, ELEVENLABS_API_KEY: narrationKey });
     assert.equal(result.status, 23, result.stderr);
     const calls = f.calls(), created = calls.find((call) => call.operation === "create");

@@ -75,10 +75,11 @@ Runtime narration is optional. Add the client's key as the `ELEVENLABS_API_KEY`
 secret: a repository secret (Settings > Secrets and variables > Actions) or a
 `production` environment secret (Settings > Environments). Paste the key alone, on
 one line. Each deploy then writes it into the server `.env` under the deployment
-lock, so nobody pastes it on the server; it never appears on a command line or in
-the log. The optional `ELEVENLABS_VOICE_ID`, `ELEVENLABS_MODEL_ID` and
-`ELEVENLABS_DAILY_CHARACTER_LIMIT` are variables, not secrets, written the same way.
-A deploy that fails puts the previous `.env` back.
+lock, so nobody pastes it on the server. It travels on the SSH connection's input
+and never appears on a command line, in a staged file or in the log. The optional
+`ELEVENLABS_VOICE_ID`, `ELEVENLABS_MODEL_ID` and `ELEVENLABS_DAILY_CHARACTER_LIMIT`
+are variables, not secrets, written the same way. A deploy that fails puts the
+previous `.env` back.
 
 An empty or missing secret or variable leaves whatever the server `.env` already
 has, so a key set there by hand keeps working; to remove a key, delete its line from
