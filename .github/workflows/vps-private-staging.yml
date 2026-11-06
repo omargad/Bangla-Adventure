@@ -51,7 +51,7 @@ jobs:
           node --import tsx --test tests/private-staging*.test.mjs
       - name: Validate the actual normalized Compose candidate without pulling or starting containers
         env:
-          STAGING_IMAGE: ghcr.io/omargad/bangla-adventure@sha256:fc6f52720d3ecf55998e56a2432ffd5a782d3db231323874daf0b6d0357efca2
+          STAGING_IMAGE: ghcr.io/omargad/bangla-adventure@sha256:5f9ac5508771eb97c6b1e4aa4bff8db0fe69569b1f00b08a2e0e02e263d93f13
         run: |
           set -euo pipefail
           candidate="$GITHUB_WORKSPACE/deploy"

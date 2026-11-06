@@ -13,8 +13,8 @@ case "$DEPLOY_KNOWN_HOSTS" in *'PRIVATE KEY'*|*'-----BEGIN'*) fail 'Public known
 readonly host=203.0.113.10 user=deployer port=22
 readonly key_pin='SHA256:y1+C6cvcfpJFmO8pfjyMSFERpd5BtcQyDf5SptZXVlQ'
 readonly host_pin='SHA256:79xe+ubCodL2ACAHPNloo7I/K6mvngU88vEiFoEeWL8'
-readonly image='ghcr.io/omargad/bangla-adventure@sha256:fc6f52720d3ecf55998e56a2432ffd5a782d3db231323874daf0b6d0357efca2'
-readonly revision=95b6308ac7ad3d5b6bb2d951df9d65a23ff77107
+readonly image='ghcr.io/omargad/bangla-adventure@sha256:5f9ac5508771eb97c6b1e4aa4bff8db0fe69569b1f00b08a2e0e02e263d93f13'
+readonly revision=a709cb3d2bc9fb0a271e6814bc96d1f16444c94f
 readonly origin=http://127.0.0.1:3001
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
 work="$(mktemp -d)"; chmod 700 "$work"
@@ -90,8 +90,8 @@ remote_inventory() {
 set -euo pipefail
 [ "$(id -un)" = deployer ] && [ "$(id -u)" = 1002 ]
 stage=/opt/bangla-adventures/private-staging
-image=ghcr.io/omargad/bangla-adventure@sha256:fc6f52720d3ecf55998e56a2432ffd5a782d3db231323874daf0b6d0357efca2
-revision=95b6308ac7ad3d5b6bb2d951df9d65a23ff77107
+image=ghcr.io/omargad/bangla-adventure@sha256:5f9ac5508771eb97c6b1e4aa4bff8db0fe69569b1f00b08a2e0e02e263d93f13
+revision=a709cb3d2bc9fb0a271e6814bc96d1f16444c94f
 [ -S /run/user/1002/docker.sock ] && [ "$(stat -c %u /run/user/1002/docker.sock)" = 1002 ]
 docker() { command env -u DOCKER_HOST -u DOCKER_CONTEXT docker --host unix:///run/user/1002/docker.sock "$@"; }
 [ "$(docker context inspect rootless --format '{{.Endpoints.docker.Host}}')" = unix:///run/user/1002/docker.sock ]
@@ -186,8 +186,8 @@ python3 - "$stage" "$1" <<'INSTALL_PY'
 import hashlib,json,os,re,signal,stat,sys,tempfile
 from pathlib import Path
 OWNER=1002
-IMAGE='ghcr.io/omargad/bangla-adventure@sha256:fc6f52720d3ecf55998e56a2432ffd5a782d3db231323874daf0b6d0357efca2'
-REVISION='95b6308ac7ad3d5b6bb2d951df9d65a23ff77107'
+IMAGE='ghcr.io/omargad/bangla-adventure@sha256:5f9ac5508771eb97c6b1e4aa4bff8db0fe69569b1f00b08a2e0e02e263d93f13'
+REVISION='a709cb3d2bc9fb0a271e6814bc96d1f16444c94f'
 root,incoming=map(Path,sys.argv[1:]);helper=root/'tools/private-staging-qa.sh';manifest=root/'release.json'
 def regular(p):
  assert p.is_file() and not p.is_symlink() and p.resolve()==p and p.stat().st_uid==OWNER

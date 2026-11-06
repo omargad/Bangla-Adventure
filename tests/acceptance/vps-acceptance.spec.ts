@@ -8,7 +8,7 @@ import { acceptanceCiState } from "../staging/acceptance-ci-state.mjs";
 test("fresh production server completes the same disposable four-role VPS acceptance scenario", async ({ browser, baseURL, request }, testInfo) => {
   const owned = acceptanceCiState({ database: process.env.BANGLA_ACCEPTANCE_DB, qaId: process.env.BANGLA_ACCEPTANCE_QA_ID });
   const qaId = owned.qaId, database = owned.database, identities = acceptanceIdentities(qaId);
-  const marker = { qa: true, qa_id: qaId, expectedrevision: "95b6308ac7ad3d5b6bb2d951df9d65a23ff77107" };
+  const marker = { qa: true, qa_id: qaId, expectedrevision: "a709cb3d2bc9fb0a271e6814bc96d1f16444c94f" };
   // The production server already knows this public static file. Only this temporary CI checkout
   // replaces its bytes; the actual HTTP response and the separate owned database are both checked.
   const robots = path.join(process.cwd(), "public", "robots.txt");

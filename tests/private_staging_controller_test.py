@@ -8,8 +8,8 @@ import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-IMAGE = "ghcr.io/omargad/bangla-adventure@sha256:fc6f52720d3ecf55998e56a2432ffd5a782d3db231323874daf0b6d0357efca2"
-REVISION = "95b6308ac7ad3d5b6bb2d951df9d65a23ff77107"
+IMAGE = "ghcr.io/omargad/bangla-adventure@sha256:5f9ac5508771eb97c6b1e4aa4bff8db0fe69569b1f00b08a2e0e02e263d93f13"
+REVISION = "a709cb3d2bc9fb0a271e6814bc96d1f16444c94f"
 
 
 class PrivateStagingControllerTests(unittest.TestCase):
@@ -95,7 +95,7 @@ elif tool=="ssh":
   record("prepare",tokenViaStdin=data.strip()=="REGISTRY_TOKEN_MUST_NOT_LEAK")
   def verifier(restarted):
    return {"verified":True,"stateDigest":"a"*64,"counts":{"pendingTopics":15,"pendingLessons":18,"shippedStates":33,"users":0,"approvals":0,"baselines":0,"businessRows":0,"mediaFiles":0},"checks":{"integrity":True,"foreignKeys":True,"unpublished":True,"cleanIdentities":True,"expectedStateMatched":True if restarted else None,"databaseWriteRolledBack":None if restarted else True,"mediaWriteRemoved":None if restarted else True}}
-  result={"scope":"private-staging","status":"healthy","image":os.environ["FIXTURE_IMAGE"],"revision":"95b6308ac7ad3d5b6bb2d951df9d65a23ff77107","project":"bangla-adventures-staging","origin":"http://127.0.0.1:3001","socket":"/opt/bangla-adventures/private-staging/runtime/http.sock","publishedPorts":0,
+  result={"scope":"private-staging","status":"healthy","image":os.environ["FIXTURE_IMAGE"],"revision":"a709cb3d2bc9fb0a271e6814bc96d1f16444c94f","project":"bangla-adventures-staging","origin":"http://127.0.0.1:3001","socket":"/opt/bangla-adventures/private-staging/runtime/http.sock","publishedPorts":0,
    "cleanVerifier":verifier(False),"restartVerifier":verifier(True),
    "restoreDrill":{"verified":True,"checks":{k:True for k in ["sourceUnchanged","cleanSnapshotVerified","probeSnapshotVerified","probeDatabaseRestored","probeMediaRestored","cleanOriginalRestored","integrity","foreignKeys","archivesUnchanged"]},"counts":{"pendingTopics":15,"pendingLessons":18,"sourceUsers":0,"probeRecords":3,"probeMediaFiles":2},"artifactsRetained":False,"scope":"disposable clone only"},
    "containerReplacement":{"appReplaced":True,"beforeAppId":"b"*64,"afterAppId":"c"*64,"stateDigestUnchanged":True}}

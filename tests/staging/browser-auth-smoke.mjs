@@ -9,8 +9,8 @@ import path from "node:path";
 import { chromium, expect } from "@playwright/test";
 
 const BASE = "http://127.0.0.1:3001";
-const REVISION = "95b6308ac7ad3d5b6bb2d951df9d65a23ff77107";
-const IMAGE = "sha256:fc6f52720d3ecf55998e56a2432ffd5a782d3db231323874daf0b6d0357efca2";
+const REVISION = "a709cb3d2bc9fb0a271e6814bc96d1f16444c94f";
+const IMAGE = "sha256:5f9ac5508771eb97c6b1e4aa4bff8db0fe69569b1f00b08a2e0e02e263d93f13";
 const qaId = process.env.PRIVATE_QA_ID;
 const controller = process.env.PRIVATE_QA_CONTROLLER;
 const artifacts = process.env.PRIVATE_QA_ARTIFACTS;

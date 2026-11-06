@@ -14,7 +14,7 @@ const qaId = "a".repeat(24);
 const stage = { users: 0, pendingTopics: 15, pendingLessons: 18 };
 const valid = {
   verified: true, qaId, kind: "bangla-private-qa", isolated: true,
-  imageDigest: "sha256:fc6f52720d3ecf55998e56a2432ffd5a782d3db231323874daf0b6d0357efca2",
+  imageDigest: "sha256:5f9ac5508771eb97c6b1e4aa4bff8db0fe69569b1f00b08a2e0e02e263d93f13",
   baseURL: "http://127.0.0.1:3001", socket: `/private/qa-${qaId}/http.sock`,
   actualStage: stage, qa: { users: 0, pendingTopics: 15, pendingLessons: 18 },
 };
@@ -33,7 +33,7 @@ test("browser identity reader accepts Next's actual text-asset MIME and parses e
   const require = createRequire(import.meta.url);
   const senderMime = require("next/dist/compiled/send").mime;
   const mime = senderMime.getType?.("robots.txt") ?? senderMime.lookup("robots.txt");
-  const marker = { qa: true, qa_id: qaId, expectedrevision: "95b6308ac7ad3d5b6bb2d951df9d65a23ff77107" };
+  const marker = { qa: true, qa_id: qaId, expectedrevision: "a709cb3d2bc9fb0a271e6814bc96d1f16444c94f" };
   const result = await vm.runInNewContext(`(${callback})()`, {
     fetch: async () => new Response(JSON.stringify(marker), { headers: { "content-type": `${mime}; charset=UTF-8` } }),
   });

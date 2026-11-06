@@ -6,8 +6,8 @@ import os from "node:os";
 import path from "node:path";
 
 const script = readFileSync(new URL("../scripts/private-staging-remote.sh", import.meta.url), "utf8");
-const image = "ghcr.io/omargad/bangla-adventure@sha256:fc6f52720d3ecf55998e56a2432ffd5a782d3db231323874daf0b6d0357efca2";
-const revision = "95b6308ac7ad3d5b6bb2d951df9d65a23ff77107";
+const image = "ghcr.io/omargad/bangla-adventure@sha256:5f9ac5508771eb97c6b1e4aa4bff8db0fe69569b1f00b08a2e0e02e263d93f13";
+const revision = "a709cb3d2bc9fb0a271e6814bc96d1f16444c94f";
 const stage = "/opt/bangla-adventures/private-staging", project = "bangla-adventures-staging", volume = project + "_bangla-data";
 function pythonBlock(anchor) {
   const start = script.indexOf(anchor);

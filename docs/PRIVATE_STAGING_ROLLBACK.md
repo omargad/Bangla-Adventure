@@ -6,8 +6,8 @@ project. It never runs a failed candidate against the real staging database.
 The runner must upload this script, `deploy-remote.sh` and
 `private-staging-verify.mjs` together in its owned acceptance payload.
 
-The fixed trusted application image is the existing revision `95b6308` digest
-`sha256:fc6f52720d3ecf55998e56a2432ffd5a782d3db231323874daf0b6d0357efca2`.
+The fixed trusted application image is the existing revision `a709cb3` digest
+`sha256:5f9ac5508771eb97c6b1e4aa4bff8db0fe69569b1f00b08a2e0e02e263d93f13`.
 The source staging app must be healthy, portless, zero-user and at its exact
 15-pending-topic / 18-pending-lesson state before and after the exercise.
 

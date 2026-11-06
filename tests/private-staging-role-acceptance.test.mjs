@@ -11,7 +11,7 @@ import { acceptanceCiState } from "./staging/acceptance-ci-state.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url)), qaId = "a".repeat(24);
 const clean = { users: 0, pendingTopics: 15, pendingLessons: 18 };
-const proof = { verified: true, qaId, kind: "bangla-private-qa", isolated: true, imageDigest: "sha256:fc6f52720d3ecf55998e56a2432ffd5a782d3db231323874daf0b6d0357efca2", baseURL: "http://127.0.0.1:3001", socket: `/private/${qaId}/http.sock`, actualStage: clean, qa: clean };
+const proof = { verified: true, qaId, kind: "bangla-private-qa", isolated: true, imageDigest: "sha256:5f9ac5508771eb97c6b1e4aa4bff8db0fe69569b1f00b08a2e0e02e263d93f13", baseURL: "http://127.0.0.1:3001", socket: `/private/${qaId}/http.sock`, actualStage: clean, qa: clean };
 
 test("four-role fixture identities are a bounded disposable namespace with one pending fourth student", () => {
   const value = acceptanceIdentities(qaId);

@@ -10,8 +10,8 @@ import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-IMAGE = 'ghcr.io/omargad/bangla-adventure@sha256:fc6f52720d3ecf55998e56a2432ffd5a782d3db231323874daf0b6d0357efca2'
-REVISION = '95b6308ac7ad3d5b6bb2d951df9d65a23ff77107'
+IMAGE = 'ghcr.io/omargad/bangla-adventure@sha256:5f9ac5508771eb97c6b1e4aa4bff8db0fe69569b1f00b08a2e0e02e263d93f13'
+REVISION = 'a709cb3d2bc9fb0a271e6814bc96d1f16444c94f'
 SOURCE = (ROOT / 'scripts/private-staging-acceptance.sh').read_text()
 UNITS = ['ba-private-stage-backup.service', 'ba-private-stage-backup.timer', 'ba-private-stage-monitor.service', 'ba-private-stage-monitor.timer']
 

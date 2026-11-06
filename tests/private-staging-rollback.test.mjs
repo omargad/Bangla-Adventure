@@ -7,7 +7,7 @@ import { randomBytes } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 
 const script = fs.readFileSync(new URL('../scripts/private-staging-rollback.sh', import.meta.url), 'utf8');
-const image = 'ghcr.io/omargad/bangla-adventure@sha256:fc6f52720d3ecf55998e56a2432ffd5a782d3db231323874daf0b6d0357efca2';
+const image = 'ghcr.io/omargad/bangla-adventure@sha256:5f9ac5508771eb97c6b1e4aa4bff8db0fe69569b1f00b08a2e0e02e263d93f13';
 const runId = 'a'.repeat(24), project = `ba-private-rollback-${runId}`, volume = `${project}-data`, network = `${project}_default`;
 const fixtureRoot = `/opt/bangla-adventures/private-staging/rollback/${runId}`;
 function pythonAfter(anchor) {
