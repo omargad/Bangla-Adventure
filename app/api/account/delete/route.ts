@@ -1,74 +1,41 @@
 import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
-import { getDb } from "../../../../db";
-import {
-  adults,
-  assignments,
-  contentReviews,
-  curriculumDrafts,
-  learnerProfiles,
-  mediaAssets,
-  videoReviews,
-} from "../../../../db/schema";
-import {
-  SESSION_COOKIE,
-  destroyAllSessions,
-  getSessionAdult,
-  verifyAdultCredentials,
-} from "../../../../lib/auth";
+import { SESSION_COOKIE, getSessionAdult, verifyAdultCredentials } from "../../../../lib/auth";
 import { checkRateLimit } from "../../../../lib/rate-limit";
 import { tooManyAttempts } from "../../../../lib/rate-limit-reply";
-import { deleteMediaObject } from "../../../../lib/storage";
+import { UserManagementError, accountDeletionBlocker, deleteOwnAccount } from "../../../../lib/user-management";
 
 export const dynamic = "force-dynamic";
 
+const refusal = (error: UserManagementError) => NextResponse.json({ error: error.message, errorBn: error.messageBn }, { status: error.status });
+
 /**
- * Permanently delete the grown-up account and every record it owns:
- * learner profiles (progress and assignments cascade), studio drafts,
- * specialist reviews, uploaded audio files and all sessions. Video checks are
- * shared lesson decisions (the newest one decides which video learners get), so
- * they are kept but no longer linked to the account; otherwise deleting the
- * account would put a video a teacher took down back in front of children.
+ * Permanently delete the grown-up account and every record it owns (see deleteOwnAccount). An administrator
+ * must first be given another role, and a teacher must first have their classes moved to another teacher:
+ * both are told so before the password is checked.
  */
 export async function POST(request: Request) {
   const adult = await getSessionAdult();
-  if (!adult) return NextResponse.json({ error: "Sign in required." }, { status: 401 });
+  if (!adult) return NextResponse.json({ error: "Sign in required.", errorBn: "সাইন ইন করা প্রয়োজন।" }, { status: 401 });
 
   // Per account, not per address, shared with the other account changes.
   const limit = checkRateLimit(`account:${adult.id}`, 10, 15 * 60 * 1000);
   if (!limit.allowed) return tooManyAttempts(limit.retryAfterSeconds);
 
-  if (adult.role === "admin") return NextResponse.json({ error: "Ask another administrator to change your role before deleting this account." }, { status: 409 });
+  const blocked = await accountDeletionBlocker(adult.id);
+  if (blocked) return refusal(blocked);
 
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const password = typeof body.password === "string" ? body.password : "";
-  const verified = await verifyAdultCredentials(adult.email, password);
-  if (!verified) {
-    return NextResponse.json(
-      { error: "Enter your current password to confirm deletion." },
-      { status: 403 },
-    );
+  if (!(await verifyAdultCredentials(adult.email, password))) {
+    return NextResponse.json({ error: "Enter your current password to confirm deletion.", errorBn: "মোছা নিশ্চিত করতে আপনার বর্তমান পাসওয়ার্ড লিখুন।" }, { status: 403 });
   }
 
-  const db = await getDb();
-
-  const ownedMedia = await db
-    .select({ objectKey: mediaAssets.objectKey })
-    .from(mediaAssets)
-    .where(eq(mediaAssets.ownerEmail, adult.email));
-  for (const asset of ownedMedia) {
-    await deleteMediaObject(asset.objectKey);
+  try {
+    await deleteOwnAccount(adult.id);
+  } catch (error) {
+    if (error instanceof UserManagementError) return refusal(error);
+    return NextResponse.json({ error: "The account could not be deleted. Nothing was removed; please try again.", errorBn: "অ্যাকাউন্টটি মোছা যায়নি। কিছুই সরানো হয়নি; আবার চেষ্টা করুন।" }, { status: 503 });
   }
-
-  await db.delete(mediaAssets).where(eq(mediaAssets.ownerEmail, adult.email));
-  await db.update(videoReviews).set({ ownerEmail: `deleted-staff:${crypto.randomUUID()}` }).where(eq(videoReviews.ownerEmail, adult.email));
-  await db.delete(contentReviews).where(eq(contentReviews.ownerEmail, adult.email));
-  await db.delete(curriculumDrafts).where(eq(curriculumDrafts.ownerEmail, adult.email));
-  await db.delete(assignments).where(eq(assignments.ownerEmail, adult.email));
-  // skill_progress rows cascade with their learner profile.
-  await db.delete(learnerProfiles).where(eq(learnerProfiles.ownerEmail, adult.email));
-  await destroyAllSessions(adult.id);
-  await db.delete(adults).where(eq(adults.id, adult.id));
 
   const response = NextResponse.json({ ok: true });
   response.cookies.set(SESSION_COOKIE, "", { httpOnly: true, path: "/", maxAge: 0 });

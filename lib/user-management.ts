@@ -1,6 +1,6 @@
 import { and, asc, count, desc, eq, inArray, like, or, sql, type SQL } from "drizzle-orm";
 import { getDb } from "../db";
-import { adults, adultSessions, classes, classStudents, recoveryCodes, students, studentSessions, userAuditEvents } from "../db/schema";
+import { adults, adultSessions, assignments, classes, classStudents, contentReviews, curriculumDrafts, learnerProfiles, mediaAssets, parentStudentLinks, recoveryCodes, skillProgress, students, studentSessions, userAuditEvents, videoReviews } from "../db/schema";
 import { lessons } from "../app/curriculum";
 import type { Bilingual } from "../app/topics-content";
 import { canManageUsers, isRole, isStatus } from "./roles";
@@ -8,6 +8,7 @@ import { generateRecoveryCode, generateTemporaryPassword, hashPasswordAsync, has
 import { listStaffTopics } from "./curriculum-catalog";
 import { libraryOverrides } from "./library-catalog";
 import { mergeCatalog } from "./library-links";
+import { deleteMediaObject } from "./storage";
 
 /** `messageBn` is the same message in Bangla, sent as `errorBn` where a bilingual page shows it. */
 export class UserManagementError extends Error {
@@ -323,5 +324,106 @@ export async function resetPasswordOnServer(account: string) {
       : tx.select({ id: students.id, approvalStatus: students.approvalStatus }).from(students).where(and(eq(students.username, name), eq(students.status, "active"))).get();
     const user = found && setTemporaryPassword(tx, kind, found.id, passwordHash, null, "password-reset-by-server-operator");
     return found && user ? { user, temporaryPassword, approvalStatus: found.approvalStatus } : null;
+  });
+}
+
+const ADMINISTRATOR_DELETION = ["Ask another administrator to change your role before deleting this account.", "এই অ্যাকাউন্ট মোছার আগে অন্য একজন প্রশাসককে আপনার ভূমিকা বদলাতে বলুন।"] as const;
+const STILL_TEACHING = ["You still teach classes. Ask an administrator to move them to another teacher before deleting this account.", "আপনি এখনও ক্লাস পড়াচ্ছেন। অ্যাকাউন্ট মোছার আগে একজন প্রশাসককে ক্লাসগুলো অন্য শিক্ষকের কাছে সরিয়ে দিতে বলুন।"] as const;
+
+/**
+ * Why the owner may not delete this account yet (409), or null. An administrator must first be made
+ * something else by another administrator. Classes belong to the teacher's account and would be deleted
+ * with it, rosters, activities and results included, so a teacher must first have them moved.
+ */
+function deletionBlocker(reader: Pick<Transaction, "select">, adult: { id: string; role: string }): UserManagementError | null {
+  if (adult.role === "admin") return refuse(ADMINISTRATOR_DELETION, 409);
+  const taught = reader.select({ value: count() }).from(classes).where(eq(classes.teacherId, adult.id)).get()!.value;
+  return taught > 0 ? refuse(STILL_TEACHING, 409) : null;
+}
+
+/** The refusal to show before the owner even types their password, or null when the account can be deleted. */
+export async function accountDeletionBlocker(adultId: string): Promise<UserManagementError | null> {
+  const db = await getDb();
+  const adult = db.select({ id: adults.id, role: adults.role }).from(adults).where(eq(adults.id, adultId)).get();
+  return adult ? deletionBlocker(db, adult) : refuse(NOT_FOUND, 404);
+}
+
+/**
+ * Permanently delete the owner's adult account and every record it owns, in one transaction: learner
+ * profiles (progress cascades), assignments, studio drafts, specialist reviews, uploaded recordings,
+ * sessions, recovery codes and family links. Video checks are shared lesson decisions (the newest one decides
+ * which video learners get), so they are kept but no longer linked to the account; otherwise deleting
+ * it would put a video a teacher took down back in front of children. The deletion is audited with
+ * the account's name. Recording files are removed only after the transaction commits, so a failure
+ * leaves the account whole rather than half deleted.
+ */
+export async function deleteOwnAccount(adultId: string): Promise<void> {
+  const db = await getDb();
+  const objectKeys = db.transaction((tx) => {
+    const adult = tx.select(adultFields).from(adults).where(eq(adults.id, adultId)).get();
+    if (!adult) throw refuse(NOT_FOUND, 404);
+    const blocked = deletionBlocker(tx, adult);
+    if (blocked) throw blocked;
+    const owned = eq(mediaAssets.ownerEmail, adult.email);
+    const keys = tx.select({ objectKey: mediaAssets.objectKey }).from(mediaAssets).where(owned).all().map((asset) => asset.objectKey);
+    tx.delete(mediaAssets).where(owned).run();
+    tx.update(videoReviews).set({ ownerEmail: `deleted-staff:${crypto.randomUUID()}` }).where(eq(videoReviews.ownerEmail, adult.email)).run();
+    tx.delete(contentReviews).where(eq(contentReviews.ownerEmail, adult.email)).run();
+    tx.delete(curriculumDrafts).where(eq(curriculumDrafts.ownerEmail, adult.email)).run();
+    tx.delete(assignments).where(eq(assignments.ownerEmail, adult.email)).run();
+    // skill_progress rows cascade with their learner profile.
+    tx.delete(learnerProfiles).where(eq(learnerProfiles.ownerEmail, adult.email)).run();
+    tx.delete(adultSessions).where(eq(adultSessions.adultId, adult.id)).run();
+    record(tx, adult.id, adult.id, "adult", "account-deleted", { role: adult.role, targetLabel: { en: adult.displayName, bn: adult.displayName } });
+    // Recovery codes and family links cascade with the account.
+    tx.delete(adults).where(eq(adults.id, adult.id)).run();
+    return keys;
+  });
+  for (const key of objectKeys) {
+    try { await deleteMediaObject(key); }
+    catch (error) { console.error("A deleted account's recording file could not be removed:", key, error); }
+  }
+}
+
+/**
+ * Everything stored for the adult, for the account page's data export. Rows keyed by the owner's email
+ * (learner profiles with their progress, assignments, studio drafts, reviews, video checks and recording
+ * details), the children an administrator linked to a parent (names only), the classes a teacher teaches
+ * (names only) and the account's own audit events: the changes made to it in full, and the changes it made to
+ * other records without naming them. Students' class results belong to their school records and are not here.
+ */
+export async function exportAccountData(adultId: string) {
+  const db = await getDb();
+  return db.transaction((tx) => {
+    const adult = tx.select(adultFields).from(adults).where(eq(adults.id, adultId)).get();
+    if (!adult) throw refuse(NOT_FOUND, 404);
+    const profiles = tx.select().from(learnerProfiles).where(eq(learnerProfiles.ownerEmail, adult.email)).all();
+    const profileIds = profiles.map((profile) => profile.id);
+    const progress = profileIds.length ? tx.select().from(skillProgress).where(inArray(skillProgress.profileId, profileIds)).all() : [];
+    const media = tx.select().from(mediaAssets).where(eq(mediaAssets.ownerEmail, adult.email)).all();
+    const linkedChildren = tx.select({ displayName: students.displayName, username: students.username, linkedAt: parentStudentLinks.createdAt })
+      .from(parentStudentLinks).innerJoin(students, eq(parentStudentLinks.studentId, students.id))
+      .where(eq(parentStudentLinks.parentId, adult.id)).orderBy(students.displayName, students.username).all();
+    const classesTaught = tx.select({ name: classes.name, createdAt: classes.createdAt }).from(classes)
+      .where(eq(classes.teacherId, adult.id)).orderBy(classes.name).all();
+    const events = tx.select().from(userAuditEvents).where(or(eq(userAuditEvents.targetId, adult.id), eq(userAuditEvents.actorId, adult.id)))
+      .orderBy(asc(userAuditEvents.createdAt), asc(sql`${userAuditEvents}.rowid`)).all();
+    const details = (json: string) => { try { return JSON.parse(json) as object; } catch { return {}; } };
+    return {
+      exportedAt: new Date().toISOString(),
+      account: { email: adult.email, displayName: adult.displayName, role: adult.role, teacherStatus: adult.teacherStatus, approvalStatus: adult.approvalStatus, createdAt: adult.createdAt },
+      linkedChildren,
+      classesTaught,
+      learnerProfiles: profiles.map((profile) => ({ ...profile, progress: progress.filter((item) => item.profileId === profile.id) })),
+      assignments: tx.select().from(assignments).where(eq(assignments.ownerEmail, adult.email)).all(),
+      curriculumDrafts: tx.select().from(curriculumDrafts).where(eq(curriculumDrafts.ownerEmail, adult.email)).all(),
+      contentReviews: tx.select().from(contentReviews).where(eq(contentReviews.ownerEmail, adult.email)).all(),
+      videoReviews: tx.select().from(videoReviews).where(eq(videoReviews.ownerEmail, adult.email)).all(),
+      // Recording details only; where the file is stored is not part of the export (JSON drops the undefined key).
+      mediaAssets: media.map((asset) => ({ ...asset, objectKey: undefined })),
+      auditEvents: events.map((event) => event.targetId === adult.id && event.targetType === "adult"
+        ? { action: event.action, madeBy: event.actorId === adult.id ? "you" : event.actorId ? "administrator" : "server operator", details: details(event.detailsJson), createdAt: event.createdAt }
+        : { action: event.action, madeBy: "you", targetType: event.targetType, createdAt: event.createdAt }),
+    };
   });
 }

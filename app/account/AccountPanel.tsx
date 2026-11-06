@@ -2,9 +2,39 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useLanguage } from "../../lib/use-language";
+import { localMessage, useLanguage } from "../../lib/use-language";
+import type { AdultRole } from "../../lib/roles";
 
-export default function AccountPanel({ email, displayName }: { email: string; displayName: string }) {
+/** What the data export holds for each kind of account, in both languages (see exportAccountData). */
+const EXPORT_CONTENTS: Record<AdultRole, [string, string]> = {
+  parent: [
+    "Download a machine-readable copy of what this account holds: your name and email, the children an administrator linked to you (their names), any home learner profiles with their progress and assignments, and a history of the changes made to this account. Your children’s class results and attendance are kept in their school records, so they are not in this file.",
+    "এই অ্যাকাউন্টে যা রাখা আছে তার একটি কপি নামান: আপনার নাম ও ইমেইল, প্রশাসক আপনার সঙ্গে যে শিশুদের যুক্ত করেছেন (তাদের নাম), বাসার শিক্ষার্থী প্রোফাইল থাকলে সেগুলোর অগ্রগতি ও কাজ, আর এই অ্যাকাউন্টে করা পরিবর্তনের ইতিহাস। শিশুদের ক্লাসের ফলাফল ও উপস্থিতি স্কুলের রেকর্ডে থাকে, তাই এই ফাইলে নেই।",
+  ],
+  teacher: [
+    "Download a machine-readable copy of what this account holds: your name and email, the names of the classes you teach, your home learner profiles with their progress and assignments, your content-studio drafts, reviews and recordings, and a history of the changes made to and by this account. Your students’ results and attendance belong to the class records, so they are not in this file.",
+    "এই অ্যাকাউন্টে যা রাখা আছে তার একটি কপি নামান: আপনার নাম ও ইমেইল, আপনি যে ক্লাসগুলো পড়ান সেগুলোর নাম, বাসার শিক্ষার্থী প্রোফাইল ও সেগুলোর অগ্রগতি ও কাজ, কনটেন্ট-স্টুডিওর খসড়া, পর্যালোচনা ও রেকর্ডিং, আর এই অ্যাকাউন্টে ও এই অ্যাকাউন্ট থেকে করা পরিবর্তনের ইতিহাস। শিক্ষার্থীদের ফলাফল ও উপস্থিতি ক্লাসের রেকর্ডে থাকে, তাই এই ফাইলে নেই।",
+  ],
+  admin: [
+    "Download a machine-readable copy of what this account holds: your name and email, the names of any classes you teach, your home learner profiles with their progress and assignments, your content-studio drafts, reviews and recordings, and a history of the changes made to and by this account. Other people’s accounts and records are not in this file.",
+    "এই অ্যাকাউন্টে যা রাখা আছে তার একটি কপি নামান: আপনার নাম ও ইমেইল, আপনি কোনো ক্লাস পড়ালে সেগুলোর নাম, বাসার শিক্ষার্থী প্রোফাইল ও সেগুলোর অগ্রগতি ও কাজ, কনটেন্ট-স্টুডিওর খসড়া, পর্যালোচনা ও রেকর্ডিং, আর এই অ্যাকাউন্টে ও এই অ্যাকাউন্ট থেকে করা পরিবর্তনের ইতিহাস। অন্যদের অ্যাকাউন্ট ও রেকর্ড এই ফাইলে নেই।",
+  ],
+};
+
+/** Who can delete their own account here, and what has to happen first. */
+const DELETE_NOTE: Record<AdultRole, [string, string] | null> = {
+  parent: null,
+  teacher: [
+    "If you teach any classes, ask an administrator to move them to another teacher first: classes are not deleted with your account.",
+    "আপনি কোনো ক্লাস পড়ালে আগে একজন প্রশাসককে ক্লাসগুলো অন্য শিক্ষকের কাছে সরিয়ে দিতে বলুন: আপনার অ্যাকাউন্টের সঙ্গে ক্লাস মোছা হয় না।",
+  ],
+  admin: [
+    "An administrator account cannot be deleted here: another administrator must change your role first.",
+    "প্রশাসকের অ্যাকাউন্ট এখান থেকে মোছা যায় না: আগে অন্য একজন প্রশাসককে আপনার ভূমিকা বদলাতে হবে।",
+  ],
+};
+
+export default function AccountPanel({ email, displayName, role }: { email: string; displayName: string; role: AdultRole }) {
   const router = useRouter();
   const [language] = useLanguage({ title: ["Your account | Bangla Adventures", "আপনার অ্যাকাউন্ট | Bangla Adventures"] });
   const s = (en: string, bn: string) => (language === "bn" ? bn : en);
@@ -29,9 +59,9 @@ export default function AccountPanel({ email, displayName }: { email: string; di
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ currentPassword, newPassword }),
       });
-      const data = (await response.json().catch(() => ({}))) as { error?: string };
+      const data = (await response.json().catch(() => ({}))) as { error?: string; errorBn?: string };
       if (!response.ok) {
-        setPasswordMessage({ ok: false, text: data.error ?? s("Could not change the password.", "পাসওয়ার্ড বদলানো যায়নি।") });
+        setPasswordMessage({ ok: false, text: localMessage(data, language, ["Could not change the password.", "পাসওয়ার্ড বদলানো যায়নি।"]) });
         return;
       }
       setCurrentPassword("");
@@ -73,10 +103,11 @@ export default function AccountPanel({ email, displayName }: { email: string; di
       });
       const data = (await response.json().catch(() => ({}))) as {
         error?: string;
+        errorBn?: string;
         recoveryCodes?: string[];
       };
       if (!response.ok || !data.recoveryCodes) {
-        setCodesError(data.error ?? s("Could not generate new codes.", "নতুন কোড তৈরি করা যায়নি।"));
+        setCodesError(localMessage(data, language, ["Could not generate new codes.", "নতুন কোড তৈরি করা যায়নি।"]));
         return;
       }
       setCodesPassword("");
@@ -102,9 +133,9 @@ export default function AccountPanel({ email, displayName }: { email: string; di
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password: deletePassword }),
       });
-      const data = (await response.json().catch(() => ({}))) as { error?: string };
+      const data = (await response.json().catch(() => ({}))) as { error?: string; errorBn?: string };
       if (!response.ok) {
-        setDeleteError(data.error ?? s("Could not delete the account.", "অ্যাকাউন্ট মোছা যায়নি।"));
+        setDeleteError(localMessage(data, language, ["Could not delete the account.", "অ্যাকাউন্ট মোছা যায়নি।"]));
         return;
       }
       router.push("/");
@@ -126,8 +157,8 @@ export default function AccountPanel({ email, displayName }: { email: string; di
             <p>
               {s("Signed in as", "সাইন-ইন করেছেন")} <strong>{displayName}</strong> ({email}).{" "}
               {s(
-                "Everything this account owns — learner profiles, progress, assignments and studio records — can be exported or permanently deleted here.",
-                "এই অ্যাকাউন্টের সবকিছু — শিক্ষার্থী প্রোফাইল, অগ্রগতি, কাজ ও স্টুডিও রেকর্ড — এখান থেকে রপ্তানি বা স্থায়ীভাবে মুছে ফেলা যায়।",
+                "Change your password and recovery codes, download a copy of this account’s data, or delete the account here.",
+                "এখান থেকে পাসওয়ার্ড ও পুনরুদ্ধার কোড বদলান, এই অ্যাকাউন্টের তথ্যের একটি কপি নামান, অথবা অ্যাকাউন্টটি মুছে ফেলুন।",
               )}
             </p>
           </div>
@@ -154,8 +185,8 @@ export default function AccountPanel({ email, displayName }: { email: string; di
           </section>
 
           <section className="account-card" aria-labelledby="account-data">
-            <h2 id="account-data">{s("Your family’s data", "আপনার পরিবারের তথ্য")}</h2>
-            <p>{s("Download a machine-readable copy of everything stored for this account: learner profiles, six-skill progress, assignments and content-studio records.", "এই অ্যাকাউন্টে রাখা সবকিছুর একটি কপি নামান: শিক্ষার্থী প্রোফাইল, ছয়-দক্ষতার অগ্রগতি, কাজ ও কনটেন্ট-স্টুডিও রেকর্ড।")}</p>
+            <h2 id="account-data">{s("Your data", "আপনার তথ্য")}</h2>
+            <p>{s(...EXPORT_CONTENTS[role])}</p>
             <a className="outline-button" href="/api/account/export" download>{s("Download data export (JSON)", "তথ্য রপ্তানি নামান (JSON)")}</a>
             <h3>{s("Sessions", "সেশন")}</h3>
             <p>{s("Suspect a shared or public computer stayed signed in? End every session at once.", "কোনো শেয়ার করা বা পাবলিক কম্পিউটারে সাইন-ইন রয়ে গেছে মনে হচ্ছে? সব সেশন একসঙ্গে বন্ধ করুন।")}</p>
@@ -189,6 +220,7 @@ export default function AccountPanel({ email, displayName }: { email: string; di
           <section className="account-card account-danger" aria-labelledby="account-delete">
             <h2 id="account-delete">{s("Delete account", "অ্যাকাউন্ট মুছুন")}</h2>
             <p>{s("Permanently removes this grown-up account and everything it owns: all learner profiles, progress, assignments, drafts, reviews and uploaded audio. Lesson decisions and video checks you made for students stay in place, shown as made by a former staff member. Children’s device-local stars are unaffected. This cannot be undone — export your data first if you want a copy.", "এই বড়দের অ্যাকাউন্ট ও এর সবকিছু স্থায়ীভাবে মুছে ফেলে: সব শিক্ষার্থী প্রোফাইল, অগ্রগতি, কাজ, খসড়া, পর্যালোচনা ও আপলোড করা অডিও। শিক্ষার্থীদের জন্য আপনার নেওয়া পাঠের সিদ্ধান্ত ও ভিডিও যাচাই থেকে যাবে, একজন সাবেক কর্মীর নামে দেখানো হবে। শিশুদের ডিভাইসে থাকা তারা অক্ষত থাকে। এটি ফেরানো যায় না — কপি চাইলে আগে তথ্য রপ্তানি করুন।")}</p>
+            {DELETE_NOTE[role] && <p>{s(...DELETE_NOTE[role])}</p>}
             <form onSubmit={deleteAccount}>
               <label>
                 {s("Current password", "বর্তমান পাসওয়ার্ড")}
