@@ -20,6 +20,11 @@ production settings file or existing database is changed by staging.
 | Image | `ghcr.io/omargad/bangla-adventure@sha256:5f9ac5508771eb97c6b1e4aa4bff8db0fe69569b1f00b08a2e0e02e263d93f13` |
 | Expected image revision | `a709cb3d2bc9fb0a271e6814bc96d1f16444c94f` |
 
+The image's revision label keeps the commit id it was built from before the
+history of `main` was rewritten on 6 November 2026. That source is now commit
+`fd39b2badae6c39a0ca1f82067d93d30d34cfa04` on `main`; the image itself is
+unchanged. The scripts compare the image label, so they keep the original id.
+
 `DEPLOY_USER` and `DEPLOY_HOST` are the secrets (repository or `production`
 environment) holding the SSH account and address from the server handover
 email; see

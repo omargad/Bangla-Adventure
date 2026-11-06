@@ -8,6 +8,8 @@ The runner must upload this script, `deploy-remote.sh` and
 
 The fixed trusted application image is the existing revision `a709cb3` digest
 `sha256:5f9ac5508771eb97c6b1e4aa4bff8db0fe69569b1f00b08a2e0e02e263d93f13`.
+Its label keeps that pre-rewrite id; the same source is commit `fd39b2b` on
+`main` (see [Private staging](PRIVATE_STAGING.md)).
 The source staging app must be healthy, portless, zero-user and at its exact
 15-pending-topic / 18-pending-lesson state before and after the exercise.
 
