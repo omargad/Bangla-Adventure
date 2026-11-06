@@ -41,7 +41,7 @@ export default function StudentPortal({ initialStudent, destination = "/student"
   const [language, toggleLanguage] = useLanguage();
   const s = (en: string, bn: string) => language === "bn" ? bn : en;
   const number = (value: number) => localNumber(value, language);
-  const [student, setStudent] = useState(initialStudent);
+  const student = initialStudent;
   const [mode, setMode] = useState(initialMode);
   const [username, setUsername] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -95,6 +95,7 @@ export default function StudentPortal({ initialStudent, destination = "/student"
     event.preventDefault();
     if (busy) return;
     setBusy(true); setError("");
+    let leaving = false;
     try {
       const response = await fetch(`/api/student/${mode}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username, displayName, password }) });
       const data = await response.json().catch(() => ({})) as { student?: Student; mustChangePassword?: boolean; pendingApproval?: boolean; approvalStatus?: Exclude<ApprovalStatus, "approved">; error?: string; errorBn?: string };
@@ -106,11 +107,14 @@ export default function StudentPortal({ initialStudent, destination = "/student"
       // A new account waits for an administrator: no session starts, so go back to the sign-in form.
       if (data.pendingApproval) { setAwaitingApproval(true); setMode("sign-in"); return; }
       // Leave before rendering My Learning, which would load data the temporary password cannot use.
-      if (data.mustChangePassword) { window.location.replace(PASSWORD_PATH); return; }
-      setStudent(data.student ?? null);
+      if (data.mustChangePassword) { leaving = true; window.location.replace(PASSWORD_PATH); return; }
+      // The destination page loads My Learning itself. Rendering it here first would start loading data
+      // that the navigation then throws away, and show the page twice.
+      leaving = true;
       window.location.replace(destination);
     } catch { setError(s("Could not reach the server. Check your connection and try again.", "সার্ভারে পৌঁছানো যায়নি। সংযোগ দেখে আবার চেষ্টা করো।")); }
-    finally { setBusy(false); }
+    // While the browser leaves, the button stays busy so the form cannot be sent twice.
+    finally { if (!leaving) setBusy(false); }
   }
   async function submit(event: React.FormEvent) {
     event.preventDefault();

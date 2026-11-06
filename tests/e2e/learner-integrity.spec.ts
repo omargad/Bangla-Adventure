@@ -106,6 +106,34 @@ test("learner pages show a signed-in student their own way home and the right wo
   await expect(page.getByText(/educator evidence room|educator-review gate/i)).toHaveCount(0);
 });
 
+test("signing in on the student form leaves for My Learning without showing it on the form page first", async ({ page }) => {
+  const suffix = randomUUID().slice(0, 8);
+  const username = `sign-in-once-${suffix}`, password = "Learner-sign-in-password";
+  await page.context().setExtraHTTPHeaders({ "x-forwarded-for": `sign-in-once-${suffix}` });
+  expect((await page.request.post("/api/student/sign-up", { data: { username, displayName: `Sign in ${suffix}`, password } })).status()).toBe(201);
+  fixture((db) => db.prepare("UPDATE students SET approval_status='approved' WHERE username=?").run(username));
+  // Each document notes, once, that it showed the My Learning heading; the list survives the reload.
+  await page.addInitScript(() => {
+    const id = `${performance.timeOrigin}`;
+    const note = () => {
+      if (![...document.querySelectorAll("h1")].some((heading) => heading.textContent === "My Learning")) return;
+      const seen = JSON.parse(sessionStorage.getItem("my-learning-documents") ?? "[]") as string[];
+      if (!seen.includes(id)) sessionStorage.setItem("my-learning-documents", JSON.stringify([...seen, id]));
+    };
+    new MutationObserver(note).observe(document, { childList: true, subtree: true, characterData: true });
+  });
+  await page.goto("/student");
+  await page.getByLabel("Username", { exact: true }).fill(username);
+  await page.getByLabel("Password", { exact: true }).fill(password);
+  const signedIn = page.waitForResponse((response) => response.url().endsWith("/api/student/sign-in") && response.request().method() === "POST");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  expect((await signedIn).status()).toBe(200);
+  await expect(page.getByRole("heading", { name: "My Learning", exact: true })).toBeVisible();
+  await page.waitForLoadState("networkidle");
+  // Only the reloaded page shows it: the form page never rendered My Learning before leaving.
+  expect(JSON.parse(await page.evaluate(() => sessionStorage.getItem("my-learning-documents") ?? "[]"))).toHaveLength(1);
+});
+
 test("topic quiz answers stay on the server for every reader", async ({ page }) => {
   const suffix = randomUUID().slice(0, 8);
   await studentInClass(page, suffix);
