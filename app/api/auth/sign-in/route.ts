@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
+import { destroyBrowserSessions } from "@/lib/browser-logout";
 import {
+  ACCOUNT_SUSPENDED,
   SESSION_COOKIE,
   createAdultSession,
   sessionCookieOptions,
@@ -37,14 +39,15 @@ export async function POST(request: Request) {
     if (!limit.allowed) return tooManyAttempts(limit.retryAfterSeconds);
   }
 
-  const adult = await verifyAdultCredentials(email, password);
+  const adult = await verifyAdultCredentials(email, password, { allowSuspended: true });
   if (!adult) {
     recordRateLimit(fromHere, WINDOW_MS);
     recordRateLimit(overall, WINDOW_MS);
     return NextResponse.json({ error: "That email and password do not match.", errorBn: "এই ইমেইল ও পাসওয়ার্ড মেলেনি।" }, { status: 401 });
   }
   clearRateLimit(fromHere);
-  // Only someone who knows the password learns that the account is still waiting for approval.
+  // Only someone who knows the password learns that the account is suspended or still waiting for approval.
+  if (adult.status !== "active") return NextResponse.json(ACCOUNT_SUSPENDED, { status: 403 });
   if (adult.approvalStatus !== "approved") {
     return NextResponse.json({ error: approvalNotice(adult.approvalStatus, "adult")[0], errorBn: approvalNotice(adult.approvalStatus, "adult")[1], approvalStatus: adult.approvalStatus }, { status: 403 });
   }
@@ -52,6 +55,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "This account does not have administrator access. Sign in with your administrator account.", errorBn: "এই অ্যাকাউন্টে প্রশাসকের অনুমতি নেই। আপনার প্রশাসক অ্যাকাউন্ট দিয়ে সাইন ইন করুন।" }, { status: 403 });
   }
 
+  // The session this browser held until now (adult or student, whichever account it was) ends with it,
+  // rather than staying valid until it expires.
+  await destroyBrowserSessions();
   const { token, expiresAt } = await createAdultSession(adult.id);
   // An administrator-issued password must be replaced before anything else.
   const response = NextResponse.json({ adult, mustChangePassword: adult.mustChangePassword });

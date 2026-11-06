@@ -136,14 +136,25 @@ export async function registerAdult(
   return adult ?? { error: "An account with this email already exists. Sign in instead.", errorBn: "এই ইমেইলে আগেই একটি অ্যাকাউন্ট আছে। সাইন ইন করুন।" };
 }
 
-/** The active account with this email and password, approved or not: callers decide what approval allows. */
-export async function verifyAdultCredentials(email: string, password: string): Promise<Adult | null> {
+/** What sign-in tells the owner of a suspended account, once their password has been checked. */
+export const ACCOUNT_SUSPENDED = {
+  error: "This account is suspended. Please contact the administrator.",
+  errorBn: "এই অ্যাকাউন্টটি স্থগিত আছে। অনুগ্রহ করে প্রশাসকের সঙ্গে যোগাযোগ করুন।",
+  accountStatus: "suspended",
+} as const;
+
+/**
+ * The active account with this email and password, approved or not: callers decide what approval allows.
+ * With allowSuspended, a suspended account with the right password is returned too (with its status), so
+ * sign-in can tell its owner to contact the administrator; a wrong password still reveals nothing.
+ */
+export async function verifyAdultCredentials(email: string, password: string, { allowSuspended = false } = {}): Promise<Adult | null> {
   if (!password || password.length > 200) return null;
   const db = await getDb();
   const normalized = email.trim().toLowerCase();
   const [row] = await db.select().from(adults).where(eq(adults.email, normalized)).limit(1);
   const valid = verifyPassword(password, row?.passwordHash ?? dummyPasswordHash);
-  if (!row || !valid || row.status !== "active") return null;
+  if (!row || !valid || (row.status !== "active" && !allowSuspended)) return null;
   return {
     id: row.id, email: row.email, displayName: row.displayName, role: row.role, status: row.status,
     teacherStatus: row.teacherStatus, approvalStatus: row.approvalStatus, mustChangePassword: row.mustChangePassword,
@@ -209,6 +220,37 @@ export async function issueRecoveryCodes(adultId: string): Promise<string[]> {
 }
 
 /**
+ * An audit row for a change the adult made to their own account, inside the caller's transaction.
+ * The account's name is stored with it, so Recent changes can still name it after the account is deleted.
+ */
+export function auditOwnAccount(tx: Transaction, adult: Pick<Adult, "id" | "displayName">, action: string, details: object = {}): void {
+  tx.insert(userAuditEvents).values({
+    id: crypto.randomUUID(), actorId: adult.id, targetId: adult.id, targetType: "adult", action,
+    detailsJson: JSON.stringify({ ...details, targetLabel: { en: adult.displayName, bn: adult.displayName } }),
+  }).run();
+}
+
+/** The owner replaces their recovery codes from the account page: the old ones stop working, and it is audited. */
+export async function renewRecoveryCodes(adult: Pick<Adult, "id" | "displayName">): Promise<string[]> {
+  const db = await getDb();
+  const codes = newRecoveryCodes();
+  db.transaction((tx) => {
+    replaceRecoveryCodes(tx, adult.id, codes);
+    auditOwnAccount(tx, adult, "recovery-codes-replaced");
+  });
+  return codes;
+}
+
+/** End every session of the adult, this one included, and audit it ("Sign out everywhere"). */
+export async function signOutEverywhere(adult: Pick<Adult, "id" | "displayName">): Promise<void> {
+  const db = await getDb();
+  db.transaction((tx) => {
+    const ended = tx.delete(adultSessions).where(eq(adultSessions.adultId, adult.id)).returning({ tokenHash: adultSessions.tokenHash }).all();
+    auditOwnAccount(tx, adult, "signed-out-everywhere", { sessions: ended.length });
+  });
+}
+
+/**
  * Replace the password, clear the administrator-issued flag and end every session except keepToken's.
  * An administrator saw the recovery codes of an account they issued a password for, so the first
  * change of such a password also issues fresh codes; they are returned once, otherwise null.
@@ -221,10 +263,7 @@ export async function changeAdultPassword(adult: Adult, newPassword: string, kee
     tx.update(adults).set({ passwordHash, mustChangePassword: false }).where(eq(adults.id, adult.id)).run();
     tx.delete(adultSessions).where(and(eq(adultSessions.adultId, adult.id), ne(adultSessions.tokenHash, hashSessionToken(keepToken)))).run();
     if (codes) replaceRecoveryCodes(tx, adult.id, codes);
-    tx.insert(userAuditEvents).values({
-      id: crypto.randomUUID(), actorId: adult.id, targetId: adult.id, targetType: "adult",
-      action: "password-changed", detailsJson: JSON.stringify({ temporary: adult.mustChangePassword }),
-    }).run();
+    auditOwnAccount(tx, adult, "password-changed", { temporary: adult.mustChangePassword });
   });
   return codes;
 }
@@ -242,6 +281,7 @@ export async function recoverAdultPassword(adult: Adult, newPassword: string): P
     tx.update(adults).set({ passwordHash, mustChangePassword: false }).where(eq(adults.id, adult.id)).run();
     tx.delete(adultSessions).where(eq(adultSessions.adultId, adult.id)).run();
     if (codes) replaceRecoveryCodes(tx, adult.id, codes);
+    auditOwnAccount(tx, adult, "password-recovered", { temporary: adult.mustChangePassword, recoveryCodesReplaced: Boolean(codes) });
   });
   return codes;
 }

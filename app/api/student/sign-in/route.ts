@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
+import { destroyBrowserSessions } from "@/lib/browser-logout";
 import {
+  STUDENT_ACCOUNT_SUSPENDED,
   STUDENT_SESSION_COOKIE,
   createStudentSession,
   normalizeStudentUsername,
@@ -37,17 +39,21 @@ export async function POST(request: Request) {
     if (!limit.allowed) return tooManyAttempts(limit.retryAfterSeconds, "student");
   }
 
-  const student = await verifyStudentCredentials(username, password);
+  const student = await verifyStudentCredentials(username, password, { allowSuspended: true });
   if (!student) {
     recordRateLimit(fromHere, WINDOW_MS);
     recordRateLimit(overall, WINDOW_MS);
     return NextResponse.json({ error: "That username and password do not match.", errorBn: "এই ইউজারনেম ও পাসওয়ার্ড মেলেনি।" }, { status: 401 });
   }
   clearRateLimit(fromHere);
+  // Only someone who knows the password learns that the account is suspended or still waiting for approval.
+  if (student.status !== "active") return NextResponse.json(STUDENT_ACCOUNT_SUSPENDED, { status: 403 });
   if (student.approvalStatus !== "approved") {
     return NextResponse.json({ error: approvalNotice(student.approvalStatus, "student")[0], errorBn: approvalNotice(student.approvalStatus, "student")[1], approvalStatus: student.approvalStatus }, { status: 403 });
   }
 
+  // The session this browser held until now (student or adult) ends with it, rather than staying valid until it expires.
+  await destroyBrowserSessions();
   const { token, expiresAt } = await createStudentSession(student.id);
   // A teacher-issued temporary password must be replaced before anything else.
   const response = NextResponse.json({ student, mustChangePassword: student.mustChangePassword });

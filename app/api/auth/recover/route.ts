@@ -1,3 +1,4 @@
+import { destroyBrowserSessions } from "@/lib/browser-logout";
 import { NextResponse } from "next/server";
 import {
   SESSION_COOKIE,
@@ -49,6 +50,8 @@ export async function POST(request: Request) {
   // The new password is the owner's own, which also ends an administrator-issued one. The administrator
   // who issued that password saw these codes, so they are replaced and the new set shown once.
   const recoveryCodes = await recoverAdultPassword(adult, newPassword);
+  // Whatever session this browser still held (another adult, or a student) ends too; its cookies are replaced below.
+  await destroyBrowserSessions();
   const { token, expiresAt } = await createAdultSession(adult.id);
   const response = NextResponse.json({ adult: { ...adult, mustChangePassword: false }, ...(recoveryCodes ? { recoveryCodes } : {}) }, { headers: { "Cache-Control": "no-store" } });
   response.cookies.set(SESSION_COOKIE, token, sessionCookieOptions(expiresAt));
