@@ -6,6 +6,7 @@ import { siteTitle } from "../../lib/site-title";
 import type { AttendanceSummary } from "../../lib/attendance";
 import { ANNOUNCEMENT_AUDIENCES, ANNOUNCEMENT_MAX_LENGTH, AUDIENCE_BADGES, AUDIENCE_CHOICES, POSTED_MESSAGES, type AnnouncementAudience } from "../../lib/announcements";
 import { buildGradebook } from "../../lib/gradebook";
+import { classDeletedMessage, countText, unpublishedNote } from "../../lib/class-labels";
 import { scrollToTop } from "../../lib/scroll-to-top";
 import type { Topic } from "../topics-content";
 import { groupByCategory } from "@/lib/topic-model";
@@ -27,6 +28,8 @@ type ClassSummary = {
   teacherId: string;
   /** Only in an administrator's all-classes listing. */
   teacherName?: string;
+  /** Only in an administrator's listing: false when the teacher can no longer teach (suspended, declined or no teacher access). */
+  teacherActive?: boolean;
   studentCount: number;
   activityCount: number;
   submissionCount: number;
@@ -254,7 +257,9 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
 
   const removeClass = async (id: string) => {
     if (!canLeaveClass()) return;
-    const owner = otherTeacher(classList.find((item) => item.id === id));
+    const listed = classList.find((item) => item.id === id);
+    const owner = otherTeacher(listed);
+    const name = listed?.name ?? (detail?.class.id === id ? detail.class.name : "");
     const question = owner
       ? s(`Delete ${owner}'s class, its activities and submissions?`, `${owner}-এর ক্লাস, কার্যক্রম ও জমাগুলো মুছে ফেলবেন?`)
       : s("Delete this class, its activities and submissions?", "এই ক্লাস, কার্যক্রম ও জমাগুলো মুছে ফেলবেন?");
@@ -262,6 +267,8 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
     const response = await request(`/api/classes/${id}`, { method: "DELETE" });
     if (response.ok) {
       closeClass();
+      // Replaces any earlier message (such as "Class created…") on My classes.
+      setMessage(name ? s(...classDeletedMessage(name)) : s("Class deleted, with its activities and submissions.", "ক্লাসটি তার কার্যক্রম ও জমাসহ মুছে ফেলা হয়েছে।"));
       setSection("classes");
       setFocusRequest((count) => count + 1);
       await loadClasses();
@@ -325,7 +332,7 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
       setQuestions([emptyQuestion()]);
       setMessage(isAdmin ? s("Activity approved and published to the class.", "কার্যক্রম অনুমোদিত হয়ে ক্লাসে প্রকাশিত হয়েছে।") : s("Activity submitted for Admin approval. Students and parents cannot see it yet.", "কার্যক্রম প্রশাসকের অনুমোদনের জন্য জমা হয়েছে। শিক্ষার্থী ও অভিভাবকেরা এখনও এটি দেখতে পাবেন না।"));
       await refreshClass(detail.class.id);
-    } else setMessage(data.error ?? "Could not create the activity.");
+    } else setMessage(localMessage(data, language, ["Could not create the activity.", "কার্যক্রম তৈরি করা যায়নি।"]));
   };
 
   const setActivityStatus = async (activityId: string, status: "open" | "closed") => {
@@ -341,10 +348,15 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
   const reviewActivity = async (activity: ActivityDetail, approvalStatus: "approved" | "rejected", reviewNote: string) => {
     if (!detail) return;
     const classId = detail.class.id;
-    await requestJson(`/api/classes/${classId}/activities`, {
-      method: "PATCH", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ activityId: activity.id, approvalStatus, revision: activity.revision, reviewNote }),
-    });
+    try {
+      await requestJson(`/api/classes/${classId}/activities`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ activityId: activity.id, approvalStatus, revision: activity.revision, reviewNote }),
+      });
+    } catch (error) {
+      // Shown by the review panel, in the page language.
+      throw new Error(localMessage(error instanceof RequestError ? error.data : null, language, ["The review could not be saved. Please retry.", "পর্যালোচনা সংরক্ষণ করা যায়নি। আবার চেষ্টা করুন।"]));
+    }
     await refreshClass(classId);
   };
 
@@ -372,7 +384,9 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
     topicId ? topics.find((topic) => topic.id === topicId)?.title[language] ?? topicId : null;
 
   // One row per student now in the class and one column per activity (newest first).
+  // Only activities students can see (approved) get a column and count in Done; the note names the rest.
   const gradebook = useMemo(() => buildGradebook(detail?.students ?? [], detail?.activities ?? []), [detail]);
+  const unpublished = unpublishedNote(gradebook.unpublished);
   const toggleSubmissions = (activityId: string) => setOpenSubmissions((current) => {
     const next = new Set(current);
     if (!next.delete(activityId)) next.add(activityId);
@@ -439,11 +453,12 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
               ) : visibleClasses.length === 0 ? <p className="teach-empty">{s("No class matches your search.", "খোঁজ অনুযায়ী কোনো ক্লাস নেই।")}</p> : (
                 <div className="teach-class-grid">
                   {visibleClasses.map((item) => (
-                    <button type="button" className="teach-class-card" key={item.id} onClick={() => openClass(item.id, true)}>
+                    <button type="button" className="teach-class-card" key={item.id} onClick={() => { setMessage(""); void openClass(item.id, true); }}>
                       <strong>{item.name}</strong>
                       {otherTeacher(item) && <small>{s("Teacher", "শিক্ষক")}: {otherTeacher(item)}</small>}
+                      {isAdmin && item.teacherActive === false && <small className="status-badge declined">{s("Needs a new teacher", "নতুন শিক্ষক প্রয়োজন")}</small>}
                       <small>
-                        {number(item.studentCount)} {s("students", "শিক্ষার্থী")} · {number(item.activityCount)} {s("activities", "কার্যক্রম")} · {number(item.submissionCount)} {s("submissions", "জমা")}
+                        {countText(item.studentCount, "student", language)} · {countText(item.activityCount, "activity", language)} · {countText(item.submissionCount, "submission", language)}
                       </small>
                     </button>
                   ))}
@@ -482,13 +497,16 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
                   {s("Export CSV", "CSV নামান")}
                 </a>
               </div>
+              {unpublished && <p className="teach-note">{s(...unpublished)}</p>}
               <Gradebook gradebook={gradebook} language={language} />
             </section>
 
             <section hidden={section !== "results"} className="teach-panel" aria-label={s("Submissions by activity", "কার্যক্রম অনুযায়ী জমা")}>
               <h3>{s("Submissions by activity", "কার্যক্রম অনুযায়ী জমা")}</h3>
               {gradebook.activities.length === 0 ? (
-                <p className="teach-empty">{s("No activities yet. Set one in Activities & quizzes.", "এখনো কোনো কার্যক্রম নেই। কার্যক্রম ও কুইজ অংশে একটি দিন।")}</p>
+                <p className="teach-empty">{gradebook.unpublished > 0
+                  ? s("No published activities yet. An activity appears here once an administrator approves it.", "এখনো কোনো কার্যক্রম প্রকাশিত হয়নি। প্রশাসক অনুমোদন করলে কার্যক্রমটি এখানে দেখা যাবে।")
+                  : s("No activities yet. Set one in Activities & quizzes.", "এখনো কোনো কার্যক্রম নেই। কার্যক্রম ও কুইজ অংশে একটি দিন।")}</p>
               ) : (
                 gradebook.activities.map((column, index) => {
                   const activity = detail.activities.find((item) => item.id === column.id);
@@ -500,7 +518,7 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
                         <div>
                           <strong>{column.title}</strong>
                           <small>
-                            {number(activity?.questions.length ?? 0)} {s("questions", "প্রশ্ন")}
+                            {countText(activity?.questions.length ?? 0, "question", language)}
                             {" · "}
                             {activity?.status === "open" ? s("open", "খোলা") : s("closed", "বন্ধ")}
                           </small>
@@ -763,7 +781,7 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
                         <div>
                           <strong>{activity.title}</strong>
                           <small>
-                            {number(activity.questions.length)} {s("questions", "প্রশ্ন")}
+                            {countText(activity.questions.length, "question", language)}
                             {activity.topicId && <> · {s("topic:", "বিষয়:")} {topicTitle(activity.topicId)}</>}
                             {" · "}
                             {activity.status === "open" ? s("open", "খোলা") : s("closed", "বন্ধ")}

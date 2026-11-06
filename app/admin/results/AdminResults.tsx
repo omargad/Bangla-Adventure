@@ -3,7 +3,8 @@ import { useEffect, useRef, useState } from "react";
 import PortalShell from "@/app/components/PortalShell";
 import Gradebook from "@/app/components/Gradebook";
 import type { Gradebook as GradebookData } from "@/lib/gradebook";
-import { localDateTime, localNumber, useLanguage } from "@/lib/use-language";
+import { countText, unpublishedNote } from "@/lib/class-labels";
+import { localDateTime, localMessage, localNumber, useLanguage } from "@/lib/use-language";
 
 type ClassResults = {
   id: string;
@@ -27,10 +28,17 @@ type ResultRow = {
   submittedAt: string;
 };
 
+/** A refused request, keeping the server's reply so its message can be shown in the page language. */
+class RequestError extends Error {
+  constructor(readonly data: Record<string, unknown>) {
+    super(typeof data.error === "string" ? data.error : "The request could not be completed. Please try again.");
+  }
+}
+
 async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, { cache: "no-store", ...init });
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.error ?? "The request could not be completed. Please try again.");
+  if (!response.ok) throw new RequestError(data);
   return data as T;
 }
 
@@ -47,7 +55,9 @@ export default function AdminResults({ name }: { name: string }) {
   const [selectedId, setSelectedId] = useState("");
   const [rows, setRows] = useState<ResultRow[] | null>(null);
   const [loadingRows, setLoadingRows] = useState(false);
-  const [error, setError] = useState("");
+  // The server's refusal as sent (or a fallback), shown in the page language even after a switch.
+  const [error, setError] = useState<{ data: Record<string, unknown> | null; fallback: [string, string] } | null>(null);
+  const failure = (cause: unknown, fallback: [string, string]) => ({ data: cause instanceof RequestError ? cause.data : null, fallback });
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
   // Ignore a slow response for a class the administrator has already moved away from.
@@ -55,6 +65,8 @@ export default function AdminResults({ name }: { name: string }) {
   const resultsHeading = useRef<HTMLHeadingElement>(null);
   const opener = useRef<HTMLButtonElement | null>(null);
   const selected = classes?.find((item) => item.id === selectedId);
+  // The gradebook counts only activities students can see; say how many it leaves out.
+  const unpublished = gradebook ? unpublishedNote(gradebook.unpublished ?? 0) : null;
   const search = query.trim().toLowerCase();
   const visible = (classes ?? []).filter((item) => !search || [item.name, item.teacherName, item.teacherEmail].some((value) => value.toLowerCase().includes(search)));
 
@@ -62,7 +74,7 @@ export default function AdminResults({ name }: { name: string }) {
     const controller = new AbortController();
     requestJson<{ classes: ClassResults[] }>("/api/admin/results", { signal: controller.signal })
       .then((data) => setClasses(data.classes))
-      .catch((error) => { if (!controller.signal.aborted) setError(error.message); });
+      .catch((cause) => { if (!controller.signal.aborted) setError({ data: cause instanceof RequestError ? cause.data : null, fallback: ["Classes could not be loaded. Please reload the page.", "ক্লাসগুলো লোড করা যায়নি। পাতাটি আবার লোড করুন।"] }); });
     return () => controller.abort();
   }, []);
 
@@ -76,14 +88,14 @@ export default function AdminResults({ name }: { name: string }) {
       const data = await requestJson<{ rows: ResultRow[]; gradebook: GradebookData }>(`/api/classes/${classId}/grades`);
       if (latestClass.current === classId) { setRows([...data.rows].sort(byActivityThenStudent)); setGradebook(data.gradebook); }
     } catch (error) {
-      if (latestClass.current === classId) setError(error instanceof Error ? error.message : "Could not load the class results.");
+      if (latestClass.current === classId) setError(failure(error, ["Could not load the class results.", "ক্লাসের ফলাফল লোড করা যায়নি।"]));
     } finally {
       if (latestClass.current === classId) setLoadingRows(false);
     }
   }
 
   function openClass(classId: string) {
-    setSelectedId(classId); setRows(null); setGradebook(null); setError(""); setNotice("");
+    setSelectedId(classId); setRows(null); setGradebook(null); setError(null); setNotice("");
     void loadRows(classId);
   }
 
@@ -99,13 +111,13 @@ export default function AdminResults({ name }: { name: string }) {
       `Reset ${row.studentName}'s submission for "${row.activityTitle}"? The score is deleted and the student can submit again.`,
       `"${row.activityTitle}"-এ ${row.studentName}-এর জমা রিসেট করবেন? স্কোর মুছে যাবে এবং শিক্ষার্থী আবার জমা দিতে পারবে।`,
     ))) return;
-    setBusy(true); setError(""); setNotice("");
+    setBusy(true); setError(null); setNotice("");
     try {
       await requestJson(`/api/classes/${selected.id}/submissions`, { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ submissionId: row.submissionId }) });
       setNotice(s("Submission reset. The student can submit the activity again.", "জমা রিসেট হয়েছে। শিক্ষার্থী আবার কার্যক্রমটি জমা দিতে পারবে।"));
       await loadRows(selected.id);
       setClasses((await requestJson<{ classes: ClassResults[] }>("/api/admin/results")).classes);
-    } catch (error) { setError(error instanceof Error ? error.message : "The submission could not be reset. Please try again."); }
+    } catch (error) { setError(failure(error, ["The submission could not be reset. Please try again.", "জমা রিসেট করা যায়নি। আবার চেষ্টা করুন।"])); }
     finally { setBusy(false); }
   }
 
@@ -115,7 +127,7 @@ export default function AdminResults({ name }: { name: string }) {
       "Review results and attendance in every class, download a class's grades as CSV and reset a submission so the student can try again. Administrator resets are listed under Recent changes on the Users page.",
       "সব ক্লাসের ফলাফল ও উপস্থিতি দেখুন, কোনো ক্লাসের গ্রেড CSV হিসেবে নামান এবং শিক্ষার্থী যেন আবার চেষ্টা করতে পারে সে জন্য জমা রিসেট করুন। প্রশাসকের রিসেট ব্যবহারকারী পাতার ‘সাম্প্রতিক পরিবর্তন’ অংশে দেখা যায়।",
     )}</p>
-    {error && <p role="alert" className="auth-error">{error}</p>}
+    {error && <p role="alert" className="auth-error">{localMessage(error.data, language, error.fallback)}</p>}
     {notice && <p role="status" className="teach-message">{notice}</p>}
     <section className="teach-panel" aria-labelledby="results-by-class-heading">
       <h2 id="results-by-class-heading">{s("Results by class", "ক্লাস অনুযায়ী ফলাফল")}</h2>
@@ -130,7 +142,7 @@ export default function AdminResults({ name }: { name: string }) {
           <caption className="sr-only">{s("Results by class", "ক্লাস অনুযায়ী ফলাফল")}</caption>
           <thead><tr><th scope="col">{s("Class", "ক্লাস")}</th><th scope="col">{s("Teacher", "শিক্ষক")}</th><th scope="col">{s("Students", "শিক্ষার্থী")}</th><th scope="col">{s("Submissions", "জমা")}</th><th scope="col">{s("Average", "গড়")}</th><th scope="col">{s("Attendance", "উপস্থিতি")}</th><th scope="col">{s("Actions", "করণীয়")}</th></tr></thead>
           <tbody>{visible.map((item) => <tr key={item.id}>
-            <td><strong>{item.name}</strong><small>{number(item.activityCount)} {s("activities", "কার্যক্রম")}</small></td>
+            <td><strong>{item.name}</strong><small>{countText(item.activityCount, "activity", language)}</small></td>
             <td><strong>{item.teacherName}</strong><small>{item.teacherEmail}</small></td>
             <td>{number(item.studentCount)}</td>
             <td>{number(item.submissionCount)}</td>
@@ -142,12 +154,12 @@ export default function AdminResults({ name }: { name: string }) {
     </section>
     {selected && <section id="class-results" className="teach-panel" aria-labelledby="class-results-heading">
       <h2 id="class-results-heading" ref={resultsHeading} tabIndex={-1}>{s("Results", "ফলাফল")}: {selected.name}</h2>
-      <p>{s("Teacher", "শিক্ষক")}: {selected.teacherName} · {number(selected.studentCount)} {s("students", "শিক্ষার্থী")} · {s("Average", "গড়")}: {percent(selected.averagePercent)}</p>
+      <p>{s("Teacher", "শিক্ষক")}: {selected.teacherName} · {countText(selected.studentCount, "student", language)} · {s("Average", "গড়")}: {percent(selected.averagePercent)}</p>
       <div className="grade-tools">
         <a className="outline-button" href={`/api/classes/${selected.id}/grades?format=csv`}>{s("Download CSV", "CSV নামান")}</a>
         <button type="button" className="text-button" onClick={closeClass}>{s("Close", "বন্ধ করুন")}</button>
       </div>
-      {gradebook && <><h3>{s("Gradebook and attendance", "গ্রেডবুক ও উপস্থিতি")}</h3><Gradebook gradebook={gradebook} language={language} /><h3>{s("Submissions", "জমা")}</h3></>}
+      {gradebook && <><h3>{s("Gradebook and attendance", "গ্রেডবুক ও উপস্থিতি")}</h3>{unpublished && <p className="teach-note">{s(...unpublished)}</p>}<Gradebook gradebook={gradebook} language={language} /><h3>{s("Submissions", "জমা")}</h3></>}
       {loadingRows && rows === null ? <p role="status">{s("Loading results…", "ফলাফল লোড হচ্ছে…")}</p>
         : rows && (rows.length === 0 ? <p className="teach-empty">{s("No submissions yet.", "এখনো কোনো জমা নেই।")}</p>
         : <div className="management-table-wrap"><table className="management-table">

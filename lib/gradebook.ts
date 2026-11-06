@@ -1,14 +1,23 @@
 import type { AttendanceSummary } from "./attendance";
 
 /**
- * A class gradebook: one row per student now in the class, A–Z, and one column per activity,
- * newest first like the activity list. Shared by the teacher workspace, the administrator's
+ * A class gradebook: one row per student now in the class, A–Z, and one column per published
+ * activity, newest first like the activity list. Shared by the teacher workspace, the administrator's
  * results page and the CSV export, so it stays free of database and Node-only imports.
+ *
+ * Only activities students can see count: those an administrator approved (open or closed). One
+ * waiting for approval or sent back for changes gets no column and is not in anyone's Done total,
+ * which then matches the student's own "Activities complete"; `unpublished` says how many were left out.
  */
 
 export type GradebookSubmission = { id: string; score: number; total: number; submittedAt: string };
 export type GradebookStudent = { id: string; displayName: string; username?: string | null; attendance?: AttendanceSummary | null };
-export type GradebookActivity = { id: string; title: string; createdAt: string; submissions: Array<GradebookSubmission & { studentId: string }> };
+export type GradebookActivity = {
+  id: string; title: string; createdAt: string;
+  /** "approved" is published to students; anything else is left out. Omitted, the activity counts. */
+  approvalStatus?: string;
+  submissions: Array<GradebookSubmission & { studentId: string }>;
+};
 export type GradebookRow = {
   student: { id: string; displayName: string; username: string | null };
   /** One per activity column; null when the student has not submitted it. */
@@ -18,14 +27,23 @@ export type GradebookRow = {
   averagePercent: number | null;
   attendance: AttendanceSummary | null;
 };
-export type Gradebook = { activities: Array<{ id: string; title: string }>; rows: GradebookRow[] };
+export type Gradebook = {
+  activities: Array<{ id: string; title: string }>;
+  rows: GradebookRow[];
+  /** Activities in the class that students cannot see yet (waiting for approval or changes requested). */
+  unpublished: number;
+};
+
+/** Whether students can see the activity, so it belongs in the gradebook. */
+export const isPublishedActivity = (activity: { approvalStatus?: string }) => activity.approvalStatus === undefined || activity.approvalStatus === "approved";
 
 const byStudentName = (a: GradebookStudent, b: GradebookStudent) =>
   a.displayName.localeCompare(b.displayName, undefined, { sensitivity: "base", numeric: true }) || (a.username ?? "").localeCompare(b.username ?? "") || a.id.localeCompare(b.id);
 
-/** Build the gradebook. Submissions from anyone not in `students` (removed students) are left out. */
+/** Build the gradebook. Unpublished activities, and submissions from anyone not in `students` (removed students), are left out. */
 export function buildGradebook(students: GradebookStudent[], activities: GradebookActivity[]): Gradebook {
-  const columns = [...activities].sort((a, b) => b.createdAt.localeCompare(a.createdAt) || a.title.localeCompare(b.title) || a.id.localeCompare(b.id));
+  const published = activities.filter(isPublishedActivity);
+  const columns = [...published].sort((a, b) => b.createdAt.localeCompare(a.createdAt) || a.title.localeCompare(b.title) || a.id.localeCompare(b.id));
   const rows = [...students].sort(byStudentName).map((student): GradebookRow => {
     const cells = columns.map((activity) => {
       const submission = activity.submissions.find((entry) => entry.studentId === student.id);
@@ -41,7 +59,7 @@ export function buildGradebook(students: GradebookStudent[], activities: Gradebo
       attendance: student.attendance ?? null,
     };
   });
-  return { activities: columns.map(({ id, title }) => ({ id, title })), rows };
+  return { activities: columns.map(({ id, title }) => ({ id, title })), rows, unpublished: activities.length - published.length };
 }
 
 /** Rows whose student name or username contains the search, ignoring case. */
