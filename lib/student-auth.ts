@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { getDb } from "../db";
 import { studentSessions, students, userAuditEvents } from "../db/schema";
 import { createSessionToken, hashPassword, hashPasswordAsync, hashSessionToken, verifyPassword } from "./password";
-import type { ApprovalStatus } from "./roles";
+import type { AccountStatus, ApprovalStatus } from "./roles";
 
 export type Student = {
   id: string;
@@ -18,6 +18,7 @@ export const STUDENT_SESSION_COOKIE = "ba_student_session";
 export const STUDENT_PASSWORD_PATH = "/student/password";
 const STUDENT_SESSION_DAYS = 30;
 const USERNAME_PATTERN = /^[a-zA-Z0-9._-]{3,40}$/;
+const dummyPasswordHash = hashPassword(createSessionToken());
 const studentFields = { id: students.id, username: students.username, displayName: students.displayName, mustChangePassword: students.mustChangePassword };
 
 export function normalizeStudentUsername(username: string): string {
@@ -52,23 +53,36 @@ export async function registerStudent(
   if (!cleanName) return { error: "Enter the student name.", errorBn: "শিক্ষার্থীর নাম লেখো।" };
   if (password.length < 8 || password.length > 200) return { error: "Choose a password with at least 8 characters. A grown-up can help you choose one.", errorBn: "কমপক্ষে ৮ অক্ষরের একটি পাসওয়ার্ড বেছে নাও। দরকার হলে বড়দের সাহায্য নাও।" };
 
-  const [existing] = await db.select({ id: students.id }).from(students).where(eq(students.username, normalized)).limit(1);
-  if (existing) return { error: "That username is already taken.", errorBn: "এই ইউজারনেমটি আগেই নেওয়া হয়েছে।" };
-
+  // The unique username decides, so two sign-ups racing for one name get this answer rather than a failure.
   const [student] = await db
     .insert(students)
     .values({ id: crypto.randomUUID(), username: normalized, displayName: cleanName, passwordHash: hashPassword(password), approvalStatus: "pending" })
+    .onConflictDoNothing({ target: students.username })
     .returning(studentFields);
-  return student;
+  return student ?? { error: "That username is already taken.", errorBn: "এই ইউজারনেমটি আগেই নেওয়া হয়েছে।" };
 }
 
-/** The active account with this username and password, approved or not: callers decide what approval allows. */
-export async function verifyStudentCredentials(username: string, password: string): Promise<(Student & { approvalStatus: ApprovalStatus }) | null> {
+/** What sign-in tells a student whose account is suspended, once their password has been checked. */
+export const STUDENT_ACCOUNT_SUSPENDED = {
+  error: "This account is suspended. Ask a grown-up to contact the administrator.",
+  errorBn: "এই অ্যাকাউন্টটি স্থগিত আছে। বড়দের কাউকে প্রশাসকের সঙ্গে যোগাযোগ করতে বলো।",
+  accountStatus: "suspended",
+} as const;
+
+/**
+ * The active account with this username and password, approved or not: callers decide what approval allows.
+ * The password is always checked, against a stand-in hash when there is no such account, so an unknown or
+ * suspended username takes as long as a real one. With allowSuspended, a suspended account with the right
+ * password is returned too (with its status), so sign-in can say so.
+ */
+export async function verifyStudentCredentials(username: string, password: string, { allowSuspended = false } = {}): Promise<(Student & { approvalStatus: ApprovalStatus; status: AccountStatus }) | null> {
+  if (!password || password.length > 200) return null;
   const db = await getDb();
   const normalized = normalizeStudentUsername(username);
   const [row] = await db.select().from(students).where(eq(students.username, normalized)).limit(1);
-  if (!row || row.status !== "active" || password.length > 200 || !verifyPassword(password, row.passwordHash)) return null;
-  return { id: row.id, username: row.username, displayName: row.displayName, mustChangePassword: row.mustChangePassword, approvalStatus: row.approvalStatus };
+  const valid = verifyPassword(password, row?.passwordHash ?? dummyPasswordHash);
+  if (!row || !valid || (row.status !== "active" && !allowSuspended)) return null;
+  return { id: row.id, username: row.username, displayName: row.displayName, mustChangePassword: row.mustChangePassword, approvalStatus: row.approvalStatus, status: row.status };
 }
 
 export async function createStudentSession(studentId: string): Promise<{ token: string; expiresAt: Date }> {

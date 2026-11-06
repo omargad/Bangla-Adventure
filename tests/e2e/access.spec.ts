@@ -142,7 +142,10 @@ test("administrator approves a teacher and manages accounts through the UI", asy
   await expect(parentRow.getByText("Updated Parent", { exact: true })).toBeVisible();
   await parentRow.getByRole("button", { name: "Suspend", exact: true }).click();
   await expect(parentRow.getByText("Suspended", { exact: true })).toBeVisible();
-  expect((await page.request.post("/api/auth/sign-in", { data: { email: parent, password } })).status()).toBe(401);
+  // No session; with the right password the owner is told the account is suspended.
+  const suspended = await page.request.post("/api/auth/sign-in", { data: { email: parent, password } });
+  expect(suspended.status()).toBe(403);
+  expect((await suspended.json()).accountStatus).toBe("suspended");
 });
 
 test("approved teacher can create a class and sees its dashboard totals", async ({ page }) => {

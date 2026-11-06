@@ -1,6 +1,6 @@
 import { and, asc, count, desc, eq, inArray, like, or, sql, type SQL } from "drizzle-orm";
 import { getDb } from "../db";
-import { adults, adultSessions, classes, classStudents, recoveryCodes, students, studentSessions, userAuditEvents } from "../db/schema";
+import { adults, adultSessions, assignments, classes, classStudents, contentReviews, curriculumDrafts, learnerProfiles, mediaAssets, parentStudentLinks, recoveryCodes, skillProgress, students, studentSessions, userAuditEvents, videoReviews } from "../db/schema";
 import { lessons } from "../app/curriculum";
 import type { Bilingual } from "../app/topics-content";
 import { canManageUsers, isRole, isStatus } from "./roles";
@@ -8,6 +8,7 @@ import { generateRecoveryCode, generateTemporaryPassword, hashPasswordAsync, has
 import { listStaffTopics } from "./curriculum-catalog";
 import { libraryOverrides } from "./library-catalog";
 import { mergeCatalog } from "./library-links";
+import { deleteMediaObject } from "./storage";
 
 /** `messageBn` is the same message in Bangla, sent as `errorBn` where a bilingual page shows it. */
 export class UserManagementError extends Error {
@@ -37,6 +38,9 @@ function authorize(tx: Transaction, actorId: string) {
   if (!actor || !canManageUsers(actor)) throw refuse(["Administrator access required.", "প্রশাসকের অনুমতি প্রয়োজন।"], 403);
 }
 
+/** An administrator who can sign in and act: active and approved. Only these count towards the last one. */
+const usableAdministrator = (account: { role: string; status: string; approvalStatus: string }) => account.role === "admin" && account.status === "active" && account.approvalStatus === "approved";
+
 function record(tx: Transaction, actorId: string | null, targetId: string, targetType: string, action: string, details: object = {}) {
   tx.insert(userAuditEvents).values({ id: crypto.randomUUID(), actorId, targetId, targetType, action, detailsJson: JSON.stringify(details) }).run();
 }
@@ -65,57 +69,91 @@ async function auditTargetLabels(db: Db, events: Array<{ targetType: string; tar
   return labels;
 }
 
-export async function listUsers(params: URLSearchParams) {
-  const db = await getDb();
+/**
+ * One page of users, the approval queue and the latest audit events, for an administrator. The actor is
+ * re-checked inside the same transaction as the reads, like every other administrator function.
+ */
+export async function listUsers(actorId: string, params: URLSearchParams) {
   const kind = params.get("kind") ?? "adult";
   const filter = params.get("filter") ?? "all";
   const search = params.get("q")?.trim().slice(0, 120) ?? "";
   const page = Math.max(1, Math.min(10000, Number.parseInt(params.get("page") ?? "1", 10) || 1));
   const pageSize = 25;
   if (!["adult", "student"].includes(kind) || !["all", "pending", "declined", "parent", "teacher", "admin", "suspended"].includes(filter)) throw refuse(["Invalid user filter.", "ব্যবহারকারী বাছাইটি সঠিক নয়।"]);
-  const conditions: SQL[] = [];
-  let users;
-  let total;
-  if (kind === "student") {
-    if (!["all", "pending", "declined", "suspended"].includes(filter)) throw refuse(["Invalid student filter.", "শিক্ষার্থী বাছাইটি সঠিক নয়।"]);
-    if (search) conditions.push(or(like(students.displayName, `%${search}%`), like(students.username, `%${search}%`))!);
-    if (filter === "suspended") conditions.push(eq(students.status, "suspended"));
-    else if (filter === "pending") conditions.push(studentAwaitingApproval);
-    else if (filter === "declined") conditions.push(eq(students.approvalStatus, "declined"));
-    users = db.select(studentFields).from(students).where(and(...conditions)).orderBy(desc(students.createdAt), desc(sql`${students}.rowid`)).limit(pageSize).offset((page - 1) * pageSize).all().map((user) => ({ ...user, role: "student", teacherStatus: "none", kind }));
-    total = db.select({ value: count() }).from(students).where(and(...conditions)).get()!.value;
-  } else {
-    if (search) conditions.push(or(like(adults.displayName, `%${search}%`), like(adults.email, `%${search}%`))!);
-    if (filter === "pending") conditions.push(adultAwaitingApproval);
-    else if (filter === "declined") conditions.push(eq(adults.approvalStatus, "declined"));
-    else if (filter === "suspended") conditions.push(eq(adults.status, "suspended"));
-    else if (isRole(filter)) conditions.push(eq(adults.role, filter));
-    users = db.select(adultFields).from(adults).where(and(...conditions)).orderBy(desc(adults.createdAt), desc(sql`${adults}.rowid`)).limit(pageSize).offset((page - 1) * pageSize).all().map((user) => ({ ...user, kind }));
-    total = db.select({ value: count() }).from(adults).where(and(...conditions)).get()!.value;
-  }
-  const pendingAdults = db.select({ value: count() }).from(adults).where(adultAwaitingApproval).get()!.value;
-  const pendingStudents = db.select({ value: count() }).from(students).where(studentAwaitingApproval).get()!.value;
-  const stats = {
-    adults: db.select({ value: count() }).from(adults).get()!.value,
-    students: db.select({ value: count() }).from(students).get()!.value,
-    teachers: db.select({ value: count() }).from(adults).where(and(eq(adults.role, "teacher"), eq(adults.status, "active"), eq(adults.teacherStatus, "approved"))).get()!.value,
-    pending: pendingAdults + pendingStudents,
-  };
-  // One queue for students, parents and teacher requests, oldest first. rowid keeps sign-ups from the same
-  // second in the order they arrived; the stable sort keeps that order (adults, then students) when merging.
-  const approvals = {
-    users: [
-      ...db.select(adultFields).from(adults).where(adultAwaitingApproval).orderBy(asc(adults.createdAt), asc(sql`${adults}.rowid`)).limit(APPROVAL_QUEUE_LIMIT).all().map((user) => ({ ...user, kind: "adult" as const })),
-      ...db.select(studentFields).from(students).where(studentAwaitingApproval).orderBy(asc(students.createdAt), asc(sql`${students}.rowid`)).limit(APPROVAL_QUEUE_LIMIT).all().map((user) => ({ ...user, role: "student", teacherStatus: "none", kind: "student" as const })),
-    ].sort((a, b) => a.createdAt.localeCompare(b.createdAt)).slice(0, APPROVAL_QUEUE_LIMIT),
-    total: stats.pending,
-  };
-  // Newest first; rowid orders changes made within the same second by when they were recorded.
-  const events = db.select({ id: userAuditEvents.id, action: userAuditEvents.action, targetType: userAuditEvents.targetType, targetId: userAuditEvents.targetId, createdAt: userAuditEvents.createdAt })
-    .from(userAuditEvents).orderBy(desc(userAuditEvents.createdAt), desc(sql`${userAuditEvents}.rowid`)).limit(15).all();
+  if (kind === "student" && !["all", "pending", "declined", "suspended"].includes(filter)) throw refuse(["Invalid student filter.", "শিক্ষার্থী বাছাইটি সঠিক নয়।"]);
+  const db = await getDb();
+  const listing = db.transaction((tx) => {
+    authorize(tx, actorId);
+    const conditions: SQL[] = [];
+    let users;
+    let total;
+    if (kind === "student") {
+      if (search) conditions.push(or(like(students.displayName, `%${search}%`), like(students.username, `%${search}%`))!);
+      if (filter === "suspended") conditions.push(eq(students.status, "suspended"));
+      else if (filter === "pending") conditions.push(studentAwaitingApproval);
+      else if (filter === "declined") conditions.push(eq(students.approvalStatus, "declined"));
+      users = tx.select(studentFields).from(students).where(and(...conditions)).orderBy(desc(students.createdAt), desc(sql`${students}.rowid`)).limit(pageSize).offset((page - 1) * pageSize).all().map((user) => ({ ...user, role: "student", teacherStatus: "none", kind }));
+      total = tx.select({ value: count() }).from(students).where(and(...conditions)).get()!.value;
+    } else {
+      if (search) conditions.push(or(like(adults.displayName, `%${search}%`), like(adults.email, `%${search}%`))!);
+      if (filter === "pending") conditions.push(adultAwaitingApproval);
+      else if (filter === "declined") conditions.push(eq(adults.approvalStatus, "declined"));
+      else if (filter === "suspended") conditions.push(eq(adults.status, "suspended"));
+      else if (isRole(filter)) conditions.push(eq(adults.role, filter));
+      users = tx.select(adultFields).from(adults).where(and(...conditions)).orderBy(desc(adults.createdAt), desc(sql`${adults}.rowid`)).limit(pageSize).offset((page - 1) * pageSize).all().map((user) => ({ ...user, kind }));
+      total = tx.select({ value: count() }).from(adults).where(and(...conditions)).get()!.value;
+    }
+    const pendingAdults = tx.select({ value: count() }).from(adults).where(adultAwaitingApproval).get()!.value;
+    const pendingStudents = tx.select({ value: count() }).from(students).where(studentAwaitingApproval).get()!.value;
+    const stats = {
+      adults: tx.select({ value: count() }).from(adults).get()!.value,
+      students: tx.select({ value: count() }).from(students).get()!.value,
+      teachers: tx.select({ value: count() }).from(adults).where(and(eq(adults.role, "teacher"), eq(adults.status, "active"), eq(adults.teacherStatus, "approved"))).get()!.value,
+      pending: pendingAdults + pendingStudents,
+    };
+    // One queue for students, parents and teacher requests, oldest first. rowid keeps sign-ups from the same
+    // second in the order they arrived; the stable sort keeps that order (adults, then students) when merging.
+    const approvals = {
+      users: [
+        ...tx.select(adultFields).from(adults).where(adultAwaitingApproval).orderBy(asc(adults.createdAt), asc(sql`${adults}.rowid`)).limit(APPROVAL_QUEUE_LIMIT).all().map((user) => ({ ...user, kind: "adult" as const })),
+        ...tx.select(studentFields).from(students).where(studentAwaitingApproval).orderBy(asc(students.createdAt), asc(sql`${students}.rowid`)).limit(APPROVAL_QUEUE_LIMIT).all().map((user) => ({ ...user, role: "student", teacherStatus: "none", kind: "student" as const })),
+      ].sort((a, b) => a.createdAt.localeCompare(b.createdAt)).slice(0, APPROVAL_QUEUE_LIMIT),
+      total: stats.pending,
+    };
+    // Newest first; rowid orders changes made within the same second by when they were recorded.
+    const events = tx.select({ id: userAuditEvents.id, actorId: userAuditEvents.actorId, action: userAuditEvents.action, targetType: userAuditEvents.targetType, targetId: userAuditEvents.targetId, detailsJson: userAuditEvents.detailsJson, createdAt: userAuditEvents.createdAt })
+      .from(userAuditEvents).orderBy(desc(userAuditEvents.createdAt), desc(sql`${userAuditEvents}.rowid`)).limit(15).all();
+    return { users, total, stats, approvals, events, actors: auditActorNames(tx, events) };
+  });
+  const { events, actors, ...rest } = listing;
   const labels = await auditTargetLabels(db, events);
-  const audit = events.map((event) => ({ ...event, targetLabel: labels.get(`${event.targetType}:${event.targetId}`) ?? null }));
-  return { users, total, page, pageSize, stats, approvals, audit };
+  const audit = events.map(({ detailsJson, actorId: eventActor, ...event }) => ({
+    ...event,
+    // The target's name now, or the one stored with the event when the target is gone (a deleted class, say).
+    targetLabel: labels.get(`${event.targetType}:${event.targetId}`) ?? storedTargetLabel(detailsJson),
+    // Who made the change: an account still here, the server operator (no actor), or an account deleted since.
+    actor: eventActor === null ? { kind: "server" as const } : actors.has(eventActor) ? { kind: "account" as const, name: actors.get(eventActor)! } : { kind: "deleted" as const },
+  }));
+  return { ...rest, page, pageSize, audit };
+}
+
+/** The display name of each adult or student account that made one of these changes, keyed by id. A deleted account has none. */
+function auditActorNames(tx: Transaction, events: Array<{ actorId: string | null }>): Map<string, string> {
+  const ids = [...new Set(events.map((event) => event.actorId).filter((id): id is string => Boolean(id)))];
+  const names = new Map<string, string>();
+  if (!ids.length) return names;
+  for (const row of tx.select({ id: students.id, name: students.displayName }).from(students).where(inArray(students.id, ids)).all()) names.set(row.id, row.name);
+  for (const row of tx.select({ id: adults.id, name: adults.displayName }).from(adults).where(inArray(adults.id, ids)).all()) names.set(row.id, row.name);
+  return names;
+}
+
+/** The target's name as it was when the change was recorded (`targetLabel` in the details), if one was stored. */
+function storedTargetLabel(detailsJson: string): Bilingual | null {
+  try {
+    const label = (JSON.parse(detailsJson) as { targetLabel?: Partial<Bilingual> }).targetLabel;
+    if (label && typeof label.en === "string" && label.en) return { en: label.en, bn: typeof label.bn === "string" && label.bn ? label.bn : label.en };
+  } catch { /* unreadable details carry no label */ }
+  return null;
 }
 
 export async function updateUser(actorId: string, id: string, input: Record<string, unknown>) {
@@ -165,14 +203,20 @@ export async function updateUser(actorId: string, id: string, input: Record<stri
       next.teacherStatus = action === "approve" ? "approved" : "rejected";
       // A teacher request made at sign-up is also the account's approval; an existing parent's account is unaffected.
       if (current.approvalStatus !== "approved") next.approvalStatus = action === "approve" ? "approved" : "declined";
-    } else if (deciding) {
-      if (action === "approve" ? current.approvalStatus === "approved" : current.approvalStatus !== "pending") throw refuse(NOT_AWAITING, 409);
-      next.approvalStatus = action === "approve" ? "approved" : "declined";
-      audited = `account-${action === "approve" ? "approved" : "declined"}`;
-    } else if (next.role !== current.role) next.teacherStatus = next.role === "teacher" ? "approved" : "none";
+    } else {
+      if (deciding) {
+        if (action === "approve" ? current.approvalStatus === "approved" : current.approvalStatus !== "pending") throw refuse(NOT_AWAITING, 409);
+        next.approvalStatus = action === "approve" ? "approved" : "declined";
+        audited = `account-${action === "approve" ? "approved" : "declined"}`;
+      }
+      // A role given here, with or without an approval decision, brings the teacher status that goes with it.
+      if (next.role !== current.role) next.teacherStatus = next.role === "teacher" ? "approved" : "none";
+    }
     if (id === actorId && (next.role !== current.role || next.status !== current.status)) throw refuse(["You cannot change your own role or suspend your own account.", "নিজের ভূমিকা বদলানো বা নিজের অ্যাকাউন্ট স্থগিত করা যায় না।"], 409);
-    if (current.role === "admin" && current.status === "active" && (next.role !== "admin" || next.status !== "active")) {
-      const remaining = tx.select({ value: count() }).from(adults).where(and(eq(adults.role, "admin"), eq(adults.status, "active"))).get()!.value;
+    // Only an account an administrator has already approved can become one; approve it first, then change the role.
+    if (next.role === "admin" && current.role !== "admin" && current.approvalStatus !== "approved") throw refuse(["Approve this account before making it an administrator.", "প্রশাসক করার আগে অ্যাকাউন্টটি অনুমোদন করুন।"], 409);
+    if (usableAdministrator(current) && !usableAdministrator(next)) {
+      const remaining = tx.select({ value: count() }).from(adults).where(and(eq(adults.role, "admin"), eq(adults.status, "active"), eq(adults.approvalStatus, "approved"))).get()!.value;
       if (remaining <= 1) throw refuse(["At least one active administrator must remain.", "অন্তত একজন সক্রিয় প্রশাসক থাকতে হবে।"], 409);
     }
     tx.update(adults).set(next).where(eq(adults.id, id)).run();
@@ -280,5 +324,106 @@ export async function resetPasswordOnServer(account: string) {
       : tx.select({ id: students.id, approvalStatus: students.approvalStatus }).from(students).where(and(eq(students.username, name), eq(students.status, "active"))).get();
     const user = found && setTemporaryPassword(tx, kind, found.id, passwordHash, null, "password-reset-by-server-operator");
     return found && user ? { user, temporaryPassword, approvalStatus: found.approvalStatus } : null;
+  });
+}
+
+const ADMINISTRATOR_DELETION = ["Ask another administrator to change your role before deleting this account.", "এই অ্যাকাউন্ট মোছার আগে অন্য একজন প্রশাসককে আপনার ভূমিকা বদলাতে বলুন।"] as const;
+const STILL_TEACHING = ["You still teach classes. Ask an administrator to move them to another teacher before deleting this account.", "আপনি এখনও ক্লাস পড়াচ্ছেন। অ্যাকাউন্ট মোছার আগে একজন প্রশাসককে ক্লাসগুলো অন্য শিক্ষকের কাছে সরিয়ে দিতে বলুন।"] as const;
+
+/**
+ * Why the owner may not delete this account yet (409), or null. An administrator must first be made
+ * something else by another administrator. Classes belong to the teacher's account and would be deleted
+ * with it, rosters, activities and results included, so a teacher must first have them moved.
+ */
+function deletionBlocker(reader: Pick<Transaction, "select">, adult: { id: string; role: string }): UserManagementError | null {
+  if (adult.role === "admin") return refuse(ADMINISTRATOR_DELETION, 409);
+  const taught = reader.select({ value: count() }).from(classes).where(eq(classes.teacherId, adult.id)).get()!.value;
+  return taught > 0 ? refuse(STILL_TEACHING, 409) : null;
+}
+
+/** The refusal to show before the owner even types their password, or null when the account can be deleted. */
+export async function accountDeletionBlocker(adultId: string): Promise<UserManagementError | null> {
+  const db = await getDb();
+  const adult = db.select({ id: adults.id, role: adults.role }).from(adults).where(eq(adults.id, adultId)).get();
+  return adult ? deletionBlocker(db, adult) : refuse(NOT_FOUND, 404);
+}
+
+/**
+ * Permanently delete the owner's adult account and every record it owns, in one transaction: learner
+ * profiles (progress cascades), assignments, studio drafts, specialist reviews, uploaded recordings,
+ * sessions, recovery codes and family links. Video checks are shared lesson decisions (the newest one decides
+ * which video learners get), so they are kept but no longer linked to the account; otherwise deleting
+ * it would put a video a teacher took down back in front of children. The deletion is audited with
+ * the account's name. Recording files are removed only after the transaction commits, so a failure
+ * leaves the account whole rather than half deleted.
+ */
+export async function deleteOwnAccount(adultId: string): Promise<void> {
+  const db = await getDb();
+  const objectKeys = db.transaction((tx) => {
+    const adult = tx.select(adultFields).from(adults).where(eq(adults.id, adultId)).get();
+    if (!adult) throw refuse(NOT_FOUND, 404);
+    const blocked = deletionBlocker(tx, adult);
+    if (blocked) throw blocked;
+    const owned = eq(mediaAssets.ownerEmail, adult.email);
+    const keys = tx.select({ objectKey: mediaAssets.objectKey }).from(mediaAssets).where(owned).all().map((asset) => asset.objectKey);
+    tx.delete(mediaAssets).where(owned).run();
+    tx.update(videoReviews).set({ ownerEmail: `deleted-staff:${crypto.randomUUID()}` }).where(eq(videoReviews.ownerEmail, adult.email)).run();
+    tx.delete(contentReviews).where(eq(contentReviews.ownerEmail, adult.email)).run();
+    tx.delete(curriculumDrafts).where(eq(curriculumDrafts.ownerEmail, adult.email)).run();
+    tx.delete(assignments).where(eq(assignments.ownerEmail, adult.email)).run();
+    // skill_progress rows cascade with their learner profile.
+    tx.delete(learnerProfiles).where(eq(learnerProfiles.ownerEmail, adult.email)).run();
+    tx.delete(adultSessions).where(eq(adultSessions.adultId, adult.id)).run();
+    record(tx, adult.id, adult.id, "adult", "account-deleted", { role: adult.role, targetLabel: { en: adult.displayName, bn: adult.displayName } });
+    // Recovery codes and family links cascade with the account.
+    tx.delete(adults).where(eq(adults.id, adult.id)).run();
+    return keys;
+  });
+  for (const key of objectKeys) {
+    try { await deleteMediaObject(key); }
+    catch (error) { console.error("A deleted account's recording file could not be removed:", key, error); }
+  }
+}
+
+/**
+ * Everything stored for the adult, for the account page's data export. Rows keyed by the owner's email
+ * (learner profiles with their progress, assignments, studio drafts, reviews, video checks and recording
+ * details), the children an administrator linked to a parent (names only), the classes a teacher teaches
+ * (names only) and the account's own audit events: the changes made to it in full, and the changes it made to
+ * other records without naming them. Students' class results belong to their school records and are not here.
+ */
+export async function exportAccountData(adultId: string) {
+  const db = await getDb();
+  return db.transaction((tx) => {
+    const adult = tx.select(adultFields).from(adults).where(eq(adults.id, adultId)).get();
+    if (!adult) throw refuse(NOT_FOUND, 404);
+    const profiles = tx.select().from(learnerProfiles).where(eq(learnerProfiles.ownerEmail, adult.email)).all();
+    const profileIds = profiles.map((profile) => profile.id);
+    const progress = profileIds.length ? tx.select().from(skillProgress).where(inArray(skillProgress.profileId, profileIds)).all() : [];
+    const media = tx.select().from(mediaAssets).where(eq(mediaAssets.ownerEmail, adult.email)).all();
+    const linkedChildren = tx.select({ displayName: students.displayName, username: students.username, linkedAt: parentStudentLinks.createdAt })
+      .from(parentStudentLinks).innerJoin(students, eq(parentStudentLinks.studentId, students.id))
+      .where(eq(parentStudentLinks.parentId, adult.id)).orderBy(students.displayName, students.username).all();
+    const classesTaught = tx.select({ name: classes.name, createdAt: classes.createdAt }).from(classes)
+      .where(eq(classes.teacherId, adult.id)).orderBy(classes.name).all();
+    const events = tx.select().from(userAuditEvents).where(or(eq(userAuditEvents.targetId, adult.id), eq(userAuditEvents.actorId, adult.id)))
+      .orderBy(asc(userAuditEvents.createdAt), asc(sql`${userAuditEvents}.rowid`)).all();
+    const details = (json: string) => { try { return JSON.parse(json) as object; } catch { return {}; } };
+    return {
+      exportedAt: new Date().toISOString(),
+      account: { email: adult.email, displayName: adult.displayName, role: adult.role, teacherStatus: adult.teacherStatus, approvalStatus: adult.approvalStatus, createdAt: adult.createdAt },
+      linkedChildren,
+      classesTaught,
+      learnerProfiles: profiles.map((profile) => ({ ...profile, progress: progress.filter((item) => item.profileId === profile.id) })),
+      assignments: tx.select().from(assignments).where(eq(assignments.ownerEmail, adult.email)).all(),
+      curriculumDrafts: tx.select().from(curriculumDrafts).where(eq(curriculumDrafts.ownerEmail, adult.email)).all(),
+      contentReviews: tx.select().from(contentReviews).where(eq(contentReviews.ownerEmail, adult.email)).all(),
+      videoReviews: tx.select().from(videoReviews).where(eq(videoReviews.ownerEmail, adult.email)).all(),
+      // Recording details only; where the file is stored is not part of the export (JSON drops the undefined key).
+      mediaAssets: media.map((asset) => ({ ...asset, objectKey: undefined })),
+      auditEvents: events.map((event) => event.targetId === adult.id && event.targetType === "adult"
+        ? { action: event.action, madeBy: event.actorId === adult.id ? "you" : event.actorId ? "administrator" : "server operator", details: details(event.detailsJson), createdAt: event.createdAt }
+        : { action: event.action, madeBy: "you", targetType: event.targetType, createdAt: event.createdAt }),
+    };
   });
 }

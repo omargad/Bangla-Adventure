@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server";
+import { destroyBrowserSessions } from "@/lib/browser-logout";
 import {
+  STUDENT_ACCOUNT_SUSPENDED,
   STUDENT_SESSION_COOKIE,
   createStudentSession,
   normalizeStudentUsername,
   studentCookieOptions,
   verifyStudentCredentials,
 } from "@/lib/student-auth";
-import { checkRateLimit, clearRateLimit, clientKey, peekRateLimit, recordRateLimit, tooManyRequests } from "@/lib/rate-limit";
+import { checkRateLimit, clearRateLimit, clientKey, peekRateLimit, recordRateLimit } from "@/lib/rate-limit";
+import { tooManyAttempts } from "@/lib/rate-limit-reply";
 import { INSECURE_SIGN_IN, insecureSignIn } from "@/lib/request-security";
 import { approvalNotice } from "@/lib/roles";
 
@@ -20,7 +23,7 @@ export async function POST(request: Request) {
   // A whole class signs in from one school network after a CSV import, so the per-address cap
   // only stops password spraying.
   const address = checkRateLimit(`student-sign-in-ip:${clientKey(request)}`, 200, WINDOW_MS);
-  if (!address.allowed) return tooManyRequests(address.retryAfterSeconds);
+  if (!address.allowed) return tooManyAttempts(address.retryAfterSeconds, "student");
 
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const username = typeof body.username === "string" ? body.username : "";
@@ -33,20 +36,24 @@ export async function POST(request: Request) {
   const fromHere = `student-sign-in-here:${clientKey(request)}:${normalized}`;
   const overall = `student-sign-in:${normalized}`;
   for (const limit of [peekRateLimit(fromHere, 10), peekRateLimit(overall, 50)]) {
-    if (!limit.allowed) return tooManyRequests(limit.retryAfterSeconds);
+    if (!limit.allowed) return tooManyAttempts(limit.retryAfterSeconds, "student");
   }
 
-  const student = await verifyStudentCredentials(username, password);
+  const student = await verifyStudentCredentials(username, password, { allowSuspended: true });
   if (!student) {
     recordRateLimit(fromHere, WINDOW_MS);
     recordRateLimit(overall, WINDOW_MS);
     return NextResponse.json({ error: "That username and password do not match.", errorBn: "এই ইউজারনেম ও পাসওয়ার্ড মেলেনি।" }, { status: 401 });
   }
   clearRateLimit(fromHere);
+  // Only someone who knows the password learns that the account is suspended or still waiting for approval.
+  if (student.status !== "active") return NextResponse.json(STUDENT_ACCOUNT_SUSPENDED, { status: 403 });
   if (student.approvalStatus !== "approved") {
     return NextResponse.json({ error: approvalNotice(student.approvalStatus, "student")[0], errorBn: approvalNotice(student.approvalStatus, "student")[1], approvalStatus: student.approvalStatus }, { status: 403 });
   }
 
+  // The session this browser held until now (student or adult) ends with it, rather than staying valid until it expires.
+  await destroyBrowserSessions();
   const { token, expiresAt } = await createStudentSession(student.id);
   // A teacher-issued temporary password must be replaced before anything else.
   const response = NextResponse.json({ student, mustChangePassword: student.mustChangePassword });

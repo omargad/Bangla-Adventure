@@ -1,3 +1,4 @@
+import { destroyBrowserSessions } from "@/lib/browser-logout";
 import { NextResponse } from "next/server";
 import {
   SESSION_COOKIE,
@@ -6,7 +7,8 @@ import {
   recoverAdultPassword,
   sessionCookieOptions,
 } from "../../../../lib/auth";
-import { checkRateLimit, clientKey, tooManyRequests } from "../../../../lib/rate-limit";
+import { checkRateLimit, clientKey } from "../../../../lib/rate-limit";
+import { tooManyAttempts } from "../../../../lib/rate-limit-reply";
 import { INSECURE_SIGN_IN, insecureSignIn } from "../../../../lib/request-security";
 import { approvalNotice } from "../../../../lib/roles";
 
@@ -18,7 +20,7 @@ export async function POST(request: Request) {
   if (insecureSignIn(request)) return NextResponse.json(INSECURE_SIGN_IN, { status: 400 });
 
   const limit = checkRateLimit(`recover:${clientKey(request)}`, 5, 15 * 60 * 1000);
-  if (!limit.allowed) return tooManyRequests(limit.retryAfterSeconds);
+  if (!limit.allowed) return tooManyAttempts(limit.retryAfterSeconds);
 
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const email = typeof body.email === "string" ? body.email.trim().slice(0, 120) : "";
@@ -48,6 +50,8 @@ export async function POST(request: Request) {
   // The new password is the owner's own, which also ends an administrator-issued one. The administrator
   // who issued that password saw these codes, so they are replaced and the new set shown once.
   const recoveryCodes = await recoverAdultPassword(adult, newPassword);
+  // Whatever session this browser still held (another adult, or a student) ends too; its cookies are replaced below.
+  await destroyBrowserSessions();
   const { token, expiresAt } = await createAdultSession(adult.id);
   const response = NextResponse.json({ adult: { ...adult, mustChangePassword: false }, ...(recoveryCodes ? { recoveryCodes } : {}) }, { headers: { "Cache-Control": "no-store" } });
   response.cookies.set(SESSION_COOKIE, token, sessionCookieOptions(expiresAt));

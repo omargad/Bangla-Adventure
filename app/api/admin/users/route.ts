@@ -1,6 +1,7 @@
 import { getStaffAccess } from "@/lib/auth";
 import { createUser, listUsers, UserManagementError } from "@/lib/user-management";
-import { checkRateLimit, tooManyRequests } from "@/lib/rate-limit";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { tooManyAttempts } from "@/lib/rate-limit-reply";
 
 export const dynamic = "force-dynamic";
 
@@ -8,7 +9,7 @@ export async function GET(request: Request) {
   const actor = await getStaffAccess("admin");
   if (actor instanceof Response) return actor;
   try {
-    return Response.json(await listUsers(new URL(request.url).searchParams));
+    return Response.json(await listUsers(actor.id, new URL(request.url).searchParams));
   } catch (error) {
     return error instanceof UserManagementError
       ? Response.json({ error: error.message, errorBn: error.messageBn }, { status: error.status })
@@ -20,7 +21,7 @@ export async function POST(request: Request) {
   const actor = await getStaffAccess("admin");
   if (actor instanceof Response) return actor;
   const limit = checkRateLimit(`admin-create:${actor.id}`, 30, 60 * 60 * 1000);
-  if (!limit.allowed) return tooManyRequests(limit.retryAfterSeconds);
+  if (!limit.allowed) return tooManyAttempts(limit.retryAfterSeconds);
   try {
     const body = await request.json().catch(() => null);
     if (!body || typeof body !== "object" || Array.isArray(body)) return Response.json({ error: "Provide account details.", errorBn: "অ্যাকাউন্টের তথ্য দিন।" }, { status: 400 });

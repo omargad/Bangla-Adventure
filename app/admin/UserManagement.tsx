@@ -8,7 +8,10 @@ import { confirmDiscardPasswords } from "../components/StudentImport";
 import PortalShell from "../components/PortalShell";
 
 type User = { id: string; kind: "adult" | "student"; displayName: string; email?: string; username?: string; role: string; status: string; teacherStatus: string; approvalStatus: string; mustChangePassword?: boolean; createdAt: string };
-type UsersPage = { users: User[]; total: number; pageSize: number; stats: { adults: number; students: number; teachers: number; pending: number }; approvals: { users: User[]; total: number }; audit: { id: string; action: string; targetType: string; targetId: string; targetLabel: { en: string; bn: string } | null; createdAt: string }[] };
+type UsersPage = { users: User[]; total: number; pageSize: number; stats: { adults: number; students: number; teachers: number; pending: number }; approvals: { users: User[]; total: number }; audit: AuditEvent[] };
+/** Who made a change: an account (by its display name), the server operator, or an account deleted since. */
+type AuditActor = { kind: "account"; name: string } | { kind: "server" } | { kind: "deleted" };
+type AuditEvent = { id: string; action: string; targetType: string; targetId: string; targetLabel: { en: string; bn: string } | null; actor: AuditActor; createdAt: string };
 /** Every action written to the audit log, in both languages; an unknown one is shown as it is stored. */
 const AUDIT_ACTIONS: Record<string, Message> = {
   created: ["Account created", "অ্যাকাউন্ট তৈরি"],
@@ -22,6 +25,10 @@ const AUDIT_ACTIONS: Record<string, Message> = {
   "password-reset-by-server-operator": ["Password reset on the server", "সার্ভার থেকে পাসওয়ার্ড রিসেট"],
   "administrator-granted-by-server-operator": ["Made administrator on the server", "সার্ভার থেকে প্রশাসক করা হয়েছে"],
   "password-changed": ["Password changed", "পাসওয়ার্ড বদলানো হয়েছে"],
+  "password-recovered": ["Password reset with a recovery code", "পুনরুদ্ধার কোড দিয়ে পাসওয়ার্ড রিসেট"],
+  "recovery-codes-replaced": ["Recovery codes replaced", "পুনরুদ্ধার কোড বদলানো হয়েছে"],
+  "signed-out-everywhere": ["Signed out on every device", "সব ডিভাইস থেকে সাইন আউট"],
+  "account-deleted": ["Account deleted by its owner", "মালিক অ্যাকাউন্ট মুছে ফেলেছেন"],
   "student-password-changed": ["Student changed their password", "শিক্ষার্থী পাসওয়ার্ড বদলেছে"],
   "teacher-requested": ["Asked to become a teacher", "শিক্ষক হওয়ার আবেদন"],
   "parent-linked": ["Parent linked", "অভিভাবক যুক্ত"],
@@ -32,11 +39,20 @@ const AUDIT_ACTIONS: Record<string, Message> = {
   "class-created-for-teacher": ["Class created for a teacher", "শিক্ষকের জন্য ক্লাস তৈরি"],
   "class-teacher-changed": ["Class given to another teacher", "ক্লাসের শিক্ষক বদল"],
   "class-deleted": ["Class deleted", "ক্লাস মুছে ফেলা হয়েছে"],
+  "class-created": ["Class created", "ক্লাস তৈরি"],
+  "class-activity-created": ["Class activity added", "ক্লাসের কাজ যোগ"],
+  "class-activity-reviewed": ["Class activity reviewed", "ক্লাসের কাজ পর্যালোচনা"],
+  "class-activity-removed": ["Class activity removed", "ক্লাসের কাজ সরানো হয়েছে"],
+  "class-activity-opened": ["Class activity opened", "ক্লাসের কাজ খোলা হয়েছে"],
+  "class-activity-closed": ["Class activity closed", "ক্লাসের কাজ বন্ধ করা হয়েছে"],
+  "announcement-posted": ["Announcement posted", "ঘোষণা দেওয়া হয়েছে"],
+  "attendance-saved": ["Attendance saved", "উপস্থিতি সংরক্ষণ"],
   "submission-reset": ["Quiz answers reset", "কুইজের উত্তর রিসেট"],
   "announcement-removed": ["Announcement removed", "ঘোষণা সরানো হয়েছে"],
   "class-source-added": ["Class source added", "ক্লাসের উৎস যোগ"],
   "class-source-updated": ["Class source changed", "ক্লাসের উৎস বদলানো হয়েছে"],
   "class-source-removed": ["Class source removed", "ক্লাসের উৎস সরানো হয়েছে"],
+  "class-source-reviewed": ["Class source reviewed", "ক্লাসের উৎস পর্যালোচনা"],
   "topic-created": ["Topic written", "বিষয় লেখা হয়েছে"],
   "topic-edit-submitted": ["Topic edit sent for approval", "বিষয়ের সম্পাদনা অনুমোদনের জন্য পাঠানো হয়েছে"],
   "topic-version-approved": ["Topic approved", "বিষয় অনুমোদিত"],
@@ -47,6 +63,10 @@ const AUDIT_ACTIONS: Record<string, Message> = {
   "lesson-approved": ["Lesson approved", "পাঠ অনুমোদিত"],
   "lesson-withdrawn": ["Lesson withdrawn from students", "শিক্ষার্থীদের কাছ থেকে পাঠ সরানো হয়েছে"],
   "lesson-audio-uploaded": ["Lesson recording uploaded", "পাঠের রেকর্ডিং আপলোড"],
+  "lesson-audio-approved": ["Lesson recording approved", "পাঠের রেকর্ডিং অনুমোদিত"],
+  "lesson-audio-changes-requested": ["Lesson recording sent back", "পাঠের রেকর্ডিং ফেরত পাঠানো হয়েছে"],
+  "lesson-audio-pending": ["Lesson recording back to waiting", "পাঠের রেকর্ডিং আবার অপেক্ষায়"],
+  "lesson-audio-retired": ["Lesson recording retired", "পাঠের রেকর্ডিং অবসরে"],
   "lesson-video-checked": ["Lesson video checked", "পাঠের ভিডিও যাচাই"],
   "library-link-updated": ["Textbook link changed", "পাঠ্যবইয়ের লিংক বদলানো হয়েছে"],
   "library-link-held": ["Older textbook link held for a check", "পুরোনো পাঠ্যবইয়ের লিংক যাচাইয়ের জন্য আটকে রাখা হয়েছে"],
@@ -57,11 +77,18 @@ const AUDIT_ACTIONS: Record<string, Message> = {
   "library-source-reset": ["Textbook changes undone", "পাঠ্যবইয়ের পরিবর্তন বাতিল"],
   "library-source-hidden": ["Textbook hidden", "পাঠ্যবই লুকানো হয়েছে"],
   "library-source-shown": ["Textbook shown again", "পাঠ্যবই আবার দেখানো হচ্ছে"],
+  "operator-demo-completion": ["Demo class completed on the server", "সার্ভার থেকে ডেমো ক্লাস সম্পূর্ণ"],
 };
 const AUDIT_TARGETS: Record<string, Message> = {
   adult: ["Adult", "বড়দের অ্যাকাউন্ট"], student: ["Student", "শিক্ষার্থী"], "class-student": ["Class list entry", "ক্লাসের তালিকা"],
   class: ["Class", "ক্লাস"], topic: ["Topic", "বিষয়"], lesson: ["Lesson", "পাঠ"], "library-source": ["Textbook", "পাঠ্যবই"],
 };
+
+/** Who made a change, in both languages. */
+function auditActorLabel(actor: AuditActor): Message {
+  if (actor.kind === "account") return [`By: ${actor.name}`, `করেছেন: ${actor.name}`];
+  return actor.kind === "server" ? ["By: Server operator", "করেছেন: সার্ভার পরিচালনাকারী"] : ["By: Deleted account", "করেছেন: মুছে ফেলা অ্যাকাউন্ট"];
+}
 
 const failed = (error: unknown, fallback: Message): Message => error instanceof MessageError ? error.text : fallback;
 const tryAgain: Message = ["Please try again.", "আবার চেষ্টা করুন।"];
@@ -318,7 +345,7 @@ export default function UserManagement({ actorId, actorName }: { actorId: string
         </>}
         {error && <button className="outline-button" onClick={() => void load()}>{s("Retry", "আবার চেষ্টা")}</button>}
       </section>
-      <details className="teach-panel"><summary>{s("Recent changes", "সাম্প্রতিক পরিবর্তন")}</summary><ul className="audit-list">{data?.audit.map((event) => <li key={event.id}><strong>{AUDIT_ACTIONS[event.action] ? pick(AUDIT_ACTIONS[event.action]) : event.action.replaceAll("-", " ")}</strong><span>{AUDIT_TARGETS[event.targetType] ? pick(AUDIT_TARGETS[event.targetType]) : event.targetType} · {event.targetLabel ? s(event.targetLabel.en, event.targetLabel.bn) : event.targetId.slice(0, 8)}</span><time dateTime={event.createdAt}>{localTime(event.createdAt, language)}</time></li>)}</ul><p>{s("Suspension preserves learning records. No permanent user deletion is performed here.", "স্থগিত করলে শেখার তথ্য সংরক্ষিত থাকে। এখানে কোনো ব্যবহারকারী স্থায়ীভাবে মুছে ফেলা হয় না।")}</p></details>
+      <details className="teach-panel"><summary>{s("Recent changes", "সাম্প্রতিক পরিবর্তন")}</summary><ul className="audit-list">{data?.audit.map((event) => <li key={event.id}><strong>{AUDIT_ACTIONS[event.action] ? pick(AUDIT_ACTIONS[event.action]) : event.action.replaceAll("-", " ")}</strong><span>{AUDIT_TARGETS[event.targetType] ? pick(AUDIT_TARGETS[event.targetType]) : event.targetType} · {event.targetLabel ? s(event.targetLabel.en, event.targetLabel.bn) : event.targetId.slice(0, 8)}</span><span className="audit-actor">{pick(auditActorLabel(event.actor))}</span><time dateTime={event.createdAt}>{localTime(event.createdAt, language)}</time></li>)}</ul><p>{s("Suspension preserves learning records. No permanent user deletion is performed here.", "স্থগিত করলে শেখার তথ্য সংরক্ষিত থাকে। এখানে কোনো ব্যবহারকারী স্থায়ীভাবে মুছে ফেলা হয় না।")}</p></details>
     </div>
   </main></PortalShell>;
 }

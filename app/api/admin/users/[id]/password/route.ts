@@ -1,6 +1,7 @@
 import { getStaffAccess } from "@/lib/auth";
 import { resetPassword, UserManagementError } from "@/lib/user-management";
-import { checkRateLimit, tooManyRequests } from "@/lib/rate-limit";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { tooManyAttempts } from "@/lib/rate-limit-reply";
 
 export const dynamic = "force-dynamic";
 
@@ -9,7 +10,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   const actor = await getStaffAccess("admin");
   if (actor instanceof Response) return actor;
   const limit = checkRateLimit(`admin-reset:${actor.id}`, 30, 60 * 60 * 1000);
-  if (!limit.allowed) return tooManyRequests(limit.retryAfterSeconds);
+  if (!limit.allowed) return tooManyAttempts(limit.retryAfterSeconds);
   const { id } = await context.params;
   try {
     const body = await request.json().catch(() => null);

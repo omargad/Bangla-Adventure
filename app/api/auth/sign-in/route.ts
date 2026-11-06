@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
+import { destroyBrowserSessions } from "@/lib/browser-logout";
 import {
+  ACCOUNT_SUSPENDED,
   SESSION_COOKIE,
   createAdultSession,
   sessionCookieOptions,
   verifyAdultCredentials,
 } from "../../../../lib/auth";
-import { checkRateLimit, clearRateLimit, clientKey, peekRateLimit, recordRateLimit, tooManyRequests } from "../../../../lib/rate-limit";
+import { checkRateLimit, clearRateLimit, clientKey, peekRateLimit, recordRateLimit } from "../../../../lib/rate-limit";
+import { tooManyAttempts } from "../../../../lib/rate-limit-reply";
 import { INSECURE_SIGN_IN, insecureSignIn } from "../../../../lib/request-security";
 import { approvalNotice, canManageUsers } from "@/lib/roles";
 
@@ -18,7 +21,7 @@ export async function POST(request: Request) {
 
   // A staff room shares one address and this counts every sign-in, so the per-address cap is coarse.
   const address = checkRateLimit(`sign-in:${clientKey(request)}`, 100, WINDOW_MS);
-  if (!address.allowed) return tooManyRequests(address.retryAfterSeconds);
+  if (!address.allowed) return tooManyAttempts(address.retryAfterSeconds);
 
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const email = typeof body.email === "string" ? body.email.trim().slice(0, 120) : "";
@@ -33,17 +36,18 @@ export async function POST(request: Request) {
   const fromHere = `sign-in-account-here:${clientKey(request)}:${normalized}`;
   const overall = `sign-in-account:${normalized}`;
   for (const limit of [peekRateLimit(fromHere, 10), peekRateLimit(overall, 50)]) {
-    if (!limit.allowed) return tooManyRequests(limit.retryAfterSeconds);
+    if (!limit.allowed) return tooManyAttempts(limit.retryAfterSeconds);
   }
 
-  const adult = await verifyAdultCredentials(email, password);
+  const adult = await verifyAdultCredentials(email, password, { allowSuspended: true });
   if (!adult) {
     recordRateLimit(fromHere, WINDOW_MS);
     recordRateLimit(overall, WINDOW_MS);
     return NextResponse.json({ error: "That email and password do not match.", errorBn: "এই ইমেইল ও পাসওয়ার্ড মেলেনি।" }, { status: 401 });
   }
   clearRateLimit(fromHere);
-  // Only someone who knows the password learns that the account is still waiting for approval.
+  // Only someone who knows the password learns that the account is suspended or still waiting for approval.
+  if (adult.status !== "active") return NextResponse.json(ACCOUNT_SUSPENDED, { status: 403 });
   if (adult.approvalStatus !== "approved") {
     return NextResponse.json({ error: approvalNotice(adult.approvalStatus, "adult")[0], errorBn: approvalNotice(adult.approvalStatus, "adult")[1], approvalStatus: adult.approvalStatus }, { status: 403 });
   }
@@ -51,6 +55,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "This account does not have administrator access. Sign in with your administrator account.", errorBn: "এই অ্যাকাউন্টে প্রশাসকের অনুমতি নেই। আপনার প্রশাসক অ্যাকাউন্ট দিয়ে সাইন ইন করুন।" }, { status: 403 });
   }
 
+  // The session this browser held until now (adult or student, whichever account it was) ends with it,
+  // rather than staying valid until it expires.
+  await destroyBrowserSessions();
   const { token, expiresAt } = await createAdultSession(adult.id);
   // An administrator-issued password must be replaced before anything else.
   const response = NextResponse.json({ adult, mustChangePassword: adult.mustChangePassword });

@@ -54,7 +54,7 @@ const submissionExists = (id) => Boolean(db.select().from(activitySubmissions).w
 const resetAudits = () => db.select().from(userAuditEvents).where(eq(userAuditEvents.action, "submission-reset")).all();
 
 test("the administrator listing covers every class with its teacher, counts and a score-weighted average", async () => {
-  const listing = await listClassResults();
+  const listing = await listClassResults("admin");
   assert.deepEqual(listing.map((item) => item.id), ["class-empty", "class-b", "class-a"], "newest first");
   const byId = Object.fromEntries(listing.map((item) => [item.id, item]));
   assert.deepEqual(
@@ -104,8 +104,17 @@ test("administrators reset submissions in any class and every reset is audited",
   assert.equal(legacy.targetId, "roster-legacy");
   assert.deepEqual(JSON.parse(legacy.detailsJson), { classId: "class-a", submissionId: "s-legacy" });
 
-  const listing = Object.fromEntries((await listClassResults()).map((item) => [item.id, item]));
+  const listing = Object.fromEntries((await listClassResults("admin")).map((item) => [item.id, item]));
   assert.equal(listing["class-a"].submissionCount, 1);
   assert.equal(listing["class-a"].averagePercent, 100);
   assert.equal(listing["class-b"].averagePercent, null);
+});
+
+test("only an active administrator can read the results summary, re-checked with the reads", async () => {
+  const refused = (error) => error.status === 403 && /Administrator access required/.test(error.message) && Boolean(error.messageBn);
+  await assert.rejects(listClassResults("teacher-a"), refused);
+  await assert.rejects(listClassResults("missing-account"), refused);
+  db.update(adults).set({ status: "suspended" }).where(eq(adults.id, "admin")).run();
+  try { await assert.rejects(listClassResults("admin"), refused); }
+  finally { db.update(adults).set({ status: "active" }).where(eq(adults.id, "admin")).run(); }
 });

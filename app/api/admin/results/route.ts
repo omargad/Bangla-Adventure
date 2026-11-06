@@ -1,5 +1,6 @@
 import { getStaffAccess } from "@/lib/auth";
 import { listClassResults } from "@/lib/grades";
+import { UserManagementError } from "@/lib/user-management";
 
 export const dynamic = "force-dynamic";
 
@@ -7,6 +8,10 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const actor = await getStaffAccess("admin");
   if (actor instanceof Response) return actor;
-  try { return Response.json({ classes: await listClassResults() }); }
-  catch { return Response.json({ error: "Class results could not be loaded. Please try again." }, { status: 503 }); }
+  try { return Response.json({ classes: await listClassResults(actor.id) }); }
+  catch (error) {
+    return error instanceof UserManagementError
+      ? Response.json({ error: error.message, errorBn: error.messageBn }, { status: error.status })
+      : Response.json({ error: "Class results could not be loaded. Please try again.", errorBn: "ক্লাসের ফলাফল লোড করা যায়নি। আবার চেষ্টা করুন।" }, { status: 503 });
+  }
 }

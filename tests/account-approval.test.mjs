@@ -75,7 +75,7 @@ test("replacing an administrator-issued password clears the flag, renews recover
   assert.equal(await auth.consumeRecoveryCode("issued@example.com", adminCodes[0]), null, "the codes the administrator saw stop working");
   assert.equal((await auth.consumeRecoveryCode("issued@example.com", fresh[0])).id, id);
   const audit = db.select().from(userAuditEvents).where(and(eq(userAuditEvents.targetId, id), eq(userAuditEvents.action, "password-changed"))).get();
-  assert.deepEqual(JSON.parse(audit.detailsJson), { temporary: true });
+  assert.deepEqual(JSON.parse(audit.detailsJson), { temporary: true, targetLabel: { en: "Issued Teacher", bn: "Issued Teacher" } });
   assert.ok(!audit.detailsJson.includes("my-own-password-1"));
 
   // A later, voluntary change keeps the owner's own codes.

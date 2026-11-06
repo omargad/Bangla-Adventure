@@ -6,6 +6,8 @@ import { managedClass, type Staff } from "./class-access";
 import { classAttendanceTotals } from "./class-attendance";
 import { currentMember } from "./class-roster";
 import { scorePercent } from "./classroom";
+import { canManageUsers } from "./roles";
+import { UserManagementError } from "./user-management";
 
 export type ClassResultsSummary = {
   id: string;
@@ -51,36 +53,41 @@ export async function resetSubmission(actor: Staff, classId: string, submissionI
 
 /**
  * Every class with its teacher and result totals, newest first, for the administrator results view.
- * Counts, submissions and averages cover the students now in each class (see currentMember).
+ * Counts, submissions and averages cover the students now in each class (see currentMember). The actor
+ * is re-checked inside the same transaction as the reads, like the other administrator functions.
  */
-export async function listClassResults(): Promise<ClassResultsSummary[]> {
+export async function listClassResults(actorId: string): Promise<ClassResultsSummary[]> {
   const db = await getDb();
-  const rows = await db
-    .select({ id: classes.id, name: classes.name, createdAt: classes.createdAt, teacherName: adults.displayName, teacherEmail: adults.email })
-    .from(classes).innerJoin(adults, eq(classes.teacherId, adults.id)).orderBy(desc(classes.createdAt));
-  const member = eq(studentClassEnrollments.classStudentId, classStudents.id);
-  const rosters = await db.select({ classId: classStudents.classId, students: count() }).from(classStudents)
-    .leftJoin(studentClassEnrollments, member).where(currentMember).groupBy(classStudents.classId);
-  const activities = await db.select({ classId: classActivities.classId, activities: count() }).from(classActivities).groupBy(classActivities.classId);
-  const results = await db
-    .select({ classId: classActivities.classId, submissions: count(), score: sum(activitySubmissions.score), total: sum(activitySubmissions.total) })
-    .from(activitySubmissions).innerJoin(classActivities, eq(activitySubmissions.activityId, classActivities.id))
-    .innerJoin(classStudents, eq(activitySubmissions.studentId, classStudents.id)).leftJoin(studentClassEnrollments, member)
-    .where(currentMember).groupBy(classActivities.classId);
-  const studentCounts = new Map(rosters.map((row) => [row.classId, row.students]));
-  const activityCounts = new Map(activities.map((row) => [row.classId, row.activities]));
-  const totals = new Map(results.map((row) => [row.classId, row]));
-  const attendance = classAttendanceTotals(db);
-  return rows.map((row) => {
-    const result = totals.get(row.id);
-    return {
-      ...row,
-      studentCount: studentCounts.get(row.id) ?? 0,
-      activityCount: activityCounts.get(row.id) ?? 0,
-      submissionCount: result?.submissions ?? 0,
-      // Score-weighted, like the per-student average in the teacher workspace.
-      averagePercent: result ? scorePercent(Number(result.score), Number(result.total)) : null,
-      attendancePercent: attendancePercent(attendance.get(row.id)),
-    };
+  return db.transaction((tx) => {
+    const actor = tx.select({ role: adults.role, status: adults.status, teacherStatus: adults.teacherStatus }).from(adults).where(eq(adults.id, actorId)).get();
+    if (!actor || !canManageUsers(actor)) throw new UserManagementError("Administrator access required.", 403, "প্রশাসকের অনুমতি প্রয়োজন।");
+    const rows = tx
+      .select({ id: classes.id, name: classes.name, createdAt: classes.createdAt, teacherName: adults.displayName, teacherEmail: adults.email })
+      .from(classes).innerJoin(adults, eq(classes.teacherId, adults.id)).orderBy(desc(classes.createdAt)).all();
+    const member = eq(studentClassEnrollments.classStudentId, classStudents.id);
+    const rosters = tx.select({ classId: classStudents.classId, students: count() }).from(classStudents)
+      .leftJoin(studentClassEnrollments, member).where(currentMember).groupBy(classStudents.classId).all();
+    const activities = tx.select({ classId: classActivities.classId, activities: count() }).from(classActivities).groupBy(classActivities.classId).all();
+    const results = tx
+      .select({ classId: classActivities.classId, submissions: count(), score: sum(activitySubmissions.score), total: sum(activitySubmissions.total) })
+      .from(activitySubmissions).innerJoin(classActivities, eq(activitySubmissions.activityId, classActivities.id))
+      .innerJoin(classStudents, eq(activitySubmissions.studentId, classStudents.id)).leftJoin(studentClassEnrollments, member)
+      .where(currentMember).groupBy(classActivities.classId).all();
+    const studentCounts = new Map(rosters.map((row) => [row.classId, row.students]));
+    const activityCounts = new Map(activities.map((row) => [row.classId, row.activities]));
+    const totals = new Map(results.map((row) => [row.classId, row]));
+    const attendance = classAttendanceTotals(tx);
+    return rows.map((row) => {
+      const result = totals.get(row.id);
+      return {
+        ...row,
+        studentCount: studentCounts.get(row.id) ?? 0,
+        activityCount: activityCounts.get(row.id) ?? 0,
+        submissionCount: result?.submissions ?? 0,
+        // Score-weighted, like the per-student average in the teacher workspace.
+        averagePercent: result ? scorePercent(Number(result.score), Number(result.total)) : null,
+        attendancePercent: attendancePercent(attendance.get(row.id)),
+      };
+    });
   });
 }
