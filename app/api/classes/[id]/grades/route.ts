@@ -9,6 +9,7 @@ import { currentMembers } from "@/lib/class-roster";
 import { scorePercent } from "@/lib/classroom";
 import { attachmentDisposition, csvRows } from "@/lib/csv";
 import { buildGradebook, gradebookCsvRows } from "@/lib/gradebook";
+import { classServerError } from "@/lib/class-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -16,15 +17,15 @@ type RouteContext = { params: Promise<{ id: string }> };
 
 export async function GET(request: Request, context: RouteContext) {
   const user = await getSessionAdult();
-  if (user && !canTeach(user)) return Response.json({ error: "An approved teacher account is required." }, { status: 403 });
-  if (!user) return Response.json({ error: "Sign in to export grades." }, { status: 401 });
+  if (user && !canTeach(user)) return Response.json({ error: "An approved teacher account is required.", errorBn: "অনুমোদিত শিক্ষকের অ্যাকাউন্ট প্রয়োজন।" }, { status: 403 });
+  if (!user) return Response.json({ error: "Sign in to export grades.", errorBn: "গ্রেড নামাতে সাইন ইন করুন।" }, { status: 401 });
 
   try {
     const { id } = await context.params;
     const db = await getDb();
     // Administrators manage results in every class; teachers only in their own.
     const [classroom] = await db.select().from(classes).where(managedClass(user, id)).limit(1);
-    if (!classroom) return Response.json({ error: "Class not found." }, { status: 404 });
+    if (!classroom) return Response.json({ error: "Class not found.", errorBn: "ক্লাসটি পাওয়া যায়নি।" }, { status: 404 });
 
     const activities = await db.select().from(classActivities).where(eq(classActivities.classId, id));
     const activityIds = activities.map((activity) => activity.id);
@@ -49,6 +50,7 @@ export async function GET(request: Request, context: RouteContext) {
         submittedAt: submission.submittedAt,
       };
     });
+    // Columns and Done cover only the activities students can see (approved); `unpublished` counts the rest.
     const gradebook = buildGradebook(students, activities.map((activity) => ({ ...activity, submissions: submissions.filter((submission) => submission.activityId === activity.id) })));
 
     const url = new URL(request.url);
@@ -63,12 +65,6 @@ export async function GET(request: Request, context: RouteContext) {
 
     return Response.json({ class: classroom, rows, gradebook });
   } catch (error) {
-    return databaseError(error);
+    return classServerError(error, "grades");
   }
-}
-
-function databaseError(error: unknown) {
-  const message = error instanceof Error ? error.message : "Unexpected database error";
-  const unavailable = message.includes("no such table") || message.includes("SQLITE");
-  return Response.json({ error: unavailable ? "The grades service is still being set up." : message }, { status: 500 });
 }

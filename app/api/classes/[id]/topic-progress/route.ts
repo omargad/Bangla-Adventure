@@ -10,7 +10,7 @@ export async function GET(_request: Request, context: RouteContext) {
   const actor = await getStaffAccess("teach");
   if (actor instanceof Response) return actor;
   const { id } = await context.params;
-  if (!(await findManagedClass(actor, id))) return Response.json({ error: "Class not found." }, { status: 404 });
+  if (!(await findManagedClass(actor, id))) return Response.json({ error: "Class not found.", errorBn: "ক্লাসটি পাওয়া যায়নি।" }, { status: 404 });
   try { return Response.json(await classTopicProgress(id)); }
   catch (error) { return topicErrorResponse(error); }
 }

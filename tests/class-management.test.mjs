@@ -9,7 +9,7 @@ const dir = mkdtempSync(path.join(os.tmpdir(), "bangla-class-management-test-"))
 process.env.DATABASE_PATH = path.join(dir, "classes.db");
 const { getDb } = await import("../db/index.ts");
 const { adults, classes, classActivities, userAuditEvents } = await import("../db/schema.ts");
-const { changeClassTeacher, createClassForTeacher, listTeachers } = await import("../lib/class-management.ts");
+const { canStillTeach, changeClassTeacher, createClassForTeacher, createOwnClass, listTeachers } = await import("../lib/class-management.ts");
 const { findManagedClass } = await import("../lib/class-access.ts");
 const db = await getDb();
 db.insert(adults).values([
@@ -47,7 +47,7 @@ test("an administrator creates a class for a teacher, who then manages it; it is
   assert.equal(audit.actorId, "admin");
   assert.equal(audit.targetType, "class");
   assert.equal(audit.targetId, classId);
-  assert.deepEqual(JSON.parse(audit.detailsJson), { classId, name: "Sunday 11:30", teacherId: "rina" });
+  assert.deepEqual(JSON.parse(audit.detailsJson), { classId, name: "Sunday 11:30", teacherId: "rina", targetLabel: { en: "Sunday 11:30", bn: "Sunday 11:30" } });
 });
 
 test("classes cannot be created for anyone but an approved teacher, nor by anyone but an administrator", async () => {
@@ -76,8 +76,39 @@ test("an administrator gives the class to another teacher: the old teacher loses
   assert.equal(db.select().from(classActivities).where(eq(classActivities.classId, classId)).all().length, 1, "activities stay with the class");
   const [audit] = audits("class-teacher-changed");
   assert.equal(audit.actorId, "admin");
-  assert.deepEqual(JSON.parse(audit.detailsJson), { classId, name: "Sunday 11:30", fromTeacherId: "rina", toTeacherId: "karim" });
+  assert.deepEqual(JSON.parse(audit.detailsJson), { classId, name: "Sunday 11:30", fromTeacherId: "rina", toTeacherId: "karim", targetLabel: { en: "Sunday 11:30", bn: "Sunday 11:30" } });
 
   assert.equal((await changeClassTeacher("admin", classId, "karim")).changed, false, "choosing the current teacher changes nothing");
   assert.equal(audits("class-teacher-changed").length, 1);
+});
+
+test("a teacher creating their own class is audited as class-created, with the class name", async () => {
+  const before = db.select().from(classes).all().length;
+  const created = await createOwnClass("karim", "  Monday 4pm ");
+  assert.equal(created.name, "Monday 4pm");
+  assert.equal(created.teacherId, "karim");
+  assert.ok(await findManagedClass(staff("karim"), created.id));
+  const [audit] = audits("class-created");
+  assert.equal(audit.actorId, "karim");
+  assert.equal(audit.targetType, "class");
+  assert.equal(audit.targetId, created.id);
+  assert.deepEqual(JSON.parse(audit.detailsJson), { classId: created.id, name: "Monday 4pm", teacherId: "karim", targetLabel: { en: "Monday 4pm", bn: "Monday 4pm" } });
+
+  // Rechecked inside the transaction: anyone who can no longer teach is refused, and nothing is written.
+  for (const actorId of ["waiting", "suspended", "declined", "parent", "missing"]) {
+    await assert.rejects(createOwnClass(actorId, "Class"), (error) => error.status === 403 && error.messageBn === "অনুমোদিত শিক্ষকের অ্যাকাউন্ট প্রয়োজন।", actorId);
+  }
+  await assert.rejects(createOwnClass("karim", "x".repeat(61)), (error) => error.status === 400);
+  assert.equal(db.select().from(classes).all().length, before + 1);
+  assert.equal(audits("class-created").length, 1);
+});
+
+test("a class needs a new teacher once its teacher is suspended, declined or loses teacher access", () => {
+  const teacher = { role: "teacher", status: "active", teacherStatus: "approved", approvalStatus: "approved" };
+  assert.equal(canStillTeach(teacher), true);
+  assert.equal(canStillTeach({ role: "admin", status: "active", teacherStatus: "none", approvalStatus: "approved" }), true, "an administrator teaches their own classes");
+  assert.equal(canStillTeach({ ...teacher, status: "suspended" }), false);
+  assert.equal(canStillTeach({ ...teacher, approvalStatus: "declined" }), false);
+  assert.equal(canStillTeach({ ...teacher, teacherStatus: "rejected" }), false);
+  assert.equal(canStillTeach({ ...teacher, role: "parent" }), false, "demoted to parent");
 });

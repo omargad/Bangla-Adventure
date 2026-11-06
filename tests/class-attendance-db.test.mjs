@@ -3,12 +3,12 @@ import { mkdtempSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test, { after } from "node:test";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 
 const dir = mkdtempSync(path.join(os.tmpdir(), "bangla-attendance-test-"));
 process.env.DATABASE_PATH = path.join(dir, "attendance.db");
 const { getDb } = await import("../db/index.ts");
-const { adults, students, classes, classStudents, studentClassEnrollments, classActivities, activitySubmissions, classAttendance, parentStudentLinks } = await import("../db/schema.ts");
+const { adults, students, classes, classStudents, studentClassEnrollments, classActivities, activitySubmissions, classAttendance, parentStudentLinks, userAuditEvents } = await import("../db/schema.ts");
 const { attendanceSheet, saveAttendance, classAttendanceSummaries, classAttendanceTotals, studentAttendance, attendanceKey } = await import("../lib/class-attendance.ts");
 const { removeAllocation, roster } = await import("../lib/enrollments.ts");
 const { listClassResults } = await import("../lib/grades.ts");
@@ -100,6 +100,19 @@ test("the first save of a date must cover exactly the students now in the class"
     await assert.rejects(saveAttendance(teacherA, "class-a", "2026-10-29", wrong), (error) => error.status === 409 && /class list has changed/.test(error.message));
   }
   assert.equal(stored("2026-10-29").length, 0, "a refused save writes nothing");
+});
+
+test("every save is audited as attendance-saved, and a correction names each changed mark", () => {
+  const audits = db.select().from(userAuditEvents).where(eq(userAuditEvents.action, "attendance-saved")).orderBy(sql`rowid`).all();
+  assert.equal(audits.length, 3, "the two saves of 21 October and the one of 28 October; refused saves write none");
+  assert.deepEqual(audits.map((audit) => [audit.actorId, audit.targetType, audit.targetId]), [["teacher-a", "class", "class-a"], ["admin", "class", "class-a"], ["teacher-a", "class", "class-a"]]);
+  const label = { en: "Sunday Class", bn: "Sunday Class" };
+  assert.deepEqual(JSON.parse(audits[0].detailsJson), { date: "2026-10-21", marked: 3, present: 2, correction: false, targetLabel: label });
+  assert.deepEqual(JSON.parse(audits[1].detailsJson), {
+    date: "2026-10-21", marked: 3, present: 2, correction: true,
+    changes: [{ studentId: "arif", from: false, to: true }, { studentId: "maya", from: true, to: false }], targetLabel: label,
+  }, "Nadia's unchanged mark is not listed");
+  assert.equal(JSON.parse(audits[2].detailsJson).date, "2026-10-28");
 });
 
 test("a removed student leaves the sheet, roster, counts and averages but keeps their own records", async () => {

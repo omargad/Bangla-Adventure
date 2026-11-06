@@ -66,7 +66,7 @@ test("a teacher deletes their own class with its work, and the deletion is audit
   assert.equal(audit.actorId, "teacher-a");
   assert.equal(audit.targetType, "class");
   assert.equal(audit.targetId, "class-a");
-  assert.deepEqual(JSON.parse(audit.detailsJson), { classId: "class-a", name: "Sunday Class", teacherId: "teacher-a" });
+  assert.deepEqual(JSON.parse(audit.detailsJson), { classId: "class-a", name: "Sunday Class", teacherId: "teacher-a", targetLabel: { en: "Sunday Class", bn: "Sunday Class" } });
   assert.equal(await deleteClass(teacherA, "class-a"), null, "already deleted");
   assert.equal(deletions().length, 1);
 });
@@ -76,6 +76,6 @@ test("an administrator deletes another teacher's class and the audit names the o
   assert.ok(!classExists("class-b"));
   const audit = deletions().find((event) => event.targetId === "class-b");
   assert.equal(audit.actorId, "admin");
-  assert.deepEqual(JSON.parse(audit.detailsJson), { classId: "class-b", name: "সোমবারের ক্লাস", teacherId: "teacher-b" });
+  assert.deepEqual(JSON.parse(audit.detailsJson), { classId: "class-b", name: "সোমবারের ক্লাস", teacherId: "teacher-b", targetLabel: { en: "সোমবারের ক্লাস", bn: "সোমবারের ক্লাস" } });
   assert.equal(deletions().length, 2);
 });

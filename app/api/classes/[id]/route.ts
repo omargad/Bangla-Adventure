@@ -12,7 +12,7 @@ import { listAnnouncements } from "@/lib/class-announcements";
 import { changeClassTeacher } from "@/lib/class-management";
 import { currentMembers } from "@/lib/class-roster";
 import type { QuizQuestion } from "@/lib/classroom";
-import { UserManagementError } from "@/lib/user-management";
+import { classServerError } from "@/lib/class-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -64,7 +64,7 @@ export async function GET(_request: Request, context: RouteContext) {
       })),
     });
   } catch (error) {
-    return databaseError(error);
+    return classServerError(error);
   }
 }
 
@@ -79,7 +79,7 @@ export async function PATCH(request: Request, context: RouteContext) {
   try {
     return Response.json(await changeClassTeacher(actor.id, (await context.params).id, body.teacherId));
   } catch (error) {
-    return databaseError(error);
+    return classServerError(error);
   }
 }
 
@@ -93,7 +93,7 @@ export async function DELETE(_request: Request, context: RouteContext) {
     if (!(await deleteClass(user, id))) return Response.json({ error: "Class not found.", errorBn: "ক্লাসটি পাওয়া যায়নি।" }, { status: 404 });
     return Response.json({ ok: true });
   } catch (error) {
-    return databaseError(error);
+    return classServerError(error);
   }
 }
 
@@ -113,13 +113,4 @@ function parseAnswers(json: string): number[] {
   } catch {
     return [];
   }
-}
-
-function databaseError(error: unknown) {
-  if (error instanceof UserManagementError) return Response.json({ error: error.message, errorBn: error.messageBn }, { status: error.status });
-  const message = error instanceof Error ? error.message : "Unexpected database error";
-  const unavailable = message.includes("no such table") || message.includes("SQLITE");
-  return Response.json(unavailable
-    ? { error: "The classroom service is still being set up.", errorBn: "ক্লাসরুম সেবাটি এখনো চালু করা হচ্ছে।" }
-    : { error: message, errorBn: "ক্লাসের তথ্য এখন পাওয়া যাচ্ছে না। একটু পরে আবার চেষ্টা করুন।" }, { status: 500 });
 }

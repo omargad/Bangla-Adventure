@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { getDb } from "../db";
-import { classes, userAuditEvents } from "../db/schema";
+import { classes } from "../db/schema";
+import { auditClass } from "./class-audit";
 import { canManageUsers, type AccountAccess } from "./roles";
 
 export type Staff = AccountAccess & { id: string };
@@ -22,17 +23,15 @@ export async function findManagedClass(actor: Staff, classId: string) {
 
 /**
  * Delete a class this actor manages, with its roster, activities and submissions,
- * and audit the deletion. Returns null when the actor does not manage the class.
+ * and audit the deletion with the class name, so Recent changes can still name it.
+ * Returns null when the actor does not manage the class.
  */
 export async function deleteClass(actor: Staff, classId: string) {
   const db = await getDb();
   return db.transaction((tx) => {
     const removed = tx.delete(classes).where(managedClass(actor, classId)).returning().get();
     if (!removed) return null;
-    tx.insert(userAuditEvents).values({
-      id: crypto.randomUUID(), actorId: actor.id, targetId: removed.id, targetType: "class", action: "class-deleted",
-      detailsJson: JSON.stringify({ classId: removed.id, name: removed.name, teacherId: removed.teacherId }),
-    }).run();
+    auditClass(tx, actor.id, removed.id, "class-deleted", { classId: removed.id, name: removed.name, teacherId: removed.teacherId }, removed.name);
     return removed;
   });
 }
