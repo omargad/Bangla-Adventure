@@ -10,9 +10,9 @@ fail() { printf 'private acceptance: %s\n' "$*" >&2; exit 1; }
 [ "${GITHUB_REPOSITORY:-}" = omargad/Bangla-Adventure ] && [ "${GITHUB_REF:-}" = refs/heads/main ] || fail 'Only the audited repository main branch is allowed.'
 [ -n "${DEPLOY_SSH_KEY:-}" ] && [ -n "${DEPLOY_KNOWN_HOSTS:-}" ] || fail 'Pinned deployment credentials are missing.'
 case "$DEPLOY_KNOWN_HOSTS" in *'PRIVATE KEY'*|*'-----BEGIN'*) fail 'Public known_hosts contains misplaced private credentials.' ;; esac
-# The address and account come from repository secrets; the host-key pin below proves identity.
-[[ "${DEPLOY_HOST:-}" =~ ^[a-zA-Z0-9][a-zA-Z0-9.:-]*$ ]] || fail 'The DEPLOY_HOST repository secret is missing or invalid.'
-[[ "${DEPLOY_USER:-}" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]] || fail 'The DEPLOY_USER repository secret is missing or invalid.'
+# The address and account come from repository or production environment secrets; the host-key pin below proves identity.
+[[ "${DEPLOY_HOST:-}" =~ ^[a-zA-Z0-9][a-zA-Z0-9.:-]*$ ]] || fail 'The DEPLOY_HOST secret is missing or invalid (set it as a repository secret or a production environment secret, named exactly DEPLOY_HOST).'
+[[ "${DEPLOY_USER:-}" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]] || fail 'The DEPLOY_USER secret is missing or invalid (set it as a repository secret or a production environment secret, named exactly DEPLOY_USER).'
 readonly host="$DEPLOY_HOST" user="$DEPLOY_USER" port=22
 # Uploaded evidence names this fixed alias, never the server address.
 readonly host_alias=bangla-adventures-vps

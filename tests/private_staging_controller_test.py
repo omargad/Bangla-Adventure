@@ -168,7 +168,10 @@ elif tool=="ssh":
             if log.exists(): log.unlink()
             result = self.run_controller(**overrides)
             self.assertNotEqual(result.returncode, 0)
-            self.assertRegex(result.stderr, r"The DEPLOY_(HOST|USER) repository secret is missing or invalid\.")
+            name = "HOST" if "DEPLOY_HOST" in overrides else "USER"
+            self.assertIn(f"The DEPLOY_{name} secret is missing or invalid (set it as a repository secret or a production environment secret, named exactly DEPLOY_{name}).", result.stderr)
+            self.assertNotIn("repository secret DEPLOY_", result.stderr)
+            self.assertNotIn("192.0.2.10", result.stderr)
             self.assertEqual(self.calls(), [])
             self.assertFalse((self.root / "evidence").exists())
 

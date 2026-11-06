@@ -23,17 +23,44 @@ Nginx handles public ports 80 and 443.
 
 The repository is public, so the server's address and SSH account are not
 written in it. Every VPS workflow (the CI deployment, SSH preflight, image
-preflight, private staging and private acceptance) reads them from two
-**repository secrets** (Settings > Secrets and variables > Actions > Secrets):
+preflight, private staging and private acceptance) reads them from two secrets:
 
 | Secret | Value |
 | --- | --- |
 | `DEPLOY_HOST` | The VPS address given in Faysal's server handover email |
 | `DEPLOY_USER` | The SSH deployment account from the same email (UID `1002` on the server) |
 
+Either level works, and GitHub masks both:
+
+- **`production` environment secrets** (Settings > Environments >
+  `production` > Environment secrets), next to `DEPLOY_SSH_KEY`, which is
+  where they are now;
+- **repository secrets** (Settings > Secrets and variables > Actions >
+  Repository secrets).
+
+If a name exists at both levels, the environment's value is used. The names
+must match exactly: `DEPLOY__HOST` (two underscores) or `DEPLOY_HOSTNAME` is a
+different secret that no workflow reads, so the workflows treat `DEPLOY_HOST`
+as missing. To check the names without showing any value, open the
+environment's page or, with the GitHub CLI (it works in PowerShell too), run
+`gh secret list --env production` and `gh secret list` (repository level).
+`gh secret set DEPLOY_HOST --env production` prompts for the value, so it stays
+out of the shell history.
+
+An environment secret reaches only the jobs that run in that environment. Every
+workflow above connects from a job in `production`. The daily status check runs
+in its own `production-status` environment instead, so if these are
+`production` environment secrets, add copies of both there too (or move both to
+repository level); see [Alerting](PRODUCTION_OPERATIONS.md#alerting). For the
+same reason the preflights' first job, which runs before the `production`
+environment loads, reports them as unset at repository level when they are
+environment secrets; that is expected.
+
 Both are required. The preflight, private staging and private acceptance
 workflows stop with a fixed message before any SSH contact when either is
-missing or malformed. With `DEPLOY_ENABLED=true`, the CI deployment stops with a
+missing or malformed, for example "the DEPLOY_HOST secret is missing or invalid
+(set it as a repository secret or a production environment secret, named
+exactly DEPLOY_HOST)". With `DEPLOY_ENABLED=true`, the CI deployment stops with a
 message when `DEPLOY_HOST` is missing; without `DEPLOY_USER` the portable script
 falls back to a `deploy` account, so set both before enabling it. The workflows'
 own messages report only whether each is set. They are secrets rather than
@@ -102,22 +129,30 @@ also needs `curl` and its system CA certificates for the HTTPS check.
 
 ### Narration key
 
-Runtime narration is optional. Add the client's key as the `ELEVENLABS_API_KEY`
-secret: a repository secret (Settings > Secrets and variables > Actions) or a
-`production` environment secret (Settings > Environments). Paste the key alone, on
-one line. Each deploy then writes it into the server `.env` under the deployment
-lock, so nobody pastes it on the server. It travels on the SSH connection's input
-and never appears on a command line, in a staged file or in the log. The optional
+Runtime narration is optional, and the ElevenLabs account and API key are the
+client's responsibility. The client buys an ElevenLabs plan, or obtains
+nonprofit credits from ElevenLabs, creates an API key in that account and adds
+it themselves as the `ELEVENLABS_API_KEY` secret of this repository's
+`production` environment (Settings > Environments > `production` > Environment
+secrets), or as a repository secret (Settings > Secrets and variables >
+Actions). Paste the key alone, on one line. The team never needs to see it.
+
+Until the key is added, the site works normally with its existing recorded
+audio: bundled clips, approved recordings and narration already saved still
+play, and only newly generated narration reports that it is not configured.
+
+Each deploy writes the key into the server `.env` under the deployment lock, so
+nobody pastes it on the server, and a key added or changed in GitHub takes effect
+at the next deploy. It travels on the SSH connection's input and never appears
+on a command line, in a staged file or in the log. The optional
 `ELEVENLABS_VOICE_ID`, `ELEVENLABS_MODEL_ID` and `ELEVENLABS_DAILY_CHARACTER_LIMIT`
 are variables, not secrets, written the same way. A deploy that fails puts the
 previous `.env` back.
 
 An empty or missing secret or variable leaves whatever the server `.env` already
 has, so a key set there by hand keeps working; to remove a key, delete its line from
-that file. Without any key, bundled audio and already cached narration still play,
-while new provider generation reports that it is not configured. The daily limit
-defaults to 20 000 characters. No provider credential belongs in repository
-variables, source files or screenshots.
+that file. The daily limit defaults to 20 000 characters. No provider credential
+belongs in repository variables, source files or screenshots.
 
 Private staging deliberately never receives the key:
 `scripts/private-staging-remote.sh` refuses a staging configuration that passes any

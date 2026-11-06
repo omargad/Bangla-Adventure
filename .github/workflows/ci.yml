@@ -105,8 +105,9 @@ jobs:
 
   # Disabled until the repository variable DEPLOY_ENABLED=true. This gate runs before the production
   # environment loads; public defaults below never enable deployment. The server's address and account
-  # are the repository secrets DEPLOY_HOST and DEPLOY_USER, so GitHub masks them in this public
-  # repository's logs; scripts/deploy.sh stops with a message when DEPLOY_HOST is missing.
+  # are the secrets DEPLOY_HOST and DEPLOY_USER, set at repository level or on the production
+  # environment, so GitHub masks them in this public repository's logs; scripts/deploy.sh stops with
+  # a message when DEPLOY_HOST is missing.
   # Add required reviewers to the "production" environment to approve each deploy.
   deploy:
     needs: [container, publish]
