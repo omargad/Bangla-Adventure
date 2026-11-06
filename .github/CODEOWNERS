@@ -20,12 +20,9 @@
 /app/api/audio/?lessonId?/?slot?/ @Tlm0v
 /app/api/auth/teacher-request/ @MohammedAlAjmi24
 /app/api/classes/ @MohammedAlAjmi24
-/app/api/classroom/ @MAQ022
-/app/api/classroom/join/ @MohammedAlAjmi24
 /app/api/curriculum/ @MAQ022
 /app/api/library/ @MohammedAlAjmi24
 /app/api/student/ @bahaa11-prog
-/app/api/student/join/ @MohammedAlAjmi24
 /app/api/student/results/ @MAQ022
 /app/api/student/submit/ @MAQ022
 /app/api/student/topic-progress/ @MAQ022
@@ -35,7 +32,6 @@
 /app/calendar-content.ts @MAQ022
 /app/calendar/ @MAQ022
 /app/calendar/layout.tsx @104985376
-/app/classroom/ @MAQ022
 /app/components/ClassAllocation.tsx @MohammedAlAjmi24
 /app/components/FourSkillDiagnostic.tsx @MAQ022
 /app/components/LearningLayout.tsx @104985376
@@ -95,7 +91,6 @@
 /docs/NCTB_CONTENT_AUDIT.md @MohammedAlAjmi24
 /docs/NCTB_READING_NOTES.md @MohammedAlAjmi24
 /docs/PROJECT_PACK.md @bahaa11-prog
-/lib/classroom-server.ts @MAQ022
 /lib/classroom.ts @MohammedAlAjmi24
 /lib/curriculum-catalog.ts @Tlm0v
 /lib/enrollments.ts @MohammedAlAjmi24
@@ -183,6 +178,7 @@
 /app/api/classes/?id?/sources/ @MAQ022
 /app/api/classes/?id?/students/import/ @MohammedAlAjmi24
 /app/api/classes/?id?/topic-progress/ @bahaa11-prog
+/app/api/curriculum/quiz/ @omargad
 /app/api/family/sources/ @MAQ022
 /app/api/student/password/ @MAQ022
 /app/api/studio/lessons/ @Tlm0v

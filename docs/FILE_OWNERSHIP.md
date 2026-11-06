@@ -73,9 +73,9 @@ Confidence: **high** — the Jira item clearly describes this file; **medium** �
 | `app/api/classes/[id]/students/route.ts` | [@MohammedAlAjmi24](https://github.com/MohammedAlAjmi24) | [SCRUM-86](https://ictprojectb26.atlassian.net/browse/SCRUM-86) | high | [`21f86fa`](https://github.com/omargad/Bangla-Adventure/commit/21f86fa270eb82dcd9b1c6ae5a86c1c12e824d8c) | — |
 | `app/api/classes/[id]/submissions/route.ts` | [@MohammedAlAjmi24](https://github.com/MohammedAlAjmi24) | [SCRUM-46](https://ictprojectb26.atlassian.net/browse/SCRUM-46) | high | [`b0e0fbb`](https://github.com/omargad/Bangla-Adventure/commit/b0e0fbb45edc2545fda16988a925ab660a43c8b2) | — |
 | `app/api/classes/route.ts` | [@MohammedAlAjmi24](https://github.com/MohammedAlAjmi24) | [SCRUM-86](https://ictprojectb26.atlassian.net/browse/SCRUM-86) | medium | [`21f86fa`](https://github.com/omargad/Bangla-Adventure/commit/21f86fa270eb82dcd9b1c6ae5a86c1c12e824d8c) | earlier form, [`cab38f8`](https://github.com/omargad/Bangla-Adventure/commit/cab38f8a52cd5593bd01f603e7aedf12f56b3bca) (10 Aug) |
-| `app/api/classroom/feed/route.ts` | [@MAQ022](https://github.com/MAQ022) | [SCRUM-41](https://ictprojectb26.atlassian.net/browse/SCRUM-41) | medium | [`9be0aa7`](https://github.com/omargad/Bangla-Adventure/commit/9be0aa7799088d82000de03f50755770bf3026f6) | unchanged, [`cab38f8`](https://github.com/omargad/Bangla-Adventure/commit/cab38f8a52cd5593bd01f603e7aedf12f56b3bca) (10 Aug) |
-| `app/api/classroom/join/route.ts` | [@MohammedAlAjmi24](https://github.com/MohammedAlAjmi24) | [SCRUM-86](https://ictprojectb26.atlassian.net/browse/SCRUM-86) | medium | [`21f86fa`](https://github.com/omargad/Bangla-Adventure/commit/21f86fa270eb82dcd9b1c6ae5a86c1c12e824d8c) | earlier form, [`cab38f8`](https://github.com/omargad/Bangla-Adventure/commit/cab38f8a52cd5593bd01f603e7aedf12f56b3bca) (10 Aug) |
-| `app/api/classroom/submit/route.ts` | [@MAQ022](https://github.com/MAQ022) | [SCRUM-41](https://ictprojectb26.atlassian.net/browse/SCRUM-41) | medium | [`9be0aa7`](https://github.com/omargad/Bangla-Adventure/commit/9be0aa7799088d82000de03f50755770bf3026f6) | unchanged, [`cab38f8`](https://github.com/omargad/Bangla-Adventure/commit/cab38f8a52cd5593bd01f603e7aedf12f56b3bca) (10 Aug) |
+| `app/api/classroom/feed/route.ts` (removed 6 November 2026 with the retired class-code routes) | [@MAQ022](https://github.com/MAQ022) | [SCRUM-41](https://ictprojectb26.atlassian.net/browse/SCRUM-41) | medium | [`9be0aa7`](https://github.com/omargad/Bangla-Adventure/commit/9be0aa7799088d82000de03f50755770bf3026f6) | unchanged, [`cab38f8`](https://github.com/omargad/Bangla-Adventure/commit/cab38f8a52cd5593bd01f603e7aedf12f56b3bca) (10 Aug) |
+| `app/api/classroom/join/route.ts` (removed 6 November 2026 with the retired class-code routes) | [@MohammedAlAjmi24](https://github.com/MohammedAlAjmi24) | [SCRUM-86](https://ictprojectb26.atlassian.net/browse/SCRUM-86) | medium | [`21f86fa`](https://github.com/omargad/Bangla-Adventure/commit/21f86fa270eb82dcd9b1c6ae5a86c1c12e824d8c) | earlier form, [`cab38f8`](https://github.com/omargad/Bangla-Adventure/commit/cab38f8a52cd5593bd01f603e7aedf12f56b3bca) (10 Aug) |
+| `app/api/classroom/submit/route.ts` (removed 6 November 2026 with the retired class-code routes) | [@MAQ022](https://github.com/MAQ022) | [SCRUM-41](https://ictprojectb26.atlassian.net/browse/SCRUM-41) | medium | [`9be0aa7`](https://github.com/omargad/Bangla-Adventure/commit/9be0aa7799088d82000de03f50755770bf3026f6) | unchanged, [`cab38f8`](https://github.com/omargad/Bangla-Adventure/commit/cab38f8a52cd5593bd01f603e7aedf12f56b3bca) (10 Aug) |
 | `app/api/curriculum/route.ts` | [@MAQ022](https://github.com/MAQ022) | [SCRUM-40](https://ictprojectb26.atlassian.net/browse/SCRUM-40) | medium | [`f96c03a`](https://github.com/omargad/Bangla-Adventure/commit/f96c03a13d65d76f0c0e92bf2c7fa401b006a5e0) | — |
 | `app/api/family/route.ts` | [@omargad](https://github.com/omargad) | Not tracked in Jira | medium | [`c36c187`](https://github.com/omargad/Bangla-Adventure/commit/c36c187b3d182469254b1ca9fbdfc147f5562bf1) | — |
 | `app/api/health/route.ts` | [@omargad](https://github.com/omargad) | [SCRUM-54](https://ictprojectb26.atlassian.net/browse/SCRUM-54) | high | [`d187809`](https://github.com/omargad/Bangla-Adventure/commit/d187809ad866c85d00e0cc2bacf77deac427f7f8) | unchanged, [`6d34040`](https://github.com/omargad/Bangla-Adventure/commit/6d340407b017648343a4134e5ef9751a4d278a8e) (3 Aug) |
@@ -85,7 +85,7 @@ Confidence: **high** — the Jira item clearly describes this file; **medium** �
 | `app/api/profiles/route.ts` | [@omargad](https://github.com/omargad) | Not tracked in Jira | medium | [`c36c187`](https://github.com/omargad/Bangla-Adventure/commit/c36c187b3d182469254b1ca9fbdfc147f5562bf1) | earlier form, [`6d34040`](https://github.com/omargad/Bangla-Adventure/commit/6d340407b017648343a4134e5ef9751a4d278a8e) (3 Aug) |
 | `app/api/progress/route.ts` | [@omargad](https://github.com/omargad) | Not tracked in Jira | low | [`c36c187`](https://github.com/omargad/Bangla-Adventure/commit/c36c187b3d182469254b1ca9fbdfc147f5562bf1) | earlier form, [`6d34040`](https://github.com/omargad/Bangla-Adventure/commit/6d340407b017648343a4134e5ef9751a4d278a8e) (3 Aug) |
 | `app/api/student/feed/route.ts` | [@bahaa11-prog](https://github.com/bahaa11-prog) | [SCRUM-39](https://ictprojectb26.atlassian.net/browse/SCRUM-39) | medium | [`d6c8a1f`](https://github.com/omargad/Bangla-Adventure/commit/d6c8a1f5a51cd43afdbcb8c55b723aa24ab92f0e) | — |
-| `app/api/student/join/route.ts` | [@MohammedAlAjmi24](https://github.com/MohammedAlAjmi24) | [SCRUM-86](https://ictprojectb26.atlassian.net/browse/SCRUM-86) | medium | [`21f86fa`](https://github.com/omargad/Bangla-Adventure/commit/21f86fa270eb82dcd9b1c6ae5a86c1c12e824d8c) | — |
+| `app/api/student/join/route.ts` (removed 6 November 2026 with the retired class-code routes) | [@MohammedAlAjmi24](https://github.com/MohammedAlAjmi24) | [SCRUM-86](https://ictprojectb26.atlassian.net/browse/SCRUM-86) | medium | [`21f86fa`](https://github.com/omargad/Bangla-Adventure/commit/21f86fa270eb82dcd9b1c6ae5a86c1c12e824d8c) | — |
 | `app/api/student/results/route.ts` | [@MAQ022](https://github.com/MAQ022) | [SCRUM-42](https://ictprojectb26.atlassian.net/browse/SCRUM-42) | high | [`3bb0d3a`](https://github.com/omargad/Bangla-Adventure/commit/3bb0d3a30ed508d7e4c97fcaf45232397263c839) | — |
 | `app/api/student/session/route.ts` | [@bahaa11-prog](https://github.com/bahaa11-prog) | [SCRUM-38](https://ictprojectb26.atlassian.net/browse/SCRUM-38) | medium | [`ef89cb8`](https://github.com/omargad/Bangla-Adventure/commit/ef89cb82b123448ea68b59ebb374fa7afc7f9cf4) | — |
 | `app/api/student/sign-in/route.ts` | [@bahaa11-prog](https://github.com/bahaa11-prog) | [SCRUM-38](https://ictprojectb26.atlassian.net/browse/SCRUM-38) | medium | [`ef89cb8`](https://github.com/omargad/Bangla-Adventure/commit/ef89cb82b123448ea68b59ebb374fa7afc7f9cf4) | — |
@@ -106,8 +106,8 @@ Confidence: **high** — the Jira item clearly describes this file; **medium** �
 | `app/calendar/page.tsx` | [@MAQ022](https://github.com/MAQ022) | [SCRUM-40](https://ictprojectb26.atlassian.net/browse/SCRUM-40) | medium | [`f96c03a`](https://github.com/omargad/Bangla-Adventure/commit/f96c03a13d65d76f0c0e92bf2c7fa401b006a5e0) | unchanged, [`1f4d5e5`](https://github.com/omargad/Bangla-Adventure/commit/1f4d5e5b8517d10e16c7f67f94bb3ccdd391a606) (3 Aug) |
 | `app/certificate/CertificateMaker.tsx` | [@omargad](https://github.com/omargad) | Not tracked in Jira | medium | [`c36c187`](https://github.com/omargad/Bangla-Adventure/commit/c36c187b3d182469254b1ca9fbdfc147f5562bf1) | unchanged, [`a84a9fe`](https://github.com/omargad/Bangla-Adventure/commit/a84a9fe5ab3418a73f6a9c71dbe17c04e741c1a0) (4 Aug) |
 | `app/certificate/page.tsx` | [@omargad](https://github.com/omargad) | Not tracked in Jira | medium | [`c36c187`](https://github.com/omargad/Bangla-Adventure/commit/c36c187b3d182469254b1ca9fbdfc147f5562bf1) | unchanged, [`a84a9fe`](https://github.com/omargad/Bangla-Adventure/commit/a84a9fe5ab3418a73f6a9c71dbe17c04e741c1a0) (4 Aug) |
-| `app/classroom/ClassroomHub.tsx` | [@MAQ022](https://github.com/MAQ022) | [SCRUM-41](https://ictprojectb26.atlassian.net/browse/SCRUM-41) | medium | [`9be0aa7`](https://github.com/omargad/Bangla-Adventure/commit/9be0aa7799088d82000de03f50755770bf3026f6) | unchanged, [`cab38f8`](https://github.com/omargad/Bangla-Adventure/commit/cab38f8a52cd5593bd01f603e7aedf12f56b3bca) (10 Aug) |
-| `app/classroom/page.tsx` | [@MAQ022](https://github.com/MAQ022) | [SCRUM-41](https://ictprojectb26.atlassian.net/browse/SCRUM-41) | medium | [`9be0aa7`](https://github.com/omargad/Bangla-Adventure/commit/9be0aa7799088d82000de03f50755770bf3026f6) | unchanged, [`cab38f8`](https://github.com/omargad/Bangla-Adventure/commit/cab38f8a52cd5593bd01f603e7aedf12f56b3bca) (10 Aug) |
+| `app/classroom/ClassroomHub.tsx` (removed 6 November 2026 with the retired class-code routes) | [@MAQ022](https://github.com/MAQ022) | [SCRUM-41](https://ictprojectb26.atlassian.net/browse/SCRUM-41) | medium | [`9be0aa7`](https://github.com/omargad/Bangla-Adventure/commit/9be0aa7799088d82000de03f50755770bf3026f6) | unchanged, [`cab38f8`](https://github.com/omargad/Bangla-Adventure/commit/cab38f8a52cd5593bd01f603e7aedf12f56b3bca) (10 Aug) |
+| `app/classroom/page.tsx` (removed 6 November 2026 with the retired class-code routes) | [@MAQ022](https://github.com/MAQ022) | [SCRUM-41](https://ictprojectb26.atlassian.net/browse/SCRUM-41) | medium | [`9be0aa7`](https://github.com/omargad/Bangla-Adventure/commit/9be0aa7799088d82000de03f50755770bf3026f6) | unchanged, [`cab38f8`](https://github.com/omargad/Bangla-Adventure/commit/cab38f8a52cd5593bd01f603e7aedf12f56b3bca) (10 Aug) |
 | `app/components/ClassAllocation.tsx` | [@MohammedAlAjmi24](https://github.com/MohammedAlAjmi24) | [SCRUM-86](https://ictprojectb26.atlassian.net/browse/SCRUM-86) | high | [`21f86fa`](https://github.com/omargad/Bangla-Adventure/commit/21f86fa270eb82dcd9b1c6ae5a86c1c12e824d8c) | — |
 | `app/components/FourSkillDiagnostic.tsx` | [@MAQ022](https://github.com/MAQ022) | [SCRUM-41](https://ictprojectb26.atlassian.net/browse/SCRUM-41) | low | [`9be0aa7`](https://github.com/omargad/Bangla-Adventure/commit/9be0aa7799088d82000de03f50755770bf3026f6) | unchanged, [`6d34040`](https://github.com/omargad/Bangla-Adventure/commit/6d340407b017648343a4134e5ef9751a4d278a8e) (3 Aug) |
 | `app/components/LearningLayout.tsx` | [@104985376](https://github.com/104985376) | [SCRUM-85](https://ictprojectb26.atlassian.net/browse/SCRUM-85) | medium | [`ad45a15`](https://github.com/omargad/Bangla-Adventure/commit/ad45a1569cb6ae2d76d943c8ac8415424d3074e0) | — |
@@ -325,7 +325,7 @@ Confidence: **high** — the Jira item clearly describes this file; **medium** �
 | `infra/moodle/verify-host.sh` | [@omargad](https://github.com/omargad) | [SCRUM-54](https://ictprojectb26.atlassian.net/browse/SCRUM-54) | medium | [`d187809`](https://github.com/omargad/Bangla-Adventure/commit/d187809ad866c85d00e0cc2bacf77deac427f7f8) | unchanged, [`dc36994`](https://github.com/omargad/Bangla-Adventure/commit/dc36994a8b028ee0e3ea0cb1956f1f33c7945acf) (12 Aug) |
 | `lib/auth.ts` | [@omargad](https://github.com/omargad) | [SCRUM-53](https://ictprojectb26.atlassian.net/browse/SCRUM-53) | high | [`ab8d3b2`](https://github.com/omargad/Bangla-Adventure/commit/ab8d3b224bc5a3bf7171d8028fa6c91a26ad39a9) | earlier form, [`6d34040`](https://github.com/omargad/Bangla-Adventure/commit/6d340407b017648343a4134e5ef9751a4d278a8e) (3 Aug) |
 | `lib/browser-logout.ts` | [@omargad](https://github.com/omargad) | [SCRUM-53](https://ictprojectb26.atlassian.net/browse/SCRUM-53) | high | [`ab8d3b2`](https://github.com/omargad/Bangla-Adventure/commit/ab8d3b224bc5a3bf7171d8028fa6c91a26ad39a9) | — |
-| `lib/classroom-server.ts` | [@MAQ022](https://github.com/MAQ022) | [SCRUM-41](https://ictprojectb26.atlassian.net/browse/SCRUM-41) | medium | [`9be0aa7`](https://github.com/omargad/Bangla-Adventure/commit/9be0aa7799088d82000de03f50755770bf3026f6) | unchanged, [`cab38f8`](https://github.com/omargad/Bangla-Adventure/commit/cab38f8a52cd5593bd01f603e7aedf12f56b3bca) (10 Aug) |
+| `lib/classroom-server.ts` (removed 6 November 2026 with the retired class-code routes) | [@MAQ022](https://github.com/MAQ022) | [SCRUM-41](https://ictprojectb26.atlassian.net/browse/SCRUM-41) | medium | [`9be0aa7`](https://github.com/omargad/Bangla-Adventure/commit/9be0aa7799088d82000de03f50755770bf3026f6) | unchanged, [`cab38f8`](https://github.com/omargad/Bangla-Adventure/commit/cab38f8a52cd5593bd01f603e7aedf12f56b3bca) (10 Aug) |
 | `lib/classroom.ts` | [@MohammedAlAjmi24](https://github.com/MohammedAlAjmi24) | [SCRUM-30](https://ictprojectb26.atlassian.net/browse/SCRUM-30) | medium | [`fed115d`](https://github.com/omargad/Bangla-Adventure/commit/fed115d76fd3e207a3dc577e206b477be00c6d15) | earlier form, [`cab38f8`](https://github.com/omargad/Bangla-Adventure/commit/cab38f8a52cd5593bd01f603e7aedf12f56b3bca) (10 Aug) |
 | `lib/curriculum-catalog.ts` | [@Tlm0v](https://github.com/Tlm0v) | [SCRUM-50](https://ictprojectb26.atlassian.net/browse/SCRUM-50) | high | [`c6fc3fb`](https://github.com/omargad/Bangla-Adventure/commit/c6fc3fbf3915bb7772b7250c610a705cab0159a7) | — |
 | `lib/enrollments.ts` | [@MohammedAlAjmi24](https://github.com/MohammedAlAjmi24) | [SCRUM-86](https://ictprojectb26.atlassian.net/browse/SCRUM-86) | high | [`21f86fa`](https://github.com/omargad/Bangla-Adventure/commit/21f86fa270eb82dcd9b1c6ae5a86c1c12e824d8c) | — |
@@ -910,3 +910,34 @@ Review and test: [@104985376](https://github.com/104985376) in [#114](https://gi
 - `public/icon-maskable-512.png`
 - `public/postcard-collage.webp` (re-encoded from `public/postcard-collage.png`; keeps its owner [@104985376](https://github.com/104985376))
 - `public/river-story.webp` (re-encoded from `public/river-story.png`; keeps its owner [@104985376](https://github.com/104985376))
+
+### Access-control and user-guide fixes
+
+Review and test: [@omargad](https://github.com/omargad), until an area reviewer is assigned.
+
+- `app/api/curriculum/quiz/route.ts`
+- `lib/class-activities.ts`
+- `lib/class-audit.ts`
+- `lib/class-errors.ts`
+- `lib/class-labels.ts`
+- `lib/home-link.ts`
+- `lib/learner-topic.ts`
+- `lib/lesson-audio.ts`
+- `lib/profile-fields.ts`
+- `lib/rate-limit-reply.ts`
+- `lib/student-work.ts`
+- `tests/account-controls.test.mjs`
+- `tests/audit-labels.test.mjs`
+- `tests/class-activities.test.mjs`
+- `tests/class-errors.test.mjs`
+- `tests/class-labels.test.mjs`
+- `tests/content-wording.test.mjs`
+- `tests/e2e/account-controls.spec.ts`
+- `tests/e2e/class-workspace.spec.ts`
+- `tests/e2e/grown-up-wording.spec.ts`
+- `tests/e2e/learner-integrity.spec.ts`
+- `tests/home-link.test.mjs`
+- `tests/learner-topic.test.mjs`
+- `tests/lesson-audio.test.mjs`
+- `tests/rate-limit-reply.test.mjs`
+- `tests/student-work.test.mjs`
