@@ -59,7 +59,11 @@ anyone an Administrator. There are no ready-made Administrator passwords.
 In short:
 
 1. The person who will be the first Administrator creates a grown-up account on the
-   website and keeps the recovery codes it shows. The account then waits for approval.
+   website: on the home page, select **Create parent account**. Leave **Account type** as
+   **Parent or carer**, fill in **Your name**, **Email** and **Password**, and select
+   **Create account**. The page says **Account created — waiting for approval** and shows
+   eight recovery codes. Keep them somewhere safe and private, then select
+   **I’ve saved them — back to sign in**. The account cannot sign in yet.
 2. The person who runs the server turns that account into an Administrator account. The
    steps are in [First administrator and recovery](../DEPLOYMENT.md#first-administrator-and-recovery)
    in the deployment guide.
@@ -128,8 +132,9 @@ guide covers this under [First administrator and recovery](../DEPLOYMENT.md#firs
 
 ### Signing out
 
-Select **Sign out** at the bottom of the left-hand menu. You go back to the
-**Grown-up sign in** page. Always sign out on a shared computer.
+Select **Sign out** at the bottom of the left-hand menu. You go back to the sign-in page
+for grown-ups (**Grown-up sign in** is highlighted at the top). Always sign out on a shared
+computer.
 
 ## Approving or declining new accounts
 
@@ -160,7 +165,9 @@ show what each person does: [students](student.md#creating-your-own-account),
   the top of the page goes down.
 
 **Changed your mind?** In the accounts list below, open the filter (it shows
-**All accounts**) and choose **Declined**. The declined person has an **Approve** button.
+**All accounts**) and choose **Declined**. A declined parent or student has an **Approve**
+button. A declined teacher request says *"Teacher request declined along with the account"*
+and has an **Approve as teacher** button instead.
 
 Approving a parent does not link them to any children. To let a parent see their child,
 link them (see [Linking a parent to a student](#linking-a-parent-to-a-student)) or import
@@ -218,6 +225,9 @@ Each row in the accounts list has buttons: **Edit**, **Suspend**, **Revoke sessi
 **Reset password**. Student rows also have **Family access**. Most changes ask you to
 confirm first, and most messages end with *"The action has been recorded."*
 
+Your own row says **(you)** after your name. On it, **Suspend**, **Revoke sessions** and
+**Reset password** are greyed out, and in **Edit** you cannot change your own **Role**.
+
 Use the filter beside **Search** to show **All accounts**, **Waiting for approval**,
 **Declined**, **Parent**, **Teacher**, **Administrator** or **Suspended**.
 
@@ -226,9 +236,11 @@ Use the filter beside **Search** to show **All accounts**, **Waiting for approva
 1. Select **Edit** in the person's row.
 2. In **Edit account**, change the **Display name** or, for an adult, the **Role**
    (**Parent**, **Teacher** or **Administrator**).
-3. Select **Save changes** (or **Cancel**).
+3. Select **Save changes** (or **Cancel**), then **OK** in the box that asks you to
+   confirm.
 
-Changing a role signs the person out, so they sign in again with the new role.
+**What you'll see:** *"Account updated. The action has been recorded."* Changing a role
+signs the person out, so they sign in again with the new role.
 
 ### Making someone an Administrator
 
@@ -243,8 +255,8 @@ Give Administrator access only to people the school trusts with every family's d
 
 **Suspend** stops someone signing in. Their learning records are kept. The row then shows
 **Suspended** and a **Reactivate** button. Nothing on this page deletes an account for
-good: *"Suspension preserves learning records. No permanent user deletion is performed
-here."*
+good. The note at the end of **Recent changes** says so: *"Suspension preserves learning
+records. No permanent user deletion is performed here."*
 
 ### Revoke sessions
 
@@ -271,8 +283,9 @@ their parent. You can also put all the students into one class at the same time.
 
 ### Preparing the file
 
-Make a spreadsheet and save it as a CSV file. The first row must be a header row with these
-three columns:
+Make a spreadsheet and save it as a CSV file (most spreadsheet programs can save or
+download a sheet in CSV format). The first row must be a header row with these three
+columns:
 
 | student name | parent name | parent email |
 | --- | --- | --- |
@@ -304,8 +317,11 @@ Things to know:
 
 1. On the **Users** page, select **Import families (CSV)**.
 2. In **Family list (CSV file)**, choose your file.
-3. If you want, choose a class in **Also add the students to a class (optional)**. Leave
-   **No class for now** to skip this.
+3. If you want, choose a class in **Also add the students to a class (optional)**. Each
+   class is listed with its teacher, for example *Sunday 11:30 Level 2 · Ms Rahman*. Leave
+   **No class for now** to skip this. (Until a class has been created, **No class for now**
+   is the only choice. You can add the students to a class later: see
+   [Adding students to the class](#adding-students-to-the-class).)
 4. Select **Upload and create accounts**.
 
 **What you'll see:** a message such as *"3 student accounts and 2 new parent accounts
@@ -319,14 +335,16 @@ temporary password. The sheet is in English and Bangla.
    **Print sign-in sheet**, or **Download sign-in sheet** to save them as a file
    (`family-sign-in-sheet.csv`). Each family prints on a page of its own. Give each family
    only their own page, privately.
-6. Select **Hide passwords** when you have finished.
+6. Select **Hide passwords** when you have finished. A box warns that the passwords cannot
+   be shown again. Select **OK**.
 
 Everyone chooses their own password at their first sign-in. The Parent guide explains the
 sheet to families (see
 [Way 2: the school creates your account for you](parent.md#way-2-the-school-creates-your-account-for-you)).
 
-**If something is wrong in the file**, nothing is created. A list called **Rows to fix**
-shows each problem with its line number, for example: *"Line 3: Parent e-mail
+**If something is wrong in the file**, nothing is created. The panel says *"Nothing was
+created. Fix the rows listed and upload the file again."* Below it, each problem is listed
+with its line number (line 1 is the header row), for example: *"Line 3: Parent e-mail
 "sadia.khan-at-example" is not a valid e-mail address."* Fix the file and upload it again.
 
 **A parent who already has an account** (an approved parent account with the same name and
@@ -335,9 +353,9 @@ for example, *"1 student account and 0 new parent accounts created. 1 existing p
 was linked."* Their sheet says *"Existing account, password unchanged"*.
 
 **Uploading the same list twice** does not make second accounts. Nothing is created, and
-**Rows to fix** explains each line, for example: *"Line 2: "Tara Haque" is already linked to
-this parent as tara.haque4010. Remove this row: the student already has an account. To put
-them in a class, use "Allocate students" on that class."*
+the list of problems explains each line, for example: *"Line 2: "Tara Haque" is already
+linked to this parent as tara.haque4010. Remove this row: the student already has an
+account. To put them in a class, use "Allocate students" on that class."*
 
 ## Classes: creating them and handing them over
 
@@ -368,6 +386,10 @@ below."* The new class is selected in **Choose a class**.
 **What you'll see:** for example *"2 students added to this class."* They appear under
 **Students in this class**. The class appears on their dashboard straight away; no class
 code is needed.
+
+To take a student out of the class, select **Remove allocation** beside their name and
+select **OK**. They leave the class list, results and attendance, but their work is kept
+and comes back if they are added again.
 
 Further down, **Add students from a CSV file** makes new student accounts for this class
 from a list with a "name" column (and, optionally, a "username" column). Choose the file in
@@ -407,15 +429,19 @@ teachers (see the [Teacher guide](teacher.md)).
 
 In a class you can, for example:
 
-- **Post an announcement:** in **Announcements**, type in **New announcement**, choose who
-  it is for (**Everyone in the class (students and parents)**, **Students only** or
-  **Parents only**) and select **Post**. It shows "Posted by" with your name. **Remove**
-  takes an announcement down after you confirm.
+- **Post an announcement:** in **Announcements**, type your message in the large box at the
+  top (it shows an example, *"e.g. This term's theme is festivals — read the Pohela Boishakh
+  topic!"*, until you start typing). In **Who can see it**, choose
+  **Everyone in the class (students and parents)**, **Students only** or **Parents only**,
+  and select **Post**. The message is, for example, *"Announcement posted to everyone in the
+  class."* The announcement shows "Posted by" with your name. **Remove** takes an
+  announcement down after you confirm.
 - **Review class activities and class sources** before students see them (see
   [Class activities and class sources](#class-activities-and-class-sources)).
 - **Correct attendance** (see [Attendance](#attendance-checking-and-correcting)).
 - **Delete the class** with **Delete class**. A box asks you to confirm, because the
-  class's activities and submissions are deleted with it. Use this with care.
+  class's activities and submissions are deleted with it. Select **OK**, and you go back to
+  **All classes**. This cannot be undone, so use it with care.
 
 ## Keeping the NCTB textbook links up to date
 
@@ -445,10 +471,12 @@ Good to know:
 - **Remove my link** goes back to the original link: *"Your link was removed. Readers see the
   official NCTB page again."*
 - **Hide from readers** hides a book from readers (*"Hidden from readers. You can show it
-  again below."*). **Show to readers** brings it back.
+  again below."*). The book moves to **Hidden sources** near the bottom of the page. Select
+  **Show to readers** there to bring it back.
 - For a new NCTB book that is not listed, use **Add a source** at the bottom of the page.
   Give the **Title (English)**, **Title (Bangla)**, **Classes (English)**,
-  **Classes (Bangla)**, **Level** and **Link**, then select **Add source**.
+  **Classes (Bangla)**, **Level** and **Link**, then select **Add source**. The message is
+  *"Source added. Readers see it in Sources & references and the textbook library."*
 - Teachers add links for their own classes under **Class sources** in their class, not here.
 
 Every change on this page is listed under **Recent changes** on the **Users** page.
@@ -468,7 +496,10 @@ and average. Below it:
 - **Gradebook and attendance**: one row per student, with **Done**, **Average**,
   **Attendance** (for example "2 of 2") and a column for each activity. A dash (—) means
   not submitted yet. The average counts submitted work only. Use **Find a student** to
-  search.
+  search. Please note: the gradebook has a column for every activity in the class,
+  including ones that are still waiting for approval or were sent back, and **Done** counts
+  them too. A student who has done every published activity can therefore show, for
+  example, "1/2".
 - **Submissions**: each submission with the **Student**, **Activity**, **Score** and when it
   was **Submitted**.
 
@@ -497,9 +528,10 @@ gradebook shows each student's. To correct a day's attendance, open the class:
 
 1. Select **All classes**, open the class, then select **Attendance**.
 2. In **Class date**, choose the date of the class.
-3. Tick students who were present and untick students who were absent. The count, for
-   example "4 of 5 present", changes as you go, and **Changes not saved yet** reminds you to
-   save.
+3. For a date that has not been saved yet, everyone starts ticked as present. Untick
+   students who were absent, and tick anyone who was marked absent by mistake. The count,
+   for example "4 of 5 present", changes as you go, and **Changes not saved yet** reminds
+   you to save.
 4. Select **Save attendance for** (the button shows the date).
 
 **What you'll see:** for example *"Attendance saved for Sun, 1 Nov 2026: 5 of 5 present."*
@@ -539,7 +571,9 @@ Teachers write topics as described in
 
 1. Select **Topics** in the menu. (The older address ending `/admin/curriculum` opens this
    same page.)
-2. Under **Waiting for approval**, select **Preview & review** beside a topic.
+2. Under **Waiting for approval**, select **Preview & review** beside a topic. (On a new
+   installation, the 15 built-in topics say they were written by *a former staff member*.
+   That is normal.)
 3. Read the whole topic in the **Student view preview**. Use **English**, **বাংলা** and
    **Side by side** to read both languages. **What changed** tells you what is new.
 4. Read the quiz too. It is at the end of the preview, as students will see it.
@@ -566,16 +600,17 @@ topic once more."*
 
 ### Lessons
 
-1. Select **Lessons** in the menu. The top of the page counts lessons that are
-   **Available to students** and **Hidden from students**, and recordings waiting.
+1. Select **Lessons** in the menu. The boxes at the top count, among other things, the
+   lessons **Available to students**, the lessons **Hidden from students** and the
+   **Recordings waiting**.
 2. Select **Preview lesson** beside a lesson. Each lesson shows its status, for example
    **Waiting for approval · hidden from students**.
 3. In the **Student view preview**, open **every part** of the lesson: **Overview**,
    **Listen**, **Read**, **Speak**, **Write**, **Watch** and **Mastery**. Switch between
    **English** and **বাংলা** to read both.
 4. Under **Your decision**, check that it says **Parts of the lesson opened: 7 of 7**.
-5. Tick **I have reviewed the whole lesson in English and Bangla**. You can add a
-   **Note (optional)**.
+5. Tick **I have reviewed the whole lesson in English and Bangla**. The tick box stays
+   greyed out until all 7 parts have been opened. You can add a **Note (optional)**.
 6. Select **Approve revision for students** (for a lesson that was approved before and
    withdrawn, the button says **Approve for students**).
 
@@ -599,9 +634,10 @@ hear an approved recording instead of the computer voice.
    recording. Select **Review in the lesson** beside one.
 2. Find **Human audio recordings**. A waiting recording says **Waiting for review**, with
    the speaker's name and "consent confirmed".
-3. Play the whole recording.
-4. Tick **I listened to the whole recording**. **Approve recording** stays greyed out until
-   you do.
+3. Play the whole recording with the play button beside it.
+4. Tick **I listened to the whole recording**. This tick box stays greyed out until the
+   recording has played to the end, and **Approve recording** stays greyed out until you
+   tick it.
 5. Select **Approve recording**.
 
 **What you'll see:** *"Recording approved. Learners now hear it for this part of the lesson
@@ -664,7 +700,7 @@ students and parents no longer see it.
 
 ## Optional narration (computer voice)
 
-Approved class activities have a **Listen to instructions** button, credited
+Each class activity has a **Listen to instructions** button, credited
 "Neural computer voice (ElevenLabs, elevenlabs.io)". It reads the instructions aloud in a
 computer voice. This narration is optional.
 
@@ -678,12 +714,15 @@ computer voice. This narration is optional.
 
 ## Recent changes (the record of actions)
 
-At the bottom of the **Users** page, select **Recent changes** to open the list of the most
-recent actions. Each entry says what happened (for example "Parent linked",
+At the bottom of the **Users** page, select **Recent changes** to open the list of the 15
+most recent actions. Each entry says what happened (for example "Parent linked",
 "Added to a class", "Quiz answers reset", "Textbook hidden", "Topic withdrawn from students"
 or "Class deleted"), which account or item it was about, and when.
 
 The list does not show who made each change, and attendance corrections are not included.
+A deleted class is shown by a short code (for example "Class · 686f7740") instead of its
+name, and a few entries about recordings have no capital letter, such as
+"lesson audio approved". Older actions drop off the list as new ones are added.
 
 ## Other pages in your menu
 
@@ -700,11 +739,15 @@ Select **Account & recovery** in the menu.
 - **Change password:** type your **Current password** and a **New password** (at least 10
   characters), then select **Change password**. The message is *"Password changed. Any other
   signed-in devices have been signed out."*
-- **Sign out everywhere:** ends every session on every device at once, including this one.
-  Use it if a shared or public computer may still be signed in.
+- **Sign out everywhere:** ends every session on every device at once, including this one,
+  and takes you back to the home page. Use it if a shared or public computer may still be
+  signed in.
 - **Recovery codes:** type your **Current password** and select
-  **Generate new recovery codes**. Eight new codes appear once. Save them; every older code
-  stops working.
+  **Generate new recovery codes**. Eight new codes appear once, with
+  *"Save these now — they are shown only once."* Save them; every older code stops working.
+- **Delete account** is also on this page, but an Administrator account cannot be deleted
+  there. If you try, the page says *"Ask another administrator to change your role before
+  deleting this account."*
 
 You cannot change your own role or suspend your own account. Ask another Administrator if
 that is needed.
@@ -761,13 +804,13 @@ Your actions on the **Users** page show *"The action has been recorded."* and ap
 | What you see or what happens | What it means | What to do |
 | --- | --- | --- |
 | *"Your account is waiting for an administrator to approve it. You can sign in once it is approved."* | The person created their own account and is in your **Waiting for approval** box. | Approve them on the **Users** page. |
-| *"An administrator has not approved this account. Please contact your administrator."* | The account was declined. | If that was a mistake, filter the accounts list by **Declined** and select **Approve**. |
+| *"An administrator has not approved this account. Please contact your administrator."* | The account was declined. | If that was a mistake, filter the accounts list by **Declined** and select **Approve** (for a teacher request, **Approve as teacher**). |
 | *"That email and password do not match."* | The email or password is wrong. The same message appears for a suspended account. | Check for typing mistakes and try again. If the details are right, check whether the person's row says **Suspended** and select **Reactivate** if they should have access again. For a forgotten password, see [Resetting a password](#resetting-a-password). |
 | *"This account does not have administrator access. Sign in with your administrator account."* | You used the Administrator sign-in page with a parent or teacher account. | Sign in with your Administrator account. |
 | A page says **Administrator access required** | You are signed in with an account that is not an Administrator, for example a teacher account. | Select **Sign in as administrator** and use your Administrator account. |
 | *"There are no approved teachers yet. Approve a teacher account in Users first."* | You can only make a class for an approved teacher. | Approve their teacher request on the **Users** page, or create their account with **Approved teacher**. |
-| The approve button is greyed out | Approval buttons stay greyed out until you have done the check. Sending something back or withdrawing it needs a note first. | Tick the review box for a topic or class item, open all 7 parts of a lesson, or listen and tick for a recording. To send back or withdraw, type the note. |
-| A family upload shows **Rows to fix** | Nothing was created. | Correct each line listed (for example an email address without "@") and upload the whole file again. |
+| The approve button is greyed out | Approval buttons stay greyed out until you have done the check. Sending something back or withdrawing it needs a note first. | Tick the review box for a topic or class item, open all 7 parts of a lesson, or play a recording to the end and then tick the box. To send back or withdraw, type the note. |
+| A family upload says *"Nothing was created. Fix the rows listed and upload the file again."* | Nothing was created. | Correct each line listed (for example an email address without "@") and upload the whole file again. |
 | You lost a sign-in sheet before printing it | The passwords cannot be shown again. | Select **Reset password** for each person to make a new temporary password. |
 | *"New narration is not configured. Saved audio is still available."* | No ElevenLabs key has been added on the server. | See [Optional narration](#optional-narration-computer-voice). |
 | Students cannot see a topic, lesson, video or activity | It is probably still waiting for approval, or it was withdrawn. | Check its status in **Topics**, **Lessons** (including **Video check**) or the class's **Activities & quizzes**. |
