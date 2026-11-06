@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { INSECURE_SIGN_IN, insecureSignIn, publicOrigin, validateMutation } from "../lib/request-security.ts";
+import {
+  INSECURE_SIGN_IN, insecureSignIn, INVALID_JSON, MAX_JSON_BODY_BYTES, mediaType, MUTATION_ERRORS_BN, publicOrigin, readBodyWithin, readFormData, readJsonObject,
+  requestOrigins, serverError, validateMutation,
+} from "../lib/request-security.ts";
 
 const origin = "https://school.example";
 const request = (headers = {}, method = "POST", pathname = "/api/admin/users") => new Request(`${origin}${pathname}`, { method, headers });
@@ -30,32 +33,54 @@ test("cross-site logout cannot mutate sessions", () => {
   assert.equal(validateMutation(request({}, "GET", "/api/health"), origin), null);
 });
 
-test("without PUBLIC_ORIGIN the browser's same-origin answer is trusted when a proxy changed the address", () => {
+test("a sent Origin that is not the expected one is refused, even when the request claims same-origin", () => {
   const sameOrigin = { origin, "sec-fetch-site": "same-origin" };
-  assert.equal(validateMutation(json(sameOrigin), derived), null);
-  assert.equal(validateMutation(json(sameOrigin), derived, { configured: false }), null);
+  // A non-browser client can claim same-origin; behind a proxy that rewrote Host the derived address differs too.
+  assert.equal(validateMutation(json(sameOrigin), derived), "The request origin could not be verified.");
+  assert.equal(validateMutation(json({ origin: "https://attacker.example", "sec-fetch-site": "same-origin" }), origin), "The request origin could not be verified.");
   const upload = request({ ...sameOrigin, "content-type": "multipart/form-data; boundary=test" });
-  assert.equal(validateMutation(upload, derived), null);
+  assert.ok(validateMutation(upload, derived));
+  // With no Origin at all (a typed sign-out link), the browser's own answer is enough.
   assert.equal(validateMutation(request({ "sec-fetch-site": "same-origin" }, "GET", "/api/auth/sign-out"), derived), null);
+  // Any of several expected addresses will do.
+  assert.equal(validateMutation(json(sameOrigin), [derived, origin]), null);
+  assert.equal(validateMutation(upload, [derived, origin]), null);
+});
+
+test("without PUBLIC_ORIGIN the expected addresses come from Host and, behind a proxy, X-Forwarded-Host", () => {
+  const at = (headers) => new Request("http://app-svc:3000/api/auth/sign-in", { method: "POST", headers });
+  assert.deepEqual(requestOrigins(at({ host: "app-svc:3000" })), ["http://app-svc:3000"]);
+  const forwarded = { host: "app-svc:3000", "x-forwarded-host": "Learn.Example.org", "x-forwarded-proto": "https" };
+  assert.deepEqual(requestOrigins(at(forwarded)), ["http://app-svc:3000", "https://app-svc:3000", "https://learn.example.org"]);
+  assert.deepEqual(requestOrigins(at({ host: "learn.example.org", "x-forwarded-proto": "https, http" })), ["http://learn.example.org", "https://learn.example.org"]);
+  // A browser on the public address gets through a proxy that rewrote Host only when the proxy says where it came from.
+  const browser = { origin: "https://learn.example.org", "sec-fetch-site": "same-origin", "content-type": "application/json" };
+  assert.equal(validateMutation(at({ ...browser, ...forwarded }), requestOrigins(at(forwarded))), null);
+  assert.equal(validateMutation(at({ ...browser, host: "app-svc:3000" }), requestOrigins(at({ host: "app-svc:3000" }))), "The request origin could not be verified.");
+});
+
+test("every refusal has a Bangla message", () => {
+  const refusals = [
+    validateMutation(json({ "sec-fetch-site": "cross-site" }), origin),
+    validateMutation(json({ origin: "https://other.example" }), origin),
+    validateMutation(request({ "content-type": "text/plain" }), origin),
+  ];
+  for (const refusal of refusals) assert.match(MUTATION_ERRORS_BN[refusal], /[ঀ-৿]/, refusal);
 });
 
 test("with PUBLIC_ORIGIN the Origin header must still match it exactly", () => {
-  const sameOrigin = { origin, "sec-fetch-site": "same-origin" };
-  assert.equal(validateMutation(json(sameOrigin), origin, { configured: true }), null);
+  assert.equal(validateMutation(json({ origin, "sec-fetch-site": "same-origin" }), origin), null);
   // A browser sent to the server under another name (DNS rebinding) calls itself same-origin.
-  assert.equal(validateMutation(json(sameOrigin), derived, { configured: true }), "The request origin could not be verified.");
-  const upload = request({ ...sameOrigin, "content-type": "multipart/form-data; boundary=test" });
-  assert.ok(validateMutation(upload, derived, { configured: true }));
+  assert.equal(validateMutation(json({ origin: derived, "sec-fetch-site": "same-origin" }), origin), "The request origin could not be verified.");
+  assert.ok(validateMutation(request({ origin: derived, "sec-fetch-site": "same-origin", "content-type": "multipart/form-data; boundary=test" }), origin));
 });
 
 test("same-site requests are rejected; typed and bookmarked ones are not", () => {
-  for (const configured of [false, true]) {
-    assert.equal(validateMutation(json({ origin: "https://other.school.example", "sec-fetch-site": "same-site" }), origin, { configured }), "Cross-site requests are not allowed.");
-    assert.equal(validateMutation(json({ origin, "sec-fetch-site": "same-site" }), origin, { configured }), "Cross-site requests are not allowed.");
-    assert.equal(validateMutation(request({ "sec-fetch-site": "same-site" }, "GET", "/api/auth/sign-out"), origin, { configured }), "Cross-site requests are not allowed.");
-    assert.equal(validateMutation(json({ "sec-fetch-site": "none" }), origin, { configured }), null);
-    assert.equal(validateMutation(request({ "sec-fetch-site": "none" }, "GET", "/api/auth/sign-out"), origin, { configured }), null);
-  }
+  assert.equal(validateMutation(json({ origin: "https://other.school.example", "sec-fetch-site": "same-site" }), origin), "Cross-site requests are not allowed.");
+  assert.equal(validateMutation(json({ origin, "sec-fetch-site": "same-site" }), origin), "Cross-site requests are not allowed.");
+  assert.equal(validateMutation(request({ "sec-fetch-site": "same-site" }, "GET", "/api/auth/sign-out"), origin), "Cross-site requests are not allowed.");
+  assert.equal(validateMutation(json({ "sec-fetch-site": "none" }), origin), null);
+  assert.equal(validateMutation(request({ "sec-fetch-site": "none" }, "GET", "/api/auth/sign-out"), origin), null);
 });
 
 test("browsers without Sec-Fetch-Site are checked on the Origin header alone", () => {
@@ -104,4 +129,48 @@ test("a production sign-in from a plain http:// page on another computer is refu
   }
   assert.match(INSECURE_SIGN_IN.error, /https:\/\//);
   assert.match(INSECURE_SIGN_IN.errorBn, /[ঀ-৿]/);
+});
+
+const multipart = '--x\r\nContent-Disposition: form-data; name="a"\r\n\r\n1\r\n--x--\r\n';
+
+test("bodies are read only up to a byte limit, whatever Content-Length says", async () => {
+  const post = (body, headers = {}) => new Request(`${origin}/api/topics`, { method: "POST", headers, body });
+  assert.equal(await readBodyWithin(post('{"a":"ক"}'), 20), '{"a":"ক"}');
+  assert.equal(await readBodyWithin(post("x".repeat(21)), 20), null);
+  assert.equal(await readBodyWithin(post("{}", { "content-length": "999999999" }), 20), null, "a declared length over the limit is refused unread");
+  assert.equal(await readBodyWithin(new Request(`${origin}/api/topics`, { method: "DELETE" }), 20), "");
+  // A body streamed without a length is cut off at the limit.
+  const stream = new ReadableStream({ start(controller) { for (let i = 0; i < 5; i++) controller.enqueue(new TextEncoder().encode("x".repeat(10))); controller.close(); } });
+  assert.equal(await readBodyWithin(new Request(`${origin}/api/topics`, { method: "POST", body: stream, duplex: "half" }), 20), null);
+  assert.equal(MAX_JSON_BODY_BYTES, 1_200_000, "a 400,000-character topic in Bangla fits");
+});
+
+test("routes answer a body that is not a JSON object, or not a form, with 400 in both languages", async () => {
+  const post = (body, type) => new Request(`${origin}/api/progress`, { method: "POST", headers: { "content-type": type }, body });
+  assert.deepEqual(await readJsonObject(post('{"skill":"reading"}', "application/json")), { skill: "reading" });
+  for (const [body, type] of [[multipart, "multipart/form-data; boundary=x"], ["[1]", "application/json"], ["{", "application/json"], ["", "application/json"]]) {
+    const response = await readJsonObject(post(body, type));
+    assert.ok(response instanceof Response, type);
+    assert.equal(response.status, 400);
+    assert.deepEqual(await response.json(), INVALID_JSON);
+  }
+  assert.match(INVALID_JSON.errorBn, /[ঀ-৿]/);
+  const notForm = await readFormData(post('{"lessonId":"hello-me"}', "application/json"));
+  assert.ok(notForm instanceof Response);
+  assert.equal(notForm.status, 400);
+  assert.match((await notForm.json()).errorBn, /[ঀ-৿]/);
+  assert.equal((await readFormData(post(multipart, "multipart/form-data; boundary=x"))).get("a"), "1");
+  assert.equal(mediaType("Application/JSON; charset=utf-8"), "application/json");
+  assert.equal(mediaType(null), "");
+});
+
+test("an unexpected failure is logged on the server and answered with a fixed message", async (t) => {
+  const logged = t.mock.method(console, "error", () => {});
+  const response = serverError("GET /api/studio/reviews", new Error("SQLITE_CORRUPT: database disk image is malformed at /var/lib/secret.db"));
+  assert.equal(response.status, 500);
+  const text = await response.text();
+  assert.doesNotMatch(text, /SQLITE|secret/);
+  assert.deepEqual(JSON.parse(text), { error: "Something went wrong. Please try again.", errorBn: "কিছু একটা ভুল হয়েছে। আবার চেষ্টা করুন।" });
+  assert.equal(logged.mock.callCount(), 1);
+  assert.match(String(logged.mock.calls[0].arguments[1]), /SQLITE_CORRUPT/);
 });

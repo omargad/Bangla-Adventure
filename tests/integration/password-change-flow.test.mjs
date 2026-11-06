@@ -55,13 +55,15 @@ async function expectHeldAtForm(cookie) {
     ["/api/topics", "GET"], ["/api/topics", "POST", {}], ["/api/topics/pohela-boishakh", "GET"], ["/api/studio/lessons", "GET"],
     ["/api/studio/lessons/hello-me", "POST", { decision: "withdraw" }], ["/api/studio/media", "GET"], ["/api/classes/x/sources", "GET"],
     ["/api/classes/x/topic-progress", "GET"], ["/api/family/sources", "GET"], ["/api/library", "PUT", { id: "bgs-primary", data: {} }],
+    // A dot in an API path does not make it a file that skips the gate.
+    ["/api/profiles/x.json", "GET"], ["/api/audio/hello-me.json", "GET"],
   ]) {
     const response = await send(route, method, body, cookie);
     assert.equal(response.status, 403, `${method} ${route}`);
     const payload = await response.json();
     assert.equal(payload.mustChangePassword, true, `${method} ${route}`);
   }
-  for (const page of ["/teach", "/admin", "/admin/classes", "/admin/sources", "/family", "/account", "/studio", "/teach/topics", "/learn", "/topics", "/references", "/", "/teach?class=1"]) {
+  for (const page of ["/teach", "/admin", "/admin/classes", "/admin/sources", "/family", "/account", "/studio", "/teach/topics", "/learn", "/topics", "/references", "/", "/teach?class=1", "/teach/notes.txt"]) {
     const response = await send(page, "GET", undefined, cookie);
     assert.equal(response.status, 307, page);
     const location = new URL(response.headers.get("location"), BASE);
