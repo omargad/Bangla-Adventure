@@ -6,19 +6,23 @@ import styles from "./ContentNarration.module.css";
 
 type Language = "en" | "bn";
 type NarrationSource = { kind: "topic" | "activity"; id: string; slot: string; language: Language };
-type Props = { source: NarrationSource; text: string; language: Language; label?: string; disabled?: boolean };
+/** Who is listening: Bangla addresses learners informally (তুমি) and grown-ups politely (আপনি). */
+type Audience = "learner" | "adult";
+type Props = { source: NarrationSource; text: string; language: Language; label?: string; disabled?: boolean; audience?: Audience };
 type Message = { en: string; bn: string };
 
 // Separate buttons share playback ownership without retaining any recording.
 const playbackEvents = new EventTarget();
 const START_PLAYBACK = "start-content-narration";
-const unavailable: Message = {
-  en: "Could not prepare the voice. Check your connection and try again.",
-  bn: "কণ্ঠ প্রস্তুত করা যায়নি। সংযোগ দেখে আবার চেষ্টা করো।",
-};
-const playbackFailed: Message = {
-  en: "Could not play this recording. Try again to listen.",
-  bn: "রেকর্ডিংটি চালানো যায়নি। শুনতে আবার চেষ্টা করো।",
+const messages: Record<Audience, { unavailable: Message; playbackFailed: Message }> = {
+  learner: {
+    unavailable: { en: "Could not prepare the voice. Check your connection and try again.", bn: "কণ্ঠ প্রস্তুত করা যায়নি। সংযোগ দেখে আবার চেষ্টা করো।" },
+    playbackFailed: { en: "Could not play this recording. Try again to listen.", bn: "রেকর্ডিংটি চালানো যায়নি। শুনতে আবার চেষ্টা করো।" },
+  },
+  adult: {
+    unavailable: { en: "Could not prepare the voice. Check your connection and try again.", bn: "কণ্ঠ প্রস্তুত করা যায়নি। সংযোগ দেখে আবার চেষ্টা করুন।" },
+    playbackFailed: { en: "Could not play this recording. Try again to listen.", bn: "রেকর্ডিংটি চালানো যায়নি। শুনতে আবার চেষ্টা করুন।" },
+  },
 };
 
 class NarrationError extends Error {
@@ -32,8 +36,10 @@ export default function ContentNarration(props: Props) {
   return <NarrationControl key={identity} {...props} />;
 }
 
-function NarrationControl({ source, text, language, label, disabled = false }: Props) {
+function NarrationControl({ source, text, language, label, disabled = false, audience = "learner" }: Props) {
   const s = (en: string, bn: string) => language === "bn" ? bn : en;
+  const adult = audience === "adult";
+  const { unavailable, playbackFailed } = messages[audience];
   const [phase, setPhase] = useState<"idle" | "preparing" | "playing">("idle");
   const [error, setError] = useState<Message | null>(null);
   const owner = useRef(Symbol("content-narration"));
@@ -146,9 +152,9 @@ function NarrationControl({ source, text, language, label, disabled = false }: P
     }
   }
 
-  const idleLabel = label ?? s("Listen", "শুনি");
+  const idleLabel = label ?? s("Listen", adult ? "শুনুন" : "শুনি");
   const active = phase !== "idle";
-  const buttonText = active ? s("Stop", "থামাও") : error ? s("Try again", "আবার চেষ্টা") : idleLabel;
+  const buttonText = active ? s("Stop", adult ? "থামান" : "থামাও") : error ? s("Try again", adult ? "আবার চেষ্টা করুন" : "আবার চেষ্টা") : idleLabel;
   return <div className={styles.control} data-narration-kind={source.kind} data-narration-slot={source.slot}>
     <div className={styles.actions}>
       <button type="button" className="outline-button" disabled={disabled || !text.trim()} onClick={() => void listen()} aria-label={!active && error ? `${buttonText}: ${idleLabel}` : undefined}>

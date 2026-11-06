@@ -7,7 +7,7 @@ import type { TopicDecisionSummary, VersionSummary } from "@/lib/curriculum-cata
 import { categoryTitle, formatWhen, TOPIC_LIMITS, TOPIC_READ_CONFIRMATION, type Language, type TopicContent } from "@/lib/topic-model";
 import TopicReader from "@/app/topics/TopicReader";
 import type { TopicReference } from "@/lib/library-links";
-import { authorLabel, call, failure, statusLabel, versionLabel } from "./shared";
+import { authorLabel, call, failure, statusLabel, versionDecisionMessage, versionLabel, writtenLabel } from "./shared";
 
 type VersionDetail = {
   id: string; latestVersion: number;
@@ -61,15 +61,13 @@ export default function TopicReview({ topicId, version, language, canApprove, on
   }, [topicId, version]);
 
   async function decide(decision: "approve" | "reject") {
-    if (!canApprove || !detail || busy) return;
+    if (!canApprove || !detail || !history || busy) return;
     setBusy(true); setError(null); setMessage(null);
     try {
       await call(`/api/topics/${encodeURIComponent(topicId)}/versions/${detail.version.version}`, {
         method: "POST", body: JSON.stringify({ decision, note, ...(decision === "approve" ? { confirmedRead: confirmed } : {}) }),
       });
-      setMessage(decision === "approve"
-        ? { en: `Approved. Students now see ${versionLabel(detail.version.version, "en").toLowerCase()} of this topic.`, bn: `অনুমোদিত। শিক্ষার্থীরা এখন এই বিষয়ের ${versionLabel(detail.version.version, "bn")} দেখবে।` }
-        : { en: "Sent back to the author with your note. Students keep seeing the approved version.", bn: "আপনার নোটসহ লেখকের কাছে ফেরত পাঠানো হয়েছে। শিক্ষার্থীরা অনুমোদিত সংস্করণই দেখবে।" });
+      setMessage(versionDecisionMessage(decision, detail.version.version, history));
       setConfirmed(false); setNote("");
       await load();
       onDecided();
@@ -123,7 +121,7 @@ export default function TopicReview({ topicId, version, language, canApprove, on
           <strong>{versionLabel(current.version, language)}</strong> · {withdrawal && current.status === "approved"
             ? <span className="topic-status topic-status-rejected">{s("Withdrawn · hidden from students", "সরিয়ে নেওয়া · শিক্ষার্থীরা দেখে না")}</span>
             : <span className={`topic-status topic-status-${current.status}`}>{statusLabel(current, language)}</span>}
-          {current.authorName !== null || current.createdAt ? <> · {s("written by", "লিখেছেন")} {authorLabel(current, language)}{current.createdAt && <>, {formatWhen(current.createdAt, language)}</>}</> : null}
+          {current.authorName !== null || current.createdAt ? <> · {writtenLabel(current, language)}{current.createdAt && <>, {formatWhen(current.createdAt, language)}</>}</> : null}
         </p>
         {withdrawal && <p className="auth-error">{s(`Withdrawn from students by ${who(withdrawal.changedByName)}, ${formatWhen(withdrawal.changedAt, language)}: `, `${who(withdrawal.changedByName)} শিক্ষার্থীদের কাছ থেকে সরিয়ে নিয়েছেন, ${formatWhen(withdrawal.changedAt, language)}: `)}<q>{withdrawal.note}</q> {s("Students and parents cannot see this topic.", "শিক্ষার্থী ও অভিভাবকেরা এই বিষয়টি দেখতে পায় না।")}</p>}
         {current.baseline && (current.status === "approved" && baselineReview
@@ -230,7 +228,7 @@ export default function TopicReview({ topicId, version, language, canApprove, on
             <tr key={item.version} aria-current={item.version === current.version ? "true" : undefined}>
               <td>{versionLabel(item.version, language)}</td>
               <td>{statusLabel(item, language)}</td>
-              <td>{item.version === 0 ? s("Shipped with the app", "অ্যাপের সঙ্গে এসেছে") : <>{authorLabel(item, language)}<br /><small>{formatWhen(item.createdAt, language)}</small></>}</td>
+              <td>{item.version === 0 ? authorLabel(item, language) : <>{authorLabel(item, language)}<br /><small>{formatWhen(item.createdAt, language)}</small></>}</td>
               <td>{item.reviewedAt ? <>{item.baseline ? s("Approved as a baseline", "ভিত্তি হিসেবে অনুমোদিত") : who(item.reviewerName)}<br /><small>{formatWhen(item.reviewedAt, language)}</small></> : item.baseline ? s("Approved as a baseline", "ভিত্তি হিসেবে অনুমোদিত") : "—"}</td>
               <td>{item.reviewNote || "—"}</td>
               <td>{item.version !== current.version && <button type="button" className="text-button" onClick={() => onOpenVersion(item.version)}>{s(`Preview ${versionLabel(item.version, "en").toLowerCase()}`, `${versionLabel(item.version, "bn")} দেখুন`)}</button>}</td>

@@ -18,7 +18,7 @@ export default function GrownUpsContent({ destination, initialMode = "sign-in", 
           <span>বা</span>
           <span>
             <strong>Bangla Adventures</strong>
-            <small>{administrator ? s("Administrator sign in", "প্রশাসকের সাইন ইন") : teacher ? s("Teacher sign in", "শিক্ষকের সাইন ইন") : s("Parent sign in", "অভিভাবকের সাইন ইন")}</small>
+            <small>{administrator ? s("Administrator sign in", "প্রশাসকের সাইন ইন") : teacher ? s("Teacher sign in", "শিক্ষকের সাইন ইন") : s("Grown-up sign in", "বড়দের সাইন ইন")}</small>
           </span>
         </Link>
         <nav aria-label={s("Platform information", "প্ল্যাটফর্মের তথ্য")}>
@@ -35,7 +35,7 @@ export default function GrownUpsContent({ destination, initialMode = "sign-in", 
       <div className="auth-layout">
         <section className="auth-intro">
           <p className="adult-eyebrow">{s("For parents, carers and educators", "অভিভাবক, যত্নকারী ও শিক্ষকদের জন্য")}</p>
-          <h1>{administrator ? s("Administrator sign in", "প্রশাসকের সাইন ইন") : teacher ? s("A little preparation. A world of discovery.", "ছোট্ট প্রস্তুতি। আবিষ্কারের এক নতুন জগৎ।") : s("Help your child’s next adventure begin.", "আপনার শিশুর নতুন অভিযানে পাশে থাকুন।")}</h1>
+          <h1>{administrator ? s("Administrator sign in", "প্রশাসকের সাইন ইন") : teacher ? s("A little preparation. A world of discovery.", "ছোট্ট প্রস্তুতি। আবিষ্কারের এক নতুন জগৎ।") : s("Help a child’s next adventure begin.", "শিশুর নতুন অভিযানের শুরুতে পাশে থাকুন।")}</h1>
           {currentAccount && <p className="auth-note">{s("Currently signed in as", "বর্তমানে সাইন ইন করেছেন")}: <strong>{currentAccount}</strong>. {s("Enter the account you want to use below.", "নিচে যে অ্যাকাউন্ট ব্যবহার করতে চান তার তথ্য দিন।")}</p>}
           {administrator && <p>{s("Use the account assigned the administrator role. Creating a new account does not grant administration permissions.", "প্রশাসকের ভূমিকা দেওয়া অ্যাকাউন্ট ব্যবহার করুন। নতুন অ্যাকাউন্ট খুললেই প্রশাসকের অনুমতি পাওয়া যায় না।")}</p>}
           <p>

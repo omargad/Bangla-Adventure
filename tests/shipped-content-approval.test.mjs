@@ -83,6 +83,34 @@ test("fresh startup stages all 33 items once, exposes no baseline and keeps medi
   assert.equal(view.videos["hello-me"].id, detail.snapshot.lesson.video.id);
 }));
 
+test("shipped topic versions are marked as coming with the app; a deleted author's version is not", () => withDatabase(false, async ({ sqlite, db }) => {
+  const [topic] = await catalog.listStaffTopics();
+  assert.equal(topic.latest.version, 1);
+  assert.equal(topic.latest.authorName, null);
+  assert.equal(topic.latest.shipped, true, "a fresh install's pending topics came with the app, not from a former staff member");
+  const detail = await catalog.getStaffTopic(topic.id);
+  assert.deepEqual(detail.versions.map((version) => version.shipped), [true]);
+  assert.equal((await catalog.getTopicVersion(topic.id, 1)).version.shipped, true);
+
+  // A teacher's edit is theirs, and stays a staff member's version after their account is deleted.
+  const { head } = detail;
+  const edit = await catalog.submitTopicEdit("teacher", topic.id, { ...head.content, minutes: head.content.minutes + 1, baseVersion: head.version });
+  let versions = (await catalog.getStaffTopic(topic.id)).versions;
+  assert.deepEqual(versions.map(({ version, authorName, shipped }) => ({ version, authorName, shipped })), [
+    { version: 1, authorName: null, shipped: true }, { version: edit.version, authorName: "Teacher", shipped: false },
+  ]);
+  sqlite.prepare("DELETE FROM adults WHERE id = 'teacher'").run();
+  versions = (await catalog.getStaffTopic(topic.id)).versions;
+  assert.deepEqual(versions.map(({ authorName, shipped }) => ({ authorName, shipped })), [{ authorName: null, shipped: true }, { authorName: null, shipped: false }]);
+  assert.equal((await catalog.listStaffTopics()).find((item) => item.id === topic.id).latest.shipped, false);
+  assert.equal(db.select().from(schema.userAuditEvents).all().some((event) => event.action === "topic-edit-submitted" && event.targetId === topic.id), true);
+
+  // A new topic is never a shipped one, even without its author.
+  const created = await catalog.createTopic("admin", { ...head.content, title: { en: "A staff topic", bn: "কর্মীর বিষয়" } });
+  const [own] = (await catalog.getStaffTopic(created.topicId)).versions;
+  assert.equal(own.shipped, false);
+}));
+
 test("upgrading retains the exact old lesson and topic while changed source and Bangla copy wait for review", () => withDatabase(true, async ({ sqlite }) => {
   const before = await catalog.findApprovedTopic("folk-tales");
   const beforeContent = { ...before }; for (const field of ["id", "version", "baseline", "approvedAt"]) delete beforeContent[field];

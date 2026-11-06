@@ -8,6 +8,14 @@ import { localMessage, localNumber, type Language } from "@/lib/use-language";
 const templateHref = `data:text/csv;charset=utf-8,${encodeURIComponent(FAMILY_IMPORT_TEMPLATE)}`;
 
 /**
+ * The address printed on the sign-in sheet: the site's public address when the server has one
+ * configured (PUBLIC_ORIGIN, sent with the import result), otherwise the address this browser is on.
+ */
+export function sheetOrigin(signInOrigin: unknown, browserOrigin: string): string {
+  return typeof signInOrigin === "string" && /^https?:\/\/[^/\s]+$/.test(signInOrigin) ? signInOrigin : browserOrigin;
+}
+
+/**
  * The administrator's "Import families (CSV)" panel: one upload creates each student, creates or reuses
  * their parent's account, links them and can put the students in a class. The result is a printable
  * sign-in sheet per family, shown once; nothing is e-mailed. `beforeUpload` lets the page clear other
@@ -58,7 +66,7 @@ export default function FamilyImport({ language, onImported, onPasswordsChange, 
         setError(localMessage(data, language, fallback));
         return;
       }
-      setResult({ families: data.families, className: data.className }); setOrigin(window.location.origin);
+      setResult({ families: data.families, className: data.className }); setOrigin(sheetOrigin(data.signInOrigin, window.location.origin));
       setFile(null); setInputKey((key) => key + 1); setSameNames(false); setCreateSameNames(false);
       onImported?.();
     } catch { setError(s(...fallback)); }

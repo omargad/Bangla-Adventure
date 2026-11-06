@@ -20,9 +20,11 @@ export default async function GrownUpsPage({
 }) {
   const { returnTo, mode, switchAccount } = await searchParams;
   const adult = await getSignedInAdult();
+  // A temporary password is changed first, as on every other page: the form never opens over it, even to switch accounts.
+  if (adult?.mustChangePassword) redirect(passwordChangeDestination(safeReturnPath(returnTo, accountHome(adult))));
   const destination = safeReturnPath(returnTo, switchAccount === "1" ? "/family" : adult ? accountHome(adult) : "/family");
   const needsAdminAccount = isAdminReturnPath(destination) && adult?.role !== "admin";
-  if (adult && switchAccount !== "1" && !needsAdminAccount) redirect(adult.mustChangePassword ? passwordChangeDestination(destination) : destination);
+  if (adult && switchAccount !== "1" && !needsAdminAccount) redirect(destination);
 
   return <GrownUpsContent destination={destination} initialMode={mode === "sign-up" ? "sign-up" : "sign-in"} currentAccount={adult ? `${adult.email} (${adult.role})` : undefined} />;
 }

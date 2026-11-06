@@ -24,6 +24,8 @@ export type CatalogTopic = Topic & { version: number; baseline: boolean; approve
 export type VersionSummary = {
   version: number; status: TopicVersionStatus; baseline: boolean; basedOn: number | null;
   authorName: string | null; createdAt: string | null; reviewerName: string | null; reviewedAt: string | null; reviewNote: string;
+  /** The text came with Bangla Adventures (the original shipped topic or a later shipped revision), not from a staff member. */
+  shipped: boolean;
 };
 /** A decision on a topic students read: withdrawn, approved again, or a baseline topic's review confirmed. */
 export type TopicDecisionSummary = { kind: "withdrawn" | "restored" | "confirmed"; changedByName: string | null; changedAt: string; note: string };
@@ -140,14 +142,37 @@ function nameLookup(db: Reader, rows: VersionRow[], decisions: DecisionRow[] = [
   return (id: string | null) => (id ? names.get(id) ?? null : null);
 }
 
-function summaries(state: TopicState, name: (id: string | null) => string | null): VersionSummary[] {
+const versionKey = (topicId: string, version: number) => `${topicId}:${version}`;
+
+/**
+ * The versions of these topics that a staff member saved. Every save is audited under the topic, and the
+ * audit entry outlives the account, so a version without an author and without such an entry was written
+ * by the app's own content update (a shipped revision), not by someone whose account was later deleted.
+ */
+function staffWrittenVersions(db: Reader, states: TopicState[]): Set<string> {
+  const ids = states.filter((state) => shippedById.has(state.id) && state.rows.some((row) => !row.createdBy && !row.baseline)).map((state) => state.id);
+  const written = new Set<string>();
+  if (!ids.length) return written;
+  const events = db.select({ targetId: userAuditEvents.targetId, detailsJson: userAuditEvents.detailsJson }).from(userAuditEvents)
+    .where(and(eq(userAuditEvents.targetType, "topic"), inArray(userAuditEvents.targetId, ids), inArray(userAuditEvents.action, ["topic-created", "topic-edit-submitted"]))).all();
+  for (const event of events) {
+    try {
+      const { version } = JSON.parse(event.detailsJson) as { version?: unknown };
+      if (Number.isInteger(version)) written.add(versionKey(event.targetId, Number(version)));
+    } catch { /* An unreadable entry proves nothing either way: the version keeps "a former staff member". */ }
+  }
+  return written;
+}
+
+function summaries(state: TopicState, name: (id: string | null) => string | null, staffWritten: Set<string>): VersionSummary[] {
   const stored = state.rows.map((row): VersionSummary => ({
     version: row.version, status: row.status, baseline: row.baseline, basedOn: row.basedOn, authorName: name(row.createdBy), createdAt: row.createdAt,
     reviewerName: name(row.reviewedBy), reviewedAt: row.reviewedAt, reviewNote: row.reviewNote,
+    shipped: !row.createdBy && !row.baseline && shippedById.has(state.id) && !staffWritten.has(versionKey(state.id, row.version)),
   }));
   if (!state.shipped) return stored;
   // The shipped text: approved as a baseline, superseded once a later version is approved.
-  return [{ version: 0, status: state.approved ? "superseded" : "approved", baseline: true, basedOn: null, authorName: null, createdAt: null, reviewerName: null, reviewedAt: null, reviewNote: "" }, ...stored];
+  return [{ version: 0, status: state.approved ? "superseded" : "approved", baseline: true, basedOn: null, authorName: null, createdAt: null, reviewerName: null, reviewedAt: null, reviewNote: "", shipped: true }, ...stored];
 }
 
 /** Approved topics only, less any an administrator withdrew: what students, parents and every learner page receive. */
@@ -165,10 +190,11 @@ export async function listStaffTopics(): Promise<StaffTopicSummary[]> {
   const decisions = decisionRows(db);
   const adminReviewed = adminReviewedDecisions(db, decisions);
   const name = nameLookup(db, states.flatMap((state) => state.rows), decisions);
+  const staffWritten = staffWrittenVersions(db, states);
   return states.flatMap((state) => {
     const head = headOf(state);
     if (!head) return [];
-    const versions = summaries(state, name);
+    const versions = summaries(state, name, staffWritten);
     const approved = approvedTopic(state);
     const ownRows = decisions.filter((row) => row.contentId === state.id);
     const own = decisionSummaries(ownRows, name);
@@ -199,7 +225,7 @@ export async function getStaffTopic(topicId: string) {
     id: state.id, head, approvedVersion: approved?.version ?? null,
     approved: approved ? { version: approved.version, content: contentOf(approved) } : null,
     canStartFromApproved: canRestartFromApproved(state.rows, approved?.version ?? null),
-    versions: summaries(state, name),
+    versions: summaries(state, name, staffWrittenVersions(db, [state])),
     withdrawn: decisions.at(-1)?.kind === "withdrawn", baselineReview: baselineReviewOf(approved, decisions, adminReviewedDecisions(db, rows).has(rows.at(-1)?.id ?? "")), decisions,
   };
 }
@@ -208,7 +234,7 @@ export async function getStaffTopic(topicId: string) {
 export async function getTopicVersion(topicId: string, version: number) {
   const db = await getDb();
   const [state] = topicStates(db, topicId);
-  const summary = state ? summaries(state, nameLookup(db, state.rows)).find((item) => item.version === version) : undefined;
+  const summary = state ? summaries(state, nameLookup(db, state.rows), staffWrittenVersions(db, [state])).find((item) => item.version === version) : undefined;
   const row = state?.rows.find((item) => item.version === version);
   const content = row ? readContent(row) : version === 0 && state?.shipped ? contentOf(state.shipped) : null;
   if (!state || !summary || !content) throw new TopicError("That version of the topic was not found.", "বিষয়ের ওই সংস্করণটি পাওয়া যায়নি।", 404);
