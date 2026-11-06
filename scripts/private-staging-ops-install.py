@@ -117,26 +117,30 @@ def main() -> int:
     timer_states = {}
 
     def restore_previous():
-        # Caller holds .deploy.lock until all file/timer rollback work is complete.
-        for name in TIMERS:
-            userctl("stop", name, okay=True)
-            if not timer_states.get(name, {}).get("enabled"):
-                userctl("disable", name, okay=True)
-        for path, content in previous.items():
-            if content is None:
-                path.unlink(missing_ok=True)
+        # Caller holds .deploy.lock until all file/timer rollback work is complete; stop requests wait for it.
+        previous_signals = ops.quiet_signals()
+        try:
+            for name in TIMERS:
+                userctl("stop", name, okay=True)
+                if not timer_states.get(name, {}).get("enabled"):
+                    userctl("disable", name, okay=True)
+            for path, content in previous.items():
+                if content is None:
+                    path.unlink(missing_ok=True)
+                else:
+                    atomic(path, content)
+            if previous_receipt is None:
+                receipt_path.unlink(missing_ok=True)
             else:
-                atomic(path, content)
-        if previous_receipt is None:
-            receipt_path.unlink(missing_ok=True)
-        else:
-            atomic(receipt_path, previous_receipt)
-        userctl("daemon-reload", okay=True)
-        for name, state in timer_states.items():
-            if state["enabled"]:
-                userctl("enable", name, okay=True)
-            if state["active"]:
-                userctl("start", name, okay=True)
+                atomic(receipt_path, previous_receipt)
+            userctl("daemon-reload", okay=True)
+            for name, state in timer_states.items():
+                if state["enabled"]:
+                    userctl("enable", name, okay=True)
+                if state["active"]:
+                    userctl("start", name, okay=True)
+        finally:
+            ops.restore_signals(previous_signals)
 
     lock = ops.acquire_lock()
     committed = False
@@ -210,12 +214,19 @@ def main() -> int:
     return 0
 
 
+def failure_code(exc: BaseException) -> str:
+    if isinstance(exc, ops.Refused):
+        return exc.code
+    return "interrupted" if isinstance(exc, (ops.Stopped, KeyboardInterrupt)) else "install-failed"
+
+
 if __name__ == "__main__":
     os.umask(0o077)
-    signal.signal(signal.SIGTERM, lambda *_: (_ for _ in ()).throw(InterruptedError()))
+    # Stop requests and hang-ups become exceptions, so a partial installation is rolled back.
+    for number in (signal.SIGTERM, signal.SIGHUP):
+        signal.signal(number, ops.interrupted)
     try:
         raise SystemExit(main())
-    except (ops.Refused, OSError, ValueError, KeyError, TypeError, InterruptedError, KeyboardInterrupt) as exc:
-        code = exc.code if isinstance(exc, ops.Refused) else "install-failed"
-        print(json.dumps({"scope": ops.SCOPE, "action": "install", "verified": False, "status": "failed", "codes": [code]}, separators=(",", ":")))
+    except (ops.Refused, OSError, ValueError, KeyError, TypeError, KeyboardInterrupt, ops.Stopped) as exc:
+        print(json.dumps({"scope": ops.SCOPE, "action": "install", "verified": False, "status": "failed", "codes": [failure_code(exc)]}, separators=(",", ":")))
         raise SystemExit(1)
