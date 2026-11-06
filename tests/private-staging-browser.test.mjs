@@ -5,6 +5,8 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
+import vm from "node:vm";
+import { createRequire } from "node:module";
 import { isPublicPath } from "../lib/learning-policy.ts";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
@@ -23,6 +25,19 @@ test("clone identity uses an existing anonymous public asset without changing ap
   assert.ok(isPublicPath(new URL(marker, valid.baseURL)), "the browser must reach clone identity before signing in");
   assert.equal(isPublicPath(new URL("/__private-staging-qa.json", valid.baseURL)), false, "learning assets remain gated");
   assert.ok(fs.existsSync(path.join(root, "public", marker.slice(1))), "only an existing public static asset is replaced inside QA");
+});
+
+test("browser identity reader accepts Next's actual text-asset MIME and parses exact JSON bytes", async () => {
+  const source = fs.readFileSync(path.join(root, "tests/staging/browser-auth-smoke.mjs"), "utf8");
+  const callback = source.match(/const proof = await page\.evaluate\((async \(\) => \{[\s\S]*?^  \})\);/m)[1];
+  const require = createRequire(import.meta.url);
+  const senderMime = require("next/dist/compiled/send").mime;
+  const mime = senderMime.getType?.("robots.txt") ?? senderMime.lookup("robots.txt");
+  const marker = { qa: true, qa_id: qaId, expectedrevision: "95b6308ac7ad3d5b6bb2d951df9d65a23ff77107" };
+  const result = await vm.runInNewContext(`(${callback})()`, {
+    fetch: async () => new Response(JSON.stringify(marker), { headers: { "content-type": `${mime}; charset=UTF-8` } }),
+  });
+  assert.deepEqual(result, marker);
 });
 
 function refused(verify, { baseURL = valid.baseURL, id = qaId, cleanupVerified = true } = {}) {

@@ -47,7 +47,7 @@ async function verifyHttp(page, expectedUsers) {
   const proof = await page.evaluate(async () => {
     // Only the disposable clone replaces this existing public file with its identity document.
     const response = await fetch("/robots.txt", { cache: "no-store", credentials: "omit" });
-    if (response.status !== 200 || !response.headers.get("content-type")?.includes("application/json")) return null;
+    if (response.status !== 200 || response.headers.get("content-type")?.split(";")[0].trim().toLowerCase() !== "text/plain") return null;
     return response.json();
   });
   check(proof?.qa === true && proof.qa_id === qaId && proof.expectedrevision === REVISION, "forwarded-clone-marker-mismatch");

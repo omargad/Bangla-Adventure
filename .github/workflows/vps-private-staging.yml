@@ -1,4 +1,5 @@
 name: VPS private staging
+# The disposable identity document uses the existing text/plain robots asset.
 
 on:
   push:
