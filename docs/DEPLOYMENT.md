@@ -109,6 +109,8 @@ docker compose ps
 Put the HTTPS proxy in front of `127.0.0.1:3000`, or the configured `APP_PORT`
 (`3001` in the prepared VPS settings).
 The native Caddy example uses port `3300`; change its upstream for Compose.
+The Nginx site [`deploy/nginx/bangla-adventures.conf.example`](../deploy/nginx/bangla-adventures.conf.example)
+uses `3001` and sets the upload size, read timeout and forwarded headers the app expects.
 Keep the same Compose project name so recreations reuse the same named volume.
 Never run `docker compose down -v` during an upgrade. The CI Docker smoke test
 validates a disposable container; record its actual result before accepting a
@@ -144,7 +146,7 @@ log warns that `/app/.data` is not on a persistent volume.
 | Disk | Mounted at `/app/.data`. If the host mounts it elsewhere, set `DATABASE_PATH` and `MEDIA_ROOT` to absolute paths on it |
 | Port | A host that sets `PORT` is followed automatically. Where the host asks for the container port instead (Fly.io `internal_port`, CapRover "Container HTTP Port", Kubernetes `targetPort`), enter 3000 |
 | Health check | `/api/health` (200 only when a database query succeeds). Most hosts ignore the Dockerfile's own check, so set it on the host |
-| Upload size | Lesson audio can be 12 MB. Let requests of 13 MB through any proxy in front: ingress-nginx `nginx.ingress.kubernetes.io/proxy-body-size: 13m`, Dokku `dokku nginx:set APP client-max-body-size 13m`, nginx `client_max_body_size 13m;` |
+| Upload size | Lesson audio can be 12 MB. Let requests of 13 MB through any proxy in front: ingress-nginx `nginx.ingress.kubernetes.io/proxy-body-size: 13m`, Dokku `dokku nginx:set APP client-max-body-size 13m`, nginx `client_max_body_size 13m;` (set in [`deploy/nginx/bangla-adventures.conf.example`](../deploy/nginx/bangla-adventures.conf.example)) |
 | `PUBLIC_ORIGIN` | Optional, and recommended once the address is final. Set it to the one address people use, scheme and host only (`https://learn.example.org`), and only requests from that address can sign in or save. Unset, the app accepts the address each request arrives on, for example both a platform address and a custom domain |
 
 The image already sets `NODE_ENV`, `PORT`, `PLATFORM_MODE`, `DATABASE_PATH` and
@@ -281,7 +283,9 @@ Image/configuration rollback never restores database or media contents.
    ```
 
 4. Point the HTTPS web server at `127.0.0.1:3000` (the `APP_PORT` above), allowing 13 MB
-   requests for audio uploads (Caddy: `reverse_proxy 127.0.0.1:3000`).
+   requests for audio uploads (Caddy: `reverse_proxy 127.0.0.1:3000`; Nginx:
+   [`deploy/nginx/bangla-adventures.conf.example`](../deploy/nginx/bangla-adventures.conf.example)
+   with its upstream port set to `APP_PORT`).
 5. On your own computer, record the server's host key, so the pipeline only ever connects to this
    server. Use the server's SSH port (`DEPLOY_PORT`, usually 22):
 

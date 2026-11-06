@@ -1,0 +1,82 @@
+# Bangla Adventures site for the server's existing Nginx 1.24 (Ubuntu 24.04) and Let's Encrypt.
+# Install as /etc/nginx/sites-available/bangla-adventures.conf with example.org replaced by the
+# confirmed domain throughout (server names and certificate paths). Steps: docs/VPS_DEPLOYMENT.md,
+# "Going live". The server's other sites and TLS settings stay as they are.
+
+# The app container, published on loopback only (compose.yaml with APP_PORT=3001).
+upstream bangla_adventures {
+    server 127.0.0.1:3001;
+    # Reuses connections to the app. Nginx closes an idle one after 60 s, well before the app's
+    # 620 s (Dockerfile --keepAliveTimeout), so the app never closes one Nginx is about to reuse.
+    keepalive 16;
+    keepalive_timeout 60s;
+}
+
+server {
+    # Remove the [::] lines only if the server has IPv6 turned off.
+    listen 80;
+    listen [::]:80;
+    # Replace with the confirmed domain. Serve this one name only: with PUBLIC_ORIGIN set, the
+    # app accepts sign-ins and saves from that address alone.
+    server_name example.org;
+
+    # Let's Encrypt HTTP-01 challenges stay on plain HTTP. certbot's nginx plugin adds its own
+    # exact-match location while it runs; this one serves a webroot client
+    # (-w /var/www/letsencrypt).
+    location /.well-known/acme-challenge/ {
+        root /var/www/letsencrypt;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    # Nginx 1.24 form. From 1.25.1 the http2 parameter is deprecated in favour of
+    # "listen 443 ssl;" plus "http2 on;".
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name example.org;
+
+    # certbot creates these (sudo certbot certonly --nginx -d example.org); use the paths it
+    # prints. Get the certificate before enabling this file: nginx -t fails while they are missing.
+    ssl_certificate /etc/letsencrypt/live/example.org/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/example.org/privkey.pem;
+    # Shared TLS settings that certbot's nginx plugin installs, as on the server's other
+    # certbot sites.
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+    # HSTS and the other security headers come from the app on every response (next.config.ts).
+    # Do not add them here, or browsers receive each header twice.
+
+    # Lesson audio uploads may be 12 MB (app/api/studio/media/route.ts) plus the multipart form
+    # around them; the app itself accepts 13 MB bodies (proxyClientMaxBodySize, next.config.ts).
+    client_max_body_size 13m;
+
+    # New narration waits up to 60 s for the voice provider (lib/generated-narration.ts) before
+    # the app answers. Nginx's default read timeout is also 60 s; allow more.
+    proxy_read_timeout 90s;
+
+    # The app sets Cache-Control itself (proxy.ts): pages and /api/ are private, no-store.
+    # Nothing is cached here, even if nginx.conf enables proxy_cache for other sites.
+    proxy_cache off;
+
+    location / {
+        proxy_pass http://bangla_adventures;
+        # Needed for the upstream keepalive.
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        # Origin, Sec-Fetch-Site and cookies pass through unchanged. The app compares Origin with
+        # PUBLIC_ORIGIN (lib/request-security.ts); Next takes the host and scheme from these.
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+        # The sign-in rate limit keys on the first X-Forwarded-For address (lib/rate-limit.ts),
+        # so both replace any client-sent value instead of appending to it. Revisit if a CDN is
+        # put in front.
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}

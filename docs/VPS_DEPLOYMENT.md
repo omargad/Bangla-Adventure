@@ -78,6 +78,8 @@ also needs `curl` and its system CA certificates for the HTTPS check.
 
 ## First release
 
+Before the domain is confirmed:
+
 1. Confirm the destination GitHub organization/repository and permissions for
    Actions and Packages. Image names follow the current repository owner; the
    pipeline does not transfer repository ownership.
@@ -86,25 +88,77 @@ also needs `curl` and its system CA certificates for the HTTPS check.
    that the supplied socket belongs to the deployment user's daemon.
 3. Verify SSH access, both fingerprint pins, rootless Docker access and the
    persistent data/backup locations using the approved credentials.
-4. Complete the domain, DNS and Nginx HTTPS configuration. Nginx should proxy to
-   `http://127.0.0.1:3001`, permit 13 MB request bodies (`client_max_body_size 13m`),
-   and forward the original host and HTTPS scheme. Retain the existing server's
-   other virtual hosts and TLS management.
-5. Agree whether the new site starts empty or receives approved existing data.
-   Confirm the backup destination, off-site copy and retention policy. The
-   current script keeps 14 local pre-deployment database/media backups; this is a
-   technical default, not an agreed client retention policy.
-6. Confirm the initial administrator's email and optional release approver. The
-   administrator registers, then the server operator uses the documented
-   `admin:grant` command for that account.
-7. Set `DEPLOY_ENABLED=true` only after those checks. A passing default-branch
-   release then builds/publishes the commit-specific GHCR image and deploys it.
-   An older commit is skipped; inability to verify the newest commit is a failure.
+4. Agree whether the new site starts empty or receives approved existing data,
+   who the first administrator is, and whether the client wants to approve each
+   release (a reviewer on the `production` environment).
 
-The image receives both container health checks and an HTTPS health check through
-the public origin. The public URL defaults to `${PUBLIC_ORIGIN}/api/health`;
-`PUBLIC_HEALTH_URL` may specify another HTTPS endpoint. The client's domain and
-certificate must therefore work before enabling the first deployment.
+## Going live
+
+Once the client confirms the domain, going live is DNS, one Nginx site, its
+certificate, one server value and the deployment switch, in this order. `DOMAIN`
+below is the confirmed name, for example `learn.example.org`.
+
+1. **Domain.** The client confirms one public name; once `PUBLIC_ORIGIN` names
+   it, the app accepts sign-ins from that address alone. If it is a bare domain
+   (`example.org`), the app's
+   HSTS header (two years, `includeSubDomains`) also commits every subdomain to
+   HTTPS, so the owner confirms that first.
+2. **DNS.** Point an `A` record for `DOMAIN` at the public address of the
+   DEPLOY_HOST server. Add an `AAAA` record only if that server has a public
+   IPv6 address that reaches Nginx. Before step 3, `dig +short DOMAIN` must
+   print that address.
+3. **Nginx and certificate** (Faysal). Copy
+   [`deploy/nginx/bangla-adventures.conf.example`](../deploy/nginx/bangla-adventures.conf.example)
+   to `/etc/nginx/sites-available/bangla-adventures.conf` and replace every
+   `example.org` in it with `DOMAIN`. Get the certificate before enabling the
+   site: `nginx -t` rejects its HTTPS server until certbot has created
+   `/etc/letsencrypt/live/DOMAIN/`.
+
+   ```sh
+   sudo certbot certonly --nginx -d DOMAIN
+   sudo ln -s /etc/nginx/sites-available/bangla-adventures.conf /etc/nginx/sites-enabled/
+   sudo nginx -t
+   sudo systemctl reload nginx
+   sudo certbot renew --dry-run
+   ```
+
+   `certonly` leaves the site file as written. certbot's nginx plugin answers
+   the challenge itself and reloads Nginx after each renewal; a webroot client
+   can renew through the file's `/var/www/letsencrypt` challenge location
+   instead. The file also sets the 13 MB upload limit, a read timeout above
+   narration's 60 s and the forwarded headers the app expects. Until the app is
+   running, `https://DOMAIN/` answers `502`.
+4. **Server origin.** In the server `.env`, set `PUBLIC_ORIGIN=https://DOMAIN`.
+   This is the one value to fill; the next deploy starts the app with it.
+5. **Health URL.** Set the GitHub variable `PUBLIC_HEALTH_URL` to
+   `https://DOMAIN/api/health`. Each deploy requires `200` from it over public
+   HTTPS, checked from the server; unset, the same URL is derived from
+   `PUBLIC_ORIGIN`.
+6. **SSH trust.** Save the verified `DEPLOY_KNOWN_HOSTS` line and confirm the
+   `DEPLOY_SSH_KEY` secret is present ([Settings to complete](#settings-to-complete)).
+7. **Enable.** Set the repository variable `DEPLOY_ENABLED=true`.
+8. **Deploy.** Push to `main`, or run the CI workflow on `main` from the
+   Actions tab, and watch its `deploy` job. The run publishes the commit's GHCR
+   image and that job deploys it; an older commit is skipped, and inability to
+   verify the newest commit is a failure. The job fails unless the container and
+   the public health check both pass; `deploy.log` in the deployment directory
+   has the server's side.
+9. **First administrator.** The agreed person opens `https://DOMAIN/grown-ups`,
+   chooses Create account and keeps the recovery codes. In the deployment
+   directory, with the daemon selected as in the manual administration
+   commands below, the operator runs
+   `docker compose exec app npm run admin:grant -- EMAIL`. That person then
+   signs in again at `/grown-ups?returnTo=/admin&switchAccount=1`.
+10. **Backups.** Confirm the off-site destination, schedule and retention with
+    the client. Each deploy keeps the latest 14 local backups in `backups/` in
+    the deployment directory; that is a technical default, not agreed
+    retention, and deploy-time backups are not a schedule.
+    [`scripts/backup-offsite.sh`](../scripts/backup-offsite.sh) copies the newest
+    verified archive from `BACKUP_DIR` to the encrypted restic repository in
+    `RESTIC_REPOSITORY`, using the private `RESTIC_PASSWORD_FILE`, and refuses
+    an archive older than `BACKUP_MAX_AGE_HOURS` (default 36). It never
+    initialises, forgets or prunes; follow
+    [Encrypted off-server copies](BACKUP_RESTORE.md#encrypted-off-server-copies).
 
 After deployment, check the real sign-in and role flows externally. Run a
 controlled rollback exercise and a separate backup/restore exercise after
