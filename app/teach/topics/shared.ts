@@ -30,13 +30,32 @@ export function statusLabel(version: Pick<VersionSummary, "status" | "baseline">
 }
 
 /**
- * Who wrote a version. Administrator edits carried over from before topic approval
- * existed have no author when that account no longer exists.
+ * Who wrote a version. Text that came with Bangla Adventures says so; administrator edits carried
+ * over from before topic approval existed, and versions whose author's account was deleted, have no author.
  */
-export function authorLabel(version: Pick<VersionSummary, "authorName" | "baseline">, language: Language): string {
+export function authorLabel(version: Pick<VersionSummary, "authorName" | "baseline" | "shipped">, language: Language): string {
   if (version.authorName) return version.authorName;
   const s = (en: string, bn: string) => (language === "bn" ? bn : en);
+  if (version.shipped) return s("came with Bangla Adventures", "Bangla Adventures-এর সঙ্গে এসেছে");
   return version.baseline ? s("an administrator, before topic approval existed", "একজন প্রশাসক, বিষয় অনুমোদন চালুর আগে") : s("a former staff member", "একজন সাবেক কর্মী");
+}
+
+/** "written by …", or that the version came with Bangla Adventures. */
+export function writtenLabel(version: Pick<VersionSummary, "authorName" | "baseline" | "shipped">, language: Language): string {
+  if (!version.authorName && version.shipped) return authorLabel(version, language);
+  return language === "bn" ? `লিখেছেন ${authorLabel(version, language)}` : `written by ${authorLabel(version, language)}`;
+}
+
+/**
+ * What the reviewer is told after deciding on a version, from whether students can read an
+ * approved version of the topic (none yet, a withdrawn one, or one they keep seeing).
+ */
+export function versionDecisionMessage(decision: "approve" | "reject", version: number, topic: { approvedVersion: number | null; withdrawn: boolean }): Bilingual {
+  if (decision === "approve") return { en: `Approved. Students now see ${versionLabel(version, "en").toLowerCase()} of this topic.`, bn: `অনুমোদিত। শিক্ষার্থীরা এখন এই বিষয়ের ${versionLabel(version, "bn")} দেখবে।` };
+  const sent = { en: "Sent back to the author with your note.", bn: "আপনার নোটসহ লেখকের কাছে ফেরত পাঠানো হয়েছে।" };
+  if (topic.approvedVersion === null) return { en: `${sent.en} Students cannot see this topic until a version of it is approved.`, bn: `${sent.bn} কোনো সংস্করণ অনুমোদিত না হওয়া পর্যন্ত শিক্ষার্থীরা এই বিষয়টি দেখতে পাবে না।` };
+  if (topic.withdrawn) return { en: `${sent.en} The topic stays withdrawn, so students still cannot see it.`, bn: `${sent.bn} বিষয়টি সরিয়ে নেওয়াই থাকছে, তাই শিক্ষার্থীরা এখনো এটি দেখতে পাবে না।` };
+  return { en: `${sent.en} Students keep seeing the approved version.`, bn: `${sent.bn} শিক্ষার্থীরা অনুমোদিত সংস্করণই দেখবে।` };
 }
 
 export function versionLabel(version: number, language: Language): string {

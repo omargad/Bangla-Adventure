@@ -75,3 +75,17 @@ export const specialistStatuses: Record<string, Bilingual> = {
   approved: pair("Check complete", "যাচাই সম্পন্ন"),
 };
 export const gateLabel = (id: string, language: Language) => specialistGates.find((gate) => gate.id === id)?.label[language] ?? id;
+
+/**
+ * What an administrator is told after approving a lesson, from what students could open before:
+ * the lesson itself (a review, or a pending revision that now replaces it), a version approved
+ * earlier and since withdrawn, or nothing yet (a first approval).
+ */
+export function lessonApprovedMessage(before: { visible: boolean; approvedBefore: boolean; pendingRevision: number | null }): Bilingual {
+  if (before.visible && before.pendingRevision !== null) {
+    return pair(`Approved. Students now see revision ${before.pendingRevision} of this lesson.`, `অনুমোদিত। শিক্ষার্থীরা এখন এই পাঠের সংস্করণ ${before.pendingRevision.toLocaleString("bn-BD")} দেখবে।`);
+  }
+  if (before.visible) return pair("Review recorded. Students keep seeing this lesson, now approved under your name.", "পর্যালোচনা সংরক্ষিত হয়েছে। শিক্ষার্থীরা পাঠটি দেখতেই থাকবে, এখন আপনার নামে অনুমোদিত।");
+  if (before.approvedBefore) return pair("Approved. Students can open this lesson again.", "অনুমোদিত। শিক্ষার্থীরা আবার এই পাঠ খুলতে পারবে।");
+  return pair("Approved. Students can now open this lesson.", "অনুমোদিত। শিক্ষার্থীরা এখন এই পাঠ খুলতে পারবে।");
+}

@@ -76,7 +76,7 @@ export default function LessonStudio({ name, role, canApprove }: { name: string;
   const reviewed = rows.filter((row) => row.status === "approved" && !row.baseline).length;
   const title = (lessonId: string) => { const lesson = lessonById.get(lessonId); return lesson ? (language === "bn" ? lesson.titleBn : lesson.title) : lessonId; };
   const decidedBy = (row: LessonApproval) => {
-    if (row.status === "approved" && row.baseline) return s("came with the app", "অ্যাপের সঙ্গে এসেছে");
+    if (row.status === "approved" && row.baseline) return s("came with Bangla Adventures", "Bangla Adventures-এর সঙ্গে এসেছে");
     if (!row.changedAt) return "";
     const who = row.changedByName ?? s("a former staff member", "একজন সাবেক কর্মী");
     return row.status === "approved" ? s(`approved by ${who}, ${formatWhen(row.changedAt, language)}`, `${who} অনুমোদন করেছেন, ${formatWhen(row.changedAt, language)}`)

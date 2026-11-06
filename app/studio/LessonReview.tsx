@@ -12,7 +12,7 @@ import { formatNumber, formatWhen, type Language } from "@/lib/topic-model";
 import { useVoicePlayer } from "@/lib/use-voice-player";
 import { scrollToTop } from "@/lib/scroll-to-top";
 import type { RecordingMap } from "@/lib/voice-playback";
-import { lessonStatusClass, lessonStatusLabel, type LessonApproval } from "./labels";
+import { lessonApprovedMessage, lessonStatusClass, lessonStatusLabel, type LessonApproval } from "./labels";
 import { LessonRecordings, VideoCheck, type Recording, type VideoCheckRecord } from "./LessonMedia";
 import SpecialistChecks, { type SpecialistCheck } from "./SpecialistChecks";
 
@@ -63,7 +63,12 @@ export default function LessonReview({ lessonId, language, canApprove, onChanged
 
   async function decide(decision: "approve" | "withdraw") {
     if (!canApprove || busy || !detail) return;
-    const wasVisible = detail.approval.status === "approved";
+    // What students could open before this decision: the approval message depends on it.
+    const before = {
+      visible: detail.approval.status === "approved",
+      approvedBefore: detail.approvedSnapshot !== null || detail.history.some((entry) => entry.status === "approved"),
+      pendingRevision: detail.pendingRevision?.version ?? null,
+    };
     setBusy(true); setError(null); setMessage(null);
     try {
       const body = decision === "approve" ? { decision, note: approveNote, confirmedRead: confirmed, contentFingerprint: detail.contentFingerprint } : { decision, note: withdrawNote };
@@ -71,9 +76,7 @@ export default function LessonReview({ lessonId, language, canApprove, onChanged
       acceptDetail(next);
       setMessage(decision === "withdraw"
         ? { en: "Withdrawn. Students and parents no longer see this lesson.", bn: "সরিয়ে নেওয়া হয়েছে। শিক্ষার্থী ও অভিভাবকেরা আর এই পাঠ দেখবে না।" }
-        : wasVisible
-          ? { en: "Review recorded. Students keep seeing this lesson, now approved under your name.", bn: "পর্যালোচনা সংরক্ষিত হয়েছে। শিক্ষার্থীরা পাঠটি দেখতেই থাকবে, এখন আপনার নামে অনুমোদিত।" }
-          : { en: "Approved. Students can open this lesson again.", bn: "অনুমোদিত। শিক্ষার্থীরা আবার এই পাঠ খুলতে পারবে।" });
+        : lessonApprovedMessage(before));
       setConfirmed(false); setApproveNote(""); setWithdrawNote("");
       onChanged();
     } catch (caught) { setError(failure(caught)); setConfirmed(false); setViewed([]); void load(); }
