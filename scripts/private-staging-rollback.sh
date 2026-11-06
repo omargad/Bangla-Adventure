@@ -17,8 +17,9 @@ readonly run_id="$1" prefix="ba-private-rollback-$1"
 readonly root="$stage/rollback/$run_id" project="$prefix" volume="$prefix-data" network="${prefix}_default"
 readonly builder="$prefix-builder" initializer="$prefix-init" candidate="$prefix:unhealthy"
 readonly source_dir="/tmp/ba-private-rollback-$run_id" source_tmp="/tmp/ba-private-rollback-$run_id/snapshot.db"
-readonly export_token="$(python3 -c 'import secrets;print(secrets.token_hex(16))')"
-readonly payload="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+export_token="$(python3 -c 'import secrets;print(secrets.token_hex(16))')"
+payload="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+readonly export_token payload
 owned_dir() { [ -d "$1" ] && [ ! -L "$1" ] && [ "$(realpath -e -- "$1")" = "$1" ] && [ "$(stat -c '%u:%a' -- "$1")" = 1002:700 ]; }
 docker() { command env -u DOCKER_CONTEXT -u DOCKER_HOST docker --host "$daemon" "$@"; }
 compose() { (cd "$root" && env -u APP_IMAGE -u COMPOSE_PROJECT_NAME -u COMPOSE_FILE -u DOCKER_CONTEXT DOCKER_HOST="$daemon" docker compose --env-file "$root/.env" --project-name "$project" --file "$root/compose.yaml" "$@"); }
@@ -127,6 +128,8 @@ fs.rmdirSync(dir);
 JS
 }
 cleanup() {
+  # The EXIT trap's status; the direct call at the end follows checks that passed.
+  # shellcheck disable=SC2319
   local status=$?
   phase=cleanup
   trap - EXIT
@@ -163,6 +166,8 @@ trap 'exit 143' TERM
 trap '' HUP
 
 # Online SQLite backup is made outside .data, then removed; the live source never stops.
+# The phase name, not the builtin (the tests list phase=NAME lines).
+# shellcheck disable=SC2209
 phase=export
 source_export=true
 docker exec -i "$source_id" node --input-type=module - "$source_dir" "$export_token" <<'JS' >/dev/null
@@ -232,11 +237,11 @@ phase=engine
 bash "$incoming/deploy-remote.sh" "$candidate" '' 1 15 "$daemon" '' true '' false "$root" "$incoming" > "$root/engine.log" 2>&1 &
 engine_pid=$!
 candidate_status=0
-for attempt in {1..120}; do
+for _ in {1..120}; do
   if ! kill -0 "$engine_pid" 2>/dev/null; then break; fi
-  selected="$(docker ps --quiet --no-trunc --filter "label=com.docker.compose.project=$project" --filter label=io.bangla.private-rollback.phase=candidate)"
-  if [[ "$selected" =~ ^[a-f0-9]{64}$ ]] && [ "$(docker inspect --format '{{.Image}}' "$selected")" = "$candidate_id" ]; then
-    candidate_status="$(docker exec "$selected" node -e "fetch('http://127.0.0.1:3000/api/health',{signal:AbortSignal.timeout(1000)}).then(r=>{console.log(r.status);process.exit(0)},()=>process.exit(1))" 2>/dev/null || printf 0)"
+  candidate_container="$(docker ps --quiet --no-trunc --filter "label=com.docker.compose.project=$project" --filter label=io.bangla.private-rollback.phase=candidate)"
+  if [[ "$candidate_container" =~ ^[a-f0-9]{64}$ ]] && [ "$(docker inspect --format '{{.Image}}' "$candidate_container")" = "$candidate_id" ]; then
+    candidate_status="$(docker exec "$candidate_container" node -e "fetch('http://127.0.0.1:3000/api/health',{signal:AbortSignal.timeout(1000)}).then(r=>{console.log(r.status);process.exit(0)},()=>process.exit(1))" 2>/dev/null || printf 0)"
     [ "$candidate_status" != 503 ] || break
   fi
   sleep 0.25

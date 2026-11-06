@@ -47,7 +47,6 @@ case "$(docker compose up --help 2>/dev/null)" in *--wait-timeout*) ;; *) fail '
 login=''
 transaction=''
 previous=''
-previous_revision=''
 previous_healthy=false
 touched=false
 committed=false
@@ -191,7 +190,7 @@ print(v['image']); print(v['revision']); print(v['phase'])
 PY
   )" || fail 'the existing staging release manifest is invalid or its managed files changed.'
   mapfile -t prior <<< "$previous_state"
-  previous="${prior[0]}"; previous_revision="${prior[1]}"
+  previous="${prior[0]}"
   [ "${prior[2]}" != healthy ] || previous_healthy=true
   check_volume "$data_volume" || fail 'the managed staging data volume is missing.'
   check_containers "$previous"

@@ -72,7 +72,7 @@ actual="$(ssh-keygen -l -E sha256 -f "$work/public_key" 2>/dev/null | awk '{prin
 while IFS= read -r line || [ -n "$line" ]; do
   [[ "$line" =~ ^[[:space:]]*(#|$) ]] && continue
   [[ "$line" =~ ^[[:space:]]*@ ]] && fail 'known_hosts marker directives are not allowed.'
-  IFS=$' \t' read -r names key_type key_data comment <<< "$line"
+  IFS=$' \t' read -r names key_type key_data _ <<< "$line"
   [ "$key_type" = ssh-ed25519 ] || fail 'The pinned ED25519 server key is required.'
   [[ "$key_data" =~ ^[a-zA-Z0-9+/]+={0,2}$ ]] || fail 'Invalid server public-key encoding.'
   printf '%s\n' "$line" > "$work/host_line"
@@ -298,7 +298,7 @@ ssh "${ssh_options[@]}" -o ClearAllForwardings=no -o ExitOnForwardFailure=yes -o
   -N -L "127.0.0.1:3001:$socket" "$user@$host" > "$work/tunnel.log" 2>&1 &
 tunnel_pid=$!
 ready=false
-for attempt in {1..30}; do
+for _ in {1..30}; do
   kill -0 "$tunnel_pid" 2>/dev/null || fail 'The private SSH tunnel could not open.'
   status="$(curl --noproxy '*' --silent --output /dev/null --write-out '%{http_code}' --max-time 3 "$origin/api/health" 2>/dev/null || true)"
   if [ "$status" = 200 ]; then ready=true; break; fi
@@ -387,7 +387,7 @@ ssh "${ssh_options[@]}" -o ClearAllForwardings=no -o ExitOnForwardFailure=yes -o
   -N -L "127.0.0.1:3001:$qa_socket" "$user@$host" > "$work/qa-tunnel.log" 2>&1 &
 tunnel_pid=$!
 ready=false
-for attempt in {1..30}; do
+for _ in {1..30}; do
   kill -0 "$tunnel_pid" 2>/dev/null || fail 'The disposable QA tunnel could not open.'
   status="$(curl --noproxy '*' --silent --output /dev/null --write-out '%{http_code}' --max-time 3 "$origin/api/health" 2>/dev/null || true)"
   if [ "$status" = 200 ]; then ready=true; break; fi

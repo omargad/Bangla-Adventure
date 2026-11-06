@@ -238,10 +238,17 @@ cleanup_owned() {
   qa_path
   rm -rf -- "$qaDir"
 }
+# EXIT trap: a failed action removes what it owns, then exits with its own status.
+cleanup_on_failure() {
+  local status=$?
+  trap - EXIT
+  if [ "$status" -ne 0 ]; then cleanup_owned || true; fi
+  exit "$status"
+}
 platform
 # Match the deployment and operations lock so their stopped-source backups cannot
 # overlap a QA action's real-stage read. The controller holds no outer lock.
-diagnostic_phase=stage-lock
+diagnostic_phase='stage-lock'
 [ ! -L "$stage/.deploy.lock" ] || fail 'The staging lock must not be a symlink.'
 if [ -e "$stage/.deploy.lock" ]; then
   [ -f "$stage/.deploy.lock" ] && [ "$(stat -c %u -- "$stage/.deploy.lock")" = 1002 ] || fail 'The staging lock must be an owned regular file.'
@@ -259,7 +266,7 @@ if [ "$action" = prepare ]; then
   done
   mkdir -m 700 -- "$qaDir"
   printf 'bangla-private-qa:%s\n' "$qaId" > "$qaDir/.qa-marker"
-  trap 'status=$?; trap - EXIT; if [ "$status" -ne 0 ]; then cleanup_owned || true; fi; exit "$status"' EXIT
+  trap cleanup_on_failure EXIT
   mkdir -m 1777 -- "$qaDir/runtime"
   [ -f "$stage/tools/private-staging-proxy.mjs" ] && [ ! -L "$stage/tools/private-staging-proxy.mjs" ] && [ "$(realpath -e "$stage/tools/private-staging-proxy.mjs")" = "$stage/tools/private-staging-proxy.mjs" ] && [ "$(stat -c %u "$stage/tools/private-staging-proxy.mjs")" = 1002 ] || fail 'The audited staging proxy is missing.'
   cp -- "$stage/tools/private-staging-proxy.mjs" "$qaDir/private-staging-proxy.mjs"
@@ -288,7 +295,7 @@ if [ "$action" = prepare ]; then
   docker container start "$(cat "$qaDir/proxy.id")" >/dev/null
   diagnostic_phase=prepare-ready
   ready=false
-  for attempt in {1..30}; do
+  for _ in {1..30}; do
     proxyTarget="$(inspect_owned container "$proxy" proxy)"
     # Static public files can be ready before getDb() creates the fresh database.
     # First attest this clone's marker, then require the database-backed health route.
@@ -305,7 +312,7 @@ elif [ "$action" = verify ]; then
 elif [ "$action" = approve-fixtures ]; then
   diagnostic_phase=approve-fixtures
   qa_path
-  trap 'status=$?; trap - EXIT; if [ "$status" -ne 0 ]; then cleanup_owned || true; fi; exit "$status"' EXIT
+  trap cleanup_on_failure EXIT
   verify_all
   qaCounts="$(qa_database approve)" || fail 'Only the two fixed synthetic identities can be approved.'
   verify_all
@@ -315,7 +322,7 @@ elif [ "$action" = approve-fixtures ]; then
 elif [ "$action" = bootstrap-admin ]; then
   diagnostic_phase=bootstrap-admin
   qa_path
-  trap 'status=$?; trap - EXIT; if [ "$status" -ne 0 ]; then cleanup_owned || true; fi; exit "$status"' EXIT
+  trap cleanup_on_failure EXIT
   verify_all
   qaCounts="$(qa_database bootstrap-admin)" || fail 'Only the exact namespace administrator can be bootstrapped.'
   verify_all
