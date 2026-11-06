@@ -36,7 +36,9 @@ def record(kind,**extra):
  with log.open("a") as f: f.write(json.dumps({"kind":kind,"args":args,**extra})+"\n")
 if tool=="ssh-keygen":
  if "-y" in args: print("ssh-ed25519 RklYVFVSRQ== fixture")
- elif "-F" in args: sys.exit(0)
+ elif "-F" in args:
+  names=Path(args[args.index("-f")+1]).read_text().split()[0].split(",")
+  sys.exit(0 if args[args.index("-F")+1] in names else 1)
  elif "-l" in args:
   public=Path(args[args.index("-f")+1]).name=="public_key"
   pin="SHA256:y1+C6cvcfpJFmO8pfjyMSFERpd5BtcQyDf5SptZXVlQ" if public else "SHA256:79xe+ubCodL2ACAHPNloo7I/K6mvngU88vEiFoEeWL8"
@@ -110,8 +112,9 @@ elif tool=="ssh":
             **os.environ, "PATH": f"{self.bin}:{os.environ['PATH']}",
             "DEPLOY_ENABLED": "false", "REPOSITORY_GATE_CONFIRMED": "disabled",
             "GITHUB_REPOSITORY": "omargad/Bangla-Adventure", "GITHUB_REF": "refs/heads/main",
+            "DEPLOY_HOST": "192.0.2.10", "DEPLOY_USER": "example-user",
             "DEPLOY_SSH_KEY": "PRIVATE_KEY_MUST_NOT_LEAK",
-            "DEPLOY_KNOWN_HOSTS": "203.0.113.10 ssh-ed25519 RklYVFVSRQ== fixture public key",
+            "DEPLOY_KNOWN_HOSTS": "192.0.2.10 ssh-ed25519 RklYVFVSRQ== fixture public key",
             "REGISTRY_USER": "fixture", "REGISTRY_PASSWORD": "REGISTRY_TOKEN_MUST_NOT_LEAK",
             "PRIVATE_STAGING_EVIDENCE_DIR": str(self.root / "evidence"),
             "FIXTURE_LOG": str(self.root / "calls.jsonl"), "FIXTURE_IMAGE": IMAGE,
@@ -141,6 +144,10 @@ elif tool=="ssh":
         self.assertIn("ExitOnForwardFailure=yes", tunnel)
         self.assertIn("ClearAllForwardings=no", tunnel)
         self.assertIn("StrictHostKeyChecking=yes", tunnel)
+        remote = [call for call in calls if call["kind"] not in {"http", "qa_browser"}]
+        self.assertIn("qa_prepare", [call["kind"] for call in remote])
+        for call in remote:
+            self.assertIn("example-user@192.0.2.10", call["args"], call["kind"])
         evidence = self.root / "evidence"
         self.assertEqual(set(path.name for path in evidence.iterdir()), {"inventory.json", "staging-result.json", "staging_known_hosts", "tunnel-probes.json", "qa-cleanup.json", "qa-browser", "attempt-status.json"})
         self.assertEqual(json.loads((evidence/"attempt-status.json").read_text())["overall"],"passed")
@@ -152,7 +159,23 @@ elif tool=="ssh":
         all_evidence = "".join(path.read_text() for path in evidence.rglob("*") if path.is_file())
         self.assertNotIn("PRIVATE_KEY_MUST_NOT_LEAK", all_evidence)
         self.assertNotIn("REGISTRY_TOKEN_MUST_NOT_LEAK", all_evidence)
-        self.assertNotIn("fixture public key", (evidence / "staging_known_hosts").read_text())
+        self.assertEqual((evidence / "staging_known_hosts").read_text(), "192.0.2.10 ssh-ed25519 RklYVFVSRQ==\n")
+
+    def test_missing_or_invalid_server_variables_prevent_all_remote_contact(self):
+        for overrides in [{"DEPLOY_HOST": ""}, {"DEPLOY_USER": ""}, {"DEPLOY_HOST": "192.0.2.10;id"}, {"DEPLOY_USER": "Example User"}]:
+            log = self.root / "calls.jsonl"
+            if log.exists(): log.unlink()
+            result = self.run_controller(**overrides)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertRegex(result.stderr, r"The DEPLOY_(HOST|USER) repository variable is missing or invalid\.")
+            self.assertEqual(self.calls(), [])
+            self.assertFalse((self.root / "evidence").exists())
+
+    def test_pinned_host_key_must_name_the_configured_server(self):
+        result = self.run_controller(DEPLOY_HOST="192.0.2.11")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("does not cover the configured VPS address", result.stderr)
+        self.assertEqual(self.calls(), [])
 
     def test_inventory_refusal_precedes_every_remote_write(self):
         result = self.run_controller(FIXTURE_INVENTORY_REFUSE="1")

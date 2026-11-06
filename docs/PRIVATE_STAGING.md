@@ -8,7 +8,7 @@ production settings file or existing database is changed by staging.
 
 | Setting | Value |
 | --- | --- |
-| Server identity | `deployer@203.0.113.10`, SSH 22, UID 1002 |
+| Server identity | `$DEPLOY_USER@$DEPLOY_HOST`, SSH 22, UID 1002 |
 | Docker | Rootless daemon at `unix:///run/user/1002/docker.sock` |
 | Directory | `/opt/bangla-adventures/private-staging`, owner 1002, mode 0700 |
 | Project | `bangla-adventures-staging` |
@@ -19,6 +19,11 @@ production settings file or existing database is changed by staging.
 | Browser origin through SSH | `http://127.0.0.1:3001` |
 | Image | `ghcr.io/omargad/bangla-adventure@sha256:fc6f52720d3ecf55998e56a2432ffd5a782d3db231323874daf0b6d0357efca2` |
 | Expected image revision | `95b6308ac7ad3d5b6bb2d951df9d65a23ff77107` |
+
+`DEPLOY_USER` and `DEPLOY_HOST` are the repository variables holding the SSH
+account and address from the server handover email; see
+[Repository variables](VPS_DEPLOYMENT.md#repository-variables). The pinned host
+key, not the address, establishes the server's identity.
 
 The image is the tested main release. The runner verifies the deployment key,
 server host key, server identity, rootless engine, available capacity and existing
@@ -51,7 +56,8 @@ attestation before creating accounts. Its volume, network and containers are
 removed afterward, and actual staging is checked again for zero users.
 
 Successful-run evidence contains sanitized results, fictional QA screenshots and
-`staging_known_hosts`, which contains only the verified public server host key.
+`staging_known_hosts`, which contains only the configured server address and its
+verified public host key.
 It never contains the private deployment key, registry token, passwords, session
 values or private backups. A workflow attempt is not deployment success: inspect
 the workflow's actual result and evidence before claiming staging is ready.
@@ -60,16 +66,20 @@ the workflow's actual result and evidence before claiming staging is ready.
 
 Download the successful workflow's `private-staging-access` artifact and extract
 it. Use its verified `staging_known_hosts` file without altering the key. The
-private key remains the existing `bangla_deploy` file on your own laptop.
+private key remains the existing `bangla_deploy` file on your own laptop. Fill in
+the account and address from the server handover email (the `DEPLOY_USER` and
+`DEPLOY_HOST` repository variables).
 
 ```powershell
+$deployUser = "<from the handover email>"
+$deployHost = "<from the handover email>"
 $stagingHosts = "C:\path\to\extracted\staging_known_hosts"
 ssh -F NUL -i "$env:USERPROFILE\bangla_deploy" -p 22 `
   -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes `
   -o GlobalKnownHostsFile=NUL -o "UserKnownHostsFile=$stagingHosts" `
   -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 `
   -N -L "127.0.0.1:3001:/opt/bangla-adventures/private-staging/runtime/http.sock" `
-  deployer@203.0.113.10
+  "$deployUser@$deployHost"
 ```
 
 Leave that terminal open and visit `http://127.0.0.1:3001` in your browser.

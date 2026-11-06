@@ -21,10 +21,11 @@ jobs:
         shell: bash
         env:
           REPOSITORY_DEPLOY_ENABLED_STATE: ${{ (vars.DEPLOY_ENABLED == '' || vars.DEPLOY_ENABLED == 'false') && 'disabled' || vars.DEPLOY_ENABLED == 'true' && 'enabled' || 'unexpected' }}
-          REPOSITORY_DEPLOY_HOST_STATE: ${{ vars.DEPLOY_HOST == '' && 'unset' || vars.DEPLOY_HOST == '203.0.113.10' && 'matches expected VPS' || 'unexpected' }}
+          REPOSITORY_DEPLOY_HOST_STATE: ${{ vars.DEPLOY_HOST == '' && 'unset' || 'set' }}
+          REPOSITORY_DEPLOY_USER_STATE: ${{ vars.DEPLOY_USER == '' && 'unset' || 'set' }}
         run: |
           set -euo pipefail
-          printf 'repository gate scope (production environment not loaded): DEPLOY_ENABLED=%s; DEPLOY_HOST=%s.\n' "$REPOSITORY_DEPLOY_ENABLED_STATE" "$REPOSITORY_DEPLOY_HOST_STATE"
+          printf 'repository gate scope (production environment not loaded): DEPLOY_ENABLED=%s; DEPLOY_HOST=%s; DEPLOY_USER=%s.\n' "$REPOSITORY_DEPLOY_ENABLED_STATE" "$REPOSITORY_DEPLOY_HOST_STATE" "$REPOSITORY_DEPLOY_USER_STATE"
           if [ "$REPOSITORY_DEPLOY_ENABLED_STATE" != disabled ]; then
             printf '::error::Repository DEPLOY_ENABLED must be absent or exactly false before this preflight may contact the VPS.\n'
             exit 1
@@ -51,6 +52,8 @@ jobs:
         shell: bash
         env:
           DEPLOY_ENABLED: ${{ vars.DEPLOY_ENABLED }}
+          DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ vars.DEPLOY_USER }}
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           DEPLOY_KNOWN_HOSTS: ${{ vars.DEPLOY_KNOWN_HOSTS }}
         run: |
@@ -60,9 +63,11 @@ jobs:
           [ "${DEPLOY_ENABLED:-false}" = false ] || fail 'DEPLOY_ENABLED must remain false during this read-only preflight.'
           [ -n "${DEPLOY_SSH_KEY:-}" ] || fail 'production secret DEPLOY_SSH_KEY is missing.'
           [ -n "${DEPLOY_KNOWN_HOSTS:-}" ] || fail 'production variable DEPLOY_KNOWN_HOSTS is missing.'
+          [[ "${DEPLOY_HOST:-}" =~ ^[a-zA-Z0-9][a-zA-Z0-9.:-]*$ ]] || fail 'repository variable DEPLOY_HOST is missing or invalid.'
+          [[ "${DEPLOY_USER:-}" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]] || fail 'repository variable DEPLOY_USER is missing or invalid.'
 
-          readonly host='203.0.113.10'
-          readonly user='deployer'
+          readonly host="$DEPLOY_HOST"
+          readonly user="$DEPLOY_USER"
           readonly port='22'
           readonly key_pin='SHA256:y1+C6cvcfpJFmO8pfjyMSFERpd5BtcQyDf5SptZXVlQ'
           readonly host_pin='SHA256:79xe+ubCodL2ACAHPNloo7I/K6mvngU88vEiFoEeWL8'
@@ -101,6 +106,7 @@ jobs:
           chmod 600 "$work/known_hosts" "$work/public_key" "$work/host_line"
           printf 'preflight: deployment key and server host-key fingerprints verified.\n'
 
+          quoted() { printf "'%s'" "${1//\'/\'\\\'\'}"; }
           ssh -F /dev/null -T -i "$work/key" -p "$port" \
             -o BatchMode=yes -o IdentitiesOnly=yes \
             -o PreferredAuthentications=publickey -o PasswordAuthentication=no \
@@ -111,12 +117,13 @@ jobs:
             -o PermitLocalCommand=no -o ControlMaster=no -o ControlPath=none \
             -o ConnectTimeout=15 -o ConnectionAttempts=1 \
             -o ServerAliveInterval=15 -o ServerAliveCountMax=2 \
-            "$user@$host" 'bash -s' <<'REMOTE'
+            "$user@$host" "bash -s -- $(quoted "$user")" <<'REMOTE'
           set -euo pipefail
           fail() { printf 'preflight: %s\n' "$*" >&2; exit 1; }
-          [ "$(id -un)" = deployer ] || fail 'SSH connected as an unexpected user.'
+          readonly expected_user="${1:?The expected deployment user is required.}"
+          [ "$(id -un)" = "$expected_user" ] || fail 'SSH connected as an unexpected user.'
           test -d /opt/bangla-adventures || fail 'The deployment directory is missing.'
-          test -w /opt/bangla-adventures || fail 'The deployment directory is not writable by deployer.'
+          test -w /opt/bangla-adventures || fail 'The deployment directory is not writable by the deployment user.'
           readonly docker_socket='unix:///run/user/1002/docker.sock'
           security_options="$(docker --host "$docker_socket" info --format '{{json .SecurityOptions}}')" || fail 'The prepared Docker daemon is not accessible.'
           case "$security_options" in
@@ -127,7 +134,7 @@ jobs:
           printf 'preflight: server architecture %s; online CPUs %s.\n' "$(uname -m)" "$(getconf _NPROCESSORS_ONLN)"
           awk '$1 == "MemTotal:" || $1 == "MemAvailable:" { printf "preflight: %s %s KiB.\n", $1, $2 }' /proc/meminfo
           df -Pk -- /opt/bangla-adventures | awk 'NR == 2 { printf "preflight: deployment filesystem size %s KiB; available %s KiB.\n", $2, $4 }'
-          printf 'preflight: authenticated as deployer; deployment directory exists and is writable.\n'
+          printf 'preflight: authenticated as the configured deployment user; deployment directory exists and is writable.\n'
           printf 'preflight: the prepared Docker daemon reports rootless mode.\n'
           printf 'preflight: Docker Compose version %s.\n' "$compose_version"
           REMOTE

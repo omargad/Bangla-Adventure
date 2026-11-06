@@ -130,6 +130,8 @@ jobs:
         env:
           REPOSITORY_GATE_CONFIRMED: disabled
           DEPLOY_ENABLED: ${{ vars.DEPLOY_ENABLED }}
+          DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ vars.DEPLOY_USER }}
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           DEPLOY_KNOWN_HOSTS: ${{ vars.DEPLOY_KNOWN_HOSTS }}
           REGISTRY_USER: ${{ github.actor }}

@@ -229,7 +229,7 @@ On the default branch the pipeline then:
    deployed is exactly what was tested.
 3. Deploys it when the server is configured and `DEPLOY_ENABLED=true`. Until then that step is skipped.
 
-For Faysal's prepared `deployer` rootless VPS, use [VPS_DEPLOYMENT.md](VPS_DEPLOYMENT.md)
+For Faysal's prepared rootless VPS, use [VPS_DEPLOYMENT.md](VPS_DEPLOYMENT.md)
 and the supplied non-secret settings templates. That server uses host port `3001`,
 the existing rootless daemon, and Nginx; the generic rootful setup below does not
 apply to it.
@@ -307,7 +307,7 @@ from the deployment folder: `docker compose exec app npm run admin:grant -- EMAI
 | `DEPLOY_KNOWN_HOSTS` | Variable | The contents of `server.keys` (step 5 above) |
 | `DEPLOY_HOST_FINGERPRINT` | Variable | Expected SHA256 fingerprint; every supplied host-key line must match this pin |
 | `DEPLOY_KEY_FINGERPRINT` | Variable | Expected SHA256 fingerprint of the deployment key's public half |
-| `DEPLOY_USER` | Variable | Optional; GitHub defaults to `deployer`; the portable script defaults to `deploy` |
+| `DEPLOY_USER` | Repository variable | The SSH account on the server; required for the prepared VPS, whose account is in the server handover email. When unset the portable script uses `deploy` |
 | `DEPLOY_PORT` | Variable | Optional; default `22` |
 | `DEPLOY_PATH` | Variable | Optional; default `/opt/bangla-adventures` |
 | `DEPLOY_DOCKER_HOST` | Variable | Explicit daemon endpoint; for the prepared VPS, `unix:///run/user/1002/docker.sock` |
@@ -317,7 +317,7 @@ from the deployment folder: `docker compose exec app npm run admin:grant -- EMAI
 | `PUBLIC_HEALTH_URL` | Variable | Optional HTTPS health URL; defaults to the server's `PUBLIC_ORIGIN` plus `/api/health` |
 | `DEPLOY_SSH_KEY` | Secret | The deploy user's private key |
 
-The configurable variables other than `DEPLOY_HOST` and `DEPLOY_ENABLED`, and the `DEPLOY_SSH_KEY` secret, may be set on the
+The configurable variables other than `DEPLOY_HOST`, `DEPLOY_USER` and `DEPLOY_ENABLED`, and the `DEPLOY_SSH_KEY` secret, may be set on the
 `production` environment instead (Settings > Environments). To approve each deploy before it runs,
 add required reviewers to that environment. Only the newest commit on the default branch is marked
 `latest` and deployed: a run whose commit is no longer the newest, such as an old run started
@@ -342,7 +342,7 @@ repository, with `server.keys` from step 5 above:
 ```sh
 DEPLOY_ENABLED=true DEPLOY_HOST=SERVER DEPLOY_KNOWN_HOSTS="$(cat server.keys)" DEPLOY_SSH_KEY=~/.ssh/bangla_deploy \
   DEPLOY_HOST_FINGERPRINT=EXPECTED_SERVER_SHA256 DEPLOY_KEY_FINGERPRINT=EXPECTED_DEPLOY_KEY_SHA256 \
-  DEPLOY_USER=deployer DEPLOY_DOCKER_HOST=unix:///run/user/1002/docker.sock \
+  DEPLOY_USER=SERVER_USER DEPLOY_DOCKER_HOST=unix:///run/user/1002/docker.sock \
   DEPLOY_REQUIRE_ROOTLESS=true DEPLOY_REQUIRE_PUBLIC_HEALTH=true \
   REGISTRY_USER=GITHUB_USER REGISTRY_PASSWORD=TOKEN_WITH_READ_PACKAGES \
   bash scripts/deploy.sh ghcr.io/OWNER/REPOSITORY:sha-COMMIT

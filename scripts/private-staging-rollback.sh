@@ -23,7 +23,7 @@ owned_dir() { [ -d "$1" ] && [ ! -L "$1" ] && [ "$(realpath -e -- "$1")" = "$1" 
 docker() { command env -u DOCKER_CONTEXT -u DOCKER_HOST docker --host "$daemon" "$@"; }
 compose() { (cd "$root" && env -u APP_IMAGE -u COMPOSE_PROJECT_NAME -u COMPOSE_FILE -u DOCKER_CONTEXT DOCKER_HOST="$daemon" docker compose --env-file "$root/.env" --project-name "$project" --file "$root/compose.yaml" "$@"); }
 
-[ "$(id -un)" = deployer ] && [ "$(id -u)" = 1002 ] || fail 'the dedicated deploy user is required.'
+[ "$(id -u)" = 1002 ] || fail 'the dedicated deploy user is required.'
 owned_dir "$stage" && [ -f "$stage/.private-staging-marker" ] && [ ! -L "$stage/.private-staging-marker" ] || fail 'the managed private stage is unavailable.'
 [ "$(cat "$stage/.private-staging-marker")" = bangla-adventures-private-staging-v1 ] || fail 'the staging marker changed.'
 [[ "$payload" =~ ^/opt/bangla-adventures/\.private-acceptance-payload\.[a-zA-Z0-9]{12}$ ]] && owned_dir "$payload" || fail 'helpers must come from the owned acceptance payload.'

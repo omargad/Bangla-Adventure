@@ -10,7 +10,10 @@ fail() { printf 'private acceptance: %s\n' "$*" >&2; exit 1; }
 [ "${GITHUB_REPOSITORY:-}" = omargad/Bangla-Adventure ] && [ "${GITHUB_REF:-}" = refs/heads/main ] || fail 'Only the audited repository main branch is allowed.'
 [ -n "${DEPLOY_SSH_KEY:-}" ] && [ -n "${DEPLOY_KNOWN_HOSTS:-}" ] || fail 'Pinned deployment credentials are missing.'
 case "$DEPLOY_KNOWN_HOSTS" in *'PRIVATE KEY'*|*'-----BEGIN'*) fail 'Public known_hosts contains misplaced private credentials.' ;; esac
-readonly host=203.0.113.10 user=deployer port=22
+# The address and account come from repository variables; the host-key pin below proves identity.
+[[ "${DEPLOY_HOST:-}" =~ ^[a-zA-Z0-9][a-zA-Z0-9.:-]*$ ]] || fail 'The DEPLOY_HOST repository variable is missing or invalid.'
+[[ "${DEPLOY_USER:-}" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]] || fail 'The DEPLOY_USER repository variable is missing or invalid.'
+readonly host="$DEPLOY_HOST" user="$DEPLOY_USER" port=22
 readonly key_pin='SHA256:y1+C6cvcfpJFmO8pfjyMSFERpd5BtcQyDf5SptZXVlQ'
 readonly host_pin='SHA256:79xe+ubCodL2ACAHPNloo7I/K6mvngU88vEiFoEeWL8'
 readonly image='ghcr.io/omargad/bangla-adventure@sha256:fc6f52720d3ecf55998e56a2432ffd5a782d3db231323874daf0b6d0357efca2'
@@ -61,8 +64,8 @@ while IFS= read -r line || [ -n "$line" ]; do
   printf '%s\n' "$line" > "$work/host_line"
   actual="$(ssh-keygen -l -E sha256 -f "$work/host_line" 2>/dev/null | awk '{print $2}')" || fail 'Server key fingerprint failed.'
   [ "$actual" = "$host_pin" ] || fail 'Server key fingerprint does not match the verified VPS.'
-  ssh-keygen -F "$host" -f "$work/host_line" >/dev/null 2>&1 || fail 'The verified public key does not cover the fixed VPS address.'
-  # Export only the fixed address and verified PUBLIC server key, never comments or a private key.
+  ssh-keygen -F "$host" -f "$work/host_line" >/dev/null 2>&1 || fail 'The verified public key does not cover the configured VPS address.'
+  # Export only the configured address and verified PUBLIC server key, never comments or a private key.
   printf '%s %s %s\n' "$host" "$key_type" "$key_data" >> "$work/known_hosts"
 done < "$work/provided_hosts"
 [ -s "$work/known_hosts" ] || fail 'No pinned server public key was supplied.'
@@ -88,7 +91,8 @@ PORT
 remote_inventory() {
   ssh "${ssh_options[@]}" -o ClearAllForwardings=yes "$user@$host" 'bash -s' > "$1" 2> "$work/inventory.log" <<'INVENTORY'
 set -euo pipefail
-[ "$(id -un)" = deployer ] && [ "$(id -u)" = 1002 ]
+# UID 1002 pins the deployment account whatever its configured name.
+[ "$(id -u)" = 1002 ]
 stage=/opt/bangla-adventures/private-staging
 image=ghcr.io/omargad/bangla-adventure@sha256:fc6f52720d3ecf55998e56a2432ffd5a782d3db231323874daf0b6d0357efca2
 revision=95b6308ac7ad3d5b6bb2d951df9d65a23ff77107
@@ -176,7 +180,7 @@ phase=helper-install
 # Update only the managed QA helper and its manifest hash. Hold the same lock as staging/ops.
 ssh "${ssh_options[@]}" -o ClearAllForwardings=yes "$user@$host" "bash -s -- $(quote "$incoming")" > "$work/install.json" 2> "$work/install.log" <<'INSTALL'
 set -euo pipefail
-[ "$(id -un)" = deployer ] && [ "$(id -u)" = 1002 ]
+[ "$(id -u)" = 1002 ]
 stage=/opt/bangla-adventures/private-staging
 [ -d "$stage" ] && [ ! -L "$stage" ] && [ "$(stat -c '%u:%a' "$stage")" = 1002:700 ]
 [ -f "$stage/.deploy.lock" ] && [ ! -L "$stage/.deploy.lock" ] && [ "$(stat -c %u "$stage/.deploy.lock")" = 1002 ]
@@ -316,10 +320,10 @@ phase=qa-prepare
 qa_id="$(python3 -c 'import secrets;print(secrets.token_hex(12))')"
 qa_socket="/opt/bangla-adventures/private-staging/qa/$qa_id/runtime/http.sock"
 qa_hook="$work/qa-controller"
-python3 - "$qa_hook" "$work/qa-config.json" "$qa_id" "$image" "${ssh_options[@]}" <<'HOOK'
+python3 - "$qa_hook" "$work/qa-config.json" "$qa_id" "$image" "$user@$host" "${ssh_options[@]}" <<'HOOK'
 import json,os,sys
-hook,config,qid,image=sys.argv[1:5]
-with open(config,'w') as output:json.dump(dict(ssh=['ssh',*sys.argv[5:],'-o','ClearAllForwardings=yes','deployer@203.0.113.10'],id=qid,image=image),output)
+hook,config,qid,image,destination=sys.argv[1:6]
+with open(config,'w') as output:json.dump(dict(ssh=['ssh',*sys.argv[6:],'-o','ClearAllForwardings=yes',destination],id=qid,image=image),output)
 source=r'''#!/usr/bin/env python3
 import json,re,subprocess,sys
 from pathlib import Path

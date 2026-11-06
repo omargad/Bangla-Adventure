@@ -12,8 +12,11 @@ fail() { printf 'private staging: %s\n' "$*" >&2; exit 1; }
 [ -n "${REGISTRY_PASSWORD:-}" ] || fail 'The temporary read-only registry token is missing.'
 [[ "${REGISTRY_USER:-}" =~ ^[a-zA-Z0-9][a-zA-Z0-9_-]*(\[bot\])?$ ]] || fail 'Invalid registry account name.'
 case "$DEPLOY_KNOWN_HOSTS" in *'PRIVATE KEY'*|*'-----BEGIN'*) fail 'The public known_hosts variable contains misplaced private credentials.' ;; esac
+# The address and account come from repository variables; the host-key pin below proves identity.
+[[ "${DEPLOY_HOST:-}" =~ ^[a-zA-Z0-9][a-zA-Z0-9.:-]*$ ]] || fail 'The DEPLOY_HOST repository variable is missing or invalid.'
+[[ "${DEPLOY_USER:-}" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]] || fail 'The DEPLOY_USER repository variable is missing or invalid.'
 
-readonly host=203.0.113.10 user=deployer port=22
+readonly host="$DEPLOY_HOST" user="$DEPLOY_USER" port=22
 readonly key_pin='SHA256:y1+C6cvcfpJFmO8pfjyMSFERpd5BtcQyDf5SptZXVlQ'
 readonly host_pin='SHA256:79xe+ubCodL2ACAHPNloo7I/K6mvngU88vEiFoEeWL8'
 readonly image='ghcr.io/omargad/bangla-adventure@sha256:fc6f52720d3ecf55998e56a2432ffd5a782d3db231323874daf0b6d0357efca2'
@@ -73,8 +76,8 @@ while IFS= read -r line || [ -n "$line" ]; do
   printf '%s\n' "$line" > "$work/host_line"
   actual="$(ssh-keygen -l -E sha256 -f "$work/host_line" 2>/dev/null | awk '{print $2}')" || fail 'Server key fingerprint failed.'
   [ "$actual" = "$host_pin" ] || fail 'Server key fingerprint does not match the verified VPS.'
-  ssh-keygen -F "$host" -f "$work/host_line" >/dev/null 2>&1 || fail 'The verified public key does not cover the fixed VPS address.'
-  # Export only the fixed address and verified PUBLIC server key, never comments or a private key.
+  ssh-keygen -F "$host" -f "$work/host_line" >/dev/null 2>&1 || fail 'The verified public key does not cover the configured VPS address.'
+  # Export only the configured address and verified PUBLIC server key, never comments or a private key.
   printf '%s %s %s\n' "$host" "$key_type" "$key_data" >> "$work/known_hosts"
 done < "$work/provided_hosts"
 [ -s "$work/known_hosts" ] || fail 'No pinned server public key was supplied.'
@@ -103,7 +106,8 @@ if ! ssh "${ssh_options[@]}" -o ClearAllForwardings=yes "$user@$host" 'bash -s' 
 set -euo pipefail
 phase=identity
 fail() { printf '{"scope":"private-staging","inventory":"refused","phase":"%s"}\n' "$phase"; exit 1; }
-[ "$(id -un)" = deployer ] && [ "$(id -u)" = 1002 ] || fail
+# UID 1002 pins the deployment account whatever its configured name.
+[ "$(id -u)" = 1002 ] || fail
 phase=parent-directory
 [ -d /opt/bangla-adventures ] && [ ! -L /opt/bangla-adventures ] && [ -w /opt/bangla-adventures ] || fail
 [ "$(realpath -e /opt/bangla-adventures)" = /opt/bangla-adventures ] || fail
@@ -312,10 +316,10 @@ qa_id="$(python3 -c 'import secrets;print(secrets.token_hex(12))')"
 qa_socket="/opt/bangla-adventures/private-staging/qa/$qa_id/runtime/http.sock"
 qa_hook="$work/qa-controller"
 attempt_phase=qa-prepare
-python3 - "$qa_hook" "$work/qa-config.json" "$qa_id" "$image" "$revision" "${ssh_options[@]}" <<'HOOK'
+python3 - "$qa_hook" "$work/qa-config.json" "$qa_id" "$image" "$revision" "$user@$host" "${ssh_options[@]}" <<'HOOK'
 import json,os,sys
-hook,config,qa_id,image,revision=sys.argv[1:6]
-with open(config,"w") as output: json.dump({"ssh":["ssh",*sys.argv[6:],"-o","ClearAllForwardings=yes","deployer@203.0.113.10"],"id":qa_id,"image":image,"revision":revision},output)
+hook,config,qa_id,image,revision,destination=sys.argv[1:7]
+with open(config,"w") as output: json.dump({"ssh":["ssh",*sys.argv[7:],"-o","ClearAllForwardings=yes",destination],"id":qa_id,"image":image,"revision":revision},output)
 source=r'''#!/usr/bin/env python3
 import json,subprocess,sys
 from pathlib import Path

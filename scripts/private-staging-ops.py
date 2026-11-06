@@ -142,7 +142,7 @@ def validate_installation() -> None:
 
 
 def platform(*, operations: bool = True) -> None:
-    require(os.getuid() == 1002 and command(["id", "-un"]).stdout.strip() == "deployer", "wrong-user")
+    require(os.getuid() == 1002, "wrong-user")
     private_dir(STAGE)
     if operations:
         private_dir(OPS)

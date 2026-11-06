@@ -6,7 +6,7 @@ configure GitHub Secrets, or enable deployment.
 
 | Setting | Prepared value |
 | --- | --- |
-| SSH destination | `deployer@203.0.113.10`, port `22` |
+| SSH destination | `$DEPLOY_USER@$DEPLOY_HOST`, port `22` (see [Repository variables](#repository-variables)) |
 | Deployment directory | `/opt/bangla-adventures` |
 | Docker endpoint | `unix:///run/user/1002/docker.sock` |
 | Named Docker context | `rootless` |
@@ -19,18 +19,45 @@ The website and API run in the same Next.js container. There is no separate
 backend container requiring port `8001`. Keep the application port on loopback;
 Nginx handles public ports 80 and 443.
 
+## Repository variables
+
+The repository is public, so the server's address and SSH account are not
+written in it. Every VPS workflow (the CI deployment, SSH preflight, image
+preflight, private staging and private acceptance) reads them from two
+**repository** variables (Settings > Secrets and variables > Actions > Variables):
+
+| Variable | Value |
+| --- | --- |
+| `DEPLOY_HOST` | The VPS address given in Faysal's server handover email |
+| `DEPLOY_USER` | The SSH deployment account from the same email (UID `1002` on the server) |
+
+Both are required. The preflight, private staging and private acceptance
+workflows stop with a fixed message before any SSH contact when either is
+missing or malformed. The CI deployment is skipped while `DEPLOY_HOST` is unset;
+without `DEPLOY_USER` the portable script falls back to a `deploy` account, so
+set both before enabling it. The workflows' own messages report only whether
+each is set. GitHub still lists a step's variable values in its run log, which
+is public for a public repository: the variables keep the values out of the
+source, not out of run logs.
+
+The address is not a trust anchor. Every connection still requires the server
+host key to match the pinned `SHA256:79xe+ubCodL2ACAHPNloo7I/K6mvngU88vEiFoEeWL8`
+fingerprint, so a wrong or altered `DEPLOY_HOST` fails host-key verification
+instead of reaching another machine. The private staging checks and the image
+preflight also require the account to have UID `1002` on the server.
+
 ## Settings to complete
 
 The non-secret GitHub variable template is
 [`deploy/vps.github-variables.env.example`](../deploy/vps.github-variables.env.example).
-Set `DEPLOY_ENABLED` and `DEPLOY_HOST` as **repository** variables: the job gate
-reads both before the production environment loads. Keep `DEPLOY_ENABLED=false`
-until the checks below are complete. Other deployment variables and `DEPLOY_SSH_KEY` may
-belong to the `production` environment. Configure an environment reviewer if the
+Set `DEPLOY_ENABLED`, `DEPLOY_HOST` and `DEPLOY_USER` as **repository** variables:
+the job gate reads the first two before the production environment loads. Keep
+`DEPLOY_ENABLED=false` until the checks below are complete. Other deployment
+variables and `DEPLOY_SSH_KEY` may belong to the `production` environment. Configure an environment reviewer if the
 client wants approval before each release.
 
 `DEPLOY_SSH_KEY` must contain the existing private key corresponding to the public
-key installed for `deployer`. Its expected fingerprint is
+key installed for the `DEPLOY_USER` account. Its expected fingerprint is
 `SHA256:y1+C6cvcfpJFmO8pfjyMSFERpd5BtcQyDf5SptZXVlQ`; the public key in the email
 has been checked against that fingerprint. The private key is not present in this
 configuration. Use an approved secret-sharing or GitHub Secrets workflow.
@@ -43,7 +70,7 @@ matching key; unverified additional keys are rejected. Host-key collection alone
 does not establish trust. This preparation has not contacted the server or
 verified its actual host key.
 
-As `deployer`, create the server `.env` from
+As the deployment user, create the server `.env` from
 [`deploy/vps.app.env.example`](../deploy/vps.app.env.example) with mode `0600`.
 Fill `PUBLIC_ORIGIN` with the final `https://` origin once the domain is confirmed.
 An empty origin deliberately prevents deployment. Keep the same
@@ -113,7 +140,7 @@ one exists. **Image rollback does not restore the database or uploaded files.**
 The first deployment has no previous image; data restoration is a separate,
 explicit operation using the saved backup.
 
-For manual administration as `deployer`, select the same daemon before invoking
+For manual administration as the deployment user, select the same daemon before invoking
 Compose, backup or recovery commands:
 
 ```sh
