@@ -172,11 +172,13 @@ export async function parentClassSources(parentId: string): Promise<Record<strin
   const db = await getDb();
   const parent = db.select({ id: adults.id }).from(adults).where(and(eq(adults.id, parentId), eq(adults.role, "parent"), eq(adults.status, "active"))).get();
   if (!parent) throw refuse({ en: "Parent access required.", bn: "অভিভাবকের অ্যাকাউন্ট দরকার।" }, 403);
+  // Only the classes of children whose accounts are in use, as on the parent overview.
   const rows = db.select({ classId: studentClassEnrollments.classId })
     .from(parentStudentLinks)
+    .innerJoin(students, eq(parentStudentLinks.studentId, students.id))
     .innerJoin(studentClassEnrollments, eq(parentStudentLinks.studentId, studentClassEnrollments.studentId))
     .innerJoin(classStudents, and(eq(studentClassEnrollments.classStudentId, classStudents.id), eq(classStudents.classId, studentClassEnrollments.classId)))
-    .where(and(eq(parentStudentLinks.parentId, parent.id), eq(studentClassEnrollments.active, true))).all();
+    .where(and(eq(parentStudentLinks.parentId, parent.id), eq(students.status, "active"), eq(students.approvalStatus, "approved"), eq(studentClassEnrollments.active, true))).all();
   const classIds = [...new Set(rows.map((row) => row.classId))];
   const byClass: Record<string, ClassSource[]> = Object.fromEntries(classIds.map((id) => [id, []]));
   for (const source of await sourcesOf(classIds)) byClass[source.classId].push(source);

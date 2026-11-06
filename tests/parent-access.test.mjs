@@ -95,6 +95,25 @@ test("a child account no administrator has approved cannot be linked to a family
   assert.ok(!(await getParentOverview("parent-a")).children.some((child) => child.id.startsWith("child-waiting") || child.id === "child-declined"));
 });
 
+test("a suspended child disappears from the parent view, cannot be newly linked, and returns when reactivated", async () => {
+  const { parentClassSources } = await import("../lib/class-sources.ts");
+  assert.deepEqual((await getParentOverview("parent-b")).children.map((child) => child.id), ["child-b"]);
+  assert.deepEqual(Object.keys(await parentClassSources("parent-b")), ["class"]);
+  db.update(students).set({ status: "suspended" }).where(eq(students.id, "child-b")).run();
+  try {
+    const overview = await getParentOverview("parent-b");
+    assert.deepEqual(overview.children, [], "no classes, results or attendance of a suspended child");
+    assert.deepEqual(overview.announcements, []);
+    assert.deepEqual(await parentClassSources("parent-b"), {}, "no class sources either");
+    assert.ok(!(await getParentOverview("parent-a")).children.some((child) => child.id === "child-b"));
+    await unlinkParent("admin", "child-b", "parent-b");
+    await assert.rejects(linkParent("admin", "child-b", "b@example.com"), (error) => error.status === 409 && /Reactivate this student/.test(error.message) && Boolean(error.messageBn));
+    assert.deepEqual(await listParents("admin", "child-b").then((links) => links.map((link) => link.parentId)), ["parent-a"], "existing links are kept");
+  } finally { db.update(students).set({ status: "active" }).where(eq(students.id, "child-b")).run(); }
+  await linkParent("admin", "child-b", "b@example.com");
+  assert.deepEqual((await getParentOverview("parent-b")).children.map((child) => child.id), ["child-b"]);
+});
+
 test("only administration can unlink and revoked links stop exposing data immediately", async () => {
   await assert.rejects(unlinkParent("parent-a", "child-a", "parent-a"), /Administrator/);
   await unlinkParent("admin", "child-a", "parent-a");

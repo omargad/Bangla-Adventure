@@ -32,8 +32,10 @@ export async function linkParent(actorId: string, studentId: string, parentEmail
     const parent = tx.select({ id: adults.id }).from(adults)
       .where(and(eq(adults.email, parentEmail.trim().toLowerCase()), eq(adults.role, "parent"), eq(adults.status, "active"), eq(adults.approvalStatus, "approved"))).get();
     if (!parent) throw new UserManagementError("No active parent account matches that email.", 404, "এই ইমেইলে কোনো সক্রিয় অভিভাবক অ্যাকাউন্ট নেই।");
-    const student = tx.select({ approvalStatus: students.approvalStatus }).from(students).where(eq(students.id, studentId)).get();
+    const student = tx.select({ approvalStatus: students.approvalStatus, status: students.status }).from(students).where(eq(students.id, studentId)).get();
     if (!student) throw new UserManagementError("Student not found.", 404, "শিক্ষার্থী পাওয়া যায়নি।");
+    // A suspended child is not shown to any family, so a new link would show nothing until it is reactivated.
+    if (student.status !== "active") throw new UserManagementError("Reactivate this student account before linking a parent.", 409, "অভিভাবক যুক্ত করার আগে শিক্ষার্থীর অ্যাকাউন্টটি আবার চালু করুন।");
     // A self-registered child no administrator has approved is not shown to any family.
     if (student.approvalStatus !== "approved") throw new UserManagementError("Approve this student account before linking a parent.", 409, "অভিভাবক যুক্ত করার আগে শিক্ষার্থীর অ্যাকাউন্টটি অনুমোদন করুন।");
     const link = tx.insert(parentStudentLinks).values({ id: crypto.randomUUID(), parentId: parent.id, studentId })
@@ -59,9 +61,11 @@ export async function getParentOverview(parentId: string) {
   return db.transaction((tx) => {
     const parent = tx.select({ id: adults.id }).from(adults).where(and(eq(adults.id, parentId), eq(adults.role, "parent"), eq(adults.status, "active"))).get();
     if (!parent) throw new UserManagementError("Parent access required.", 403, "অভিভাবকের অ্যাকাউন্ট প্রয়োজন।");
+    // Only children whose accounts are in use: a suspended (or not yet approved) child's records are not shown,
+    // as their own sign-in is closed too. The link stays and the records return once the account is reactivated.
     const children = tx.select({ id: students.id, username: students.username, displayName: students.displayName, status: students.status })
       .from(parentStudentLinks).innerJoin(students, eq(parentStudentLinks.studentId, students.id))
-      .where(eq(parentStudentLinks.parentId, parent.id)).orderBy(students.displayName, students.id).all();
+      .where(and(eq(parentStudentLinks.parentId, parent.id), eq(students.status, "active"), eq(students.approvalStatus, "approved"))).orderBy(students.displayName, students.id).all();
     const ids = children.map((child) => child.id);
     const enrollments = ids.length ? tx.select({ studentId: studentClassEnrollments.studentId, classStudentId: classStudents.id, classId: classes.id, name: classes.name, teacherName: adults.displayName })
       .from(studentClassEnrollments)
