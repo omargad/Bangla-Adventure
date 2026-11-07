@@ -18,7 +18,7 @@ const revision = 'a709cb3d2bc9fb0a271e6814bc96d1f16444c94f';
 const serverWorkflows = readdirSync(path.join(root, '.github/workflows')).filter((name) => name.startsWith('vps-')).sort();
 
 test('every server workflow is gated on the repository ID, never on an owner name', () => {
-  assert.deepEqual(serverWorkflows, ['vps-acceptance.yml', 'vps-image-preflight.yml', 'vps-private-staging.yml',
+  assert.deepEqual(serverWorkflows, ['vps-acceptance.yml', 'vps-image-preflight.yml', 'vps-offsite-rehearsal.yml', 'vps-private-staging.yml',
     'vps-production-ops.yml', 'vps-production-status.yml', 'vps-ssh-preflight.yml']);
   for (const name of readdirSync(path.join(root, '.github/workflows'))) {
     const text = read(`.github/workflows/${name}`);

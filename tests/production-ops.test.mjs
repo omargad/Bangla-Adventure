@@ -101,7 +101,7 @@ test('both production workflows are gated on an enabled production deployment on
   assert.equal(ops.jobs.operate.steps.find((item) => item.env?.DEPLOY_HOST).env.APPROVED_STATUS_KEY, '${{ needs.validate.outputs.status_key }}');
   // Every VPS workflow passes the known_hosts line only with the address secret.
   for (const name of ['ci.yml', 'vps-ssh-preflight.yml', 'vps-image-preflight.yml', 'vps-private-staging.yml', 'vps-acceptance.yml',
-    'vps-production-ops.yml', 'vps-production-status.yml']) {
+    'vps-offsite-rehearsal.yml', 'vps-production-ops.yml', 'vps-production-status.yml']) {
     const lines = read(`.github/workflows/${name}`).split('\n').filter((line) => /^\s+DEPLOY_KNOWN_HOSTS:/.test(line));
     assert.ok(lines.length > 0, name);
     for (const line of lines) assert.equal(line.trim(), `DEPLOY_KNOWN_HOSTS: ${guarded}`, name);
