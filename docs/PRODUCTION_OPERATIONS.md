@@ -403,8 +403,8 @@ does, except the upload to the client's storage. It needs no client credential a
 nothing off the server.
 
 To run it, open **Actions > VPS off-site rehearsal > Run workflow** on `main`, tick
-**confirm_offsite_rehearsal** and start it; the `production` environment's reviewer
-approves it like the other server workflows. It takes about a minute plus the time to read
+**confirm_offsite_rehearsal** and start it; a configured reviewer of the `production`
+environment approves it, as for the other server workflows. It takes about a minute plus the time to read
 the archive a few times. It runs only in the production repository, on `main`, while the
 repository variable `DEPLOY_ENABLED` is unset or `false` (the private staging gates), and
 it shares the private staging concurrency group, so it never overlaps a staging start or

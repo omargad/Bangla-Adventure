@@ -3,7 +3,6 @@ Docker. No SSH, Docker or restic is used."""
 from __future__ import annotations
 
 import importlib.util
-import io
 import json
 import os
 from pathlib import Path
@@ -515,6 +514,38 @@ class ServerTests(unittest.TestCase):
                 value, status = self.run_rehearsal(FakeDocker(self, stop_at=step))
                 self.assertEqual((status, value['codes']), (1, ['interrupted']))
                 self.assertTrue(value['cleanup']['workspaceRemoved'] and value['cleanup']['passwordRemoved'] and value['cleanup']['helpersRemoved'])
+
+    def test_a_backup_without_a_snapshot_summary_is_named_after_its_step(self):
+        # The production helper that reads the summary raises the production tool's own refusal.
+        docker = FakeDocker(self)
+        real = docker.start
+
+        def start(options, data):
+            entry = docker.option(options, '--entrypoint')[0]
+            result = real(options, data)
+            return (0, 'no summary') if entry == '/usr/bin/restic' and options[options.index(entry) + 2] == 'backup' else result
+        docker.start = start
+        value, status = self.run_rehearsal(docker)
+        self.assertEqual((status, value['codes'], value['steps']['backup']), (1, ['rehearsal-backup-failed'], 'failed'))
+
+    def test_a_stop_request_while_the_folder_is_made_still_removes_it(self):
+        real = os.mkdir
+
+        def mkdir(path, mode=0o777, **kwargs):
+            real(path, mode, **kwargs)
+            if rehearsal.WORKSPACE.fullmatch(Path(path).name):
+                raise stage.Stopped()
+        with patch.object(rehearsal.os, 'mkdir', mkdir):
+            value, status = self.run_rehearsal(FakeDocker(self))
+        self.assertEqual((status, value['codes'], value['steps']['cleanup']), (1, ['interrupted'], 'passed'))
+        self.assertTrue(value['cleanup']['workspaceRemoved'])
+
+    def test_a_stop_request_while_the_staging_status_is_read_still_returns_the_result(self):
+        def stopped(self):
+            raise stage.Stopped()
+        with patch.object(rehearsal.Rehearsal, 'staging_status', stopped):
+            value, status = self.run_rehearsal(FakeDocker(self))
+        self.assertEqual((status, value['status'], value['staging']), (0, 'passed', None))
 
     def test_a_real_stop_signal_during_a_step_runs_the_cleanup_without_interruption(self):
         docker = FakeDocker(self)

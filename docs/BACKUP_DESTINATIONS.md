@@ -17,10 +17,10 @@ The off-site copy sends each night's backup to a storage service you choose, in 
 different company's data centre. It is encrypted on our server with
 [restic](https://restic.net) **before** it leaves, using a password only you and the
 server hold, so the storage company cannot read the children's records or voices. It is
-ready on the server but switched off until you choose a destination
-([Off-site copies](PRODUCTION_OPERATIONS.md#off-site-copies)). We have already rehearsed
-it on the server with a throwaway local repository
-([Off-site rehearsal](PRODUCTION_OPERATIONS.md#off-site-rehearsal)), so only your
+built and installed with the site, but stays switched off until you choose a destination
+([Off-site copies](PRODUCTION_OPERATIONS.md#off-site-copies)). Meanwhile we rehearse it
+on the server with a throwaway local repository that never leaves it
+([Off-site rehearsal](PRODUCTION_OPERATIONS.md#off-site-rehearsal)), so that only your
 destination and its key are missing.
 
 ## How much space, and what it costs
@@ -65,7 +65,7 @@ over HTTPS.
 | **Backblaze B2** (recommended) | `s3:` to B2's S3 endpoint | US West (no Asia-Pacific region) | US$6.95 per TB a month | Downloads free up to 3 times what is stored; requests free | First 10 GB, always | Region chosen at sign-up, cannot change |
 | **Cloudflare R2** (runner-up) | `s3:` to the account's R2 endpoint | "Oceania" or "Asia-Pacific" hint, best effort | US$0.015 per GB a month | Downloads always free; uploads US$4.50 per million requests | 10 GB a month | Needs a payment card before keys can be made; no deletion lock usable with restic |
 | Amazon S3 | `s3:` with the region set | Sydney or Melbourne | US$0.025 per GB a month (Sydney) | First 100 GB a month free, then US$0.114 per GB | New-account credits only | Nonprofit credits exclude schools |
-| Wasabi | `s3:` to the regional endpoint | Sydney; Singapore for Bangladesh | US$7.99 per TB a month | Free | 30-day trial | Charged for at least 1 TB (US$7.99 a month) and 90 days per file |
+| Wasabi | `s3:` to the regional endpoint | Sydney; Singapore for Bangladesh | US$7.99 per TB a month | Free, subject to Wasabi's free-egress policy | 30-day trial | Charged for at least 1 TB (US$7.99 a month) and 90 days per file |
 | Microsoft Azure Blob | `azure:` with an account name and a SAS key | Australia East or Southeast | US$0.02 per GB a month (Hot) | First 100 GB a month free | 12 months for new accounts | More set-up; nonprofit grant excludes nonprofit schools |
 | Google Cloud Storage | `gs:` with a service-account key file | Sydney or Melbourne | US$0.023 per GB a month | US$0.19 per GB to Australia | None in Australian regions | Deleted data billed 7 more days by default |
 | Your own restic REST server | `rest:https://` | Wherever you put it | No fee: your hardware and power | Your internet connection | Free software | Needs an always-on machine, a public HTTPS name with a trusted certificate, and someone to look after it |
@@ -195,8 +195,8 @@ are deleted automatically, after each night's copy succeeds.
 
 Until you confirm, **nothing is deleted off-site** and every nightly copy is kept, which
 only grows the storage bill (see the table above). You can choose different numbers, or
-keep everything for longer; tell us and we set them. On the server the rehearsal has
-already previewed this policy without deleting anything
+keep everything for longer; tell us and we set them. The rehearsal on the server
+previews this policy without deleting anything
 ([Off-site rehearsal](PRODUCTION_OPERATIONS.md#off-site-rehearsal)).
 
 The 14 backups kept on the server itself are separate and stay as they are.

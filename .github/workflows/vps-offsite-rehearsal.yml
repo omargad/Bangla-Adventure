@@ -73,6 +73,7 @@ jobs:
       inputs.confirm_offsite_rehearsal == true
     runs-on: ubuntu-latest
     timeout-minutes: 1
+    permissions: {}
     steps:
       - name: Require repository production deployment to remain disabled before loading its environment
         env:

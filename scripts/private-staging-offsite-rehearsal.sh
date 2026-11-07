@@ -111,7 +111,7 @@ ssh "${ssh_options[@]}" "$user@$host" \
   "env -i HOME=\"\$HOME\" PATH=/usr/local/bin:/usr/bin:/bin LANG=C.UTF-8 python3 -I $(quote "$incoming/private-staging-offsite-rehearsal.py") $(quote "$incoming")" \
   </dev/null > "$work/result.json" 2> "$work/rehearsal.log" || result=$?
 if [ "$result" -eq 255 ] && [ ! -s "$work/result.json" ]; then
-  fail 'the SSH connection was lost during the rehearsal; the server removes the throwaway repository when the connection drops, and the next run removes anything a lost run left. Run it again.'
+  fail 'the SSH connection was lost during the rehearsal; the rehearsal on the server still finishes and removes its throwaway repository, and the next run removes anything a killed run left. Run it again.'
 fi
 
 # Prints fixed lines only, from validated fields; the JSON result is rebuilt from the same fields.

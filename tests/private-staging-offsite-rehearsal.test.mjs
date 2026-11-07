@@ -35,6 +35,8 @@ test('the rehearsal workflow is manual, confirmed and behind the private staging
   const acceptance = yaml.load(read('.github/workflows/vps-acceptance.yml'));
   assert.deepEqual(settings.steps, acceptance.jobs['repository-settings'].steps, 'the same DEPLOY_ENABLED gate as private acceptance');
   assert.equal(settings.environment, undefined);
+  assert.deepEqual(settings.permissions, {}, 'the settings gate needs no token permission');
+  assert.deepEqual(document.jobs['other-repository'].permissions, {});
   assert.equal(validate.environment, undefined, 'validate runs before any credential');
   assert.doesNotMatch(JSON.stringify(validate), /secrets\./);
   assert.match(validate.steps.at(-1).run, /private_staging_offsite_rehearsal_test\.py/);

@@ -198,8 +198,9 @@ class Rehearsal:
         stage.private_dir(stage.STAGE)
         path = stage.STAGE / (".offsite-rehearsal-" + self.token)
         require(not os.path.lexists(path), "workspace-exists")
-        os.mkdir(path, 0o700)
+        # Recorded before it exists, so a stop request right after mkdir still has it removed.
         self.workspace = path
+        os.mkdir(path, 0o700)
         stage.private_dir(path)
         # Writable by the container user through the deployment user's group (group 0 inside it),
         # never by anyone else: the folder around them is 0700.
@@ -252,12 +253,15 @@ class Rehearsal:
         self.result["steps"][name] = "failed"
         try:
             value = action()
-        except Refused as exc:
-            # A failed command, or the production tool's own code, is named after this step.
+        except (Refused, prod.Refused) as exc:
+            # A failed command, or the production tool's own code (its helpers raise its own Refused),
+            # is named after this step.
             if exc.code in ("command-failed", "offsite-unverified"):
                 raise Refused(code) from exc
             if exc.code.startswith("offsite-"):
                 raise Refused("rehearsal-" + exc.code[len("offsite-"):]) from exc
+            if isinstance(exc, prod.Refused):
+                raise Refused(code) from exc
             raise
         self.result["steps"][name] = "passed"
         return value
@@ -466,7 +470,9 @@ def main(argv: list[str]) -> tuple[dict, int]:
             stage.restore_signals(previous)
     try:
         run.result["staging"] = run.staging_status()
-    except Exception:  # Read-only and informative: it never changes the rehearsal's result.
+    except (Exception, KeyboardInterrupt, stage.Stopped):
+        # Read-only and informative: neither a failure nor a stop request here changes the
+        # rehearsal's result, which is still printed.
         run.result["staging"] = None
     deferred = codes == ["transaction-busy"]
     run.result.update(verified=not codes, status="passed" if not codes else "deferred" if deferred else "failed",
@@ -481,6 +487,8 @@ if __name__ == "__main__":
     for number in (signal.SIGTERM, signal.SIGHUP):
         signal.signal(number, stage.interrupted)
     value, status = main(sys.argv)
+    # The result is printed whole: a stop request now no longer interrupts anything.
+    stage.quiet_signals()
     try:
         print(json.dumps(value, separators=(",", ":")), flush=True)
     except OSError:
