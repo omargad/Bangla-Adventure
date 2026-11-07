@@ -135,5 +135,11 @@ timer; use the final live installation and exercise results.
 
 The client must still supply production backup location, retention, credentials,
 key custodian and operational/alert owner before production offsite jobs or
-external notifications are activated. Existing offsite scripts and restoration
-instructions are documented in [BACKUP_RESTORE.md](BACKUP_RESTORE.md).
+external notifications are activated ([BACKUP_DESTINATIONS.md](BACKUP_DESTINATIONS.md)).
+Existing offsite scripts and restoration instructions are documented in
+[BACKUP_RESTORE.md](BACKUP_RESTORE.md).
+
+The **VPS off-site rehearsal** workflow reads the newest staging archive, under
+the staging lock, to rehearse the production off-site copy with a throwaway
+local restic repository, and reads these timers' status without changing them
+([Off-site rehearsal](PRODUCTION_OPERATIONS.md#off-site-rehearsal)).

@@ -248,6 +248,13 @@ repository chosen by the client, encrypted before it leaves the server. It is
 **inert until configured**: the unit only starts when
 `~/.config/bangla-adventures/offsite.env` exists.
 
+[Choosing the off-site backup destination](BACKUP_DESTINATIONS.md) is the guide for the
+client: the options and their cost, the recommendation (Backblaze B2 through its S3
+endpoint), how to make a key limited to one bucket, what to send and how, the key
+custodian and the retention decision. Until the client answers, the
+[Off-site rehearsal](#off-site-rehearsal) proves the same restic container on the server
+with a throwaway local repository.
+
 Because the archives are readable only from a container, restic runs in the
 official image, pinned by digest:
 
@@ -276,7 +283,7 @@ container mode:
 | Repository | Settings in `offsite.env` |
 | --- | --- |
 | `s3:` (Amazon S3 or compatible, HTTPS only) | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, optional `AWS_DEFAULT_REGION`, `AWS_SESSION_TOKEN` |
-| `b2:` (Backblaze B2) | `B2_ACCOUNT_ID`, `B2_ACCOUNT_KEY` |
+| `b2:` (Backblaze B2, native) | `B2_ACCOUNT_ID`, `B2_ACCOUNT_KEY`; restic's documentation recommends B2's S3 endpoint through `s3:` instead |
 | `rest:https://` (restic REST server) | Optional `RESTIC_REST_USERNAME`, `RESTIC_REST_PASSWORD` |
 | `azure:` | `AZURE_ACCOUNT_NAME` with `AZURE_ACCOUNT_KEY` or `AZURE_ACCOUNT_SAS`, optional `AZURE_ENDPOINT_SUFFIX` |
 | `gs:` (Google Cloud Storage) | `GOOGLE_PROJECT_ID`, plus a service-account key in `gcs-key.json` beside `offsite.env` |
@@ -302,17 +309,22 @@ chmod 0640 restic-password
 ```
 
 `offsite.env` holds one `NAME=value` per line, without quotes (Docker passes
-values exactly as written), for example:
+values exactly as written), for example for Backblaze B2 through its S3 endpoint
+(the bucket page shows the endpoint; the key is the bucket-limited application key from
+[Setting up Backblaze B2](BACKUP_DESTINATIONS.md#setting-up-backblaze-b2)):
 
 ```dotenv
-RESTIC_REPOSITORY=b2:CLIENT-BUCKET:bangla-adventures
-B2_ACCOUNT_ID=CLIENT-KEY-ID
-B2_ACCOUNT_KEY=CLIENT-APPLICATION-KEY
+RESTIC_REPOSITORY=s3:https://s3.CLIENT-REGION.backblazeb2.com/CLIENT-BUCKET/bangla-adventures
+AWS_ACCESS_KEY_ID=CLIENT-KEY-ID
+AWS_SECRET_ACCESS_KEY=CLIENT-APPLICATION-KEY
 # Optional retention; see below.
 RESTIC_KEEP_DAILY=14
 RESTIC_KEEP_WEEKLY=8
 RESTIC_KEEP_MONTHLY=6
 ```
+
+On B2's S3 endpoint a deletion only hides a file, so the bucket's lifecycle rule must be
+**Keep only the last version of the file**, or `prune` frees no space.
 
 The files must belong to the deployment user, in a folder nobody else can
 change. `offsite.env` must be `0600`, because only the Docker command line reads
@@ -380,7 +392,118 @@ Setting only some of the three, or a zero, is refused
 
 The **proposed policy is 14 daily, 8 weekly and 6 monthly copies**, about six
 months of history. It is a suggestion awaiting the client's agreement, together
-with the destination, its cost and who holds the password.
+with the destination, its cost and who holds the password
+([The retention decision](BACKUP_DESTINATIONS.md#the-retention-decision)).
+
+## Off-site rehearsal
+
+Before the client has chosen a destination, and before production exists, the
+**VPS off-site rehearsal** workflow proves on the real server everything the off-site job
+does, except the upload to the client's storage. It needs no client credential and sends
+nothing off the server.
+
+To run it, open **Actions > VPS off-site rehearsal > Run workflow** on `main`, tick
+**confirm_offsite_rehearsal** and start it; a configured reviewer of the `production`
+environment approves it, as for the other server workflows. It takes about a minute plus the time to read
+the archive a few times. It runs only in the production repository, on `main`, while the
+repository variable `DEPLOY_ENABLED` is unset or `false` (the private staging gates), and
+it shares the private staging concurrency group, so it never overlaps a staging start or
+an acceptance run. Without the tick, the controller refuses before loading any key or
+connecting. It connects as private staging does: the `DEPLOY_HOST` and `DEPLOY_USER`
+secrets, the deploy key and the server host key checked against their pins first, and
+neither the address nor the account is ever printed. Avoid 03:30 UTC, when the staging
+backup runs.
+
+On the server, as the deployment user (UID `1002`) and from a private upload folder that
+is removed afterwards (`scripts/private-staging-offsite-rehearsal.sh` uploads
+`private-staging-offsite-rehearsal.py` with the staging and production operations tools,
+which it uses unchanged as libraries), it:
+
+1. checks the private staging scope exactly as the staging jobs do (account, private
+   folder, marker, release manifest, pinned image, rootless daemon, data volume), then
+   takes the staging deploy lock, waiting up to 10 minutes for a staging backup, deploy or
+   check, and checks the scope again; it holds the lock until its clean-up has finished,
+   so no staging backup can rotate the archive away while it is read;
+2. reads the newest staging archive named by `.latest-backup.json` in the staging archive
+   volume, checks its SHA-256 against that receipt and runs the project's own
+   `backup_restore.py verify` on it (manifest, file checksums and SQLite integrity);
+3. creates a new private folder,
+   `/opt/bangla-adventures/private-staging/.offsite-rehearsal-RANDOM` (mode `0700`), with
+   a random repository password made there (`0640`, read by the container through the
+   deployment user's own group, as in production) that is never printed;
+4. pulls the pinned restic image if it is not already present (the only network use),
+   then runs the production job's restic container, with `--network none`, against the
+   throwaway `local:/repository`: `init`; `backup` of `/backups/NAME` with the production
+   host name and tag, confirmed by `snapshots`; `check --read-data`;
+5. previews the proposed retention with
+   `forget --dry-run --group-by host,tags --keep-daily 14 --keep-weekly 8 --keep-monthly 6`
+   (it never runs `--prune` or deletes anything);
+6. restores the snapshot to a temporary folder with `restore --verify`, and proves the
+   restored file's SHA-256 equals the original's and that it passes the same archive
+   verification;
+7. removes the repository, the password and the restored files, and every helper
+   container, on every path (success, failure, a stop request or a dropped connection),
+   then shows that none of them remains; a folder left by a run that was killed outright
+   is removed by the next run before it starts;
+8. reads, without changing anything, the staging backup and monitor timers (enabled,
+   active, last triggered), their last results with codes and last success times, and
+   whether the staging operations installation still matches its record.
+
+It never changes the staging app, its data, its archives or timers, production, Nginx or
+the firewall. The containers run with no capabilities except, for the final clean-up only,
+`DAC_OVERRIDE` inside the user's own rootless namespace, so that files the restic user
+wrote can be removed.
+
+The run ends with fixed lines and a JSON result, also kept as the run's
+`offsite-rehearsal` artifact for 30 days and shown in the run summary:
+
+```text
+off-site rehearsal: passed; codes: none
+  newest staging archive: 42.0 MB, created 0.3 h ago, 5 files; SHA-256 and archive verification passed
+  restic 0.19.1 (pinned image, no network): image passed, init passed, backup passed, check --read-data passed
+  retention preview (forget --dry-run, keep 14 daily, 8 weekly, 6 monthly): passed; 1 kept, 0 would be removed
+  restore to a temporary folder: passed; SHA-256 equals the original: yes; archive verification (SQLite integrity): passed
+  clean-up: passed; throwaway repository, password and restored files removed and shown to be gone; left by earlier runs and removed: 0
+  private staging backup timer: enabled, active, last triggered 7.4 h ago; last run passed 7.4 h ago, last success 7.4 h ago; codes: none
+  private staging monitor timer: enabled, active, last triggered 0.0 h ago; last run healthy 0.0 h ago, last success 0.0 h ago; codes: none
+  private staging operations installation: valid
+```
+
+A staging timer that is failing does not fail the rehearsal; it is reported so that it
+can be fixed (run **VPS private acceptance** to reinstall the staging jobs). The
+rehearsal's own codes are:
+
+| Code | Meaning |
+| --- | --- |
+| `transaction-busy` | A staging backup, deploy or check held the staging lock for 10 minutes; the run deferred (run it again later) |
+| `payload-path` | The script was not started from the workflow's upload folder |
+| `archive-unreadable`, `archive-unverified` | The newest staging archive could not be read, or its SHA-256 or verification failed |
+| `disk-low` | Less than 1 GiB free, or less than three times the archive plus 1 GiB, before the repository was made |
+| `workspace-exists` | The new folder's random name was already taken |
+| `restic-image-unavailable` | The pinned restic image could not be pulled or does not carry the pinned digest |
+| `rehearsal-init-failed`, `rehearsal-backup-failed`, `rehearsal-check-failed` | That restic step failed |
+| `rehearsal-repository-missing`, `rehearsal-repository-locked`, `rehearsal-password-wrong` | restic exit codes 10, 11 and 12 |
+| `rehearsal-snapshot-unverified` | The new snapshot did not list exactly the archive |
+| `rehearsal-retention-preview-failed` | The dry-run `forget` failed or did not keep the new snapshot |
+| `rehearsal-restore-failed`, `restored-archive-unreadable` | The restore failed, or the restored file could not be read |
+| `rehearsal-restore-mismatch`, `rehearsal-restore-unverified` | The restored file differs from the original, or fails the archive verification |
+| `cleanup-failed`, `helper-cleanup-failed`, `helper-id`, `helper-identity` | Something of the rehearsal could not be shown to be removed: `ls -a /opt/bangla-adventures/private-staging` and `docker ps --all --filter label=io.bangla.scope=private-staging-offsite-rehearsal` (the next run removes a left folder first) |
+| `earlier-workspace-cleanup-failed` | A folder left by an earlier killed run could not be removed |
+| `interrupted` | A stop request or a dropped connection ended the run; the clean-up still ran |
+| `command-failed`, `command-unavailable-or-timeout`, `operation-failed` | A Docker command failed or ran past its time limit, or an unexpected error; the clean-up still ran |
+
+The staging scope codes (`wrong-user`, `stage-marker`, `release-scope`, `image-pin`,
+`non-rootless-daemon` and the others) are those of
+[Private staging operations](PRIVATE_STAGING_OPERATIONS.md).
+
+Proved locally on 7 November 2026 against a Docker daemon on a stand-in server (a UID
+1002 account, the staging folder and volumes laid out as on the VPS, and a real archive
+made by the staging backup command, 42 MB): a full run passed in 10 to 14 seconds; stop
+requests at 1, 3, 4, 5, 6, 7, 8 and 9 seconds, which fall in every step, each ended with
+`interrupted` and nothing left behind; a receipt whose SHA-256 did not match failed with
+`archive-unverified` and nothing left behind; after a `SIGKILL` left the folder, the next
+run removed it (`left by earlier runs and removed: 1`) and passed. That daemon was not
+rootless, so the local run is not a substitute for the run on the VPS.
 
 ## Reading status
 
