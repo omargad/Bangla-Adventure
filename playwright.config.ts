@@ -35,9 +35,9 @@ export default defineConfig({
       },
     },
     {
-      // The switch "Teachers' topics need an administrator's approval" is one setting for the whole
-      // installation, so the spec that turns it off runs on its own, before the other browser specs,
-      // and leaves it on as they expect.
+      // The "Who needs approval" switches (teachers' topics, class activities and class sources) are
+      // settings for the whole installation, so the spec that turns them off runs on its own, before
+      // the other browser specs, and leaves them on as they expect.
       name: "approval-setting",
       dependencies: ["fixture-publication"],
       testMatch: /approval-setting\.spec\.ts/,

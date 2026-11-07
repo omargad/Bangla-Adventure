@@ -43,7 +43,10 @@ const setApproval = (actor, on) => settings.setTeacherTopicApproval(actor, { tea
 test("with no stored setting a teacher's topic waits, and only an administrator can change the setting", async () => {
   assert.equal(db.select().from(appSettings).all().length, 0, "nothing is stored until an administrator changes it");
   assert.equal(settings.teacherTopicsNeedApproval(db), true, "an absent setting means approval is on");
-  assert.deepEqual(await settings.getApprovalSettings(), { teacherTopicsNeedApproval: true, changedByName: null, changedAt: null });
+  assert.deepEqual(await settings.getApprovalSettings(), {
+    teacherTopicsNeedApproval: true, teacherActivitiesNeedApproval: true, teacherSourcesNeedApproval: true, changedByName: null, changedAt: null,
+    lastChanged: { teacherTopicsNeedApproval: null, teacherActivitiesNeedApproval: null, teacherSourcesNeedApproval: null },
+  });
   assert.equal((await catalog.topicPublishing("teacher")).onSave, "review");
   assert.equal((await catalog.topicPublishing("admin")).onSave, "admin");
 

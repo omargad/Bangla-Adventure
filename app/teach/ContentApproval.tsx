@@ -5,11 +5,16 @@ import type { Language } from "@/lib/use-language";
 
 export type ApprovalState = "pending" | "approved" | "rejected";
 
-/** The server rechecks both Admin access and the exact revision being reviewed. */
-export default function ContentApproval({ language, status, reviewNote, isAdmin, onDecision }: {
+/**
+ * The server rechecks both Admin access and the exact revision being reviewed. `reviewedBy` is null for work approved
+ * at once because an administrator had switched off approval for teachers' class activities or class sources: no
+ * administrator is named as having reviewed it.
+ */
+export default function ContentApproval({ language, status, reviewNote, reviewedBy, isAdmin, onDecision }: {
   language: Language;
   status: ApprovalState;
   reviewNote?: string;
+  reviewedBy?: string | null;
   isAdmin: boolean;
   onDecision: (status: "approved" | "rejected", note: string) => Promise<void>;
 }) {
@@ -26,7 +31,7 @@ export default function ContentApproval({ language, status, reviewNote, isAdmin,
     finally { setBusy(false); }
   }
   return <div className="content-approval">
-    <p><strong>{status === "approved" ? s("Approved by Admin · published", "প্রশাসক অনুমোদিত · প্রকাশিত")
+    <p><strong>{status === "approved" ? (reviewedBy === null ? s("Approved · published", "অনুমোদিত · প্রকাশিত") : s("Approved by Admin · published", "প্রশাসক অনুমোদিত · প্রকাশিত"))
       : status === "rejected" ? s("Changes requested · not published", "সংশোধন চাওয়া হয়েছে · প্রকাশিত নয়")
       : s("Awaiting Admin approval · not published", "প্রশাসকের অনুমোদনের অপেক্ষায় · প্রকাশিত নয়")}</strong></p>
     {reviewNote && <p>{s("Review note", "পর্যালোচনার নোট")}: {reviewNote}</p>}

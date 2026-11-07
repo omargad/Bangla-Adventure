@@ -3,12 +3,18 @@ import Database from "better-sqlite3";
 import { randomUUID } from "node:crypto";
 
 /**
- * The administrator's switch "Teachers' topics need an administrator's approval". It is one setting for
- * the whole installation, so this spec runs in its own Playwright project before the other browser specs
- * (see playwright.config.ts) and always leaves the switch on, as every other spec expects.
+ * The administrator's "Who needs approval" switches: "Teachers' topics need an administrator's approval",
+ * "Teachers' class activities need an administrator's approval" and "Teachers' class sources need an
+ * administrator's approval". Each is one setting for the whole installation, so this spec runs in its own
+ * Playwright project before the other browser specs (see playwright.config.ts), one test at a time, and always
+ * leaves every switch on, as every other spec expects.
  */
+test.describe.configure({ mode: "serial" });
 const password = "Approval-setting-password-2026";
 const SWITCH = "Teachers' topics need an administrator's approval";
+const ACTIVITY_SWITCH = "Teachers' class activities need an administrator's approval";
+const SOURCE_SWITCH = "Teachers' class sources need an administrator's approval";
+const ALL_ON = { teacherTopicsNeedApproval: true, teacherActivitiesNeedApproval: true, teacherSourcesNeedApproval: true };
 
 function fixture(sql: string, ...values: Array<string | number>) {
   if (!process.env.BANGLA_E2E_DB?.includes("bangla-e2e-")) throw new Error("Isolated test database required.");
@@ -127,7 +133,143 @@ test("an administrator turns teachers' topic approval off and on; waiting edits 
     // Every other browser spec expects teachers' topics to wait.
     // (The checks above end with it on; this puts it back if the scenario stopped part way.)
     await adminPage.goto("/teach/topics").catch(() => undefined);
-    await api(adminPage, "PUT", "/api/admin/approval-settings", { teacherTopicsNeedApproval: true }).catch(() => undefined);
+    await api(adminPage, "PUT", "/api/admin/approval-settings", ALL_ON).catch(() => undefined);
     for (const context of [admin.context, teacher.context, tempAdmin.context, studentContext]) await context.close().catch(() => undefined);
+  }
+});
+
+test("an administrator turns approval for teachers' class activities and sources off and on; waiting work keeps waiting and the class workspace says what a save does", async ({ browser, baseURL }) => {
+  test.setTimeout(150000);
+  const suffix = randomUUID().slice(0, 8);
+  const admin = await staff(browser, baseURL, "class-setting-admin", suffix, "admin");
+  const teacher = await staff(browser, baseURL, "class-setting-teacher", suffix, "teacher");
+  const studentContext = await browser.newContext({ baseURL, extraHTTPHeaders: { "x-forwarded-for": `class-setting-student-${suffix}` } });
+  const adminPage = await admin.context.newPage();
+  try {
+    const teacherPage = await teacher.context.newPage(), student = await studentContext.newPage();
+    for (const page of [adminPage, teacherPage, student]) page.setDefaultTimeout(15000);
+    const username = `class-setting-${suffix}`, className = `Approval switch class ${suffix}`;
+    expect((await studentContext.request.post("/api/student/sign-up", { data: { username, displayName: "Switch learner", password } })).status()).toBe(201);
+    fixture("UPDATE students SET approval_status = 'approved' WHERE username = ?", username);
+    expect((await studentContext.request.post("/api/student/sign-in", { data: { username, password } })).status()).toBe(200);
+    await student.goto("/student");
+    const feed = async () => (await api(student, "GET", "/api/student/feed")).body.classes.find((item: { name: string }) => item.name === className);
+
+    // The teacher's class, with the student in it. Saved while approval is on, an activity and a source wait.
+    await teacherPage.goto("/teach");
+    const created = await api(teacherPage, "POST", "/api/classes", { name: className });
+    expect(created.status).toBe(201);
+    const classId = created.body.class.id;
+    expect((await api(teacherPage, "POST", `/api/classes/${classId}/students`, { username })).status).toBe(200);
+    const question = [{ prompt: "Which river?", options: ["Padma", "Thames"], answer: 0 }];
+    const waitingActivity = await api(teacherPage, "POST", `/api/classes/${classId}/activities`, { title: `Waiting quiz ${suffix}`, questions: question });
+    expect(waitingActivity.status).toBe(201);
+    expect(waitingActivity.body).toMatchObject({ publishedDirectly: null, activity: { approvalStatus: "pending" } });
+    const waitingSource = await api(teacherPage, "POST", `/api/classes/${classId}/sources`, { titleEn: `Waiting link ${suffix}`, url: "https://example.org/waiting" });
+    expect(waitingSource.status).toBe(201);
+    expect(waitingSource.body.source).toMatchObject({ approvalStatus: "pending", publishedDirectly: null });
+    expect((await api(teacherPage, "GET", `/api/classes/${classId}`)).body.publishing).toEqual({ activities: { onSave: "review", teachersNeedApproval: true } });
+
+    // Only an administrator changes the switches.
+    const denied = await api(teacherPage, "PUT", "/api/admin/approval-settings", { teacherActivitiesNeedApproval: false, teacherSourcesNeedApproval: false });
+    expect(denied.status).toBe(403);
+
+    // The administrator finds the switches under Administration › Who needs approval; all three are on.
+    await adminPage.goto("/admin");
+    await adminPage.getByRole("navigation", { name: "Portal navigation" }).getByRole("link", { name: "Who needs approval", exact: true }).click();
+    await expect(adminPage).toHaveURL(/\/admin\/approvals$/);
+    await expect(adminPage.getByRole("heading", { level: 1, name: "Who needs approval" })).toBeVisible();
+    const panel = adminPage.getByRole("region", { name: "Who needs approval" });
+    const topics = panel.getByRole("switch", { name: new RegExp(SWITCH) });
+    const activities = panel.getByRole("switch", { name: new RegExp(ACTIVITY_SWITCH) });
+    const sources = panel.getByRole("switch", { name: new RegExp(SOURCE_SWITCH) });
+    for (const toggle of [topics, activities, sources]) await expect(toggle).toBeChecked();
+    await expect(panel.getByRole("group", { name: ACTIVITY_SWITCH })).toContainText("On: an activity or quiz a teacher adds to their class waits in Activities & quizzes until an administrator approves it.");
+
+    // Turning each off says that what is waiting stays waiting; the topics switch is left alone.
+    await activities.click();
+    await expect(panel.getByRole("status")).toContainText("Approval for teachers' class activities is off.");
+    await expect(panel.getByRole("status")).toContainText("still waiting for approval: turning approval off does not publish");
+    await expect(activities).not.toBeChecked();
+    const activityGroup = panel.getByRole("group", { name: ACTIVITY_SWITCH });
+    await expect(activityGroup).toContainText("Off: an activity or quiz a teacher adds to their own class is published to the class as soon as they save it");
+    await expect(activityGroup.getByRole("note")).toContainText(/class activit(y is|ies are) still waiting for approval/);
+    await expect(activityGroup).toContainText(`Last changed by class-setting-admin ${suffix}`);
+    await sources.click();
+    await expect(panel.getByRole("status")).toContainText("Approval for teachers' class sources is off.");
+    await expect(sources).not.toBeChecked();
+    await expect(panel.getByRole("group", { name: SOURCE_SWITCH }).getByRole("note")).toContainText(/class sources? (is|are) still waiting for approval/);
+    await expect(topics).toBeChecked();
+    // The same panel is on the Topics page, showing the same settings.
+    await adminPage.goto("/teach/topics");
+    await expect(adminPage.getByRole("region", { name: "Who needs approval" }).getByRole("switch", { name: new RegExp(ACTIVITY_SWITCH) })).not.toBeChecked();
+
+    // The teacher's class workspace now says a new activity is published at once, and it is.
+    await teacherPage.goto("/teach");
+    await teacherPage.getByLabel("Find a class").fill(suffix);
+    await teacherPage.getByRole("button", { name: new RegExp(className) }).click();
+    const nav = teacherPage.getByRole("navigation", { name: "Portal navigation" });
+    await nav.getByRole("button", { name: "Activities & quizzes", exact: true }).click();
+    await expect(teacherPage.getByText("An administrator has switched off approval for teachers' class activities, so your new activities are published to the class as soon as you save them.", { exact: false })).toBeVisible();
+    await expect(teacherPage.getByRole("region", { name: "New activity" })).toContainText("Teachers' class activities do not need an administrator's approval at the moment");
+    await teacherPage.getByLabel("Activity title", { exact: true }).fill(`Published quiz ${suffix}`);
+    await teacherPage.getByLabel("Question 1", { exact: true }).fill("Which month starts the Bengali year?");
+    await teacherPage.getByLabel("Question 1 option 1", { exact: true }).fill("Boishakh");
+    await teacherPage.getByLabel("Question 1 option 2", { exact: true }).fill("Poush");
+    await teacherPage.getByRole("button", { name: "Publish to the class", exact: true }).click();
+    await expect(teacherPage.getByRole("status").filter({ hasText: "Activity published to the class." })).toContainText("teachers' class activities do not need an administrator's approval at the moment");
+    const published = teacherPage.getByRole("region", { name: "Activities and submissions" }).getByRole("article").filter({ hasText: `Published quiz ${suffix}` });
+    await expect(published).toContainText("Approved · published");
+    await expect(teacherPage.getByRole("region", { name: "Activities and submissions" }).getByRole("article").filter({ hasText: `Waiting quiz ${suffix}` })).toContainText("Awaiting Admin approval");
+
+    // Class sources: a new source is shown at once, and so is an edit of the one that was waiting.
+    await nav.getByRole("button", { name: "Class sources", exact: true }).click();
+    const sourcePanel = teacherPage.getByRole("region", { name: "Class sources" });
+    await expect(sourcePanel).toContainText("An administrator has switched off approval for teachers' class sources");
+    const form = sourcePanel.getByRole("form", { name: "Add a source" });
+    await form.getByLabel("Title (English)", { exact: true }).fill(`Published link ${suffix}`);
+    await form.getByLabel("Link", { exact: true }).fill("https://example.org/published");
+    await form.getByRole("button", { name: "Save and show to the class", exact: true }).click();
+    await expect(sourcePanel.getByRole("status")).toContainText("Source published. Students in this class and their parents can see it now");
+    await sourcePanel.getByRole("button", { name: `Edit Waiting link ${suffix}`, exact: true }).click();
+    await sourcePanel.getByRole("form", { name: "Edit source" }).getByLabel("Title (English)", { exact: true }).fill(`Edited link ${suffix}`);
+    await sourcePanel.getByRole("form", { name: "Edit source" }).getByRole("button", { name: "Save and show to the class", exact: true }).click();
+    await expect(sourcePanel.getByRole("status")).toContainText("Source updated. Students in this class and their parents see the change now");
+
+    // The student sees the published activity and both sources, but not the activity that was waiting.
+    const shown = await feed();
+    expect(shown.activities.map((item: { title: string }) => item.title)).toEqual([`Published quiz ${suffix}`]);
+    expect(shown.sources.map((item: { titleEn: string }) => item.titleEn).sort()).toEqual([`Edited link ${suffix}`, `Published link ${suffix}`]);
+
+    // Recent changes names the automatic approvals under the teacher.
+    await adminPage.goto("/admin");
+    await adminPage.getByText("Recent changes", { exact: true }).click();
+    await expect(adminPage.locator(".audit-list li").filter({ hasText: "Class source published at once (approval was off)" }).first()).toContainText(`By: class-setting-teacher ${suffix}`);
+    await expect(adminPage.locator(".audit-list li").filter({ hasText: "Class activity published at once (approval was off)" }).first()).toContainText(`By: class-setting-teacher ${suffix}`);
+
+    // Turning the switches on again affects only later saves.
+    await adminPage.goto("/admin/approvals");
+    await activities.click();
+    await expect(panel.getByRole("status")).toHaveText("Approval for teachers' class activities is on. Teachers' new activities wait for an administrator again.");
+    await sources.click();
+    await expect(panel.getByRole("status")).toHaveText("Approval for teachers' class sources is on. Teachers' new and edited sources wait for an administrator again.");
+    await expect(sources).toBeChecked();
+    const later = await api(teacherPage, "POST", `/api/classes/${classId}/activities`, { title: `Later quiz ${suffix}`, questions: question });
+    expect(later.body).toMatchObject({ publishedDirectly: null, activity: { approvalStatus: "pending" } });
+    const laterSource = await api(teacherPage, "POST", `/api/classes/${classId}/sources`, { titleEn: `Later link ${suffix}`, url: "https://example.org/later" });
+    expect(laterSource.body.source).toMatchObject({ approvalStatus: "pending", publishedDirectly: null });
+    const after = await feed();
+    expect(after.activities.map((item: { title: string }) => item.title)).toEqual([`Published quiz ${suffix}`]);
+    expect(after.sources).toHaveLength(2);
+    await teacherPage.reload();
+    await teacherPage.getByLabel("Find a class").fill(suffix);
+    await teacherPage.getByRole("button", { name: new RegExp(className) }).click();
+    await nav.getByRole("button", { name: "Activities & quizzes", exact: true }).click();
+    await expect(teacherPage.getByRole("button", { name: "Submit for Admin approval", exact: true })).toBeVisible();
+  } finally {
+    // Every other browser spec expects teachers' work to wait.
+    await adminPage.goto("/admin/approvals").catch(() => undefined);
+    await api(adminPage, "PUT", "/api/admin/approval-settings", ALL_ON).catch(() => undefined);
+    for (const context of [admin.context, teacher.context, studentContext]) await context.close().catch(() => undefined);
   }
 });

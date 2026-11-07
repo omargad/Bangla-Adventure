@@ -32,13 +32,16 @@ The running deployment uses the **custom English–Bangla application**, followi
 | Role | What they can do |
 | --- | --- |
 | 🧒&nbsp;**Students** | • My Learning: classes, activities, results and attendance<br>• Approved topics by category, with quizzes that count towards *Topics read*<br>• Announcements and sources for their classes<br>• Choose their own password at first sign-in when given a temporary one |
-| 🧑‍🏫&nbsp;**Teachers** | • Add students to a class by searching and ticking them, or upload a CSV class list<br>• Read results as a gradebook (students down, activities across, `—` for missing work) with attendance<br>• Take attendance by date, with everyone ticked present by default<br>• Post announcements to everyone, students only or parents only<br>• Write topics in English and Bangla and preview them (`/teach/topics`); they wait for Admin approval unless an Admin has switched that approval off<br>• Preview all 18 lesson revisions (`/studio`), submit recordings and add class sources for Admin review |
-| 🛡️&nbsp;**Administrators** | • Approve or decline self-registered students, parents and teachers<br>• Create accounts and reset passwords with one-time temporary passwords on a printable sheet<br>• Import families from one CSV (`student name`, `parent name`, `parent email`), linked automatically<br>• Create classes for teachers or hand a class to another teacher (`/admin/classes`)<br>• Keep each NCTB textbook's yearly link up to date (`/admin/sources`)<br>• Review, export and reset results and attendance in every class (`/admin/results`); every change is audited<br>• Approve the exact lesson/topic revision, class content, recordings and separate video decisions before publication<br>• Their own topics, recordings and class content publish at once; one switch decides whether teachers' topics need approval |
+| 🧑‍🏫&nbsp;**Teachers** | • Add students to a class by searching and ticking them, or upload a CSV class list<br>• Read results as a gradebook (students down, activities across, `—` for missing work) with attendance<br>• Take attendance by date, with everyone ticked present by default<br>• Post announcements to everyone, students only or parents only<br>• Write topics in English and Bangla and preview them (`/teach/topics`); they wait for Admin approval unless an Admin has switched that approval off<br>• Preview all 18 lesson revisions (`/studio`), submit recordings, and add class activities and class sources, which wait for Admin review unless an Admin has switched that approval off |
+| 🛡️&nbsp;**Administrators** | • Approve or decline self-registered students, parents and teachers<br>• Create accounts and reset passwords with one-time temporary passwords on a printable sheet<br>• Import families from one CSV (`student name`, `parent name`, `parent email`), linked automatically<br>• Create classes for teachers or hand a class to another teacher (`/admin/classes`)<br>• Keep each NCTB textbook's yearly link up to date (`/admin/sources`)<br>• Review, export and reset results and attendance in every class (`/admin/results`); every change is audited<br>• Approve the exact lesson/topic revision, class content, recordings and separate video decisions before publication<br>• Their own topics, recordings and class content publish at once; three switches under **Who needs approval** (`/admin/approvals`) decide whether teachers' topics, class activities and class sources need approval |
 | 👪&nbsp;**Parents** | • Read-only view of linked children's results, attendance and class sources<br>• Announcements meant for parents |
 
 Learning content requires sign-in. Only an Admin can publish a reviewed topic or lesson
 revision. An Admin's own topics and recordings publish as they are saved; a teacher's topic waits
-for an Admin while **Teachers' topics need an administrator's approval** is on (the default). Fresh installations start with all 15 topics and 18 lessons pending. Existing
+for an Admin while **Teachers' topics need an administrator's approval** is on (the default), and
+a teacher's class activity or class source waits while **Teachers' class activities need an
+administrator's approval** or **Teachers' class sources need an administrator's approval** is on
+(also the default). Turning a switch off publishes nothing already waiting. Fresh installations start with all 15 topics and 18 lessons pending. Existing
 installations keep their frozen, previously available versions while source corrections and
 new Bangla instructions wait for review. Text approval does not approve external videos.
 See [content approval](docs/CONTENT_APPROVAL.md) for the upgrade and media rules.
@@ -57,6 +60,7 @@ At the final demo the client's representative asked who approves what:
 | An administrator does not have to approve their own content | ✅ An Admin's own topics, recordings, class activities and class sources publish at once and are recorded as their approval |
 | A teacher's content needs an administrator's approval | ✅ Topics, lessons, recordings and class content from teachers wait for an Admin |
 | The schools may not want that step for teachers' topics (few volunteers) | ✅ **Teachers' topics need an administrator's approval** switch on the Topics page, on by default; every change is audited |
+| The same option for class activities and class sources, which the team offered | ✅ **Teachers' class activities need an administrator's approval** and **Teachers' class sources need an administrator's approval**, beside the topics switch under **Administration → Who needs approval** (`/admin/approvals`) and on the Topics page; on by default, audited, and turning one off publishes nothing already waiting |
 
 ## Client feedback: 28 October 2026
 
@@ -217,7 +221,7 @@ app or LTI dependency.
 | --- | --- |
 | `/topics` | Approved bilingual topics by category, with a quiz that counts towards Topics read |
 | `/studio` | Staff Lessons: preview the 18 lessons as students see them, approve or withdraw them, review human audio and video checks |
-| `/teach/topics` | Staff Topics: write, edit and preview topics; administrators approve and withdraw them and switch teachers' topic approval on or off |
+| `/teach/topics` | Staff Topics: write, edit and preview topics; administrators approve and withdraw them and switch teachers' topic, class activity and class source approval on or off (also at `/admin/approvals`) |
 | `/books` | Audited NCTB Book Bridge and precise source metadata |
 | `/library` | Adult-facing textbook catalogue |
 | `/resources` | External research register; not approved curriculum |

@@ -1,4 +1,5 @@
 import { getStaffAccess } from "@/lib/auth";
+import { publishingFor, TEACHER_SOURCE_APPROVAL } from "@/lib/approval-settings";
 import { addClassSource, classSourceErrorResponse, listClassSources, removeClassSource, reviewClassSource, updateClassSource } from "@/lib/class-sources";
 
 export const dynamic = "force-dynamic";
@@ -18,14 +19,18 @@ async function readBody(request: Request): Promise<Record<string, unknown> | Res
 }
 const sourceId = (body: Record<string, unknown>) => (typeof body.sourceId === "string" ? body.sourceId.slice(0, 80) : "");
 
-/** The sources of a class this teacher (or any administrator) manages. */
+/**
+ * The sources of a class this teacher (or any administrator) manages, what saving a source does for this account now
+ * (`onSave`: "admin", "setting" while "Teachers' class sources need an administrator's approval" is off, or "review"),
+ * and whether teachers' sources wait for approval (`teachersNeedApproval`).
+ */
 export async function GET(_request: Request, context: RouteContext) {
   const actor = await getStaffAccess("teach");
   if (actor instanceof Response) return actor;
   const { id } = await context.params;
   try {
     const sources = await listClassSources(actor, id);
-    return sources ? Response.json({ sources }) : classNotFound();
+    return sources ? Response.json({ sources, ...(await publishingFor(actor.id, TEACHER_SOURCE_APPROVAL)) }) : classNotFound();
   } catch (error) { return classSourceErrorResponse(error); }
 }
 

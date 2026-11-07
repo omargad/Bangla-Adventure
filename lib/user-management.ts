@@ -131,6 +131,8 @@ export async function listUsers(actorId: string, params: URLSearchParams) {
     ...event,
     // The target's name now, or the one stored with the event when the target is gone (a deleted class, say).
     targetLabel: labels.get(`${event.targetType}:${event.targetId}`) ?? storedTargetLabel(detailsJson, event.targetType),
+    // Approved at once because an administrator had switched off approval for that kind of teachers' work.
+    automatic: automaticApproval(detailsJson),
     // Who made the change: an account still here, the server operator (no actor), or an account deleted since.
     actor: eventActor === null ? { kind: "server" as const } : actors.has(eventActor) ? { kind: "account" as const, name: actors.get(eventActor)! } : { kind: "deleted" as const },
   }));
@@ -145,6 +147,11 @@ function auditActorNames(tx: Transaction, events: Array<{ actorId: string | null
   for (const row of tx.select({ id: students.id, name: students.displayName }).from(students).where(inArray(students.id, ids)).all()) names.set(row.id, row.name);
   for (const row of tx.select({ id: adults.id, name: adults.displayName }).from(adults).where(inArray(adults.id, ids)).all()) names.set(row.id, row.name);
   return names;
+}
+
+/** Whether an approval was recorded as automatic ({ automatic: true, setting }): an approval switch was off. */
+export function automaticApproval(detailsJson: string): boolean {
+  try { return (JSON.parse(detailsJson) as { automatic?: unknown }).automatic === true; } catch { return false; }
 }
 
 /**

@@ -6,6 +6,7 @@ import type { Language } from "@/lib/use-language";
 import type { ManagedClassSource as ClassSource } from "@/lib/class-sources";
 import { classSourceTitle } from "../references/ClassSourceList";
 import ContentApproval from "./ContentApproval";
+import { sourceSaveButton, sourceSavedMessage, sourcesIntro, type ClassPublication } from "./class-publishing";
 
 type Draft = { titleEn: string; titleBn: string; url: string; note: string };
 type Notice = { en: string; bn: string; error?: boolean };
@@ -30,6 +31,9 @@ export default function ClassSources({ classId, language, isAdmin = false }: { c
   const [editing, setEditing] = useState<string | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
   const [busy, setBusy] = useState(false);
+  // Whether a save is published at once or waits for an administrator, as the server last answered; the save's answer is what counts.
+  const [publishing, setPublishing] = useState<{ onSave: ClassPublication; teachersNeedApproval: boolean } | null>(null);
+  const onSave: ClassPublication = publishing?.onSave ?? (isAdmin ? "admin" : "review");
   const route = `/api/classes/${encodeURIComponent(classId)}/sources`;
 
   const send = useCallback(async (method: string, body?: unknown) => {
@@ -40,7 +44,11 @@ export default function ClassSources({ classId, language, isAdmin = false }: { c
   }, [route]);
 
   const load = useCallback(async () => {
-    try { setSources((await send("GET")).sources); }
+    try {
+      const data = await send("GET");
+      setSources(data.sources);
+      if (data.onSave) setPublishing({ onSave: data.onSave, teachersNeedApproval: data.teachersNeedApproval !== false });
+    }
     catch (failure) { setNotice(failed(failure)); }
   }, [send]);
 
@@ -57,13 +65,8 @@ export default function ClassSources({ classId, language, isAdmin = false }: { c
     if (busy) return;
     setBusy(true); setNotice(null);
     try {
-      if (editing) {
-        await send("PATCH", { sourceId: editing, ...draft });
-        setNotice(isAdmin ? { en: "Source updated and approved.", bn: "উৎস হালনাগাদ ও অনুমোদিত হয়েছে।" } : { en: "Source updated and submitted for Admin approval. It is hidden until approved again.", bn: "উৎস হালনাগাদ করে প্রশাসকের অনুমোদনের জন্য জমা হয়েছে। আবার অনুমোদনের আগে এটি লুকানো থাকবে।" });
-      } else {
-        await send("POST", draft);
-        setNotice(isAdmin ? { en: "Source approved and published. Students in this class and their parents can see it now.", bn: "উৎস অনুমোদিত ও প্রকাশিত হয়েছে। এই ক্লাসের শিক্ষার্থী ও তাদের অভিভাবকেরা এখন এটি দেখতে পাবেন।" } : { en: "Source submitted for Admin approval. Students and parents cannot see it yet.", bn: "উৎস প্রশাসকের অনুমোদনের জন্য জমা হয়েছে। শিক্ষার্থী ও অভিভাবকেরা এখনও এটি দেখতে পাবেন না।" });
-      }
+      const data = editing ? await send("PATCH", { sourceId: editing, ...draft }) : await send("POST", draft);
+      setNotice(sourceSavedMessage(data.source?.publishedDirectly ?? null, Boolean(editing)));
       setDraft(emptyDraft); setEditing(null);
       await load();
     } catch (failure) { setNotice(failed(failure)); }
@@ -92,10 +95,7 @@ export default function ClassSources({ classId, language, isAdmin = false }: { c
   return (
     <section className="teach-panel class-sources-editor" aria-label={s("Class sources", "ক্লাসের উৎস")}>
       <p className="teach-note">
-        {s(
-          "Submit class learning links, such as a worksheet, video or textbook page, for Admin approval. Only approved sources appear for allocated students in Sources & references and for their linked parents. Teacher edits need approval again.",
-          "ওয়ার্কশিট, ভিডিও বা পাঠ্যবইয়ের পাতার মতো ক্লাসের শেখার লিংক প্রশাসকের অনুমোদনের জন্য জমা দিন। শুধু অনুমোদিত উৎস বরাদ্দ শিক্ষার্থী ও সংযুক্ত অভিভাবকদের কাছে দেখা যাবে। শিক্ষকের সম্পাদনার পর আবার অনুমোদন লাগবে।",
-        )}{" "}
+        {sourcesIntro(onSave, publishing?.teachersNeedApproval ?? true)[language]}{" "}
         {isAdmin
           ? <Link href="/admin/sources">{s("The NCTB textbook links for everyone are on the Textbook links page.", "সবার জন্য এনসিটিবি পাঠ্যবইয়ের লিংক ‘পাঠ্যবইয়ের লিংক’ পাতায় আছে।")}</Link>
           : s("The NCTB textbook links for everyone are kept by the administrator.", "সবার জন্য এনসিটিবি পাঠ্যবইয়ের লিংক প্রশাসক দেখাশোনা করেন।")}
@@ -114,7 +114,7 @@ export default function ClassSources({ classId, language, isAdmin = false }: { c
                 <small>{source.host}</small>
                 {source.titleEn && source.titleBn && <small lang={language === "bn" ? "en" : "bn"}>{language === "bn" ? source.titleEn : source.titleBn}</small>}
                 {source.note && <p>{source.note}</p>}
-                <ContentApproval key={`${source.id}:${source.revision}:${source.approvalStatus}`} language={language} status={source.approvalStatus} reviewNote={source.reviewNote} isAdmin={isAdmin}
+                <ContentApproval key={`${source.id}:${source.revision}:${source.approvalStatus}`} language={language} status={source.approvalStatus} reviewNote={source.reviewNote} reviewedBy={source.reviewedBy} isAdmin={isAdmin}
                   onDecision={(status, note) => review(source, status, note)} />
                 <div className="teach-activity-buttons">
                   <button type="button" className="text-button" disabled={busy} aria-label={s(`Edit ${title}`, `${title} সম্পাদনা`)} onClick={() => { setEditing(source.id); setDraft({ titleEn: source.titleEn, titleBn: source.titleBn, url: source.url, note: source.note }); setNotice(null); }}>{s("Edit", "সম্পাদনা")}</button>
@@ -135,7 +135,7 @@ export default function ClassSources({ classId, language, isAdmin = false }: { c
         <small>{s("Give a title in at least one language. Links must start with https://", "অন্তত এক ভাষায় নাম দিন। লিংক https:// দিয়ে শুরু হতে হবে।")}</small>
         <div className="teach-form-actions">
           {editing && <button type="button" className="text-button" onClick={() => { setEditing(null); setDraft(emptyDraft); }}>{s("Cancel", "বাতিল")}</button>}
-          <button type="submit" className="primary-button" disabled={busy}>{isAdmin ? s("Approve and save source", "উৎস অনুমোদন ও সংরক্ষণ করুন") : s("Submit source for Admin approval", "প্রশাসকের অনুমোদনের জন্য উৎস জমা দিন")}</button>
+          <button type="submit" className="primary-button" disabled={busy}>{sourceSaveButton(onSave)[language]}</button>
         </div>
       </form>
     </section>

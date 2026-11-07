@@ -3,6 +3,7 @@ import { getDb } from "../db";
 import { adults, classes, classSources, classStudents, parentStudentLinks, studentClassEnrollments, students } from "../db/schema";
 import type { Bilingual } from "../app/topics-content";
 import { linkProblem } from "./library-links";
+import { publicationFor, TEACHER_SOURCE_APPROVAL } from "./approval-settings";
 import { managedClass, type Staff } from "./class-access";
 import { auditClass } from "./class-audit";
 import { canTeach, canPublishContent } from "./roles";
@@ -19,6 +20,12 @@ export const CLASS_SOURCE_LIMITS = { title: 120, note: 300, perClass: 50 } as co
 export type ClassSource = { id: string; classId: string; titleEn: string; titleBn: string; url: string; host: string; note: string; createdAt: string };
 export type ManagedClassSource = ClassSource & { updatedAt: string; approvalStatus: "pending" | "approved" | "rejected"; revision: number; reviewedBy: string | null; reviewedAt: string | null; reviewNote: string };
 export type ClassSourceInput = { titleEn: string; titleBn: string; url: string; note: string };
+/**
+ * A source as a save answers it: `publishedDirectly` is "admin" (an administrator's own), "setting" (an approved
+ * teacher's, approved at once because "Teachers' class sources need an administrator's approval" is off) or null
+ * (it waits for an administrator).
+ */
+export type SavedClassSource = ManagedClassSource & { publishedDirectly: "admin" | "setting" | null };
 
 export class ClassSourceError extends Error {
   constructor(message: string, readonly messageBn: string, readonly status = 400) { super(message); }
@@ -71,6 +78,23 @@ export async function listClassSources(actor: Staff, classId: string): Promise<M
   return db.select().from(classSources).where(eq(classSources.classId, classId)).orderBy(asc(classSources.createdAt), asc(classSources.id)).all().map(view);
 }
 
+/**
+ * The approval columns and audit of a source as it is saved: approved at once for an administrator, or for an approved
+ * teacher while the setting is off (audited as class-source-reviewed under the teacher with { automatic: true, setting },
+ * naming no administrator as the reviewer); otherwise waiting.
+ */
+function savedApproval(tx: Transaction, actor: typeof adults.$inferSelect, now: string) {
+  const publication = publicationFor(tx, actor, TEACHER_SOURCE_APPROVAL);
+  const approved = publication !== "review";
+  return {
+    publishedDirectly: publication === "review" ? null : publication,
+    columns: { approvalStatus: approved ? "approved" as const : "pending" as const, reviewedBy: publication === "admin" ? actor.id : null, reviewedAt: approved ? now : null },
+    auditAutomatic: (classId: string, row: Row) => {
+      if (publication === "setting") audit(tx, actor.id, classId, "class-source-reviewed", { sourceId: row.id, approvalStatus: row.approvalStatus, revision: row.revision, automatic: true, setting: TEACHER_SOURCE_APPROVAL });
+    },
+  };
+}
+
 function currentManager(tx: Transaction, actorId: string, classId: string) {
   const actor = tx.select().from(adults).where(eq(adults.id, actorId)).get();
   if (!actor || !canTeach(actor) || actor.approvalStatus !== "approved" || actor.mustChangePassword) throw refuse({ en: "Approved staff access required.", bn: "অনুমোদিত কর্মীর অনুমতি প্রয়োজন।" }, 403);
@@ -79,7 +103,7 @@ function currentManager(tx: Transaction, actorId: string, classId: string) {
 }
 
 /** Add a source to a class the actor manages (null when they do not). */
-export async function addClassSource(actor: Staff, classId: string, raw: Record<string, unknown>): Promise<ManagedClassSource | null> {
+export async function addClassSource(actor: Staff, classId: string, raw: Record<string, unknown>): Promise<SavedClassSource | null> {
   const db = await getDb();
   return db.transaction((tx) => {
     const current = currentManager(tx, actor.id, classId);
@@ -89,16 +113,17 @@ export async function addClassSource(actor: Staff, classId: string, raw: Record<
     if (count >= CLASS_SOURCE_LIMITS.perClass) {
       throw refuse({ en: `A class can have at most ${CLASS_SOURCE_LIMITS.perClass} sources. Remove one first.`, bn: `একটি ক্লাসে সর্বোচ্চ ${CLASS_SOURCE_LIMITS.perClass.toLocaleString("bn-BD")}টি উৎস রাখা যায়। আগে একটি সরান।` });
     }
-    const approved = canPublishContent(current);
     const now = new Date().toISOString();
-    const row = tx.insert(classSources).values({ id: crypto.randomUUID(), classId, ...input, createdBy: current.id, createdAt: now, updatedAt: now, approvalStatus: approved ? "approved" : "pending", reviewedBy: approved ? current.id : null, reviewedAt: approved ? now : null }).returning().get();
+    const saved = savedApproval(tx, current, now);
+    const row = tx.insert(classSources).values({ id: crypto.randomUUID(), classId, ...input, createdBy: current.id, createdAt: now, updatedAt: now, ...saved.columns }).returning().get();
     audit(tx, actor.id, classId, "class-source-added", { sourceId: row.id, url: row.url });
-    return view(row);
+    saved.auditAutomatic(classId, row);
+    return { ...view(row), publishedDirectly: saved.publishedDirectly };
   });
 }
 
 /** Change a source of a class the actor manages (null when the class or source is not theirs). */
-export async function updateClassSource(actor: Staff, classId: string, sourceId: string, raw: Record<string, unknown>): Promise<ManagedClassSource | null> {
+export async function updateClassSource(actor: Staff, classId: string, sourceId: string, raw: Record<string, unknown>): Promise<SavedClassSource | null> {
   const db = await getDb();
   return db.transaction((tx) => {
     const current = currentManager(tx, actor.id, classId);
@@ -107,11 +132,12 @@ export async function updateClassSource(actor: Staff, classId: string, sourceId:
     if (!before) return null;
     const input = validateClassSource(raw);
     if (raw.revision !== undefined && raw.revision !== before.revision) throw refuse({ en: "This source changed. Reload it before editing.", bn: "উৎসটি বদলেছে। সম্পাদনার আগে আবার লোড করুন।" }, 409);
-    const approved = canPublishContent(current);
     const now = new Date().toISOString();
-    const row = tx.update(classSources).set({ ...input, revision: before.revision + 1, updatedAt: now, approvalStatus: approved ? "approved" : "pending", reviewedBy: approved ? current.id : null, reviewedAt: approved ? now : null, reviewNote: "" }).where(eq(classSources.id, sourceId)).returning().get();
+    const saved = savedApproval(tx, current, now);
+    const row = tx.update(classSources).set({ ...input, revision: before.revision + 1, updatedAt: now, ...saved.columns, reviewNote: "" }).where(eq(classSources.id, sourceId)).returning().get();
     audit(tx, actor.id, classId, "class-source-updated", { sourceId, ...(before.url !== row.url ? { oldUrl: before.url, newUrl: row.url } : {}) });
-    return view(row);
+    saved.auditAutomatic(classId, row);
+    return { ...view(row), publishedDirectly: saved.publishedDirectly };
   });
 }
 

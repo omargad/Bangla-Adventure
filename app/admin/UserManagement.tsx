@@ -11,7 +11,7 @@ type User = { id: string; kind: "adult" | "student"; displayName: string; email?
 type UsersPage = { users: User[]; total: number; pageSize: number; stats: { adults: number; students: number; teachers: number; pending: number }; approvals: { users: User[]; total: number }; audit: AuditEvent[] };
 /** Who made a change: an account (by its display name), the server operator, or an account deleted since. */
 type AuditActor = { kind: "account"; name: string } | { kind: "server" } | { kind: "deleted" };
-type AuditEvent = { id: string; action: string; targetType: string; targetId: string; targetLabel: { en: string; bn: string } | null; actor: AuditActor; createdAt: string };
+type AuditEvent = { id: string; action: string; targetType: string; targetId: string; targetLabel: { en: string; bn: string } | null; actor: AuditActor; createdAt: string; automatic?: boolean };
 /** Every action written to the audit log, in both languages; an unknown one is shown as it is stored. */
 const AUDIT_ACTIONS: Record<string, Message> = {
   created: ["Account created", "অ্যাকাউন্ট তৈরি"],
@@ -80,6 +80,19 @@ const AUDIT_ACTIONS: Record<string, Message> = {
   "library-source-shown": ["Textbook shown again", "পাঠ্যবই আবার দেখানো হচ্ছে"],
   "operator-demo-completion": ["Demo class completed on the server", "সার্ভার থেকে ডেমো ক্লাস সম্পূর্ণ"],
 };
+/**
+ * An approval recorded with { automatic: true, setting }: a teacher's work approved as it was saved because an
+ * administrator had switched off approval for that kind of work ("Who needs approval"). It is recorded under the teacher.
+ */
+const AUTOMATIC_AUDIT_ACTIONS: Record<string, Message> = {
+  "topic-version-approved": ["Topic published at once (approval was off)", "বিষয় সরাসরি প্রকাশিত (অনুমোদন বন্ধ ছিল)"],
+  "class-activity-reviewed": ["Class activity published at once (approval was off)", "ক্লাসের কার্যক্রম সরাসরি প্রকাশিত (অনুমোদন বন্ধ ছিল)"],
+  "class-source-reviewed": ["Class source published at once (approval was off)", "ক্লাসের উৎস সরাসরি প্রকাশিত (অনুমোদন বন্ধ ছিল)"],
+};
+/** The label Recent changes shows for an audit row. */
+function auditActionLabel(event: Pick<AuditEvent, "action" | "automatic">): Message | null {
+  return (event.automatic && AUTOMATIC_AUDIT_ACTIONS[event.action]) || AUDIT_ACTIONS[event.action] || null;
+}
 const AUDIT_TARGETS: Record<string, Message> = {
   adult: ["Adult", "বড়দের অ্যাকাউন্ট"], student: ["Student", "শিক্ষার্থী"], "class-student": ["Class list entry", "ক্লাসের তালিকা"],
   class: ["Class", "ক্লাস"], topic: ["Topic", "বিষয়"], lesson: ["Lesson", "পাঠ"], "library-source": ["Textbook", "পাঠ্যবই"], setting: ["Setting", "সেটিং"],
@@ -351,7 +364,7 @@ export default function UserManagement({ actorId, actorName }: { actorId: string
         </>}
         {error && <button className="outline-button" onClick={() => void load()}>{s("Retry", "আবার চেষ্টা")}</button>}
       </section>
-      <details className="teach-panel"><summary>{s("Recent changes", "সাম্প্রতিক পরিবর্তন")}</summary><ul className="audit-list">{data?.audit.map((event) => <li key={event.id}><strong>{AUDIT_ACTIONS[event.action] ? pick(AUDIT_ACTIONS[event.action]) : event.action.replaceAll("-", " ")}</strong><span>{AUDIT_TARGETS[event.targetType] ? pick(AUDIT_TARGETS[event.targetType]) : event.targetType} · {event.targetLabel ? s(event.targetLabel.en, event.targetLabel.bn) : event.targetId.slice(0, 8)}</span><span className="audit-actor">{pick(auditActorLabel(event.actor))}</span><time dateTime={event.createdAt}>{localTime(event.createdAt, language)}</time></li>)}</ul><p>{s("Suspension preserves learning records. No permanent user deletion is performed here.", "স্থগিত করলে শেখার তথ্য সংরক্ষিত থাকে। এখানে কোনো ব্যবহারকারী স্থায়ীভাবে মুছে ফেলা হয় না।")}</p></details>
+      <details className="teach-panel"><summary>{s("Recent changes", "সাম্প্রতিক পরিবর্তন")}</summary><ul className="audit-list">{data?.audit.map((event) => <li key={event.id}><strong>{auditActionLabel(event) ? pick(auditActionLabel(event)!) : event.action.replaceAll("-", " ")}</strong><span>{AUDIT_TARGETS[event.targetType] ? pick(AUDIT_TARGETS[event.targetType]) : event.targetType} · {event.targetLabel ? s(event.targetLabel.en, event.targetLabel.bn) : event.targetId.slice(0, 8)}</span><span className="audit-actor">{pick(auditActorLabel(event.actor))}</span><time dateTime={event.createdAt}>{localTime(event.createdAt, language)}</time></li>)}</ul><p>{s("Suspension preserves learning records. No permanent user deletion is performed here.", "স্থগিত করলে শেখার তথ্য সংরক্ষিত থাকে। এখানে কোনো ব্যবহারকারী স্থায়ীভাবে মুছে ফেলা হয় না।")}</p></details>
     </div>
   </main></PortalShell>;
 }

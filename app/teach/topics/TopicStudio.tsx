@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import PortalShell from "@/app/components/PortalShell";
@@ -12,8 +12,17 @@ import { formatNumber, formatWhen, groupByCategory, TOPIC_ID_PATTERN } from "@/l
 import TopicEditor from "./TopicEditor";
 import TopicReview from "./TopicReview";
 import { authorLabel, call, failure, savedMessage, statusLabel, versionLabel } from "./shared";
-import ApprovalSetting, { stillWaiting, type Publishing } from "./ApprovalSetting";
+import ApprovalSetting, { stillWaiting, type ApprovalAnswer, type Publishing } from "./ApprovalSetting";
 import type { Bilingual } from "@/app/topics-content";
+
+/** The topics, and for an administrator the "Who needs approval" settings, loaded together. */
+type Listing = [{ topics: StaffTopicSummary[]; publishing: Publishing }, ApprovalAnswer | null];
+function fetchListing(canApprove: boolean, signal?: AbortSignal): Promise<Listing> {
+  return Promise.all([
+    call<{ topics: StaffTopicSummary[]; publishing: Publishing }>("/api/topics", { signal }),
+    canApprove ? call<ApprovalAnswer>("/api/admin/approval-settings", { signal }) : Promise.resolve(null),
+  ]);
+}
 
 type View = { kind: "list" } | { kind: "edit"; topicId: string | null } | { kind: "review"; topicId: string; version: number | null };
 
@@ -35,8 +44,8 @@ function viewAt(params: URLSearchParams): View {
 /**
  * Teachers and administrators write, edit and preview topics. Only administrators approve
  * topics: an administrator's own topics are published when saved, and teachers' topics wait
- * for an administrator unless an administrator has switched that approval off (the switch is
- * on this page). The wording follows the setting and the account, as GET /api/topics reports them.
+ * for an administrator unless an administrator has switched that approval off (the "Who needs
+ * approval" panel is on this page, with the switches for class activities and class sources too). The wording follows the setting and the account, as GET /api/topics reports them.
  */
 export default function TopicStudio({ name, role, canApprove }: { name: string; role: "teacher" | "admin"; canApprove: boolean }) {
   const [language, toggleLanguage] = useLanguage({ title: ["Topics | Bangla Adventures", "বিষয় | Bangla Adventures"] });
@@ -46,6 +55,8 @@ export default function TopicStudio({ name, role, canApprove }: { name: string; 
   const [view, setView] = useState<View>(() => viewAt(params));
   const [topics, setTopics] = useState<StaffTopicSummary[] | null>(null);
   const [publishing, setPublishing] = useState<Publishing | null>(null);
+  // An administrator's "Who needs approval" settings, loaded with the topics so the panel is drawn with the list, in one go.
+  const [approvals, setApprovals] = useState<ApprovalAnswer | null>(null);
   const [error, setError] = useState<Bilingual | null>(null);
   const [message, setMessage] = useState<Bilingual | null>(null);
   // go() below shows a view in place and gives it its own address with history.replaceState. Next takes that for an address of
@@ -66,20 +77,19 @@ export default function TopicStudio({ name, role, canApprove }: { name: string; 
   }
   useEffect(() => { if (linkedViews) scrollToTop(); }, [linkedViews]);
 
-  const fetchTopics = (signal?: AbortSignal) => call<{ topics: StaffTopicSummary[]; publishing: Publishing }>("/api/topics", { signal });
-  const show = (data: { topics: StaffTopicSummary[]; publishing: Publishing }) => { setTopics(data.topics); setPublishing(data.publishing); };
-  const loadTopics = () => fetchTopics().then(show);
+  const show = useCallback(([data, settings]: Listing) => { setTopics(data.topics); setPublishing(data.publishing); setApprovals(settings); }, []);
+  const loadTopics = () => fetchListing(canApprove).then(show);
   useEffect(() => {
     const controller = new AbortController();
-    fetchTopics(controller.signal).then(show).catch((caught) => { if (!controller.signal.aborted) setError(failure(caught)); });
+    fetchListing(canApprove, controller.signal).then(show).catch((caught) => { if (!controller.signal.aborted) setError(failure(caught)); });
     return () => controller.abort();
-  }, []);
+  }, [canApprove, show]);
   // The list is loaded again whenever it is shown again, so it shows what was just saved or decided.
   const listing = view.kind === "list", listed = useRef(listing);
   useEffect(() => {
-    if (listing && !listed.current) void fetchTopics().then(show).catch(() => undefined);
+    if (listing && !listed.current) void fetchListing(canApprove).then(show).catch(() => undefined);
     listed.current = listing;
-  }, [listing]);
+  }, [listing, canApprove, show]);
   // Until the list answers, an administrator's saves publish and a teacher's are assumed to wait; the save's answer is what counts.
   const onSave = publishing?.onSave ?? (canApprove ? "admin" : "review");
 
@@ -145,7 +155,7 @@ export default function TopicStudio({ name, role, canApprove }: { name: string; 
                 ? s("An administrator has switched off approval for teachers' topics, so your new topics and edits are published to students as soon as you save them. An edit of a topic an administrator withdrew still waits for an administrator.", "প্রশাসক শিক্ষকদের বিষয়ের অনুমোদন বন্ধ রেখেছেন, তাই আপনার নতুন বিষয় ও সম্পাদনা সংরক্ষণের সঙ্গে সঙ্গে শিক্ষার্থীদের কাছে প্রকাশিত হয়। প্রশাসক কোনো বিষয় সরিয়ে নিলে তার সম্পাদনা তবুও প্রশাসকের অপেক্ষায় থাকে।")
                 : s("Write or edit a topic, then submit it for administrator review. Your new topics and changes reach students only after an administrator approves them.", "বিষয় লিখে বা সম্পাদনা করে প্রশাসকের পর্যালোচনার জন্য জমা দিন। প্রশাসক অনুমোদন দিলেই আপনার নতুন বিষয় ও পরিবর্তন শিক্ষার্থীদের কাছে প্রকাশিত হয়।")}
           </p>
-          {canApprove && publishing && <ApprovalSetting publishing={publishing} waiting={pending.length} language={language}
+          {canApprove && approvals && <ApprovalSetting language={language} onTopicsPage answer={approvals} onAnswer={setApprovals}
             onChanged={(note) => { setMessage(note); setError(null); void loadTopics().catch(() => undefined); }} />}
           {!topics && !error && <p role="status">{s("Loading topics…", "বিষয় লোড হচ্ছে…")}</p>}
           {topics && <>

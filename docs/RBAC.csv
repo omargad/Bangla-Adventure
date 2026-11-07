@@ -19,8 +19,9 @@ Attendance,See attendance,Yes,Yes,Yes,Yes,"Student: their own, on My Learning. P
 Announcements,"Post an announcement (to everyone, students only or parents only)",No,No,Yes,Yes,"Teacher: own classes. Published at once, no approval step."
 Announcements,Remove an announcement,No,No,Yes,Yes,Teacher: own classes only.
 Announcements,See announcements,Yes,Yes,Yes,Yes,"Student: on My Learning, those for everyone or for students. Parent: on the family page, those for everyone or for parents. Teacher: own classes."
-Class activities and results,Create class activities and quizzes,No,No,Yes,Yes,"Teacher: own classes; waits for an administrator to approve it. Administrator: approved at once."
+Class activities and results,Create class activities and quizzes,No,No,Yes,Yes,"Teacher: own classes; waits for an administrator to approve it while the approval switch for class activities is on (the default); approved at once while it is off. Administrator: approved at once."
 Class activities and results,Approve or send back a class activity,No,No,No,Yes,
+Class activities and results,"Turn ""Teachers' class activities need an administrator's approval"" on or off",No,No,No,Yes,"On by default. Every change is recorded in the audit log; turning it off publishes nothing already waiting."
 Class activities and results,Answer an activity or quiz,Yes,No,No,No,"Own classes, while the activity is open. One submission; the teacher can reset it for another try."
 Class activities and results,Reset a student's answers,No,No,Yes,Yes,Teacher: own classes only.
 Class activities and results,See own results,Yes,No,No,No,
@@ -32,7 +33,7 @@ Learning content,Read approved topics and lessons,Yes,Yes,Yes,Yes,Signed-in acco
 Learning content,Take topic quizzes,Yes,Yes,Yes,Yes,"Student: the score counts towards Topics read (the day's first three tries can raise the best score). Grown-ups: marked but not saved."
 Learning content,Hear lesson audio and narration,Yes,Yes,Yes,Yes,Students and parents hear approved content only.
 Learning content,"Use the textbook library, references and worksheets",Yes,Yes,Yes,Yes,
-Topics and lessons,Write a new topic,No,No,Yes,Yes,"Teacher: waits for an administrator's approval while the approval switch is on (the default); publishes at once while it is off. Administrator: publishes at once."
+Topics and lessons,Write a new topic,No,No,Yes,Yes,"Teacher: waits for an administrator's approval while the approval switch for topics is on (the default); publishes at once while it is off. Administrator: publishes at once."
 Topics and lessons,Edit a topic,No,No,Yes,Yes,"Same as writing a topic. A teacher's edit of a withdrawn topic always waits."
 Topics and lessons,Preview topics and lessons before they are approved,No,No,Yes,Yes,
 Topics and lessons,Approve or send back a topic,No,No,No,Yes,
@@ -41,8 +42,9 @@ Topics and lessons,"Turn ""Teachers' topics need an administrator's approval"" o
 Topics and lessons,Approve lessons and decide on their videos,No,No,No,Yes,
 Topics and lessons,Upload a lesson recording,No,No,Yes,Yes,"Teacher: waits for an administrator's approval. Administrator: approved at once."
 Topics and lessons,"Approve, send back or retire a recording",No,No,No,Yes,
-Class sources and textbooks,Add or edit class sources,No,No,Yes,Yes,"Teacher: own classes; waits for an administrator's approval. Administrator: approved at once."
+Class sources and textbooks,Add or edit class sources,No,No,Yes,Yes,"Teacher: own classes; waits for an administrator's approval while the approval switch for class sources is on (the default); shown at once while it is off. Administrator: approved at once."
 Class sources and textbooks,Approve or send back class sources,No,No,No,Yes,
+Class sources and textbooks,"Turn ""Teachers' class sources need an administrator's approval"" on or off",No,No,No,Yes,"On by default. Every change is recorded in the audit log; turning it off publishes nothing already waiting."
 Class sources and textbooks,See class sources,Yes,Yes,Yes,Yes,"Student: own classes, approved only. Parent: their children's classes, approved only. Teacher: own classes."
 Class sources and textbooks,Update textbook links,No,No,No,Yes,
 Families,Import families from a CSV file,No,No,No,Yes,"Creates student and parent accounts and links them."

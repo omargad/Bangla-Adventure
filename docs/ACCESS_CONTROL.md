@@ -74,8 +74,9 @@ nothing until an administrator approves it.
 | Remove an announcement | ❌ | ❌ | ✅ | ✅ | Teacher: own classes only. |
 | See announcements | ✅ | ✅ | ✅ | ✅ | Student: on My Learning, those for everyone or for students. Parent: on the family page, those for everyone or for parents. Teacher: own classes. |
 | **Class activities and results** | | | | | |
-| Create class activities and quizzes | ❌ | ❌ | ✅ | ✅ | Teacher: own classes; waits for an administrator to approve it. Administrator: approved at once. |
+| Create class activities and quizzes | ❌ | ❌ | ✅ | ✅ | Teacher: own classes; waits for an administrator to approve it while the approval switch for class activities is on (the default); approved at once while it is off. Administrator: approved at once. |
 | Approve or send back a class activity | ❌ | ❌ | ❌ | ✅ |  |
+| Turn "Teachers' class activities need an administrator's approval" on or off | ❌ | ❌ | ❌ | ✅ | On by default. Every change is recorded in the audit log; turning it off publishes nothing already waiting. |
 | Answer an activity or quiz | ✅ | ❌ | ❌ | ❌ | Own classes, while the activity is open. One submission; the teacher can reset it for another try. |
 | Reset a student's answers | ❌ | ❌ | ✅ | ✅ | Teacher: own classes only. |
 | See own results | ✅ | ❌ | ❌ | ❌ |  |
@@ -89,7 +90,7 @@ nothing until an administrator approves it.
 | Hear lesson audio and narration | ✅ | ✅ | ✅ | ✅ | Students and parents hear approved content only. |
 | Use the textbook library, references and worksheets | ✅ | ✅ | ✅ | ✅ |  |
 | **Topics and lessons** | | | | | |
-| Write a new topic | ❌ | ❌ | ✅ | ✅ | Teacher: waits for an administrator's approval while the approval switch is on (the default); publishes at once while it is off. Administrator: publishes at once. |
+| Write a new topic | ❌ | ❌ | ✅ | ✅ | Teacher: waits for an administrator's approval while the approval switch for topics is on (the default); publishes at once while it is off. Administrator: publishes at once. |
 | Edit a topic | ❌ | ❌ | ✅ | ✅ | Same as writing a topic. A teacher's edit of a withdrawn topic always waits. |
 | Preview topics and lessons before they are approved | ❌ | ❌ | ✅ | ✅ |  |
 | Approve or send back a topic | ❌ | ❌ | ❌ | ✅ |  |
@@ -99,8 +100,9 @@ nothing until an administrator approves it.
 | Upload a lesson recording | ❌ | ❌ | ✅ | ✅ | Teacher: waits for an administrator's approval. Administrator: approved at once. |
 | Approve, send back or retire a recording | ❌ | ❌ | ❌ | ✅ |  |
 | **Class sources and textbooks** | | | | | |
-| Add or edit class sources | ❌ | ❌ | ✅ | ✅ | Teacher: own classes; waits for an administrator's approval. Administrator: approved at once. |
+| Add or edit class sources | ❌ | ❌ | ✅ | ✅ | Teacher: own classes; waits for an administrator's approval while the approval switch for class sources is on (the default); shown at once while it is off. Administrator: approved at once. |
 | Approve or send back class sources | ❌ | ❌ | ❌ | ✅ |  |
+| Turn "Teachers' class sources need an administrator's approval" on or off | ❌ | ❌ | ❌ | ✅ | On by default. Every change is recorded in the audit log; turning it off publishes nothing already waiting. |
 | See class sources | ✅ | ✅ | ✅ | ✅ | Student: own classes, approved only. Parent: their children's classes, approved only. Teacher: own classes. |
 | Update textbook links | ❌ | ❌ | ❌ | ✅ |  |
 | **Families** | | | | | |
@@ -203,8 +205,9 @@ adult with a temporary password can only change it (and use public pages) until 
 | Search every active, approved student to add to a class | ❌ | ❌ | ❌ | into own classes | into any class |
 | Allocate or remove a student | ❌ | ❌ | ❌ | own classes | all |
 | Import students by CSV (creates student accounts with temporary passwords) | ❌ | ❌ | ❌ | own classes | all |
-| Create, open, close or remove an activity | ❌ | ❌ | ❌ | own classes (new activities wait for approval) | all (approved at once) |
+| Create, open, close or remove an activity | ❌ | ❌ | ❌ | own classes (new activities wait for approval; approved at once while **Teachers' class activities need an administrator's approval** is off) | all (approved at once) |
 | Approve or reject a class activity | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Turn **Teachers' class activities need an administrator's approval** on or off (on by default) | ❌ | ❌ | ❌ | ❌ | ✅ |
 | Submit answers to an activity (once; the teacher can reset it) | ❌ | own classes, approved and open | ❌ | ❌ | ❌ |
 
 ### Results and attendance
@@ -226,8 +229,9 @@ adult with a temporary password can only change it (and use public pages) until 
 | Read class announcements | ❌ | own classes (for everyone or students) | linked children's classes (for everyone or parents) | own classes (every audience) | all |
 | Post or remove a class announcement (no approval step) | ❌ | ❌ | ❌ | own classes | all |
 | Read class sources | ❌ | own classes, approved | linked children's classes, approved | own classes, every state | all |
-| Add, edit or remove a class source | ❌ | ❌ | ❌ | own classes (saved as waiting for approval) | all (approved at once) |
+| Add, edit or remove a class source | ❌ | ❌ | ❌ | own classes (saved as waiting for approval; approved at once while **Teachers' class sources need an administrator's approval** is off) | all (approved at once) |
 | Approve or reject a class source | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Turn **Teachers' class sources need an administrator's approval** on or off (on by default) | ❌ | ❌ | ❌ | ❌ | ✅ |
 | Change the textbook library catalogue (`/admin/sources`) | ❌ | ❌ | ❌ | ❌ | ✅ |
 
 ### Content authoring and approval
@@ -301,6 +305,7 @@ learner pages to `/student/password` (`app/components/LearningLayout.tsx:10`,
 | `/admin` | → `/grown-ups?returnTo=…` | → `/grown-ups?returnTo=…` | 200 "Administrator access required" panel | 200 same panel | ✅ users and approvals | `app/admin/page.tsx:10-12` |
 | `/admin/classes` | → `/grown-ups?returnTo=…` | → `/grown-ups?returnTo=…` | → `/family` (or `/teach`) | → `/teach` | ✅ (lists classes that need a new teacher) | `app/admin/classes/page.tsx:7-8` |
 | `/admin/results`, `/admin/sources` | → `/grown-ups?returnTo=…` | → `/grown-ups?returnTo=…` | → `/family` (or `/teach`) | → `/teach` | ✅ | `app/admin/results/page.tsx:8-9`; `app/admin/sources/page.tsx:10-11` |
+| `/admin/approvals` (Who needs approval) | → `/grown-ups?returnTo=…` | → `/grown-ups?returnTo=…` | → `/family` (or `/teach`) | → `/teach` | ✅ | `app/admin/approvals/page.tsx:8-10` |
 | `/admin/curriculum` (retired) | → `/grown-ups?returnTo=…` | → `/grown-ups?returnTo=%2Fteach%2Ftopics` | → `/teach` | → `/teach/topics` | → `/teach/topics` | `app/admin/curriculum/page.tsx:6-7` |
 | `/topics`, `/learn`, `/library`, `/references`, `/books`, `/resources`, `/alphabet`, `/calendar`, `/explore`, `/grammar`, `/numbers`, `/phrasebook`, `/poems`, `/stories` | → `/welcome?returnTo=…` | ✅ | ✅ | ✅ | ✅ | `app/components/LearningLayout.tsx:6-12` and each page's `layout.tsx` |
 | `/practice`, `/adventure` | → `/welcome?returnTo=…` | ✅ approved lessons | ✅ approved lessons | ✅ approved lessons | ✅ approved lessons | `app/practice/page.tsx:13-16`; `app/adventure/page.tsx:12-17` |
@@ -400,8 +405,8 @@ administrator inside the transaction (403), `listUsers` and `listClassResults` i
 | `/api/admin/family-links` | POST | Administrator | Links an active, approved parent (role parent) to an approved student, after `confirmed:true` | 400 (body, before the re-check); 403; 404 "No active parent account matches that email." / "Student not found."; 409 "Approve this student account before linking a parent." | `app/api/admin/family-links/route.ts:22-31`; `lib/parent-access.ts:28-44` |
 | `/api/admin/family-links` | DELETE | Administrator | One link | 400 "Choose the family link to remove."; 404 "Parent link not found." | `app/api/admin/family-links/route.ts:33-42`; `lib/parent-access.ts:46-55` |
 | `/api/admin/results` | GET | Administrator | Every class with its teacher and summary results | 403 re-check; 503 | `app/api/admin/results/route.ts:7-12`; `lib/grades.ts:56-86` |
-| `/api/admin/approval-settings` | GET | Administrator | The approval settings (whether teachers' topics need approval, who changed it and when) | 503 | `app/api/admin/approval-settings/route.ts`; `lib/approval-settings.ts` `getApprovalSettings` |
-| `/api/admin/approval-settings` | PUT | Administrator | `{ teacherTopicsNeedApproval: boolean }`; audited (`approval-setting-changed`, old and new value); the same value again changes and records nothing | 400 "Choose whether teachers' topics need an administrator's approval." (before the re-check); 403 "Only an administrator can change who needs approval." (re-check: `canPublishContent`); 503 | `app/api/admin/approval-settings/route.ts`; `lib/approval-settings.ts` `setTeacherTopicApproval` |
+| `/api/admin/approval-settings` | GET | Administrator | The three approval settings (`teacherTopicsNeedApproval`, `teacherActivitiesNeedApproval`, `teacherSourcesNeedApproval`; an absent one is on), who last changed each and when (`lastChanged`; `changedByName` and `changedAt` are the topics switch's), and what is still waiting (`waiting`: topics, activities, sources) | 503 | `app/api/admin/approval-settings/route.ts`; `lib/approval-settings.ts` `getApprovalSettings`, `waitingClassContent` |
+| `/api/admin/approval-settings` | PUT | Administrator | Any of `{ teacherTopicsNeedApproval, teacherActivitiesNeedApproval, teacherSourcesNeedApproval }` (booleans); one `approval-setting-changed` row per setting that changes (setting, label, old and new value); a setting given its current value changes and records nothing | 400 "Choose whether teachers' topics, class activities or class sources need an administrator's approval." for none given, or the setting's own message for a value that is not a boolean (before the re-check); 403 "Only an administrator can change who needs approval." (re-check: `canPublishContent`); 503 | `app/api/admin/approval-settings/route.ts`; `lib/approval-settings.ts` `setApprovalSettings` |
 
 ### Classes
 
@@ -418,21 +423,21 @@ password (`lib/enrollments.ts` `authorize`, `lib/class-activities.ts`, `lib/clas
 | --- | --- | --- | --- | --- | --- |
 | `/api/classes` | GET | Teacher | Own classes; administrator with `?scope=all`: every class | `A403` for `?scope=all` by a teacher; 500 | `app/api/classes/route.ts:13-49` |
 | `/api/classes` | POST | Teacher | Own class; an administrator may pass `teacherId` of an approved teacher | 400 "Give the class a name of 1–60 characters." (**before** the 403); 403 "Only an administrator can create a class for another teacher."; 400/404 "Choose an approved teacher." | `app/api/classes/route.ts:51-86`; `lib/class-management.ts:48-65` |
-| `/api/classes/[id]` | GET | Teacher | Own class; administrator any | `C404` | `app/api/classes/[id]/route.ts:21-69` |
-| `/api/classes/[id]` | PATCH | Administrator | Gives the class to another approved teacher | `R401`, `A403`; 400 "Choose an approved teacher."; 404 | `app/api/classes/[id]/route.ts:71-84`; `lib/class-management.ts:66-84` |
-| `/api/classes/[id]` | DELETE | Teacher | Own class; administrator any | `C404` | `app/api/classes/[id]/route.ts:86-98` |
-| `/api/classes/[id]/activities` | POST | Teacher | Own class (activity waits for approval); administrator any (approved at once) | `C404`, then 400 body; 403 "Approved staff access required." | `app/api/classes/[id]/activities/route.ts:26-76` |
-| `/api/classes/[id]/activities` | PATCH | Open/close: teacher, own class. Approve/reject: administrator | Activity in the class | `C404`; 400 (**before** the 403); 403 "Only an administrator can approve or reject class activities."; 404 "Activity not found."; 409 "This activity changed. Reload it before reviewing." | `app/api/classes/[id]/activities/route.ts:77-117` |
-| `/api/classes/[id]/activities` | DELETE | Teacher | Own class, any activity (also administrator-approved) | `C404`; 400; 404 | `app/api/classes/[id]/activities/route.ts:119-144` |
+| `/api/classes/[id]` | GET | Teacher | Own class; administrator any; `publishing.activities` says what adding an activity does for the caller (`onSave`: `admin`, `setting` or `review`) and whether teachers' activities wait | `C404` | `app/api/classes/[id]/route.ts:22-73`; `lib/approval-settings.ts` `publishingFor` |
+| `/api/classes/[id]` | PATCH | Administrator | Gives the class to another approved teacher | `R401`, `A403`; 400 "Choose an approved teacher."; 404 | `app/api/classes/[id]/route.ts:76-88`; `lib/class-management.ts:66-84` |
+| `/api/classes/[id]` | DELETE | Teacher | Own class; administrator any | `C404` | `app/api/classes/[id]/route.ts:90-102` |
+| `/api/classes/[id]/activities` | POST | Teacher | Own class (activity waits for approval; approved at once while **Teachers' class activities need an administrator's approval** is off, audited as `class-activity-reviewed` with `{ automatic: true, setting }`); administrator any (approved at once); the answer's `publishedDirectly` is `admin`, `setting` or null | `C404`, then 400 body; 403 "Approved staff access required." | `app/api/classes/[id]/activities/route.ts:26-58`; `lib/class-activities.ts` `createClassActivity` |
+| `/api/classes/[id]/activities` | PATCH | Open/close: teacher, own class. Approve/reject: administrator | Activity in the class | `C404`; 400 (**before** the 403); 403 "Only an administrator can approve or reject class activities."; 404 "Activity not found."; 409 "This activity changed. Reload it before reviewing." | `app/api/classes/[id]/activities/route.ts:61-102` |
+| `/api/classes/[id]/activities` | DELETE | Teacher | Own class, any activity (also administrator-approved) | `C404`; 400; 404 | `app/api/classes/[id]/activities/route.ts:104-129` |
 | `/api/classes/[id]/announcements` | POST | Teacher | Own class; visible at once (no approval) | `C404`; 400 body | `app/api/classes/[id]/announcements/route.ts:14-35` |
 | `/api/classes/[id]/announcements` | DELETE | Teacher | Own class, any author | `C404`; 400; 404 "Announcement not found." | `app/api/classes/[id]/announcements/route.ts:37-69` |
 | `/api/classes/[id]/attendance` | GET | Teacher | Own class, current students | 400 date (**before** `C404`); 503 | `app/api/classes/[id]/attendance/route.ts:13-21` |
 | `/api/classes/[id]/attendance` | PUT | Teacher | Own class, current students only | 400 date and marks (**before** `C404`); 409 "The class list has changed since this page loaded…"; 503 | `app/api/classes/[id]/attendance/route.ts:24-35`; `lib/class-attendance.ts:77-94` |
 | `/api/classes/[id]/grades` | GET | Teacher | Own class, current members; `?format=csv` | `C404` | `app/api/classes/[id]/grades/route.ts:17-68` |
-| `/api/classes/[id]/sources` | GET | Teacher | Own class, every approval state | `C404`; 503 | `app/api/classes/[id]/sources/route.ts:22-30` |
-| `/api/classes/[id]/sources` | POST | Teacher | Own class (waits for approval); administrator approved at once; at most 50 | 413 over 5,000 characters; 400 body; `C404`; 400 fields | `app/api/classes/[id]/sources/route.ts:33-43`; `lib/class-sources.ts:73-97` |
-| `/api/classes/[id]/sources` | PATCH | Edit: teacher, own class (goes back to waiting). Approve/reject: administrator | Source in the class | 413/400 body; 404 "Source not found." for a missing `sourceId` (**before** `C404`); `C404`; 403 review; 409 stale revision | `app/api/classes/[id]/sources/route.ts:46-60`; `lib/class-sources.ts:100-137` |
-| `/api/classes/[id]/sources` | DELETE | Teacher | Own class, any source | 413/400 body; `C404`; 404 | `app/api/classes/[id]/sources/route.ts:62-72` |
+| `/api/classes/[id]/sources` | GET | Teacher | Own class, every approval state; `onSave` and `teachersNeedApproval` say what saving a source does for the caller | `C404`; 503 | `app/api/classes/[id]/sources/route.ts:27-35` |
+| `/api/classes/[id]/sources` | POST | Teacher | Own class (waits for approval; approved at once while **Teachers' class sources need an administrator's approval** is off, audited as `class-source-reviewed` with `{ automatic: true, setting }`); administrator approved at once; at most 50; the answer's `source.publishedDirectly` is `admin`, `setting` or null | 413 over 5,000 characters; 400 body; `C404`; 400 fields | `app/api/classes/[id]/sources/route.ts:38-48`; `lib/class-sources.ts` `addClassSource` |
+| `/api/classes/[id]/sources` | PATCH | Edit: teacher, own class (goes back to waiting, or approved at once while the class sources switch is off). Approve/reject: administrator | Source in the class | 413/400 body; 404 "Source not found." for a missing `sourceId` (**before** `C404`); `C404`; 403 review; 409 stale revision | `app/api/classes/[id]/sources/route.ts:51-65`; `lib/class-sources.ts` `updateClassSource`, `reviewClassSource` |
+| `/api/classes/[id]/sources` | DELETE | Teacher | Own class, any source | 413/400 body; `C404`; 404 | `app/api/classes/[id]/sources/route.ts:67-77` |
 | `/api/classes/[id]/students` | GET | Teacher | Own roster; `?available=1` lists every active, approved student not yet in the class (50 at most) | `C404`; 503 | `app/api/classes/[id]/students/route.ts:10-19`; `lib/enrollments.ts:66-86` |
 | `/api/classes/[id]/students` | POST | Teacher | Adds any active, approved student to an own class | 400 body (**before** `C404`); 404 "No active student has that username."; 409 | `app/api/classes/[id]/students/route.ts:21-33`; `lib/enrollments.ts:89-100` |
 | `/api/classes/[id]/students` | DELETE | Teacher | Removes the allocation; records are kept | 400 (**before** `C404`); 404 "Active allocation not found." | `app/api/classes/[id]/students/route.ts:34-40` |
@@ -484,8 +489,8 @@ A method that a route file does not export answers 405 once the proxy lets the r
 | Role | What they can reach | Where it is enforced |
 | --- | --- | --- |
 | **Visitor** | Public paths only: `/welcome`, `/grown-ups`, `/student`, `/safety`, sign-in, sign-up, recovery, sign-out and session APIs, `/api/health`, icons, fonts, CSS and the scripts of public pages. | `lib/learning-policy.ts:3-15`; `lib/public-assets.ts:13-41`; `proxy.ts:49,58-64` |
-| **Student** | **Own record** and **own classes**: classes with an active allocation (`studentClassEnrollments`), only approved activities and sources, announcements for everyone or students, own submissions and attendance, own topic progress. Correct answers are not in the feed. | `app/api/student/feed/route.ts:19-99`; `app/api/student/results/route.ts:8-57`; `app/api/student/submit/route.ts:30-41`; `lib/class-sources.ts:56-60`; `lib/announcements.ts:13-15` |
-| **Parent** | **Linked children** (`parent_student_links`, made only by an administrator) and their active classes: approved activities, the child's submissions, attendance, announcements for everyone or parents, approved sources. Own home learner profiles are read-only. No staff APIs. | `lib/parent-access.ts:57-105`; `lib/class-sources.ts:171-184`; `lib/narration-source.ts:64-90`; `app/api/assignments/route.ts:27,56` (`RO403`) |
+| **Student** | **Own record** and **own classes**: classes with an active allocation (`studentClassEnrollments`), only approved activities and sources, announcements for everyone or students, own submissions and attendance, own topic progress. Correct answers are not in the feed. | `app/api/student/feed/route.ts:19-99`; `app/api/student/results/route.ts:8-57`; `app/api/student/submit/route.ts:30-41`; `lib/class-sources.ts:63-67`; `lib/announcements.ts:13-15` |
+| **Parent** | **Linked children** (`parent_student_links`, made only by an administrator) and their active classes: approved activities, the child's submissions, attendance, announcements for everyone or parents, approved sources. Own home learner profiles are read-only. No staff APIs. | `lib/parent-access.ts:57-105`; `lib/class-sources.ts:197-210`; `lib/narration-source.ts:64-90`; `app/api/assignments/route.ts:27,56` (`RO403`) |
 | **Teacher** | **Own classes** (`classes.teacherId` = self) and everything in them. Another teacher's class answers 404. The student picker searches **all** active, approved students by name and username, and the teacher can allocate any of them to an own class; after that the teacher sees that student's results, attendance and topic progress. The shared topic and lesson catalogue, including drafts and pending recordings. Own learner profiles, drafts and specialist checks. | `lib/class-access.ts:12-21`; `lib/enrollments.ts:12-17,66-100`; `lib/curriculum-catalog.ts:421-436` |
 | **Administrator** | **All** classes, accounts, links, results and content decisions. Own learner profiles, drafts and data export stay own-only. `GET /api/classes` without `?scope=all` shows only classes the administrator teaches. | `lib/class-access.ts:12-14`; `lib/enrollments.ts:13-14`; `app/api/classes/route.ts:20-25`; `lib/user-management.ts:68-119` |
 
@@ -496,7 +501,7 @@ What learners receive is limited to approved content in every learner path, for 
 - Lessons and recordings: an approved lesson revision, and recordings that are approved and have consent
   (`lib/lesson-approval.ts:43-52,122-163,396-399`).
 - Class activities and class sources: `approvalStatus` approved (`app/api/student/feed/route.ts:48`;
-  `lib/parent-access.ts:75`; `lib/class-sources.ts:59`).
+  `lib/parent-access.ts:75`; `lib/class-sources.ts:66`).
 - Narration of a topic uses only the published version, even for staff
   (`lib/narration-source.ts:50-57`). The one exception is narration of class activities, where the
   owning teacher or an administrator can hear an unapproved or closed activity, but only from audio
@@ -527,11 +532,15 @@ administrators with `canPublishContent` approve.
 the actor: account approvals, updates, session revocation, password resets, family links, class
 allocation, class creation for a teacher, class moves and deletion, activity and source changes and
 reviews, announcement removal, submission resets, student provisioning, own password changes and
-teacher requests, and each change of the approval setting (`approval-setting-changed`). Work that is
-published without a separate review is recorded as an approval by the account that saved it:
-`topic-version-approved` with `{ self: true }` (an administrator's own topic) or
+teacher requests, and each change of an approval setting (`approval-setting-changed`, one row per
+setting). Work that is published without a separate review is recorded as an approval by the account
+that saved it: `topic-version-approved` with `{ self: true }` (an administrator's own topic) or
 `{ automatic: true, setting: "teacher-topics-need-approval" }` (a teacher's topic while approval was
-off), and `lesson-audio-approved` with `{ self: true }` (an administrator's own recording). Also recorded: a teacher creating a class (`class-created`), posting an announcement
+off), `class-activity-reviewed` with `{ automatic: true, setting:
+"teacher-class-activities-need-approval" }` and `class-source-reviewed` with `{ automatic: true,
+setting: "teacher-class-sources-need-approval" }` (a teacher's class activity or class source while
+that approval was off; **Recent changes** labels these "… published at once (approval was off)"), and
+`lesson-audio-approved` with `{ self: true }` (an administrator's own recording). Also recorded: a teacher creating a class (`class-created`), posting an announcement
 (`announcement-posted`), opening or closing an activity (`class-activity-opened`,
 `class-activity-closed`), every attendance save (`attendance-saved`), password recovery
 (`password-recovered`), recovery-code replacement (`recovery-codes-replaced`), sign out everywhere
@@ -676,7 +685,7 @@ the password. Reverting is a two-line change in the two sign-in routes.
 | 14 | Unhandled 500s on the wrong body type (authorization still runs first): `POST`/`PATCH /api/assignments` and `POST /api/studio/media` (confirmed by the probe), and `POST /api/studio/reviews`, `POST /api/progress` (confirmed by the re-check), `PATCH /api/profiles/[id]`. The proxy's JSON check only looks at a `Content-Type` that starts with lower-case `application/json`, while the origin check accepts any letter case, so `Application/JSON` with a malformed body also reaches these routes unparsed. Two simultaneous student sign-ups with one username also give 500. `/api/student/sign-out` has no error handling, so a database error leaves both cookies set. | `app/api/assignments/route.ts:28,57`; `app/api/studio/media/route.ts:17`; `lib/student-auth.ts:55-61`; `app/api/student/sign-out/route.ts:9` | Catch body parsing and answer 400; use `onConflictDoNothing` for student sign-up; wrap student sign-out as the adult one is. |
 | 15 | Some 500 responses include raw error messages: class routes, student feed, results and submit, `GET /api/studio/reviews`, and `POST /api/profiles`, which answers a non-JSON body with the parser's message (confirmed by the re-check). | `app/api/classes/route.ts:88-95`; `app/api/student/feed/route.ts:110-114`; `app/api/studio/reviews/route.ts:35-37`; `app/api/profiles/route.ts:43,78-82` | Log the detail on the server and answer a fixed message. |
 | 16 | Not audited: password recovery, recovery-code replacement, sign out everywhere, account deletion, a teacher creating a class for themselves (confirmed by the re-check), announcement posting, opening or closing an activity, attendance saves. | `lib/auth.ts:237-247`; `app/api/account/recovery-codes/route.ts:23`; `app/api/account/sessions/route.ts:11`; `app/api/account/delete/route.ts:62-70`; `app/api/classes/route.ts:72-76` | Add audit rows for the account events at least. |
-| 17 | Teachers can delete any announcement, activity or source in their own class, including ones an administrator wrote or approved. | `app/api/classes/[id]/announcements/route.ts:52-57`; `app/api/classes/[id]/activities/route.ts:135`; `lib/class-sources.ts:144` | Decide whether administrator content should be protected. |
+| 17 | Teachers can delete any announcement, activity or source in their own class, including ones an administrator wrote or approved. | `app/api/classes/[id]/announcements/route.ts:52-57`; `app/api/classes/[id]/activities/route.ts:120`; `lib/class-sources.ts:171` | Decide whether administrator content should be protected. |
 | 18 | Parent views ignore the child's account state: a suspended child's records stay visible on `/api/family`. An administrator can link a parent to a suspended (approved) student. Confirmed by the re-check (the suspended child's class and result stayed on `/api/family`). | `lib/parent-access.ts:35-38,62-71` | Filter on student `status` in both places. |
 | 19 | When a teacher is demoted or suspended, their classes keep pointing to them and only an administrator can open them until someone moves them. | `lib/class-access.ts:12-14`; `lib/class-management.ts:66-84` | Show such classes on `/admin/classes` as needing a new teacher. |
 | 20 | An administrator who resets another administrator's password sees the temporary password and could sign in as them first. Only the `password-reset` audit row records it. This is by design. | `lib/user-management.ts:249-263` | Accept, or require the operator command for administrator resets. |
@@ -786,8 +795,10 @@ for the student routes), [`tests/rate-limit.test.mjs`](../tests/rate-limit.test.
 [`tests/parent-access.test.mjs`](../tests/parent-access.test.mjs) (gap 18),
 [`tests/audit-labels.test.mjs`](../tests/audit-labels.test.mjs) and
 [`tests/user-management.test.mjs`](../tests/user-management.test.mjs) (audit codes and labels).
-Who approves what (an administrator's own work, the teachers' topic approval switch and its
+Who approves what (an administrator's own work, the three approval switches and their
 administrator-only API) is covered by [`tests/approval-settings.test.mjs`](../tests/approval-settings.test.mjs),
+[`tests/class-content-approval.test.mjs`](../tests/class-content-approval.test.mjs) (class activities and
+class sources with their switches on and off),
 [`tests/e2e/approval-setting.spec.ts`](../tests/e2e/approval-setting.spec.ts) and the administrator
 scenarios in [`tests/e2e/topic-approval.spec.ts`](../tests/e2e/topic-approval.spec.ts) and
 [`tests/e2e/lesson-approval.spec.ts`](../tests/e2e/lesson-approval.spec.ts).

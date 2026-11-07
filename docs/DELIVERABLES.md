@@ -190,10 +190,13 @@ now describe:
 - a parent is told when a linked child's account is not active
   ([Parent guide](user-guides/parent.md#reading-results-and-attendance));
 - an Administrator's own topics, recordings, class activities and class sources are published at
-  once, and the switch **Teachers' topics need an administrator's approval** (on by default)
-  decides whether teachers' topics wait
+  once, and the switches **Teachers' topics need an administrator's approval**, **Teachers' class
+  activities need an administrator's approval** and **Teachers' class sources need an
+  administrator's approval** (each on by default, under **Who needs approval**) decide whether
+  teachers' topics, class activities and class sources wait
   ([Administrator guide](user-guides/administrator.md#who-needs-approval),
-  [Teacher guide](user-guides/teacher.md#whether-your-topics-wait-for-approval),
+  [Teacher guide](user-guides/teacher.md#whether-your-topics-wait-for-approval) and
+  [activities and sources](user-guides/teacher.md#whether-your-activities-and-sources-wait-for-approval),
   [Content approval](CONTENT_APPROVAL.md#who-approves-what));
 - 429 messages say how long to wait.
 

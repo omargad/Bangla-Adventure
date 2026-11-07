@@ -170,6 +170,8 @@ export default function PortalShell({ role, name, language, toggleLanguage, acti
       lessons,
       content,
       { id: "admin-sources", label: s("Textbook links", "পাঠ্যবইয়ের লিংক"), href: "/admin/sources" },
+      // The approval switches for teachers' topics, class activities and class sources (also on the Topics page).
+      { id: "admin-approvals", label: s("Who needs approval", "কার অনুমোদন লাগবে"), href: "/admin/approvals" },
     ] },
     workspace,
   ] : role === "teacher" ? [

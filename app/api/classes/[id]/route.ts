@@ -5,6 +5,7 @@ import {
   classActivities,
 } from "../../../../db/schema";
 import { getSessionAdult, getStaffAccess } from "@/lib/auth";
+import { publishingFor, TEACHER_ACTIVITY_APPROVAL } from "@/lib/approval-settings";
 import { canTeach } from "@/lib/roles";
 import { deleteClass, findManagedClass } from "@/lib/class-access";
 import { classAttendanceSummaries } from "@/lib/class-attendance";
@@ -47,6 +48,9 @@ export async function GET(_request: Request, context: RouteContext) {
 
     return Response.json({
       class: classroom,
+      // What adding an activity does for this account now ("admin", "setting" while approval for teachers' activities is off,
+      // or "review"), and whether teachers' activities wait for approval.
+      publishing: { activities: await publishingFor(user.id, TEACHER_ACTIVITY_APPROVAL) },
       students,
       announcements,
       activities: activities.map((activity) => ({

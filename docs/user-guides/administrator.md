@@ -6,8 +6,9 @@ create accounts and reset passwords, import families, set up classes for teacher
 NCTB textbook links up to date, and look after results and attendance in every class. You
 also decide what students and parents see: no topic, lesson, recording, video or class
 activity from a teacher reaches them until an Administrator has checked and approved it.
-What you write or upload yourself is published at once, and you can let teachers' topics
-publish without approval (see [Who needs approval](#who-needs-approval)).
+What you write or upload yourself is published at once, and you can let teachers' topics,
+class activities and class sources publish without approval (see
+[Who needs approval](#who-needs-approval)).
 
 The pictures in this guide use made-up people and example addresses. Passwords, recovery
 codes and the website address are blurred on purpose.
@@ -89,7 +90,7 @@ After that, you can make more Administrators yourself from the website (see
 The menu on the left has two groups:
 
 - **Administration**: **Users**, **Class allocation**, **Grades & results**, **Lessons**,
-  **Topics** and **Textbook links**.
+  **Topics**, **Textbook links** and **Who needs approval**.
 - **Teacher workspace**: **All classes** and **Home learners**.
 
 Below them are **Sources & references** and **Account & recovery**. **Sign out** is at the
@@ -561,12 +562,13 @@ password publishes this way.
 
 | What | Where to review it | What you decide |
 | --- | --- | --- |
-| Topics (short readings with a quiz) | **Topics** | Approve, send back with a note, or withdraw; switch approval for teachers' topics on or off |
+| Topics (short readings with a quiz) | **Topics** | Approve, send back with a note, or withdraw |
 | Lessons (the 18 adventure lessons) | **Lessons** | Approve the revision, or withdraw |
 | Recordings of real voices | **Lessons**, inside the lesson | Approve after listening, or stop using it |
 | Lesson videos | **Lessons**, inside the lesson, **Video check** | A separate video decision |
 | Class activities and quizzes | **All classes**, in the class, **Activities & quizzes** | Approve, or send back with a note |
 | Class sources (links for one class) | **All classes**, in the class, **Class sources** | Approve, or send back with a note |
+| Whether teachers' topics, class activities and class sources wait for you | **Who needs approval** (also on the **Topics** page) | Switch approval on or off for each |
 
 Approving the text of a lesson does **not** approve its video. Each video needs its own
 decision. The longer technical explanation is in [Content approval](../CONTENT_APPROVAL.md).
@@ -631,32 +633,56 @@ again."*
 
 ### Who needs approval
 
-At the top of the **Topics** page, the box **Who needs approval** holds the switch
-**Teachers' topics need an administrator's approval**. It is **On** to start with.
+Select **Who needs approval** in the menu, under **Administration**. The box
+**Who needs approval** holds three switches, and the same box is at the top of the **Topics**
+page:
 
-- **On:** *"a topic a teacher writes or edits waits on this page until an administrator
-  reads all of it and approves it."*
-- **Off:** *"a topic a teacher writes or edits is published to students as soon as they save
-  it. Each one is still recorded in Recent changes, and you can withdraw a topic at any time.
-  A teacher's edit of a withdrawn topic still waits for an administrator."*
+- **Teachers' topics need an administrator's approval**
+- **Teachers' class activities need an administrator's approval**
+- **Teachers' class sources need an administrator's approval**
 
-The switch covers teachers' topics only. Teachers' lessons, recordings, videos, class
-activities and class sources always wait for you.
+Each is **On** to start with. What each means:
 
-To change it, select the switch. The box shows *"Last changed by"* with the name and date.
+- **Topics, on:** *"a topic a teacher writes or edits waits on the Topics page until an
+  administrator reads all of it and approves it."*
+- **Topics, off:** *"a topic a teacher writes or edits is published to students as soon as
+  they save it. Each one is still recorded in Recent changes, and you can withdraw a topic at
+  any time. A teacher's edit of a withdrawn topic still waits for an administrator."*
+- **Class activities, on:** *"an activity or quiz a teacher adds to their class waits in
+  Activities & quizzes until an administrator approves it."*
+- **Class activities, off:** *"an activity or quiz a teacher adds to their own class is
+  published to the class as soon as they save it, and students answer it while it is open.
+  Each one is still recorded in Recent changes, and you can withdraw an activity at any
+  time."*
+- **Class sources, on:** *"a link a teacher adds or edits in Class sources waits until an
+  administrator approves it."*
+- **Class sources, off:** *"a link a teacher adds or edits in their own class is shown to the
+  class's students and their parents as soon as they save it. Each one is still recorded in
+  Recent changes, and you can withdraw a source at any time."*
 
-**What you'll see** when you turn it off: *"Approval for teachers' topics is off. Teachers'
-new topics and edits are now published to students as soon as they save them."* If topics
-are already waiting, it adds *"2 topics are still waiting for approval: turning approval off
-does not publish them, so an administrator still reviews them below."* (with the number).
-Those topics stay under **Waiting for approval** until you approve them or send them back.
+Teachers' lessons, recordings and videos always wait for you, and what you write or add
+yourself is always published as you save it.
 
-When you turn it on again: *"Approval for teachers' topics is on. Teachers' new topics and
-edits wait for an administrator again."* Each change appears in **Recent changes** as
-"Approval setting changed". Teachers see on their own **Topics** page whether their topics
-wait or are published as they save them.
+To change a switch, select it. Under each switch the box shows *"Last changed by"* with the
+name and date.
 
-![The Who needs approval box on the Topics page with the switch Teachers' topics need an administrator's approval turned off](images/admin/13-approval-switch.jpg)
+**What you'll see** when you turn one off, for example the topics switch: *"Approval for
+teachers' topics is off. Teachers' new topics and edits are now published to students as soon
+as they save them."* If work is already waiting, it adds how much, for example *"2 topics are
+still waiting for approval: turning approval off does not publish them, so an administrator
+still reviews them below."* or *"1 class activity is still waiting for approval: turning
+approval off does not publish it, so an administrator still reviews it in its class (All
+classes, then Activities & quizzes)."* That work keeps waiting until you approve it or send it
+back, and the note stays under the switch while it is off.
+
+When you turn one on again, for example: *"Approval for teachers' class activities is on.
+Teachers' new activities wait for an administrator again."* Only what teachers save from then
+on waits; what was already published stays published. Each change appears in
+**Recent changes** as "Approval setting changed". Teachers see on their own **Topics** page,
+and in **Activities & quizzes** and **Class sources** in their class, whether their work waits
+or is published as they save it.
+
+![The Who needs approval page with Teachers' class activities need an administrator's approval turned off and one class activity still waiting](images/admin/13-approval-switch.jpg)
 
 ### Lessons
 
@@ -774,7 +800,11 @@ To take back an approved activity or source, type a **Review note** and select
 students and parents no longer see it.
 
 An activity or link you add yourself is approved as you add it and says
-**Approved by Admin · published** straight away.
+**Approved by Admin · published** straight away. While approval for teachers' class
+activities or class sources is switched off (see [Who needs approval](#who-needs-approval)),
+a teacher's new activity, or new or edited link, is published as they save it and says
+**Approved · published**, with no Administrator named. You can still send it back with
+**Withdraw and request changes**.
 
 ## Optional narration (computer voice)
 
@@ -797,8 +827,9 @@ most recent actions. Each entry says what happened (for example "Parent linked",
 "Added to a class", "Quiz answers reset", "Textbook hidden", "Topic withdrawn from students",
 "Approval setting changed" or "Class deleted"), which account or item it was about, and when.
 Your own topics and recordings appear as "Topic approved" and "Lesson recording approved"
-under your name, and a teacher's topic published while approval was off appears as
-"Topic approved" under the teacher's name.
+under your name. A teacher's work published while its approval was switched off appears under
+the teacher's name as "Topic published at once (approval was off)", "Class activity published
+at once (approval was off)" or "Class source published at once (approval was off)".
 
 Each entry also says who made the change: **By:** with the account's name, **By: Server
 operator** for a command run on the server, or **By: Deleted account** for an account deleted

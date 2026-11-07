@@ -64,7 +64,11 @@ and preserve real records.
    version until it is previewed in English and Bangla and approved), that existing quizzes
    and review notices remain, and that turning **Teachers' topics need an administrator's
    approval** off publishes later teacher edits at once while waiting ones stay waiting;
-   turn it back on. In Sources, replace one book's yearly
+   turn it back on. Under **Who needs approval**, do the same with **Teachers' class
+   activities need an administrator's approval** and **Teachers' class sources need an
+   administrator's approval**: while each is off, a teacher's new activity or source in
+   their own class is shown to the class at once and the teacher is told so, while the
+   ones already waiting stay waiting; turn both back on. In Sources, replace one book's yearly
    NCTB link (per class where a book covers several), note the warning for an address
    outside nctb.gov.bd, and confirm students' Sources & references and the topic
    sources open the new link. On the first visit after deploying this version, work

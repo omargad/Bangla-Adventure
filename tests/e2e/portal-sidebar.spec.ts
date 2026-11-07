@@ -6,7 +6,7 @@ const password = "Sidebar-portal-password-2026";
 const sections = ["Students", "Activities & quizzes", "Results", "Attendance", "Announcements", "Class sources"];
 const adminLinks = [
   ["Users", "/admin"], ["Class allocation", "/admin/classes"], ["Grades & results", "/admin/results"], ["Lessons", "/studio"],
-  ["Topics", "/teach/topics"], ["Textbook links", "/admin/sources"], ["All classes", "/teach"], ["Home learners", "/family"], ["Sources & references", "/references"],
+  ["Topics", "/teach/topics"], ["Textbook links", "/admin/sources"], ["Who needs approval", "/admin/approvals"], ["All classes", "/teach"], ["Home learners", "/family"], ["Sources & references", "/references"],
   ["Account & recovery", "/account"],
 ];
 
@@ -70,7 +70,7 @@ test("an administrator's sidebar has the same two groups on every admin page, ea
     // On the workspace itself "All classes" returns to the class list in place; everywhere else it is a link.
     expect(shown.items).toEqual(adminLinks.map(([name, href]) => [name, path === "/teach" && href === "/teach" ? "(button)" : href]));
     expect(shown.current).toEqual([adminLinks[index][0]]);
-    await expect(nav.getByRole("group", { name: "Administration" }).getByRole("link")).toHaveCount(6);
+    await expect(nav.getByRole("group", { name: "Administration" }).getByRole("link")).toHaveCount(7);
     for (const section of sections) await expect(nav.getByRole("button", { name: section, exact: true })).toHaveCount(0);
     // One language button per page: the one in the top bar.
     await expect(page.getByRole("button", { name: "বাংলা", exact: true })).toHaveCount(1);

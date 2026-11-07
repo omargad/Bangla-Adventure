@@ -4,7 +4,7 @@ import { classActivities } from "../../../../../db/schema";
 import { getSessionAdult } from "@/lib/auth";
 import { canTeach, canPublishContent } from "@/lib/roles";
 import { findManagedClass } from "@/lib/class-access";
-import { ActivityError, changeActivityStatus, currentActivityManager } from "@/lib/class-activities";
+import { ActivityError, changeActivityStatus, createClassActivity, currentActivityManager } from "@/lib/class-activities";
 import { auditClass } from "@/lib/class-audit";
 import { classServerError } from "@/lib/class-errors";
 import { validateQuizQuestions } from "@/lib/classroom";
@@ -18,6 +18,11 @@ const notTeacher = () => refuse(403, "An approved teacher account is required.",
 const classNotFound = () => refuse(404, "Class not found.", "ক্লাসটি পাওয়া যায়নি।");
 const activityChanged = () => new ActivityError("This activity changed. Reload it before reviewing.", 409, "কার্যক্রমটি বদলেছে। পর্যালোচনার আগে আবার লোড করুন।");
 
+/**
+ * A new activity. An administrator's is approved at once; an approved teacher's waits for an administrator unless
+ * "Teachers' class activities need an administrator's approval" is off (see createClassActivity). The answer's
+ * `publishedDirectly` is "admin", "setting" or null (waiting).
+ */
 export async function POST(request: Request, context: RouteContext) {
   const user = await getSessionAdult();
   if (user && !canTeach(user)) return notTeacher();
@@ -45,26 +50,8 @@ export async function POST(request: Request, context: RouteContext) {
     const validated = validateQuizQuestions(body.questions);
     if ("error" in validated) return refuse(400, validated.error, "প্রশ্নগুলো দেখে ঠিক করে আবার জমা দিন।");
 
-    const db = await getDb();
-    const activity = db.transaction((tx) => {
-      const { actor, className } = currentActivityManager(tx, user.id, id);
-      const approved = canPublishContent(actor);
-      const now = new Date().toISOString();
-      const row = tx.insert(classActivities).values({
-        id: crypto.randomUUID(),
-        classId: id,
-        title,
-        instructions,
-        topicId,
-        questionsJson: JSON.stringify(validated.questions),
-        createdBy: actor.id, approvalStatus: approved ? "approved" : "pending",
-        reviewedBy: approved ? actor.id : null, reviewedAt: approved ? now : null,
-        createdAt: now, updatedAt: now,
-      }).returning().get();
-      auditClass(tx, actor.id, id, "class-activity-created", { activityId: row.id, title: row.title, approvalStatus: row.approvalStatus, revision: row.revision }, className);
-      return row;
-    });
-    return Response.json({ activity: { ...activity, questions: validated.questions } }, { status: 201 });
+    const { activity, publishedDirectly } = await createClassActivity(user.id, id, { title, instructions, topicId, questions: validated.questions });
+    return Response.json({ activity: { ...activity, questions: validated.questions }, publishedDirectly }, { status: 201 });
   } catch (error) {
     return failure(error);
   }

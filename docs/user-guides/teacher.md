@@ -12,8 +12,9 @@ blurred.
 One rule runs through everything a teacher does: **students and parents only see new learning
 content after your school's Administrator approves it.** This includes activities, topics,
 recordings and class links. Class lists, attendance and announcements do not need approval. The
-one exception is topics: the Administrator can switch off approval for teachers' topics, and then
-your topics are published as soon as you save them. The **Topics** page always says which applies.
+exceptions are topics, class activities and class sources: the Administrator can switch off
+approval for each of these, and then yours are published as soon as you save them. The **Topics**
+page, and **Activities & quizzes** and **Class sources** in your class, always say which applies.
 The [Administrator guide](administrator.md#approving-content-before-students-see-it) shows the other
 side of each approval.
 
@@ -302,7 +303,8 @@ names too" and upload again."*
 ## Setting activities and quizzes
 
 An activity is a short multiple-choice quiz for your class. Each activity is checked by your
-Administrator before students can see it.
+Administrator before students can see it, unless the Administrator has switched that approval off
+(see [Whether your activities and sources wait for approval](#whether-your-activities-and-sources-wait-for-approval)).
 
 1. Open the class and select **Activities & quizzes**.
 2. Under **Set a quiz or activity**, type a title in the box that says *Activity title, e.g.
@@ -442,7 +444,8 @@ Announcements do not need Administrator approval. They appear as soon as you pos
 ## Adding class sources
 
 Class sources are useful links just for your class, such as a worksheet, a video or a textbook
-page. Each link is checked by the Administrator before students and parents can see it.
+page. Each link is checked by the Administrator before students and parents can see it, unless the
+Administrator has switched that approval off (see below).
 
 1. Open the class and select **Class sources**.
 2. Under **Add a source**, fill in:
@@ -468,6 +471,33 @@ Parent guide).
 The NCTB textbook links that everyone sees are looked after by the Administrator, not by
 teachers (see
 [Keeping the NCTB textbook links up to date](administrator.md#keeping-the-nctb-textbook-links-up-to-date)).
+
+### Whether your activities and sources wait for approval
+
+The note above each form in your class says what happens when you save. Normally an activity or
+source waits for the Administrator, as described above. The Administrator can switch off
+**Teachers' class activities need an administrator's approval** or **Teachers' class sources need
+an administrator's approval** (see [Who needs approval](administrator.md#who-needs-approval) in
+the Administrator guide). Then:
+
+- **Activities & quizzes** says *"An administrator has switched off approval for teachers' class
+  activities, so your new activities are published to the class as soon as you save them."* The
+  button is **Publish to the class**, and after saving you see *"Activity published to the class.
+  Students and parents see it now, and students can answer it while it is open: teachers' class
+  activities do not need an administrator's approval at the moment."* The activity shows
+  **Approved · published**. **Close** and **Reopen** work as before: students answer only while it
+  is open.
+- **Class sources** says *"An administrator has switched off approval for teachers' class
+  sources, so a source you add or edit is shown at once to allocated students in Sources &
+  references and to their linked parents."* The button is **Save and show to the class**. After
+  adding a link you see *"Source published. Students in this class and their parents can see it
+  now: teachers' class sources do not need an administrator's approval at the moment."*, and after
+  an edit *"Source updated. Students in this class and their parents see the change now: …"*.
+
+Everything you publish this way is still recorded, and the Administrator can send it back at any
+time. Activities and sources that were already waiting when approval was switched off keep
+waiting until the Administrator reviews them; editing a waiting source publishes your edit. When
+the Administrator switches approval on again, only what you save from then on waits.
 
 ## Writing topics in English and Bangla
 
@@ -690,8 +720,9 @@ Names you type, such as class names and student names, stay exactly as typed.
 **What you cannot do**
 
 - **Publish anything yourself.** Activities, topics, lessons, recordings and class sources all
-  wait for the Administrator, except topics while the Administrator has switched off approval for
-  teachers' topics. You will not find approve buttons on your pages.
+  wait for the Administrator, except topics, activities and class sources while the Administrator
+  has switched off approval for that kind of work. You will not find approve buttons on your
+  pages.
 - **Open Administrator pages.** If you try, you will see **Administrator access required**.
 - **Reset a student's password.** Temporary passwords from a CSV upload are shown once only. If a
   student loses theirs, ask the Administrator.
