@@ -6,9 +6,10 @@ import type { Language } from "@/lib/use-language";
 export type ApprovalState = "pending" | "approved" | "rejected";
 
 /**
- * The server rechecks both Admin access and the exact revision being reviewed. `reviewedBy` is null for work approved
- * at once because an administrator had switched off approval for teachers' class activities or class sources: no
- * administrator is named as having reviewed it.
+ * The server rechecks both Admin access and the exact revision being reviewed. An approved item with no `reviewedBy`
+ * says "Approved · published" without naming an administrator: work approved at once because an administrator had
+ * switched off approval for teachers' class activities or class sources, or work whose reviewing administrator's
+ * account has since been deleted. The audit log, not this label, says which.
  */
 export default function ContentApproval({ language, status, reviewNote, reviewedBy, isAdmin, onDecision }: {
   language: Language;

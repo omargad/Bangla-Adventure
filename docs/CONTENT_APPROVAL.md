@@ -69,19 +69,29 @@ Anyone else's work waits, whatever the settings say.
   need an administrator's approval** is off, a source an approved teacher adds or
   edits in their own class is approved as it is saved and shown at once to the
   class's allocated students and their linked parents; while it is on, a teacher's
-  new source or edit waits (an edit takes a source back to waiting). An approval
+  new source or edit waits (an edit takes a source back to waiting). As for a
+  withdrawn topic, a teacher's edit of a source an administrator sent back or
+  withdrew always waits, whatever the switch says, and keeps the administrator's
+  review note: a source is held this way while it is rejected, or waiting with a
+  review note (an edit of any other source clears the note), until an
+  administrator approves it or saves it themselves. The class sources page says so
+  above the form and on the button. An approval
   made this way is recorded under the teacher as `class-activity-reviewed` or
   `class-source-reviewed` with `{ automatic: true, setting:
   "teacher-class-activities-need-approval" }` or `{ automatic: true, setting:
   "teacher-class-sources-need-approval" }` (shown in **Recent changes** as "Class
   activity published at once (approval was off)" and "Class source published at
   once (approval was off)"), and the item names no administrator as its reviewer
-  (it shows "Approved · published"). The teacher's class workspace says, above
+  (it shows "Approved · published", the label for an approved item that names no
+  administrator; an item an administrator approved shows it too once that
+  administrator's account is deleted, so the audit row, not the label, says how it
+  was approved). The teacher's class workspace says, above
   the form, whether a new activity or source will wait for approval or be
   published at once, and the message after saving says which happened. The
   teacher's own-class scope and every other rule are unchanged: a teacher still
   cannot approve or send back, an administrator can still send an item back at
-  any time, and a teacher with a temporary password cannot save at all. The
+  any time (and a sent-back source stays back until an administrator shows it
+  again), and a teacher with a temporary password cannot save at all. The
   server decides on every save (`lib/class-activities.ts`,
   `lib/class-sources.ts`), never the page.
 - **Turning a switch off or on.** Turning a switch off publishes nothing that is

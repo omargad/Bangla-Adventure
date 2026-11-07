@@ -58,7 +58,7 @@ At the final demo the client's representative asked who approves what:
 | Request | Status |
 | --- | --- |
 | An administrator does not have to approve their own content | ✅ An Admin's own topics, recordings, class activities and class sources publish at once and are recorded as their approval |
-| A teacher's content needs an administrator's approval | ✅ Topics, lessons, recordings and class content from teachers wait for an Admin |
+| A teacher's content needs an administrator's approval | ✅ Lessons and recordings from teachers always wait for an Admin; topics, class activities and class sources wait while their switches are on (the default) |
 | The schools may not want that step for teachers' topics (few volunteers) | ✅ **Teachers' topics need an administrator's approval** switch on the Topics page, on by default; every change is audited |
 | The same option for class activities and class sources, which the team offered | ✅ **Teachers' class activities need an administrator's approval** and **Teachers' class sources need an administrator's approval**, beside the topics switch under **Administration → Who needs approval** (`/admin/approvals`) and on the Topics page; on by default, audited, and turning one off publishes nothing already waiting |
 

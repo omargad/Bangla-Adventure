@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import type { Bilingual } from "@/app/topics-content";
 import type { ApprovalField, ApprovalSettings } from "@/lib/approval-settings";
 import { formatNumber, formatWhen, type Language } from "@/lib/topic-model";
@@ -93,7 +93,7 @@ const SWITCHES: Array<{ field: ApprovalField; label: Bilingual; on: Bilingual; o
     field: "teacherSourcesNeedApproval",
     label: { en: "Teachers' class sources need an administrator's approval", bn: "শিক্ষকদের ক্লাসের উৎসে প্রশাসকের অনুমোদন প্রয়োজন" },
     on: { en: "On: a link a teacher adds or edits in Class sources waits until an administrator approves it.", bn: "চালু: শিক্ষক “ক্লাসের উৎস”-এ কোনো লিংক যোগ বা সম্পাদনা করলে, প্রশাসক অনুমোদন না দেওয়া পর্যন্ত তা অপেক্ষায় থাকে।" },
-    off: { en: "Off: a link a teacher adds or edits in their own class is shown to the class's students and their parents as soon as they save it. Each one is still recorded in Recent changes, and you can withdraw a source at any time.", bn: "বন্ধ: শিক্ষক নিজের ক্লাসে কোনো লিংক যোগ বা সম্পাদনা করলে সংরক্ষণের সঙ্গে সঙ্গে তা ক্লাসের শিক্ষার্থী ও তাদের অভিভাবকদের কাছে দেখা যায়। প্রতিটি তবুও “সাম্প্রতিক পরিবর্তন”-এ লেখা থাকে, এবং আপনি যেকোনো সময় উৎস সরিয়ে নিতে পারেন।" },
+    off: { en: "Off: a link a teacher adds or edits in their own class is shown to the class's students and their parents as soon as they save it. Each one is still recorded in Recent changes, and you can withdraw a source at any time. A teacher's edit of a source you sent back or withdrew still waits for an administrator.", bn: "বন্ধ: শিক্ষক নিজের ক্লাসে কোনো লিংক যোগ বা সম্পাদনা করলে সংরক্ষণের সঙ্গে সঙ্গে তা ক্লাসের শিক্ষার্থী ও তাদের অভিভাবকদের কাছে দেখা যায়। প্রতিটি তবুও “সাম্প্রতিক পরিবর্তন”-এ লেখা থাকে, এবং আপনি যেকোনো সময় উৎস সরিয়ে নিতে পারেন। আপনি যে উৎস ফেরত পাঠিয়েছেন বা সরিয়ে নিয়েছেন, তাতে শিক্ষকের সম্পাদনা তবুও প্রশাসকের অপেক্ষায় থাকে।" },
   },
 ];
 
@@ -103,13 +103,19 @@ const SWITCHES: Array<{ field: ApprovalField; label: Bilingual; on: Bilingual; o
  * again and records every change in Recent changes. It is shown on the Topics page and on Administration › Who needs
  * approval; `onChanged` lets the page show the message (and reload what depends on the settings), otherwise the
  * panel shows it itself. A page that loads the settings itself (the Topics page, with its list) passes them as
- * `answer` and keeps them with `onAnswer`; otherwise the panel loads them.
+ * `answer` and keeps them with `onAnswer`; otherwise the panel loads them. A page whose own heading already says "Who
+ * needs approval" passes `heading={false}`.
+ *
+ * Each switch is named by its label alone (the On/Off badge is hidden from screen readers, as the switch's checked
+ * state already says it) and described by what on or off means. While a change is being saved the switches stay
+ * enabled, so keyboard focus stays where it is; further presses are ignored until the answer arrives.
  */
-export default function ApprovalSetting({ language, onTopicsPage = false, onChanged, answer: given, onAnswer }: {
+export default function ApprovalSetting({ language, onTopicsPage = false, onChanged, answer: given, onAnswer, heading = true }: {
   language: Language; onTopicsPage?: boolean; onChanged?: (message: Bilingual) => void;
-  answer?: Answer; onAnswer?: (answer: Answer) => void;
+  answer?: Answer; onAnswer?: (answer: Answer) => void; heading?: boolean;
 }) {
   const s = (en: string, bn: string) => (language === "bn" ? bn : en);
+  const id = useId();
   const [own, setOwn] = useState<Answer | null>(null);
   const answer = given ?? own;
   const setAnswer = (next: Answer) => { if (given) onAnswer?.(next); else setOwn(next); };
@@ -142,25 +148,28 @@ export default function ApprovalSetting({ language, onTopicsPage = false, onChan
     : classStillWaiting(field === "teacherActivitiesNeedApproval" ? "activities" : "sources", count, language);
 
   return (
-    <section className="teach-panel approval-setting" aria-label={s("Who needs approval", "কার অনুমোদন লাগবে")}>
-      <h2>{s("Who needs approval", "কার অনুমোদন লাগবে")}</h2>
+    <section className="teach-panel approval-setting" aria-label={s("Who needs approval", "কার অনুমোদন লাগবে")} aria-busy={busy !== null}>
+      {heading && <h2>{s("Who needs approval", "কার অনুমোদন লাগবে")}</h2>}
       {message && <p className="teach-message" role="status">{message[language]}</p>}
       {!answer && !error && <p role="status">{s("Loading the approval settings…", "অনুমোদনের সেটিং লোড হচ্ছে…")}</p>}
       {answer && SWITCHES.map(({ field, label, on: onText, off: offText }) => {
         const on = answer.settings[field];
         const waiting = answer.waiting[waitingOf[field]];
         const last = answer.settings.lastChanged?.[field] ?? null;
+        const noteId = `${id}-${field}-note`, waitingId = `${id}-${field}-waiting`;
+        const waits = !on && waiting > 0;
         return (
-          <div className="approval-setting-item" key={field} role="group" aria-label={label[language]}>
+          <div className="approval-setting-item" key={field} data-setting={field}>
             <label className="approval-switch">
-              <input type="checkbox" role="switch" checked={on} disabled={busy !== null} onChange={(event) => void change(field, event.target.checked)} />
+              <input type="checkbox" role="switch" checked={on} aria-describedby={waits ? `${noteId} ${waitingId}` : noteId}
+                onChange={(event) => void change(field, event.target.checked)} />
               <span><strong>{label[language]}</strong>{" "}
-                <span className={`topic-status topic-status-${on ? "approved" : "pending"}`}>{on ? s("On", "চালু") : s("Off", "বন্ধ")}</span></span>
+                <span className={`topic-status topic-status-${on ? "approved" : "pending"}`} aria-hidden="true">{on ? s("On", "চালু") : s("Off", "বন্ধ")}</span></span>
             </label>
-            <p className="teach-note">{on
+            <p className="teach-note" id={noteId}>{on
               ? (field === "teacherTopicsNeedApproval" && onTopicsPage ? s("On: a topic a teacher writes or edits waits on this page until an administrator reads all of it and approves it.", "চালু: শিক্ষক কোনো বিষয় লিখলে বা সম্পাদনা করলে, প্রশাসক পুরোটা পড়ে অনুমোদন না দেওয়া পর্যন্ত তা এই পাতায় অপেক্ষায় থাকে।") : onText[language])
               : offText[language]}</p>
-            {!on && waiting > 0 && <p className="teach-note" role="note">{waitingNote(field, waiting)}</p>}
+            {waits && <p className="teach-note" role="note" id={waitingId}>{waitingNote(field, waiting)}</p>}
             {last && <p className="teach-note"><small>{s(`Last changed by ${last.changedByName ?? "a former staff member"}, ${formatWhen(last.changedAt, "en")}.`, `সর্বশেষ বদলেছেন ${last.changedByName ?? "একজন সাবেক কর্মী"}, ${formatWhen(last.changedAt, "bn")}।`)}</small></p>}
           </div>
         );

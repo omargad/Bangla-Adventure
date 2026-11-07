@@ -496,7 +496,15 @@ the Administrator guide). Then:
 
 Everything you publish this way is still recorded, and the Administrator can send it back at any
 time. Activities and sources that were already waiting when approval was switched off keep
-waiting until the Administrator reviews them; editing a waiting source publishes your edit. When
+waiting until the Administrator reviews them; editing a waiting source publishes your edit.
+
+A source the Administrator has sent back or withdrawn (**Changes requested · not published**) is
+different: your edit of it always waits for the Administrator, even while approval is switched
+off, because only the Administrator can show it again. When you select **Edit** on such a source,
+the form says *"An administrator sent this source back, so your edit waits for an
+administrator's approval even though approval for teachers' class sources is off."* and the
+button is **Submit source for Admin approval**. After saving it shows **Awaiting Admin approval ·
+not published**, with the Administrator's review note still under it, until they review it. When
 the Administrator switches approval on again, only what you save from then on waits.
 
 ## Writing topics in English and Bangla

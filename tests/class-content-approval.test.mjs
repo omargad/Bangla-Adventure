@@ -226,6 +226,73 @@ test("Recent changes labels an automatic approval as published at once, under th
   }
 });
 
+test("with source approval off, a teacher's edit of a source an administrator sent back still waits, and keeps the administrator's note", async () => {
+  await settings.setApprovalSettings("admin", { teacherSourcesNeedApproval: false });
+  assert.deepEqual(await settings.publishingFor("rina", settings.TEACHER_SOURCE_APPROVAL), { onSave: "setting", teachersNeedApproval: false });
+  const sentBack = (await sources.listClassSources(rina, "sunday")).find((source) => source.titleEn === "Published reading");
+  assert.deepEqual([sentBack.approvalStatus, sentBack.reviewNote], ["rejected", "Check the link."], "sent back by the administrator in the test above");
+  const automaticBefore = events("sunday", ["class-source-reviewed"]).length;
+  const visible = await learnerSources("sunday");
+  assert.ok(!visible.includes("Published reading"));
+
+  // Saved again with no change at all: it waits for an administrator, names no reviewer and keeps the note.
+  const unchanged = { ...link("Published reading", "https://example.org/published"), revision: sentBack.revision };
+  const resaved = await sources.updateClassSource(rina, "sunday", sentBack.id, unchanged);
+  assert.deepEqual([resaved.approvalStatus, resaved.publishedDirectly, resaved.reviewedBy, resaved.reviewedAt, resaved.reviewNote], ["pending", null, null, null, "Check the link."]);
+  assert.equal(events("sunday", ["class-source-reviewed"]).length, automaticBefore, "no automatic approval is recorded");
+  assert.deepEqual(await learnerSources("sunday"), visible, "students and parents still do not see it");
+  // A second save does not get round it either: the kept note still marks it as sent back.
+  const twice = await sources.updateClassSource(rina, "sunday", sentBack.id, { ...unchanged, revision: resaved.revision });
+  assert.deepEqual([twice.approvalStatus, twice.publishedDirectly, twice.reviewNote], ["pending", null, "Check the link."]);
+  assert.deepEqual(await learnerSources("sunday"), visible);
+
+  // Only an administrator shows it again; after that the teacher's edits are shown at once, as for any source.
+  const approved = await sources.reviewClassSource(admin, "sunday", sentBack.id, { approvalStatus: "approved", revision: twice.revision });
+  assert.deepEqual([approved.approvalStatus, approved.reviewedBy, approved.reviewNote], ["approved", "admin", ""]);
+  const later = await sources.updateClassSource(rina, "sunday", sentBack.id, { ...unchanged, revision: approved.revision });
+  assert.deepEqual([later.approvalStatus, later.publishedDirectly, later.reviewNote], ["approved", "setting", ""]);
+  assert.equal(events("sunday", ["class-source-reviewed"]).at(-1)[2].automatic, true);
+
+  // An administrator's own edit of a source they sent back publishes it and clears the note.
+  const withdrawn = await sources.reviewClassSource(admin, "sunday", sentBack.id, { approvalStatus: "rejected", revision: later.revision, reviewNote: "Use the Bangla page." });
+  const byAdmin = await sources.updateClassSource(admin, "sunday", sentBack.id, { ...unchanged, revision: withdrawn.revision });
+  assert.deepEqual([byAdmin.approvalStatus, byAdmin.publishedDirectly, byAdmin.reviewedBy, byAdmin.reviewNote], ["approved", "admin", "admin", ""]);
+});
+
+test("a source sent back while approval was on still waits after approval is turned off", async () => {
+  await settings.setApprovalSettings("admin", { teacherSourcesNeedApproval: true });
+  const source = (await sources.listClassSources(rina, "sunday")).find((item) => item.titleEn === "Published reading");
+  const rejected = await sources.reviewClassSource(admin, "sunday", source.id, { approvalStatus: "rejected", revision: source.revision, reviewNote: "Link is broken." });
+  const edited = await sources.updateClassSource(rina, "sunday", source.id, { ...link("Published reading", "https://example.org/fixed"), revision: rejected.revision });
+  assert.deepEqual([edited.approvalStatus, edited.reviewNote], ["pending", "Link is broken."], "the note stays with the waiting edit");
+  await settings.setApprovalSettings("admin", { teacherSourcesNeedApproval: false });
+  const after = await sources.updateClassSource(rina, "sunday", source.id, { ...link("Published reading", "https://example.org/fixed"), revision: edited.revision });
+  assert.deepEqual([after.approvalStatus, after.publishedDirectly, after.reviewNote], ["pending", null, "Link is broken."]);
+  // A source that merely waited (never sent back) is still shown at once by a teacher's edit while approval is off.
+  const fresh = await sources.addClassSource(rina, "sunday", link("Never sent back", "https://example.org/never"));
+  assert.equal(fresh.approvalStatus, "approved");
+  await settings.setApprovalSettings("admin", { teacherSourcesNeedApproval: true });
+});
+
+test("the class sources page shows the same rule: an edit of a sent-back source is submitted for approval", () => {
+  assert.equal(messages.sentBackSource({ approvalStatus: "rejected", reviewNote: "Check the link." }), true);
+  assert.equal(messages.sentBackSource({ approvalStatus: "pending", reviewNote: "Check the link." }), true, "edited since, still waiting");
+  assert.equal(messages.sentBackSource({ approvalStatus: "pending", reviewNote: "" }), false);
+  assert.equal(messages.sentBackSource({ approvalStatus: "approved", reviewNote: "Looks good." }), false);
+  const held = { approvalStatus: "rejected", reviewNote: "Check the link." };
+  assert.equal(messages.sourceEditPublication("setting", held), "review");
+  assert.equal(messages.sourceEditPublication("setting", { approvalStatus: "approved", reviewNote: "" }), "setting");
+  assert.equal(messages.sourceEditPublication("setting", null), "setting", "a new source");
+  assert.equal(messages.sourceEditPublication("admin", held), "admin", "an administrator's edit publishes it");
+  assert.equal(messages.sourceSaveButton(messages.sourceEditPublication("setting", held)).en, "Submit source for Admin approval");
+  const note = messages.sentBackEditNote();
+  assert.match(note.en, /sent this source back, so your edit waits for an administrator's approval/);
+  assert.match(note.bn, /ফেরত পাঠিয়েছেন/);
+  assert.match(messages.sourcesIntro("setting", false).en, /An edit of a source an administrator sent back still waits/);
+  assert.match(messages.sourcesIntro("admin", false).en, /A teacher's edit of a source you sent back still waits for your approval\./);
+  for (const text of [messages.sourcesIntro("setting", false), messages.sourcesIntro("admin", false)]) assert.match(text.bn, /ফেরত পাঠিয়েছেন/);
+});
+
 test("the teacher and the administrator are told what a save did and what is still waiting, in English and Bangla", () => {
   assert.equal(messages.activitySavedMessage(null).en, "Activity submitted for Admin approval. Students and parents cannot see it yet.");
   assert.equal(messages.activitySavedMessage("admin").en, "Activity approved and published to the class.");

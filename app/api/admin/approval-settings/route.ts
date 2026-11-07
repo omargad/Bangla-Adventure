@@ -4,9 +4,13 @@ import { listStaffTopics } from "@/lib/curriculum-catalog";
 
 export const dynamic = "force-dynamic";
 
-/** What is still waiting for an administrator, so the panel can say that turning approval off does not publish it. */
-async function waiting() {
-  const [topics, classContent] = await Promise.all([listStaffTopics(), waitingClassContent()]);
+/**
+ * What is still waiting for an administrator, so the panel can say that turning approval off does not publish it.
+ * The Topics page already has the topic list and counts the waiting topics itself, so it asks without them
+ * (`?waiting=classes`, answered with topics: 0) rather than have the list worked out twice.
+ */
+async function waiting(withTopics = true) {
+  const [topics, classContent] = await Promise.all([withTopics ? listStaffTopics() : Promise.resolve([]), waitingClassContent()]);
   return { topics: topics.filter((topic) => topic.pendingVersions.length > 0).length, ...classContent };
 }
 
@@ -14,10 +18,11 @@ async function waiting() {
  * The approval settings ("Who needs approval"), for an administrator, with what is still waiting for approval.
  * Teachers read what applies to them from GET /api/topics, GET /api/classes/[id] and GET /api/classes/[id]/sources.
  */
-export async function GET() {
+export async function GET(request: Request) {
   const actor = await getStaffAccess("admin");
   if (actor instanceof Response) return actor;
-  try { return Response.json({ settings: await getApprovalSettings(), waiting: await waiting() }, { headers: { "Cache-Control": "private, no-store" } }); }
+  const withTopics = new URL(request.url).searchParams.get("waiting") !== "classes";
+  try { return Response.json({ settings: await getApprovalSettings(), waiting: await waiting(withTopics) }, { headers: { "Cache-Control": "private, no-store" } }); }
   catch (error) { return settingErrorResponse(error); }
 }
 

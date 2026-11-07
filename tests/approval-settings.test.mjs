@@ -19,6 +19,7 @@ const settings = await import("../lib/approval-settings.ts");
 const catalog = await import("../lib/curriculum-catalog.ts");
 const lessons = await import("../lib/lesson-approval.ts");
 const { savedMessage, publishedDirectlyLabel } = await import("../app/teach/topics/shared.ts");
+const { listUsers } = await import("../lib/user-management.ts");
 const { settingChangedMessage, stillWaiting } = await import("../app/teach/topics/ApprovalSetting.tsx");
 const db = await getDb();
 db.insert(adults).values([
@@ -153,6 +154,13 @@ test("turning approval off publishes teachers' later saves at once but leaves wa
     ["topic-created", "teacher", { version: 1, theme: "our-country" }],
     ["topic-version-approved", "teacher", { version: 1, automatic: true, setting: settings.TEACHER_TOPIC_APPROVAL }],
   ]);
+  // Recent changes lists it as an automatic approval under the teacher, naming the topic (labelled "Topic published at
+  // once (approval was off)", see tests/audit-labels.test.mjs), and the setting change beside it.
+  const recent = (await listUsers("admin", new URLSearchParams())).audit;
+  const automatic = recent.find((event) => event.action === "topic-version-approved" && event.targetId === direct.topicId);
+  assert.deepEqual([automatic.automatic, automatic.actor, automatic.targetType, automatic.targetLabel?.en], [true, { kind: "account", name: "Teacher Tania" }, "topic", "Kantha stitching"]);
+  assert.equal(recent.find((event) => event.action === "topic-created" && event.targetId === direct.topicId).automatic, false);
+  assert.deepEqual(recent.find((event) => event.action === "approval-setting-changed").targetLabel, settings.TEACHER_TOPIC_APPROVAL_LABEL);
   assert.match(savedMessage(direct).en, /teachers' topics do not need an administrator's approval at the moment/);
   assert.equal(publishedDirectlyLabel(summary, "en"), "Published at once (teachers' topics did not need approval)");
 

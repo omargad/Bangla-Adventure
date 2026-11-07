@@ -200,7 +200,7 @@ says *"Your teacher will add your class"*. You can still read topics while you w
 ## Reading topics and doing their quizzes
 
 Topics are short readings about the history, culture and literature of Bangladesh. You only
-see topics that the school's Administrator has approved. They are grouped by category, such
+see topics that have been approved. They are grouped by category, such
 as **History & the national story**, **Our country — symbols, rivers & nature**,
 **Culture, crafts & celebrations** and **Literature & stories**.
 
@@ -251,8 +251,9 @@ Either way, **Topics read** goes up by one.
 ## Class activities
 
 Your teacher can set activities for your class. An activity has instructions and
-multiple-choice questions. A new activity only appears after the school's Administrator has
-approved it.
+multiple-choice questions. A new activity appears once it is approved. Usually the school's
+Administrator checks it first, but your school can let your teacher's activities appear as soon as
+your teacher saves them.
 
 ### See your activities
 
@@ -350,8 +351,9 @@ Select **Sources & references** in the menu.
 **What you'll see:**
 
 - **My class sources**: for each of your classes, the links your teacher has shared, with
-  any note, for example *"Listen with a grown-up before Sunday."* Only links the school's
-  Administrator has approved are shown. The same links also appear in **My activities**.
+  any note, for example *"Listen with a grown-up before Sunday."* Only approved links are
+  shown: usually the school's Administrator checks each link first, but your school can let your
+  teacher's links appear as soon as your teacher saves them. The same links also appear in **My activities**.
 - **National Curriculum and Textbook Board, Bangladesh**: the NCTB textbooks the topics come
   from, each with an **Official NCTB page ↗** link.
 
@@ -473,8 +475,8 @@ code is needed.
 - your own classes, with your teacher's name
 - your own activity results, topic quiz scores and attendance
 - announcements for everyone or for students in your classes
-- activities and class sources in your classes, once the Administrator has approved them
-- topics and lessons the Administrator has approved
+- activities and class sources in your classes, once they are approved
+- topics once they are approved, and lessons the Administrator has approved
 
 **What you cannot see**
 
@@ -521,7 +523,7 @@ page.
 | A browser message such as *"Please lengthen this text to 8 characters or more"* or *"Please match the requested format."* | A box is too short, or the username has a space or a character that is not allowed. | Use at least 3 characters for the username (letters, numbers, dots, dashes or underscores) and at least 8 for the password. |
 | You were signed out without pressing **Sign out**. | Your password was changed on another device, or the Administrator reset it. | Sign in with your newest password, or with the new temporary password from the Administrator. |
 | *"Your teacher will add your class"* | You are not in a class yet. | Ask your teacher to add you. You can read topics while you wait. |
-| An activity your teacher mentioned is not there. | New activities appear only after the Administrator approves them. | Select **Refresh** later, or ask your teacher. |
+| An activity your teacher mentioned is not there. | New activities appear only once they are approved. Your teacher can see whether it is still waiting. | Select **Refresh** later, or ask your teacher. |
 | The activity card says **Closed**. | Your teacher has closed the activity. | Ask your teacher if you still need to do it. |
 | *"No topics have been approved yet."*, or no topic cards under **Choose a topic** | The Administrator has not approved any topics yet. | Ask your teacher or the Administrator. |
 | *"Please select one of these options."* when you select **Submit answers** | A question in the activity has no answer yet. | Choose an answer for that question, then select **Submit answers** again. |

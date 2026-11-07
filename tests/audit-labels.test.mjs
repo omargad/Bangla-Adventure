@@ -19,10 +19,12 @@ function sources(...folders) {
   return files;
 }
 
-/** The labels Recent changes shows, by action code. */
-function labelledActions() {
+/** The labels Recent changes shows, by action code, from one of the label tables on its page. */
+function labelledActions(table = "AUDIT_ACTIONS") {
   const page = readFileSync(path.join(root, "app/admin/UserManagement.tsx"), "utf8");
-  const block = page.slice(page.indexOf("const AUDIT_ACTIONS"), page.indexOf("};", page.indexOf("const AUDIT_ACTIONS")));
+  const start = page.indexOf(`const ${table}`);
+  assert.ok(start >= 0, `${table} not found`);
+  const block = page.slice(start, page.indexOf("};", start));
   return new Map([...block.matchAll(/^\s*(?:"([a-z-]+)"|([a-z]+)):\s*\["([^"]+)",\s*"([^"]+)"\]/gm)].map((match) => [match[1] ?? match[2], [match[3], match[4]]]));
 }
 
@@ -67,6 +69,20 @@ test("every action written to the audit log has a label in both languages on Rec
   for (const [code, [en, bn]] of labels) {
     assert.ok(en.trim() && bn.trim(), code);
     assert.notEqual(en, bn, `${code} needs a Bangla label`);
+  }
+});
+
+test("the labels for automatic approvals (approval switched off) are in both languages and replace labelled actions", () => {
+  const automatic = labelledActions("AUTOMATIC_AUDIT_ACTIONS");
+  const labels = labelledActions();
+  assert.deepEqual([...automatic.keys()].sort(), ["class-activity-reviewed", "class-source-reviewed", "topic-version-approved"]);
+  for (const [code, [en, bn]] of automatic) {
+    assert.ok(en.trim() && bn.trim(), code);
+    assert.notEqual(en, bn, `${code} needs a Bangla label`);
+    assert.match(en, /published at once \(approval was off\)$/, code);
+    assert.match(bn, /সরাসরি প্রকাশিত \(অনুমোদন বন্ধ ছিল\)$/, code);
+    assert.ok(labels.has(code), `${code} also has its ordinary label`);
+    assert.notDeepEqual(labels.get(code), [en, bn], code);
   }
 });
 

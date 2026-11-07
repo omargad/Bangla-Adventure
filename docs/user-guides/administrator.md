@@ -658,7 +658,8 @@ Each is **On** to start with. What each means:
   administrator approves it."*
 - **Class sources, off:** *"a link a teacher adds or edits in their own class is shown to the
   class's students and their parents as soon as they save it. Each one is still recorded in
-  Recent changes, and you can withdraw a source at any time."*
+  Recent changes, and you can withdraw a source at any time. A teacher's edit of a source you
+  sent back or withdrew still waits for an administrator."*
 
 Teachers' lessons, recordings and videos always wait for you, and what you write or add
 yourself is always published as you save it.
@@ -803,8 +804,11 @@ An activity or link you add yourself is approved as you add it and says
 **Approved by Admin · published** straight away. While approval for teachers' class
 activities or class sources is switched off (see [Who needs approval](#who-needs-approval)),
 a teacher's new activity, or new or edited link, is published as they save it and says
-**Approved · published**, with no Administrator named. You can still send it back with
-**Withdraw and request changes**.
+**Approved · published**, with no Administrator named. (An item you approved also shows
+**Approved · published** once your account has been deleted, because it no longer names you.)
+You can still send it back with **Withdraw and request changes**. A link you send back or
+withdraw stays with you: the teacher's edit of it waits for your approval even while the switch
+is off, and keeps your review note under it until you approve it or send it back again.
 
 ## Optional narration (computer voice)
 

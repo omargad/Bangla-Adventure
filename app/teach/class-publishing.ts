@@ -53,15 +53,38 @@ export function activitySavedMessage(publishedDirectly: PublishedDirectly): Bili
   return { en: "Activity submitted for Admin approval. Students and parents cannot see it yet.", bn: "কার্যক্রম প্রশাসকের অনুমোদনের জন্য জমা হয়েছে। শিক্ষার্থী ও অভিভাবকেরা এখনও এটি দেখতে পাবেন না।" };
 }
 
+/**
+ * Whether an administrator sent this source back (or withdrew it) and has not approved it since: it is rejected, or a
+ * teacher has edited it since and it waits again with the administrator's note kept (an edit of any other source
+ * clears the note). A teacher's edit of such a source always waits for an administrator, even while approval for
+ * teachers' class sources is off; only an administrator shows it again.
+ */
+export function sentBackSource(source: { approvalStatus: "pending" | "approved" | "rejected"; reviewNote: string }): boolean {
+  return source.approvalStatus === "rejected" || (source.approvalStatus === "pending" && source.reviewNote !== "");
+}
+
+/** What saving this source does for this account: a teacher's edit of a source sent back waits (see sentBackSource). */
+export function sourceEditPublication(onSave: ClassPublication, source: Parameters<typeof sentBackSource>[0] | null): ClassPublication {
+  return onSave === "setting" && source && sentBackSource(source) ? "review" : onSave;
+}
+
+/** The note above the form while a teacher edits a source an administrator sent back, when it would otherwise be shown at once. */
+export function sentBackEditNote(): Bilingual {
+  return {
+    en: "An administrator sent this source back, so your edit waits for an administrator's approval even though approval for teachers' class sources is off. Students and parents do not see it until an administrator approves it.",
+    bn: "প্রশাসক এই উৎসটি ফেরত পাঠিয়েছেন, তাই শিক্ষকদের ক্লাসের উৎসের অনুমোদন বন্ধ থাকলেও আপনার সম্পাদনা প্রশাসকের অনুমোদনের অপেক্ষায় থাকবে। প্রশাসক অনুমোদন না দেওয়া পর্যন্ত শিক্ষার্থী ও অভিভাবকেরা এটি দেখতে পাবেন না।",
+  };
+}
+
 /** The line at the top of Class sources, from what a save does and whether teachers' sources wait. */
 export function sourcesIntro(onSave: ClassPublication, teachersNeedApproval: boolean): Bilingual {
   if (onSave === "admin" && !teachersNeedApproval) return {
-    en: "Add class learning links, such as a worksheet, video or textbook page. Approval for teachers' class sources is off, so a source a teacher adds or edits is shown at once to allocated students in Sources & references and to their linked parents.",
-    bn: "ওয়ার্কশিট, ভিডিও বা পাঠ্যবইয়ের পাতার মতো ক্লাসের শেখার লিংক যোগ করুন। শিক্ষকদের ক্লাসের উৎসের অনুমোদন বন্ধ, তাই শিক্ষক কোনো উৎস যোগ বা সম্পাদনা করলে তা সঙ্গে সঙ্গে বরাদ্দ শিক্ষার্থী ও সংযুক্ত অভিভাবকদের কাছে দেখা যায়।",
+    en: "Add class learning links, such as a worksheet, video or textbook page. Approval for teachers' class sources is off, so a source a teacher adds or edits is shown at once to allocated students in Sources & references and to their linked parents. A teacher's edit of a source you sent back still waits for your approval.",
+    bn: "ওয়ার্কশিট, ভিডিও বা পাঠ্যবইয়ের পাতার মতো ক্লাসের শেখার লিংক যোগ করুন। শিক্ষকদের ক্লাসের উৎসের অনুমোদন বন্ধ, তাই শিক্ষক কোনো উৎস যোগ বা সম্পাদনা করলে তা সঙ্গে সঙ্গে বরাদ্দ শিক্ষার্থী ও সংযুক্ত অভিভাবকদের কাছে দেখা যায়। তবে আপনি যে উৎস ফেরত পাঠিয়েছেন, শিক্ষক তা সম্পাদনা করলে আপনার অনুমোদনের অপেক্ষায় থাকবে।",
   };
   if (onSave === "setting") return {
-    en: "Add class learning links, such as a worksheet, video or textbook page. An administrator has switched off approval for teachers' class sources, so a source you add or edit is shown at once to allocated students in Sources & references and to their linked parents.",
-    bn: "ওয়ার্কশিট, ভিডিও বা পাঠ্যবইয়ের পাতার মতো ক্লাসের শেখার লিংক যোগ করুন। প্রশাসক শিক্ষকদের ক্লাসের উৎসের অনুমোদন বন্ধ রেখেছেন, তাই আপনি কোনো উৎস যোগ বা সম্পাদনা করলে তা সঙ্গে সঙ্গে বরাদ্দ শিক্ষার্থী ও সংযুক্ত অভিভাবকদের কাছে দেখা যায়।",
+    en: "Add class learning links, such as a worksheet, video or textbook page. An administrator has switched off approval for teachers' class sources, so a source you add or edit is shown at once to allocated students in Sources & references and to their linked parents. An edit of a source an administrator sent back still waits for an administrator's approval.",
+    bn: "ওয়ার্কশিট, ভিডিও বা পাঠ্যবইয়ের পাতার মতো ক্লাসের শেখার লিংক যোগ করুন। প্রশাসক শিক্ষকদের ক্লাসের উৎসের অনুমোদন বন্ধ রেখেছেন, তাই আপনি কোনো উৎস যোগ বা সম্পাদনা করলে তা সঙ্গে সঙ্গে বরাদ্দ শিক্ষার্থী ও সংযুক্ত অভিভাবকদের কাছে দেখা যায়। তবে প্রশাসক যে উৎস ফেরত পাঠিয়েছেন, তার সম্পাদনা প্রশাসকের অনুমোদনের অপেক্ষায় থাকবে।",
   };
   return {
     en: "Submit class learning links, such as a worksheet, video or textbook page, for Admin approval. Only approved sources appear for allocated students in Sources & references and for their linked parents. Teacher edits need approval again.",

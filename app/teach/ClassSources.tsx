@@ -6,7 +6,7 @@ import type { Language } from "@/lib/use-language";
 import type { ManagedClassSource as ClassSource } from "@/lib/class-sources";
 import { classSourceTitle } from "../references/ClassSourceList";
 import ContentApproval from "./ContentApproval";
-import { sourceSaveButton, sourceSavedMessage, sourcesIntro, type ClassPublication } from "./class-publishing";
+import { sentBackEditNote, sourceEditPublication, sourceSaveButton, sourceSavedMessage, sourcesIntro, type ClassPublication } from "./class-publishing";
 
 type Draft = { titleEn: string; titleBn: string; url: string; note: string };
 type Notice = { en: string; bn: string; error?: boolean };
@@ -35,6 +35,9 @@ export default function ClassSources({ classId, language, isAdmin = false }: { c
   const [publishing, setPublishing] = useState<{ onSave: ClassPublication; teachersNeedApproval: boolean } | null>(null);
   const onSave: ClassPublication = publishing?.onSave ?? (isAdmin ? "admin" : "review");
   const route = `/api/classes/${encodeURIComponent(classId)}/sources`;
+  // A teacher's edit of a source an administrator sent back waits even while approval is off; the server decides the same.
+  const editedSource = editing ? sources?.find((source) => source.id === editing) ?? null : null;
+  const formSave = sourceEditPublication(onSave, editedSource);
 
   const send = useCallback(async (method: string, body?: unknown) => {
     const response = await fetch(route, { method, cache: "no-store", ...(body ? { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {}) });
@@ -133,9 +136,10 @@ export default function ClassSources({ classId, language, isAdmin = false }: { c
         <label>{s("Link", "লিংক")}<input type="url" required maxLength={500} placeholder="https://" {...field("url")} /></label>
         <label>{s("Note for students (optional)", "শিক্ষার্থীদের জন্য নোট (ঐচ্ছিক)")}<input maxLength={300} {...field("note")} /></label>
         <small>{s("Give a title in at least one language. Links must start with https://", "অন্তত এক ভাষায় নাম দিন। লিংক https:// দিয়ে শুরু হতে হবে।")}</small>
+        {formSave !== onSave && <p className="teach-note" data-testid="source-sent-back-note">{sentBackEditNote()[language]}</p>}
         <div className="teach-form-actions">
           {editing && <button type="button" className="text-button" onClick={() => { setEditing(null); setDraft(emptyDraft); }}>{s("Cancel", "বাতিল")}</button>}
-          <button type="submit" className="primary-button" disabled={busy}>{sourceSaveButton(onSave)[language]}</button>
+          <button type="submit" className="primary-button" disabled={busy}>{sourceSaveButton(formSave)[language]}</button>
         </div>
       </form>
     </section>

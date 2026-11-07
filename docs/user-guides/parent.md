@@ -287,13 +287,15 @@ not be prepared, and a short message says why:
 Either way, the instructions are still there to read on the screen.
 
 You cannot change anything here. Only your child and their teacher update class work. New
-activities appear only after the school's Administrator has approved them.
+activities appear once they are approved. Usually the school's Administrator approves each one
+first, but the school can let a teacher's activities appear as soon as the teacher saves them.
 
 ## Opening class sources
 
 Teachers can share useful links with a class, such as songs, stories or reading (see
-[Adding class sources](teacher.md#adding-class-sources) in the Teacher guide). An
-Administrator approves each link before families see it.
+[Adding class sources](teacher.md#adding-class-sources) in the Teacher guide). A link
+appears once it is approved: usually an Administrator checks each link before families see it,
+but the school can let a teacher's links appear as soon as the teacher saves them.
 
 1. In your child's panel, find **Class sources** under the class name.
 2. Each source shows its title with a small arrow (↗), the name of the website it is on (for
@@ -487,7 +489,7 @@ choice on this device, including the next time you sign in.
 | *"Choose a new password that is different from the temporary one."* | The new password is the same as the temporary one. | Pick a new password that is not the temporary one. |
 | *"Your current password is incorrect."* | On **Account & recovery**, the **Current password** box does not hold the password you sign in with now. On **Choose your own password**, the **Temporary password** box is wrong. | Type the password you sign in with now, or the temporary password exactly as it is on your sheet. |
 | **No children linked yet** | The Administrator has not linked your account to your child yet. | Give them your account's name and email, and your child's name. |
-| A child, activity or class link is missing | Only linked children are shown, a child appears in a class once the teacher adds them, and new activities and class sources appear after the Administrator approves them. | Select **Refresh progress**. If something is still missing, ask the teacher or the Administrator. |
+| A child, activity or class link is missing | Only linked children are shown, a child appears in a class once the teacher adds them, and new activities and class sources appear once they are approved (by the Administrator, or as soon as the teacher saves them if the school has switched that check off). | Select **Refresh progress**. If something is still missing, ask the teacher or the Administrator. |
 | *"Could not prepare the voice. Check your connection and try again."* (on **Listen to instructions**) | The computer voice could not be prepared, usually because the connection dropped. | Check your connection and select **Try again**, or read the instructions on screen. If it keeps happening, tell the school. |
 | *"New narration is not configured. Saved audio is still available."* (on **Listen to instructions**) | The school has not switched the computer voice on. | Read the instructions on screen instead. |
 | You lost the temporary password, or the family sign-in sheet | It cannot be shown again. | Ask the Administrator to reset your password. You get a new temporary password and the old one stops working. |

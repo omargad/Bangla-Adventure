@@ -4,6 +4,7 @@ import { adults, classes, classSources, classStudents, parentStudentLinks, stude
 import type { Bilingual } from "../app/topics-content";
 import { linkProblem } from "./library-links";
 import { publicationFor, TEACHER_SOURCE_APPROVAL } from "./approval-settings";
+import { sentBackSource } from "../app/teach/class-publishing";
 import { managedClass, type Staff } from "./class-access";
 import { auditClass } from "./class-audit";
 import { canTeach, canPublishContent } from "./roles";
@@ -81,14 +82,20 @@ export async function listClassSources(actor: Staff, classId: string): Promise<M
 /**
  * The approval columns and audit of a source as it is saved: approved at once for an administrator, or for an approved
  * teacher while the setting is off (audited as class-source-reviewed under the teacher with { automatic: true, setting },
- * naming no administrator as the reviewer); otherwise waiting.
+ * naming no administrator as the reviewer); otherwise waiting. A teacher's edit of a source an administrator sent back
+ * or withdrew (see sentBackSource) always waits, whatever the setting says, and keeps the administrator's review note:
+ * only an administrator shows that source again, as for a withdrawn topic.
  */
-function savedApproval(tx: Transaction, actor: typeof adults.$inferSelect, now: string) {
-  const publication = publicationFor(tx, actor, TEACHER_SOURCE_APPROVAL);
+function savedApproval(tx: Transaction, actor: typeof adults.$inferSelect, now: string, before?: Row) {
+  const held = before !== undefined && sentBackSource(before);
+  const publication = held && !canPublishContent(actor) ? "review" : publicationFor(tx, actor, TEACHER_SOURCE_APPROVAL);
   const approved = publication !== "review";
   return {
     publishedDirectly: publication === "review" ? null : publication,
-    columns: { approvalStatus: approved ? "approved" as const : "pending" as const, reviewedBy: publication === "admin" ? actor.id : null, reviewedAt: approved ? now : null },
+    columns: {
+      approvalStatus: approved ? "approved" as const : "pending" as const, reviewedBy: publication === "admin" ? actor.id : null, reviewedAt: approved ? now : null,
+      reviewNote: held && !approved ? before.reviewNote : "",
+    },
     auditAutomatic: (classId: string, row: Row) => {
       if (publication === "setting") audit(tx, actor.id, classId, "class-source-reviewed", { sourceId: row.id, approvalStatus: row.approvalStatus, revision: row.revision, automatic: true, setting: TEACHER_SOURCE_APPROVAL });
     },
@@ -133,8 +140,8 @@ export async function updateClassSource(actor: Staff, classId: string, sourceId:
     const input = validateClassSource(raw);
     if (raw.revision !== undefined && raw.revision !== before.revision) throw refuse({ en: "This source changed. Reload it before editing.", bn: "উৎসটি বদলেছে। সম্পাদনার আগে আবার লোড করুন।" }, 409);
     const now = new Date().toISOString();
-    const saved = savedApproval(tx, current, now);
-    const row = tx.update(classSources).set({ ...input, revision: before.revision + 1, updatedAt: now, ...saved.columns, reviewNote: "" }).where(eq(classSources.id, sourceId)).returning().get();
+    const saved = savedApproval(tx, current, now, before);
+    const row = tx.update(classSources).set({ ...input, revision: before.revision + 1, updatedAt: now, ...saved.columns }).where(eq(classSources.id, sourceId)).returning().get();
     audit(tx, actor.id, classId, "class-source-updated", { sourceId, ...(before.url !== row.url ? { oldUrl: before.url, newUrl: row.url } : {}) });
     saved.auditAutomatic(classId, row);
     return { ...view(row), publishedDirectly: saved.publishedDirectly };

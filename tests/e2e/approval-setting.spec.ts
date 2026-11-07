@@ -67,6 +67,34 @@ test("an administrator turns teachers' topic approval off and on; waiting edits 
     await expect(teacherPage.getByText("Write or edit a topic, then submit it for administrator review.", { exact: false })).toBeVisible();
     await expect(teacherPage.getByRole("region", { name: "Who needs approval" })).toHaveCount(0);
 
+    // If the settings do not answer, the topics are still listed and the panel shows its own error.
+    const settingsDown = (route: import("@playwright/test").Route) => route.request().method() === "GET"
+      ? route.fulfill({ status: 503, json: { error: "Settings are temporarily unavailable. Please retry.", errorBn: "সেটিংস এখন পাওয়া যাচ্ছে না। আবার চেষ্টা করুন।" } })
+      : route.continue();
+    await adminPage.route("**/api/admin/approval-settings*", settingsDown);
+    await adminPage.reload();
+    await expect(adminPage.getByRole("region", { name: "Waiting for approval" })).toBeVisible();
+    await expect(setting.getByRole("alert")).toHaveText("Settings are temporarily unavailable. Please retry.");
+    await expect(adminPage.locator("main > .auth-error")).toHaveCount(0);
+    await adminPage.unroute("**/api/admin/approval-settings*", settingsDown);
+    await adminPage.reload();
+    await expect(toggle).toBeChecked();
+
+    // Neither a teacher, a parent nor a student can open Administration › Who needs approval.
+    await teacherPage.goto("/admin/approvals");
+    await expect(teacherPage).toHaveURL(/\/teach$/);
+    await student.goto("/admin/approvals");
+    await expect(student).toHaveURL(/\/grown-ups\?returnTo=%2Fadmin%2Fapprovals$/);
+    const parentContext = await browser.newContext({ baseURL, extraHTTPHeaders: { "x-forwarded-for": `setting-parent-${suffix}` } });
+    try {
+      expect((await parentContext.request.post("/api/auth/sign-up", { data: { email: `setting-parent-${suffix}@example.com`, displayName: "Setting parent", password } })).status()).toBe(201);
+      fixture("UPDATE adults SET approval_status = 'approved' WHERE email = ?", `setting-parent-${suffix}@example.com`);
+      expect((await parentContext.request.post("/api/auth/sign-in", { data: { email: `setting-parent-${suffix}@example.com`, password } })).status()).toBe(200);
+      const parentPage = await parentContext.newPage();
+      await parentPage.goto("/admin/approvals");
+      await expect(parentPage).toHaveURL(/\/family$/);
+    } finally { await parentContext.close(); }
+
     // Only an administrator changes it: a teacher is refused, and so is an administrator still on a temporary password.
     const denied = await api(teacherPage, "PUT", "/api/admin/approval-settings", { teacherTopicsNeedApproval: false });
     expect(denied.status).toBe(403);
@@ -184,21 +212,50 @@ test("an administrator turns approval for teachers' class activities and sources
     const activities = panel.getByRole("switch", { name: new RegExp(ACTIVITY_SWITCH) });
     const sources = panel.getByRole("switch", { name: new RegExp(SOURCE_SWITCH) });
     for (const toggle of [topics, activities, sources]) await expect(toggle).toBeChecked();
-    await expect(panel.getByRole("group", { name: ACTIVITY_SWITCH })).toContainText("On: an activity or quiz a teacher adds to their class waits in Activities & quizzes until an administrator approves it.");
+    const item = (field: string) => panel.locator(`[data-setting="${field}"]`);
+    await expect(item("teacherActivitiesNeedApproval")).toContainText("On: an activity or quiz a teacher adds to their class waits in Activities & quizzes until an administrator approves it.");
+    // Each switch is named by its label alone (the On/Off badge is not read out) and described by what on means;
+    // the page's heading is not repeated inside the panel.
+    await expect(activities).toHaveAccessibleName(ACTIVITY_SWITCH);
+    await expect(activities).toHaveAccessibleDescription("On: an activity or quiz a teacher adds to their class waits in Activities & quizzes until an administrator approves it.");
+    await expect(panel.getByRole("group")).toHaveCount(0);
+    await expect(adminPage.getByRole("heading", { name: "Who needs approval" })).toHaveCount(1);
 
-    // Turning each off says that what is waiting stays waiting; the topics switch is left alone.
-    await activities.click();
+    // Turning each off says that what is waiting stays waiting; the topics switch is left alone. While the change is
+    // saved the switch keeps keyboard focus and stays enabled, and another press is ignored rather than sent.
+    let release = () => {};
+    const held = new Promise<void>((resolve) => { release = resolve; });
+    let puts = 0;
+    const hold = async (route: import("@playwright/test").Route) => {
+      if (route.request().method() === "PUT") { puts += 1; await held; }
+      await route.continue();
+    };
+    await adminPage.route("**/api/admin/approval-settings", hold);
+    await activities.focus();
+    await adminPage.keyboard.press("Space");
+    await expect(panel).toHaveAttribute("aria-busy", "true");
+    await expect(activities).toBeEnabled();
+    await expect(activities).toBeFocused();
+    await adminPage.keyboard.press("Space");
+    release();
     await expect(panel.getByRole("status")).toContainText("Approval for teachers' class activities is off.");
+    await expect(panel).toHaveAttribute("aria-busy", "false");
+    await expect(activities).toBeFocused();
+    await adminPage.unroute("**/api/admin/approval-settings", hold);
+    expect(puts).toBe(1);
     await expect(panel.getByRole("status")).toContainText("still waiting for approval: turning approval off does not publish");
     await expect(activities).not.toBeChecked();
-    const activityGroup = panel.getByRole("group", { name: ACTIVITY_SWITCH });
+    const activityGroup = item("teacherActivitiesNeedApproval");
+    await expect(activities).toHaveAccessibleName(ACTIVITY_SWITCH);
+    await expect(activities).toHaveAccessibleDescription(/^Off: an activity or quiz .* class activit(y is|ies are) still waiting for approval/);
     await expect(activityGroup).toContainText("Off: an activity or quiz a teacher adds to their own class is published to the class as soon as they save it");
     await expect(activityGroup.getByRole("note")).toContainText(/class activit(y is|ies are) still waiting for approval/);
     await expect(activityGroup).toContainText(`Last changed by class-setting-admin ${suffix}`);
     await sources.click();
     await expect(panel.getByRole("status")).toContainText("Approval for teachers' class sources is off.");
     await expect(sources).not.toBeChecked();
-    await expect(panel.getByRole("group", { name: SOURCE_SWITCH }).getByRole("note")).toContainText(/class sources? (is|are) still waiting for approval/);
+    await expect(item("teacherSourcesNeedApproval").getByRole("note")).toContainText(/class sources? (is|are) still waiting for approval/);
+    await expect(item("teacherSourcesNeedApproval")).toContainText("A teacher's edit of a source you sent back or withdrew still waits for an administrator.");
     await expect(topics).toBeChecked();
     // The same panel is on the Topics page, showing the same settings.
     await adminPage.goto("/teach/topics");
@@ -241,6 +298,23 @@ test("an administrator turns approval for teachers' class activities and sources
     expect(shown.activities.map((item: { title: string }) => item.title)).toEqual([`Published quiz ${suffix}`]);
     expect(shown.sources.map((item: { titleEn: string }) => item.titleEn).sort()).toEqual([`Edited link ${suffix}`, `Published link ${suffix}`]);
 
+    // An administrator sends the edited source back. The teacher's page says an edit of it waits, even with the
+    // switch off, and saving it again unchanged does not show it to the class.
+    const listedSources = (await api(adminPage, "GET", `/api/classes/${classId}/sources`)).body.sources as Array<{ id: string; titleEn: string; revision: number }>;
+    const editedSource = listedSources.find((item) => item.titleEn === `Edited link ${suffix}`)!;
+    const sentBack = await api(adminPage, "PATCH", `/api/classes/${classId}/sources`, { sourceId: editedSource.id, approvalStatus: "rejected", revision: editedSource.revision, reviewNote: "Use the Bangla page." });
+    expect(sentBack.status).toBe(200);
+    await nav.getByRole("button", { name: "Activities & quizzes", exact: true }).click();
+    await nav.getByRole("button", { name: "Class sources", exact: true }).click();
+    await expect(sourcePanel).toContainText("An edit of a source an administrator sent back still waits for an administrator's approval.");
+    await sourcePanel.getByRole("button", { name: `Edit Edited link ${suffix}`, exact: true }).click();
+    const editForm = sourcePanel.getByRole("form", { name: "Edit source" });
+    await expect(editForm).toContainText("An administrator sent this source back, so your edit waits for an administrator's approval");
+    await editForm.getByRole("button", { name: "Submit source for Admin approval", exact: true }).click();
+    await expect(sourcePanel.getByRole("status")).toContainText("Source updated and submitted for Admin approval.");
+    await expect(sourcePanel.getByRole("listitem").filter({ hasText: `Edited link ${suffix}` })).toContainText("Review note: Use the Bangla page.");
+    expect((await feed()).sources.map((item: { titleEn: string }) => item.titleEn)).toEqual([`Published link ${suffix}`]);
+
     // Recent changes names the automatic approvals under the teacher.
     await adminPage.goto("/admin");
     await adminPage.getByText("Recent changes", { exact: true }).click();
@@ -260,7 +334,7 @@ test("an administrator turns approval for teachers' class activities and sources
     expect(laterSource.body.source).toMatchObject({ approvalStatus: "pending", publishedDirectly: null });
     const after = await feed();
     expect(after.activities.map((item: { title: string }) => item.title)).toEqual([`Published quiz ${suffix}`]);
-    expect(after.sources).toHaveLength(2);
+    expect(after.sources).toHaveLength(1);
     await teacherPage.reload();
     await teacherPage.getByLabel("Find a class").fill(suffix);
     await teacherPage.getByRole("button", { name: new RegExp(className) }).click();

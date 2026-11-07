@@ -42,7 +42,7 @@ Topics and lessons,"Turn ""Teachers' topics need an administrator's approval"" o
 Topics and lessons,Approve lessons and decide on their videos,No,No,No,Yes,
 Topics and lessons,Upload a lesson recording,No,No,Yes,Yes,"Teacher: waits for an administrator's approval. Administrator: approved at once."
 Topics and lessons,"Approve, send back or retire a recording",No,No,No,Yes,
-Class sources and textbooks,Add or edit class sources,No,No,Yes,Yes,"Teacher: own classes; waits for an administrator's approval while the approval switch for class sources is on (the default); shown at once while it is off. Administrator: approved at once."
+Class sources and textbooks,Add or edit class sources,No,No,Yes,Yes,"Teacher: own classes; waits for an administrator's approval while the approval switch for class sources is on (the default); shown at once while it is off, except an edit of a source an administrator sent back, which always waits. Administrator: approved at once."
 Class sources and textbooks,Approve or send back class sources,No,No,No,Yes,
 Class sources and textbooks,"Turn ""Teachers' class sources need an administrator's approval"" on or off",No,No,No,Yes,"On by default. Every change is recorded in the audit log; turning it off publishes nothing already waiting."
 Class sources and textbooks,See class sources,Yes,Yes,Yes,Yes,"Student: own classes, approved only. Parent: their children's classes, approved only. Teacher: own classes."

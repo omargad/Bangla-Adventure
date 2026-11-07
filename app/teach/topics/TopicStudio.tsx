@@ -15,13 +15,20 @@ import { authorLabel, call, failure, savedMessage, statusLabel, versionLabel } f
 import ApprovalSetting, { stillWaiting, type ApprovalAnswer, type Publishing } from "./ApprovalSetting";
 import type { Bilingual } from "@/app/topics-content";
 
-/** The topics, and for an administrator the "Who needs approval" settings, loaded together. */
-type Listing = [{ topics: StaffTopicSummary[]; publishing: Publishing }, ApprovalAnswer | null];
-function fetchListing(canApprove: boolean, signal?: AbortSignal): Promise<Listing> {
-  return Promise.all([
+/**
+ * The topics, and for an administrator the "Who needs approval" settings, loaded side by side. Only the topics have to
+ * answer: when the settings do not, the list is still drawn and the panel loads the settings itself, showing its own
+ * error if they fail again ("failed"). The settings are asked for without the waiting topics, which the page counts
+ * from its own list.
+ */
+type Listing = [{ topics: StaffTopicSummary[]; publishing: Publishing }, ApprovalAnswer | "failed" | null];
+async function fetchListing(canApprove: boolean, signal?: AbortSignal): Promise<Listing> {
+  const [topics, settings] = await Promise.allSettled([
     call<{ topics: StaffTopicSummary[]; publishing: Publishing }>("/api/topics", { signal }),
-    canApprove ? call<ApprovalAnswer>("/api/admin/approval-settings", { signal }) : Promise.resolve(null),
+    canApprove ? call<ApprovalAnswer>("/api/admin/approval-settings?waiting=classes", { signal }) : Promise.resolve(null),
   ]);
+  if (topics.status === "rejected") throw topics.reason;
+  return [topics.value, settings.status === "fulfilled" ? settings.value : "failed"];
 }
 
 type View = { kind: "list" } | { kind: "edit"; topicId: string | null } | { kind: "review"; topicId: string; version: number | null };
@@ -56,7 +63,7 @@ export default function TopicStudio({ name, role, canApprove }: { name: string; 
   const [topics, setTopics] = useState<StaffTopicSummary[] | null>(null);
   const [publishing, setPublishing] = useState<Publishing | null>(null);
   // An administrator's "Who needs approval" settings, loaded with the topics so the panel is drawn with the list, in one go.
-  const [approvals, setApprovals] = useState<ApprovalAnswer | null>(null);
+  const [approvals, setApprovals] = useState<ApprovalAnswer | "failed" | null>(null);
   const [error, setError] = useState<Bilingual | null>(null);
   const [message, setMessage] = useState<Bilingual | null>(null);
   // go() below shows a view in place and gives it its own address with history.replaceState. Next takes that for an address of
@@ -155,7 +162,8 @@ export default function TopicStudio({ name, role, canApprove }: { name: string; 
                 ? s("An administrator has switched off approval for teachers' topics, so your new topics and edits are published to students as soon as you save them. An edit of a topic an administrator withdrew still waits for an administrator.", "প্রশাসক শিক্ষকদের বিষয়ের অনুমোদন বন্ধ রেখেছেন, তাই আপনার নতুন বিষয় ও সম্পাদনা সংরক্ষণের সঙ্গে সঙ্গে শিক্ষার্থীদের কাছে প্রকাশিত হয়। প্রশাসক কোনো বিষয় সরিয়ে নিলে তার সম্পাদনা তবুও প্রশাসকের অপেক্ষায় থাকে।")
                 : s("Write or edit a topic, then submit it for administrator review. Your new topics and changes reach students only after an administrator approves them.", "বিষয় লিখে বা সম্পাদনা করে প্রশাসকের পর্যালোচনার জন্য জমা দিন। প্রশাসক অনুমোদন দিলেই আপনার নতুন বিষয় ও পরিবর্তন শিক্ষার্থীদের কাছে প্রকাশিত হয়।")}
           </p>
-          {canApprove && approvals && <ApprovalSetting language={language} onTopicsPage answer={approvals} onAnswer={setApprovals}
+          {canApprove && approvals && <ApprovalSetting language={language} onTopicsPage
+            answer={approvals === "failed" ? undefined : { ...approvals, waiting: { ...approvals.waiting, topics: pending.length } }} onAnswer={setApprovals}
             onChanged={(note) => { setMessage(note); setError(null); void loadTopics().catch(() => undefined); }} />}
           {!topics && !error && <p role="status">{s("Loading topics…", "বিষয় লোড হচ্ছে…")}</p>}
           {topics && <>
