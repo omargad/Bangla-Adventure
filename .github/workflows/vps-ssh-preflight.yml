@@ -140,17 +140,18 @@ jobs:
           printf 'preflight: deployment key and server host-key fingerprints verified.\n'
 
           quoted() { printf "'%s'" "${1//\'/\'\\\'\'}"; }
-          ssh -F /dev/null -T -i "$work/key" -p "$port" \
-            -o BatchMode=yes -o IdentitiesOnly=yes \
-            -o PreferredAuthentications=publickey -o PasswordAuthentication=no \
-            -o KbdInteractiveAuthentication=no -o StrictHostKeyChecking=yes \
-            -o UpdateHostKeys=no -o GlobalKnownHostsFile=/dev/null \
-            -o "UserKnownHostsFile=$work/known_hosts" \
-            -o ForwardAgent=no -o ClearAllForwardings=yes \
-            -o PermitLocalCommand=no -o ControlMaster=no -o ControlPath=none \
-            -o ConnectTimeout=15 -o ConnectionAttempts=1 \
-            -o ServerAliveInterval=15 -o ServerAliveCountMax=2 \
-            "$user@$host" "bash -s -- $(quoted "$user")" <<'REMOTE'
+          for attempt in 1 2 3; do
+            if ssh -F /dev/null -T -i "$work/key" -p "$port" \
+              -o BatchMode=yes -o IdentitiesOnly=yes \
+              -o PreferredAuthentications=publickey -o PasswordAuthentication=no \
+              -o KbdInteractiveAuthentication=no -o StrictHostKeyChecking=yes \
+              -o UpdateHostKeys=no -o GlobalKnownHostsFile=/dev/null \
+              -o "UserKnownHostsFile=$work/known_hosts" \
+              -o ForwardAgent=no -o ClearAllForwardings=yes \
+              -o PermitLocalCommand=no -o ControlMaster=no -o ControlPath=none \
+              -o ConnectTimeout=15 -o ConnectionAttempts=1 \
+              -o ServerAliveInterval=15 -o ServerAliveCountMax=2 \
+              "$user@$host" "bash -s -- $(quoted "$user")" <<'REMOTE'
           set -euo pipefail
           fail() { printf 'preflight: %s\n' "$*" >&2; exit 1; }
           readonly expected_user="${1:?The expected deployment user is required.}"
@@ -173,4 +174,14 @@ jobs:
           printf 'preflight: the prepared Docker daemon reports rootless mode.\n'
           printf 'preflight: Docker Compose version %s.\n' "$compose_version"
           REMOTE
+            then
+              break
+            fi
+            status=$?
+            if [ "$attempt" -ge 3 ] || [ "$status" -ne 255 ]; then
+              exit "$status"
+            fi
+            printf 'preflight: SSH connection attempt %s/3 failed (exit %s); retrying in 5 seconds.\n' "$attempt" "$status" >&2
+            sleep 5
+          done
           printf 'preflight: read-only SSH checks passed; no application deployment was performed.\n'

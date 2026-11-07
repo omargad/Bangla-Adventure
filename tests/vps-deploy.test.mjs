@@ -748,6 +748,13 @@ test("VPS preflights accept the server address secrets at either level and name 
   }
 });
 
+test("VPS SSH preflight retries transient SSH connection failures", () => {
+  const workflow = readFileSync(new URL(".github/workflows/vps-ssh-preflight.yml", repository), "utf8");
+  assert.match(workflow, /for attempt in 1 2 3; do/);
+  assert.match(workflow, /\[ "\$attempt" -ge 3 \] \|\| \[ "\$status" -ne 255 \]/);
+  assert.match(workflow, /SSH connection attempt %s\/3 failed \(exit %s\); retrying in 5 seconds\./);
+});
+
 test("VPS templates stay disabled and choose loopback 3001 without changing the generic 3000 default", t => {
   const settings = file => Object.fromEntries(readFileSync(new URL(file, repository), "utf8").split("\n").filter(line => /^[A-Z_]+=/.test(line)).map(line => {
     const separator = line.indexOf("=");
