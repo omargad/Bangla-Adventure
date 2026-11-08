@@ -113,6 +113,7 @@ use made-up people.
 | [Parent guide](user-guides/parent.md) | Parents and carers |
 | [Teacher guide](user-guides/teacher.md) | Teachers |
 | [Administrator guide](user-guides/administrator.md) | The school's Administrators |
+| [Content review pack](CONTENT_REVIEW_PACK.md) | The first Administrator and the content reviewers: who checks the 15 topics and 18 lessons, what to check, the order and time, with a worksheet ([Excel](content-review-worksheet.xlsx), [CSV](content-review-worksheet.csv)) |
 
 ## Project records
 
