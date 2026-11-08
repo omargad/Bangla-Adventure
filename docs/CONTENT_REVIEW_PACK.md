@@ -217,7 +217,9 @@ The worksheet has one row for each topic (shaded) and each lesson. The columns a
   who approved what and when.
 
 If the CSV changes, rebuild the Excel file with
-`python3 scripts/build-content-review-workbook.py` (it needs `openpyxl`).
+`python3 scripts/build-content-review-workbook.py` (it needs `openpyxl`). The project's tests
+(`tests/content-review-worksheet.test.mjs`) fail if a topic or lesson changes in the
+application and its row in the CSV was not updated to match.
 
 ## Suggested order and time
 
@@ -234,7 +236,7 @@ If the CSV changes, rebuild the Excel file with
    learners usually start first. A lesson has seven parts in two languages: allow 40 to 60
    minutes each, about 15 hours in all. Make each lesson's **Video check** in the same
    sitting. The videos add about 2 hours of watching (most are 2 to 5 minutes; four run
-   10 to 20 minutes, and two have no stated length).
+   about 10 to 20 minutes, and two have no stated length).
 5. **Recordings**, as teachers upload them, about 5 minutes each.
 
 That is about **24 hours of administrator time**, plus the reviewers' own time working

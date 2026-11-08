@@ -344,8 +344,9 @@ So for a new host key:
    `tests/private_staging_offsite_rehearsal_test.py`,
    [VPS deployment](VPS_DEPLOYMENT.md), [Private staging](PRIVATE_STAGING.md),
    `deploy/vps.github-variables.env.example`, the defaults in the three
-   workflows above that read the variable, and this document). The new value
-   must be identical in the variable and in the code.
+   workflows above that read the variable, the fallback defaults in
+   `scripts/deploy.sh` and `scripts/production-ops-controller.sh`, and this
+   document). The new value must be identical in the variable and in the code.
 
 ### Steps for the owner
 
@@ -395,6 +396,13 @@ that change; nothing has been changed yet.
   (`DOCKER_HOST`).
 - Settings template: `deploy/vps.github-variables.env.example`
   (`DEPLOY_DOCKER_HOST`).
+- Tests that expect UID 1002 or its socket: `tests/private_staging_ops_test.py`,
+  `tests/production_ops_test.py`, `tests/private_staging_controller_test.py`,
+  `tests/private_staging_acceptance_controller_test.py`,
+  `tests/private_staging_offsite_rehearsal_test.py`,
+  `tests/private-staging-drill.test.mjs`, `tests/private-staging-qa.test.mjs`,
+  `tests/private-staging-remote.test.mjs`,
+  `tests/private-staging-rollback.test.mjs` and `tests/vps-staging.test.mjs`.
 - Documents naming UID 1002 or its socket: [VPS deployment](VPS_DEPLOYMENT.md),
   [Deployment guide](DEPLOYMENT.md), [Private staging](PRIVATE_STAGING.md),
   [Private staging operations](PRIVATE_STAGING_OPERATIONS.md),
@@ -402,7 +410,8 @@ that change; nothing has been changed yet.
   [Production operations](PRODUCTION_OPERATIONS.md).
 
 `scripts/deploy.sh` and `scripts/deploy-remote.sh` do not assume the UID: they
-use whichever socket `DEPLOY_DOCKER_HOST` names.
+use whichever socket `DEPLOY_DOCKER_HOST` names. `scripts/production-ops-install.py`
+takes the UID from `scripts/production-ops.py`, so it follows that change.
 
 ## Case C: the server is gone for good
 

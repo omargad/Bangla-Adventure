@@ -107,8 +107,8 @@ What it would mean for production:
 - **Usage pricing:** memory US$0.00000386 per GB-second (about US$10 per GB a month), CPU
   US$0.00000772 per vCPU-second (about US$20 per vCPU a month), volumes US$0.00000006 per
   GB-second (about US$0.16 per GB a month), outbound traffic US$0.05 per GB. At the demo's
-  measured use, even 0.3 GB of memory all month plus a 1 GB volume comes to about US$3.20,
-  inside the Hobby plan's included US$5.
+  measured use, even 0.3 GB of memory all month plus a 1 GB volume comes to about US$3.20
+  before a small amount of processor time, still inside the Hobby plan's included US$5.
 - **Limits for production:** the Hobby plan allows volumes up to **5 GB** (Pro, US$20 a
   month including US$20 of usage, allows up to 1 TB), so heavy use of recordings would
   outgrow Hobby. Volume backups (daily kept 6 days, weekly kept 27, monthly kept 89) can be
@@ -313,18 +313,22 @@ Send the administrator `bangla_deploy.pub` (the public half only), who installs 
 `/home/DEPLOY_USER/.ssh/authorized_keys`, owned by `DEPLOY_USER`, folder mode `0700`, file
 mode `0600`. The private half goes into GitHub in step 6 and is then deleted locally.
 
-**Host-key pin.** As in step 5 of [Automatic deployment](DEPLOYMENT.md#automatic-deployment):
+**Host-key pin.** As in step 5 of [Automatic deployment](DEPLOYMENT.md#automatic-deployment),
+asking for the ED25519 key only, so `server.keys` holds the single line the workflows expect
+(in Windows PowerShell 5.1, write the file with `| Out-File -Encoding ascii server.keys`
+instead of `>`, as that step explains):
 
 ```sh
-ssh-keyscan -p 22 -H SERVER_ADDRESS > server.keys
+ssh-keyscan -t ed25519 -p 22 -H SERVER_ADDRESS > server.keys
 ssh-keygen -lf server.keys
 ```
 
 The administrator lists the real fingerprints through the provider's web console, not over
 the network being checked:
-`for key in /etc/ssh/ssh_host_*_key.pub; do ssh-keygen -lf "$key"; done`. Agree on the
-ED25519 key, keep only its line in `server.keys`, and note its `SHA256:...` value: that is
-the new `DEPLOY_HOST_FINGERPRINT`. The hashed line keeps the address out of the file.
+`for key in /etc/ssh/ssh_host_*_key.pub; do ssh-keygen -lf "$key"; done`. Use the line only
+if the ED25519 fingerprint `ssh-keygen -lf server.keys` prints is exactly the one the
+administrator read; if it differs, stop and ask. That `SHA256:...` value is the new
+`DEPLOY_HOST_FINGERPRINT`. The hashed line keeps the address out of the file.
 
 **Manual preflight.** Repeat what the SSH preflight checks:
 
