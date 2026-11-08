@@ -553,7 +553,8 @@ and why.
 Teachers write and submit learning content. Students and parents see it only after an
 Administrator approves the exact version. On a new installation, all 15 topics and all 18
 lessons start as waiting for approval, so none of them reaches students until you approve
-it.
+it. The [Content review pack](../CONTENT_REVIEW_PACK.md) helps you plan that first review: who
+checks what, the order, and a worksheet listing every topic and lesson.
 
 You never approve your own work: a topic you write or edit, a recording you upload and a
 class activity or link you add are published as you save them, and **Recent changes**
