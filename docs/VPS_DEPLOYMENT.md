@@ -329,6 +329,17 @@ For an approved manual image rollback, keep that environment and run
 mounts can use subordinate host UIDs; verify that backups can be read and copied
 through the same daemon before accepting the first release.
 
+## If the server's address or host key changes
+
+The workflows find the server through the `DEPLOY_HOST` secret and recognise it
+by its host key, so a new address or a rebuilt server needs changes in GitHub,
+and a rebuilt server also needs the account, rootless Docker and folder above
+prepared again. [If the server's address or host key changes](SERVER_CHANGE.md)
+is the runbook for the owner and the server administrator: how to tell which
+case applies, including what the SSH preflight's messages mean; the steps for
+the same server on a new address; the steps for a rebuilt or new server; and
+the [fallback hosting plan](HOSTING_FALLBACK.md) if the server is gone for good.
+
 ## References
 
 - [Docker rootless mode](https://docs.docker.com/engine/security/rootless/)
