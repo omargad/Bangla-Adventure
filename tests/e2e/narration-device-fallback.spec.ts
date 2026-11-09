@@ -296,6 +296,10 @@ test("with no narration key, Listen reads text with the device's voice for its l
     await listen(page, question.getByRole("button", { name: "প্রশ্ন শুনি", exact: true }));
     await expect(question.getByRole("status")).toHaveText("এই লেখার অডিও এই ডিভাইসে এখনো নেই। লেখাটি স্ক্রিনে পড়ে নাও।");
     await expect(question.getByRole("alert")).toHaveCount(0);
+    // Switching back to English changes the note shown with it, not only the button.
+    await page.locator(".portal-topbar").getByRole("button", { name: "English" }).click();
+    await expect(question.getByRole("button", { name: "Listen to question", exact: true })).toBeVisible();
+    await expect(question.getByRole("status")).toHaveText(calmNote);
   } finally {
     await visitor.close();
     await adminContext.close();
@@ -418,7 +422,7 @@ test("with a key, the ElevenLabs line shows before playing; saved audio plays fi
   }
 });
 
-test("a teacher's preview of an activity waiting for approval is read by the device, politely, with no error", async ({ browser, baseURL }) => {
+test("a teacher's preview of an activity waiting for approval is read by the device, politely, with no error, even with a key", async ({ browser, baseURL }) => {
   test.setTimeout(120000);
   const suffix = randomUUID().slice(0, 8);
   const email = `preview-teacher-${suffix}@example.com`;
@@ -441,6 +445,11 @@ test("a teacher's preview of an activity waiting for approval is read by the dev
     expect(created.body.activity.status).toBe("open");
 
     await stubSpeech(page);
+    // As if a key were set: the page is told new narration is configured. The preview's POST still goes to the
+    // real server, which answers "saved audio only" for it whether or not a key is set.
+    await page.route("**/api/narration", (route) => route.request().method() === "GET"
+      ? route.fulfill({ status: 200, contentType: "application/json", headers: { "Cache-Control": "private, no-store" }, body: '{"configured":true}' })
+      : route.fallback());
     await page.goto("/teach");
     await page.getByLabel("Find a class").fill(suffix);
     await page.getByRole("button", { name: new RegExp(className) }).click();
@@ -449,6 +458,8 @@ test("a teacher's preview of an activity waiting for approval is read by the dev
     const article = page.getByRole("article").filter({ hasText: activity.title });
     const instructions = article.locator('[data-narration-kind="activity"][data-narration-slot="instructions"]');
     const button = instructions.getByRole("button", { name: "Listen to instructions", exact: true });
+
+    await expect(instructions).toContainText(elevenLabs);
 
     // The server still makes no audio for it, and says so in a form the page can act on.
     await setVoices(page, [english]);
@@ -460,6 +471,7 @@ test("a teacher's preview of an activity waiting for approval is read by the dev
     } });
     // The device reads the text already on the teacher's screen: no red alert, no Try again that cannot succeed.
     await expect(instructions).toContainText(deviceVoice);
+    await expect(instructions).not.toContainText(elevenLabs);
     await expect(instructions.getByRole("alert")).toHaveCount(0);
     await expect(instructions.getByRole("button", { name: /Try again/ })).toHaveCount(0);
     expect((await speech(page)).spoken).toEqual([{ text: `${activity.title}. ${activity.instructions}`, lang: "en-AU", voice: "en-US" }]);
@@ -473,7 +485,10 @@ test("a teacher's preview of an activity waiting for approval is read by the dev
     await expect(instructions.getByRole("status")).toHaveText("এই লেখার অডিও এই ডিভাইসে এখনো নেই। লেখাটি স্ক্রিনে পড়ে নিন।");
     await expect(instructions.getByRole("alert")).toHaveCount(0);
     await expect(instructions).not.toContainText("এই ডিভাইসের কণ্ঠ");
+    // Nothing played, so no voice is credited, not even the ElevenLabs one the server could use for approved text.
+    await expect(instructions).not.toContainText("ElevenLabs");
 
+    await page.unroute("**/api/narration");
     // Only the boolean answer is ever kept by the browser: a refused GET (here, too many) is never cached.
     const answers = await page.evaluate(async () => {
       const seen: Array<{ status: number; cache: string | null }> = [];

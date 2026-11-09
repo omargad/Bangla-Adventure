@@ -57,19 +57,19 @@ test("a device voice that fails or never starts gives a calm note that never men
     for (const language of ["en", "bn"]) {
       // A voice or language the device cannot use: the same note as having no voice at all.
       for (const code of ["language-unavailable", "voice-unavailable", "synthesis-unavailable"]) {
-        assert.equal(deviceFailureNote(code, audience, language), unavailableNote(audience, language), code);
+        assert.equal(deviceFailureNote(code, audience)[language], unavailableNote(audience)[language], code);
       }
       // Anything else, or speech that never started: the device could not read it aloud.
       for (const code of ["synthesis-failed", "network", "not-allowed", "audio-busy", undefined]) {
-        const note = deviceFailureNote(code, audience, language);
-        assert.notEqual(note, unavailableNote(audience, language));
+        const note = deviceFailureNote(code, audience)[language];
+        assert.notEqual(note, unavailableNote(audience)[language]);
         assert.doesNotMatch(note, /recording|রেকর্ডিং|try again|আবার চেষ্টা/i, String(code));
       }
     }
   }
-  assert.equal(deviceFailureNote("synthesis-failed", "learner", "en"), "This device could not read the text aloud. Read it on the screen instead.");
-  assert.match(deviceFailureNote(undefined, "learner", "bn"), /পড়ে নাও।$/);
-  assert.match(deviceFailureNote(undefined, "adult", "bn"), /পড়ে নিন।$/);
+  assert.equal(deviceFailureNote("synthesis-failed", "learner").en, "This device could not read the text aloud. Read it on the screen instead.");
+  assert.match(deviceFailureNote(undefined, "learner").bn, /পড়ে নাও।$/);
+  assert.match(deviceFailureNote(undefined, "adult").bn, /পড়ে নিন।$/);
   assert.ok(DEVICE_START_TIMEOUT_MS >= 2000 && DEVICE_START_TIMEOUT_MS <= 5000);
 });
 
@@ -93,13 +93,23 @@ test("Bangla text is read only by a Bangla device voice, preferring Bangladesh",
 test("with no device voices at all the calm note is shown instead of an error", () => {
   assert.deepEqual(deviceFallback([], "bn"), { kind: "unavailable" });
   assert.deepEqual(deviceFallback([], "en"), { kind: "unavailable" });
-  assert.equal(unavailableNote("learner", "en"), "Audio isn't available for this text on this device yet. Read it on the screen instead.");
-  assert.equal(unavailableNote("adult", "en"), unavailableNote("learner", "en"));
+  assert.equal(unavailableNote("learner").en, "Audio isn't available for this text on this device yet. Read it on the screen instead.");
+  assert.equal(unavailableNote("adult").en, unavailableNote("learner").en);
   // Learners are addressed informally in Bangla (নাও), grown-ups politely (নিন).
-  assert.match(unavailableNote("learner", "bn"), /এই ডিভাইসে এখনো নেই।.*নাও।$/);
-  assert.match(unavailableNote("adult", "bn"), /এই ডিভাইসে এখনো নেই।.*নিন।$/);
+  assert.match(unavailableNote("learner").bn, /এই ডিভাইসে এখনো নেই।.*নাও।$/);
+  assert.match(unavailableNote("adult").bn, /এই ডিভাইসে এখনো নেই।.*নিন।$/);
   for (const audience of ["learner", "adult"]) {
-    for (const language of ["en", "bn"]) assert.doesNotMatch(unavailableNote(audience, language), /error|try again|আবার চেষ্টা|ত্রুটি/i);
+    for (const language of ["en", "bn"]) assert.doesNotMatch(unavailableNote(audience)[language], /error|try again|আবার চেষ্টা|ত্রুটি/i);
+  }
+});
+
+test("a note is kept in both languages, so it follows a language switch made after it was shown", () => {
+  for (const audience of ["learner", "adult"]) {
+    for (const note of [unavailableNote(audience), deviceFailureNote(undefined, audience), deviceFailureNote("voice-unavailable", audience)]) {
+      assert.deepEqual(Object.keys(note).sort(), ["bn", "en"]);
+      assert.match(note.en, /Read it on the screen instead\.$/);
+      assert.match(note.bn, /স্ক্রিনে পড়ে (নাও|নিন)।$/);
+    }
   }
 });
 
@@ -117,6 +127,10 @@ test("the voice line names ElevenLabs only for server audio, the device for devi
   assert.equal(voiceLine(null, null, "en"), null);
   assert.equal(voiceLine("server", false, "bn"), "নিউরাল কম্পিউটার কণ্ঠ (ElevenLabs, elevenlabs.io)");
   assert.equal(voiceLine("device", true, "bn"), "এই ডিভাইসের কণ্ঠ");
+  // Once a note or an error says nothing played, no line at all, even with a key.
+  for (const configured of [true, false, null]) {
+    for (const language of ["en", "bn"]) assert.equal(voiceLine("nothing", configured, language), null);
+  }
 });
 
 test("the page reuses the configured answer for as long as the server lets it be cached", () => {

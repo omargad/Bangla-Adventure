@@ -79,7 +79,7 @@ function NarrationControl({ source, text, language, label, disabled = false, aud
   const [phase, setPhase] = useState<"idle" | "preparing" | "playing">("idle");
   const [error, setError] = useState<Message | null>(null);
   /** The calm note when neither saved audio nor a device voice can read the text: a status, not an error. */
-  const [note, setNote] = useState<string | null>(null);
+  const [note, setNote] = useState<Message | null>(null);
   const [played, setPlayed] = useState<PlayedVoice>(null);
   const [configured, setConfigured] = useState<boolean | null>(null);
   const owner = useRef(Symbol("content-narration"));
@@ -136,7 +136,7 @@ function NarrationControl({ source, text, language, label, disabled = false, aud
   }, [stop]);
 
   /** A note or an error says nothing played this time, so no voice line may claim one did. */
-  const showNote = (text: string) => { setPlayed(null); setNote(text); };
+  const showNote = (message: Message) => { setPlayed("nothing"); setNote(message); };
 
   async function listen() {
     if (request.current) { stop(); return; }
@@ -151,6 +151,8 @@ function NarrationControl({ source, text, language, label, disabled = false, aud
     playbackEvents.dispatchEvent(new CustomEvent(START_PLAYBACK, { detail: owner.current }));
     setError(null);
     setNote(null);
+    // A new Listen is no longer the one that played nothing.
+    setPlayed((last) => (last === "nothing" ? null : last));
     setPhase("preparing");
     try {
       const chunks = splitNarration(text);
@@ -215,9 +217,9 @@ function NarrationControl({ source, text, language, label, disabled = false, aud
     } catch (failure) {
       if (current()) {
         if (failure instanceof DeviceSpeechFailure) {
-          showNote(deviceFailureNote(failure.error, audience, language));
+          showNote(deviceFailureNote(failure.error, audience));
         } else {
-          setPlayed(null);
+          setPlayed("nothing");
           setError(failure instanceof NarrationError ? failure.messageText : unavailable);
         }
       }
@@ -244,7 +246,7 @@ function NarrationControl({ source, text, language, label, disabled = false, aud
     if (!current()) return;
     const choice = deviceFallback(voices, source.language);
     if (choice.kind === "unavailable") {
-      showNote(unavailableNote(audience, language));
+      showNote(unavailableNote(audience));
       return;
     }
     for (const piece of speechParts(remaining)) {
@@ -284,7 +286,7 @@ function NarrationControl({ source, text, language, label, disabled = false, aud
         <span aria-hidden="true">{active ? "■" : "♪"}</span> {buttonText}
       </button>
       <span role="status" aria-live="polite" className={styles.status}>
-        {phase === "preparing" ? s("Preparing voice…", "কণ্ঠ প্রস্তুত হচ্ছে…") : phase === "playing" ? s("Playing", "চলছে") : note ?? ""}
+        {phase === "preparing" ? s("Preparing voice…", "কণ্ঠ প্রস্তুত হচ্ছে…") : phase === "playing" ? s("Playing", "চলছে") : note?.[language] ?? ""}
       </span>
     </div>
     {providerLine && <small className={styles.provider}>{providerLine}</small>}

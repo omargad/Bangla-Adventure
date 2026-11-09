@@ -530,6 +530,7 @@ page.
 | *"No lessons are open at this level right now. Try another level."* | No approved lesson at that level. | Choose **All levels** or another level. |
 | *"Audio isn't available for this text on this device yet. Read it on the screen instead."* after a **Listen** button | Your device has no voice to read that language aloud. | Read the text yourself or with a grown-up. On another device it may read aloud. |
 | *"This device's voice"* under a **Listen** button | Your own phone, tablet or computer is reading the text aloud. | Nothing to fix. Listen as usual. |
+| *"This device could not read the text aloud. Read it on the screen instead."* after a **Listen** button | Your device's own voice started to read the text but stopped, or did not start. | Read the text yourself or with a grown-up. Another browser or device may read it aloud. |
 | *"This lesson's video is unavailable. Talk through the three prompts below with a grown-up instead."* | The lesson has no approved video. | Use the three prompts with a grown-up. |
 | The **The 18 lessons** card opens My Learning. | A known problem with that card. | Use **Guided language practice** on the More language activities page. |
 | A page asks a grown-up to sign in (for example **Administrator sign in** or **Help your child’s next adventure begin.**) | You opened a page for staff or parents. | Go back to your school's address and choose **Student sign in**. |

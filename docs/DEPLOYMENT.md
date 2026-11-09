@@ -447,12 +447,15 @@ restore the backup taken just before it, from `backups/`
 The app sets these itself wherever it runs; the reverse proxy does not need to add them.
 
 - **Caching.** `proxy.ts` sets `Cache-Control` on every response it lets through
-  (`cacheControl` in `lib/learning-policy.ts`). Hashed build files under `/_next/static`
+  (`cacheControl` in `lib/learning-policy.ts`), except a signed-in `GET /api/narration`. Hashed build files under `/_next/static`
   keep for a year: `public` when signed-out pages load them, `private` when only
   signed-in visitors may. Public images, icons, the manifest and `robots.txt` keep for a
   day, and the adventure page's two pictures for a day in the signed-in browser only.
   `/sw.js` is checked again on every load. Pages, API data, errors and other gated files
-  such as `/audio` are `private, no-store`. Signing out asks the browser to clear the
+  such as `/audio` are `private, no-store`. The one exception is a signed-in
+  `GET /api/narration`, which answers only `{ "configured": true | false }`: the route
+  itself sends `private, max-age=60` (with `Vary: Cookie`), and its refusals stay
+  `private, no-store`. Signing out asks the browser to clear the
   site's cache (`Clear-Site-Data`).
 - **Security headers.** `next.config.ts` adds them to every response, including the
   proxy's own 401, 403, 410 and redirects: HSTS, a Content-Security-Policy limited to

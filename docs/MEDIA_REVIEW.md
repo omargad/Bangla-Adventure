@@ -307,9 +307,9 @@ showing an error.
 The line under the button names the voice truthfully: *"Neural computer voice
 (ElevenLabs, elevenlabs.io)"* only when the audio came from the server, *"This
 device's voice"* when the device read it, and nothing once a note or an error
-says nothing played. Before anything has played it names ElevenLabs only when
-the server says new narration is configured (a usable key, voice and model);
-without a key there is no line until something plays. A page learns that from
+says nothing played, with or without a key. Before anything has played it names
+ElevenLabs only when the server says new narration is configured (a usable key,
+voice and model); without a key there is no line until something plays. A page learns that from
 `GET /api/narration`, which needs the same sign-in as the pages, answers only
 `{ "configured": true | false }` (never the key or any setting); that answer may
 be cached privately for a minute, a refusal (401, 429, 503) never. Real errors

@@ -104,8 +104,11 @@ export function speechParts(text: string): string[] {
   return parts.map((part) => part.trim()).filter(Boolean);
 }
 
-/** Where the sound a control last played came from. */
-export type PlayedVoice = "server" | "device" | null;
+/**
+ * Where the sound a control last played came from: "nothing" once a note or an
+ * error says this Listen played nothing; null before anything has played.
+ */
+export type PlayedVoice = "server" | "device" | "nothing" | null;
 
 const voiceLines: Record<"server" | "device", Message> = {
   server: { en: "Neural computer voice (ElevenLabs, elevenlabs.io)", bn: "নিউরাল কম্পিউটার কণ্ঠ (ElevenLabs, elevenlabs.io)" },
@@ -115,12 +118,14 @@ const voiceLines: Record<"server" | "device", Message> = {
 /**
  * The line under a Listen control saying whose voice it is, or null for none.
  * After something played it names that voice: ElevenLabs only for audio the
- * server sent, the device's voice when the device read it. Before anything has
- * played it names ElevenLabs only when the server says new narration is
- * configured (as it was before this fallback existed); otherwise, or while that
- * is not known, it says nothing rather than something untrue.
+ * server sent, the device's voice when the device read it. Once a note or an
+ * error says nothing played, it says nothing, with or without a key. Before
+ * anything has played it names ElevenLabs only when the server says new
+ * narration is configured (as it was before this fallback existed); otherwise,
+ * or while that is not known, it says nothing rather than something untrue.
  */
 export function voiceLine(played: PlayedVoice, configured: boolean | null, language: NarrationLanguage): string | null {
+  if (played === "nothing") return null;
   const source = played ?? (configured === true ? "server" : null);
   return source ? voiceLines[source][language] : null;
 }
@@ -136,9 +141,12 @@ const unavailableNotes: Record<NarrationAudience, Message> = {
   },
 };
 
-/** The calm note (a status, not an error) when neither the server nor the device can read the text. */
-export function unavailableNote(audience: NarrationAudience, language: NarrationLanguage): string {
-  return unavailableNotes[audience][language];
+/**
+ * The calm note (a status, not an error) when neither the server nor the device can read the text,
+ * in both languages, so a control shows it in whichever language is chosen, even after a switch.
+ */
+export function unavailableNote(audience: NarrationAudience): Message {
+  return unavailableNotes[audience];
 }
 
 const deviceFailedNotes: Record<NarrationAudience, Message> = {
@@ -161,10 +169,10 @@ const DEVICE_UNAVAILABLE_ERRORS = new Set(["language-unavailable", "voice-unavai
 /**
  * The calm note (a status, not an alert with Try again: nothing recorded was playing, and asking the
  * same speech engine again rarely helps) when the device's own voice failed or never started.
- * `error` is the speech error's code, or undefined when speech never started.
+ * `error` is the speech error's code, or undefined when speech never started. In both languages, as above.
  */
-export function deviceFailureNote(error: string | undefined, audience: NarrationAudience, language: NarrationLanguage): string {
-  return error && DEVICE_UNAVAILABLE_ERRORS.has(error) ? unavailableNote(audience, language) : deviceFailedNotes[audience][language];
+export function deviceFailureNote(error: string | undefined, audience: NarrationAudience): Message {
+  return error && DEVICE_UNAVAILABLE_ERRORS.has(error) ? unavailableNote(audience) : deviceFailedNotes[audience];
 }
 
 /** How long the device voice may take to start before the control gives up and says so. */
