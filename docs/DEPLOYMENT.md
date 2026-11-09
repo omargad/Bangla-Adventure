@@ -369,7 +369,7 @@ from the deployment folder: `docker compose exec app npm run admin:grant -- EMAI
 | `DEPLOY_SSH_KEY` | Secret | The deploy user's private key |
 | `STATUS_SSH_KEY` | `production-status` environment secret | The private half of the daily production status check's own key, which the server limits to reading status; never the deploy key. That environment also needs `DEPLOY_HOST`, `DEPLOY_USER` and `DEPLOY_KNOWN_HOSTS` when they are `production` environment settings ([Alerting](PRODUCTION_OPERATIONS.md#alerting)) |
 | `STATUS_SSH_PUBLIC_KEY` | Repository variable | The one line of that key's `status_key.pub` (`ssh-ed25519 AAAA... bangla-adventures-status`). The reviewer-approved production operations `install` adds it to the server's `authorized_keys`, restricted to running status; `remove` makes the next install delete that line |
-| `ELEVENLABS_API_KEY` | `production` environment or repository secret | Optional, and the client's responsibility: the client buys an ElevenLabs plan, or obtains nonprofit credits from ElevenLabs, and supplies their own key. While the repository belongs to the personal account `omargad`, only that account can add Actions secrets, so the owner adds it (`gh secret set ELEVENLABS_API_KEY --env production` asks for it with hidden input) and the client rotates it after handover; once the repository is in the client's organisation, an administrator there does. The server administrator can instead write it into the server `.env`. Written into the server `.env` on each deploy; empty leaves the server's own value. Until it is added, the site works normally with its existing recorded audio and only newly generated narration reports that it is not configured ([Narration key](VPS_DEPLOYMENT.md#narration-key)) |
+| `ELEVENLABS_API_KEY` | `production` environment or repository secret | Optional, and the client's responsibility: the client buys an ElevenLabs plan, or obtains nonprofit credits from ElevenLabs, and supplies their own key. While the repository belongs to the personal account `omargad`, only that account can add Actions secrets, so the owner adds it (`gh secret set ELEVENLABS_API_KEY --env production` asks for it with hidden input) and the client rotates it after handover; once the repository is in the client's organisation, an administrator there does. The server administrator can instead write it into the server `.env`. Written into the server `.env` on each deploy; empty leaves the server's own value. Until it is added, the site works normally with its existing recorded audio, and text with no saved narration is read by the reader's own device voice instead ([Narration key](VPS_DEPLOYMENT.md#narration-key)) |
 | `ELEVENLABS_VOICE_ID`, `ELEVENLABS_MODEL_ID`, `ELEVENLABS_DAILY_CHARACTER_LIMIT` | Variable | Optional narration settings, written the same way |
 
 The configurable variables other than `DEPLOY_ENABLED`, and the `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY` and
@@ -565,8 +565,9 @@ For Compose, the operator-managed server `.env` supplies these values to the app
 container; the automatic deployment can write them there from pipeline secrets and
 variables ([Automatic deployment](#automatic-deployment)). Keep that file private;
 never commit it or expose a key through a `NEXT_PUBLIC_` variable. Without a key,
-bundled clips and authorized saved narration still play, while new narration reports
-that it is not configured.
+bundled clips and authorized saved narration still play, while other text is read by
+each reader's own device voice for its language, or a calm note says it cannot be
+([Without a key](MEDIA_REVIEW.md#without-a-key-the-devices-own-voice)).
 
 The ElevenLabs account, plan and API key belong to the **client**, not the hosting
 operator or student team. The client controls provider spending and key rotation.

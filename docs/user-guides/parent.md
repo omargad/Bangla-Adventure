@@ -274,15 +274,20 @@ records will appear after your child joins a class."*
     **Closed · not submitted** (the teacher closed it before your child submitted it).
   - **Result**: the score, for example **2 / 2**, or **—** when there is no score yet.
 
-Activities that are still open also have a **Listen to instructions** button, with the note
-*Neural computer voice (ElevenLabs, elevenlabs.io)* under it. Selecting it asks a computer
-voice to read the instructions aloud. If the button changes to **Try again**, the voice could
-not be prepared, and a short message says why:
+Activities that are still open also have a **Listen to instructions** button. Selecting it
+reads the instructions aloud, and a note under the button says whose voice it is:
 
-- *"Could not prepare the voice. Check your connection and try again."*: usually your
-  internet connection dropped. Check it and select **Try again**.
-- *"New narration is not configured. Saved audio is still available."*: the school has not
-  switched the computer voice on. Trying again will not help.
+- *Neural computer voice (ElevenLabs, elevenlabs.io)*: the school's computer voice.
+- *This device's voice*: the school has not switched its computer voice on yet, so your
+  phone, tablet or computer reads the instructions with its own voice instead.
+
+If your device has no voice for that language either, a short note says *"Audio isn't
+available for this text on this device yet. Read it on the screen instead."* Nothing is
+wrong; the button keeps working once a voice is available.
+
+If the button changes to **Try again**, the voice could not be prepared, and a short message
+says why, for example *"Could not prepare the voice. Check your connection and try again."*:
+usually your internet connection dropped. Check it and select **Try again**.
 
 Either way, the instructions are still there to read on the screen.
 
@@ -491,7 +496,7 @@ choice on this device, including the next time you sign in.
 | **No children linked yet** | The Administrator has not linked your account to your child yet. | Give them your account's name and email, and your child's name. |
 | A child, activity or class link is missing | Only linked children are shown, a child appears in a class once the teacher adds them, and new activities and class sources appear once they are approved (by the Administrator, or as soon as the teacher saves them if the school has switched that check off). | Select **Refresh progress**. If something is still missing, ask the teacher or the Administrator. |
 | *"Could not prepare the voice. Check your connection and try again."* (on **Listen to instructions**) | The computer voice could not be prepared, usually because the connection dropped. | Check your connection and select **Try again**, or read the instructions on screen. If it keeps happening, tell the school. |
-| *"New narration is not configured. Saved audio is still available."* (on **Listen to instructions**) | The school has not switched the computer voice on. | Read the instructions on screen instead. |
+| *"Audio isn't available for this text on this device yet. Read it on the screen instead."* (on **Listen to instructions**) | The school has not switched its computer voice on, and your device has no voice of its own for that language. | Read the instructions on screen. On some devices you can add a Bangla or English voice in the device's speech settings. |
 | You lost the temporary password, or the family sign-in sheet | It cannot be shown again. | Ask the Administrator to reset your password. You get a new temporary password and the old one stops working. |
 
 ## Getting help

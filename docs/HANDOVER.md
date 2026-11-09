@@ -63,8 +63,8 @@ into the server's private `.env`. The client rotates the key after handover.
 Alternatively the server administrator writes it into that `.env` directly, so
 it never passes through anyone else. It is never exposed to browsers or
 committed. Until it is added, the site works normally
-with its existing recorded audio and only newly generated narration reports that
-it is not configured. Confirm the spending limit, key rotation owner and
+with its existing recorded audio, and other text is read by the reader's own
+device voice instead. Confirm the spending limit, key rotation owner and
 persistent audio storage before enabling it. See
 [Narration key](VPS_DEPLOYMENT.md#narration-key) and the separate
 [runtime narration configuration](MEDIA_REVIEW.md#automatic-narration-of-teacher-content).

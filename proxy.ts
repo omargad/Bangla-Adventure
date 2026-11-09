@@ -78,7 +78,7 @@ export async function proxy(request: NextRequest) {
     if (pathname.startsWith("/api/")) return withHeaders(NextResponse.json({ error: PASSWORD_CHANGE_ERROR, errorBn: PASSWORD_CHANGE_ERROR_BN, mustChangePassword: true }, { status: 403 }));
     return withHeaders(redirect(request, passwordChangeDestination(pathname + request.nextUrl.search)));
   }
-  if (session.signedIn) return withHeaders(NextResponse.next(), cacheControl(pathname, "signed-in"));
+  if (session.signedIn) return withHeaders(NextResponse.next(), cacheControl(pathname, "signed-in", request.method));
   if (pathname.startsWith("/api/") || asset) {
     return withHeaders(NextResponse.json({ error: "Sign in to access learning content.", errorBn: "শেখার বিষয়বস্তু দেখতে সাইন ইন করুন।" }, { status: 401 }));
   }

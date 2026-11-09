@@ -72,6 +72,8 @@ export default defineConfig({
       PLATFORM_MODE: "legacy",
       DATABASE_PATH: path.join(stateDir, "e2e.db"),
       MEDIA_ROOT: path.join(stateDir, "media"),
+      // Like the public demo: no narration key, so new narration is "not configured" and never reaches the provider.
+      ELEVENLABS_API_KEY: "",
       NODE_ENV: "production",
     },
   },

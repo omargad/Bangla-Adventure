@@ -267,6 +267,39 @@ Bangladeshi narrator and `eleven_v4`. New generation needs a valid key and avail
 provider credits. Revoking the key leaves saved clips playable but prevents new
 clips from being made. Keep `MEDIA_ROOT` on the persistent application volume.
 
+### Without a key: the device's own voice
+
+The site runs without `ELEVENLABS_API_KEY` (the public demo does, and production
+starts that way until the client supplies their key). Each Listen still asks
+`POST /api/narration` first, with every access check above, so saved audio
+still plays. For text with no saved audio the server answers 503 with the
+English and Bangla message *"New narration is not configured. Saved audio is
+still available."* and the stable field `"code": "narration-not-configured"`.
+The control does not show that as an error. Instead:
+
+- It reads the text with the device's own voice for the text's language
+  (Web Speech API, the same voice choice as the lessons in
+  `lib/voice-playback.ts`, waiting briefly for the browser to load its voices).
+  Bangla text is read only by a Bangla voice (bn-BD first, then bn-IN), never by
+  an English one. Long text is spoken in whole sentences. **Stop** cancels it,
+  and starting another Listen stops it, so only one text plays at a time.
+- When the device has no voice for that language, a calm note (a status, not an
+  alert) says *"Audio isn't available for this text on this device yet. Read it
+  on the screen instead."* in English or Bangla (informal for learners, polite
+  for grown-ups). The button stays as it was, with no **Try again**.
+
+The line under the button names the voice truthfully: *"Neural computer voice
+(ElevenLabs, elevenlabs.io)"* only when the audio came from the server, *"This
+device's voice"* when the device read it. Before anything has played it names
+ElevenLabs only when the server says new narration is configured; without a key
+there is no line until something plays. A page learns that from
+`GET /api/narration`, which needs the same sign-in as the pages, answers only
+`{ "configured": true | false }` (never the key or any setting) and may be
+cached privately for a minute. Real errors (no connection, signed out, content
+withdrawn, daily allowance used, playback failure) still show their message as
+an alert with **Try again**. With a key nothing changes: every Listen plays the
+ElevenLabs voice as before.
+
 The default generation budget is 20,000 new Unicode characters per UTC day,
 configured with `ELEVENLABS_DAILY_CHARACTER_LIMIT`. Each account may use at most its own
 share of that each day, a quarter of it by default (5,000 characters), configured with
@@ -289,4 +322,5 @@ learner audio requests even when a saved clip already exists.
 Only the selected canonical passage is sent to ElevenLabs. Account identifiers,
 student submissions, marks and quiz answer keys are not sent. Teachers should
 keep personal information out of text intended for narration. Generated audio
-is labelled as an ElevenLabs computer voice and is not pronunciation approval.
+is labelled as an ElevenLabs computer voice and is not pronunciation approval;
+text the device reads is labelled as the device's voice.

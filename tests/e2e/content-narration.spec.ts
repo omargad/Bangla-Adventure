@@ -85,7 +85,8 @@ test("published text narration prepares, cancels, retries and plays; activity re
     const heldDone = new Promise<void>((resolve) => { heldFinished = resolve; });
     let responseMode: "hold" | "error" | "audio" | "withdrawn" = "hold";
     await page.route("**/api/narration", async (route) => {
-      expect(route.request().method()).toBe("POST");
+      // Asking whether new narration is configured (GET) goes to the real server.
+      if (route.request().method() !== "POST") return route.fallback();
       requests.push(route.request().postDataJSON() as NarrationRequest);
       const mode = responseMode;
       if (mode === "hold") await gate;

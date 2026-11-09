@@ -3,7 +3,7 @@ import test, { after } from "node:test";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { createGeneratedNarration, narrationCacheKey, NarrationError } from "../lib/generated-narration.ts";
+import { createGeneratedNarration, narrationCacheKey, NarrationError, newNarrationConfigured } from "../lib/generated-narration.ts";
 
 const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "bangla-narration-"));
 after(() => fs.rm(temporary, { recursive: true, force: true }));
@@ -242,4 +242,28 @@ test("corrupt cached audio fails closed, and invalid chunks never call the provi
     await assert.rejects(generate(...args), errorStatus(400));
   }
   assert.equal(calls, 0);
+});
+
+test("without a usable key, new narration is refused with the not-configured code in English and Bangla, while saved audio still plays", async () => {
+  const env = fixture("not-configured");
+  let calls = 0;
+  const transport = async () => { calls += 1; return stream(); };
+  // Saved first, while a key was set.
+  await createGeneratedNarration({ env: () => env, now: () => now, transport })("Saved words", "en", "actor");
+  assert.equal(calls, 1);
+  for (const key of [undefined, "", "   ", "has space", "6fKdJFZHa5oCXNSVGieE"]) {
+    const keyless = { ...env, ELEVENLABS_API_KEY: key };
+    const generate = createGeneratedNarration({ env: () => keyless, now: () => now, transport });
+    assert.deepEqual(await generate("Saved words", "en", "actor"), { audio, cached: true }, "saved audio needs no key");
+    await assert.rejects(generate("Unsaved words", "en", "actor"), (error) => error instanceof NarrationError && error.status === 503
+      && error.code === "narration-not-configured"
+      && error.message === "New narration is not configured. Saved audio is still available."
+      && error.messageBn === "নতুন কণ্ঠ তৈরি চালু করা হয়নি। সংরক্ষিত অডিও এখনো শোনা যাবে।", String(key));
+    assert.equal(newNarrationConfigured(keyless), false, String(key));
+  }
+  assert.equal(calls, 1);
+  assert.equal(newNarrationConfigured({ ELEVENLABS_API_KEY: fakeKey }), true);
+  assert.equal(newNarrationConfigured({ ELEVENLABS_API_KEY: "SameAsVoice123", ELEVENLABS_VOICE_ID: "SameAsVoice123" }), false);
+  // Other refusals carry no code, so the player keeps showing them as errors.
+  await assert.rejects(createGeneratedNarration({ env: () => fixture("bad-limit", { ELEVENLABS_DAILY_CHARACTER_LIMIT: "x" }), transport })("hello", "en", "actor"), (error) => error.status === 503 && error.code === undefined);
 });

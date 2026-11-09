@@ -2,6 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { splitNarration } from "@/lib/narration-model";
+import {
+  deviceFallback, deviceRate, NARRATION_STATUS_TTL_MS, NARRATION_STATUS_URL, replyAction,
+  speechParts, unavailableNote, voiceLine, type PlayedVoice,
+} from "@/lib/narration-fallback";
+import { deviceVoices, loadDeviceVoices, runPlayback } from "@/lib/voice-player";
 import styles from "./ContentNarration.module.css";
 
 type Language = "en" | "bn";
@@ -25,6 +30,28 @@ const messages: Record<Audience, { unavailable: Message; playbackFailed: Message
   },
 };
 
+/**
+ * Whether the server can make new narration, asked once a minute for the whole
+ * page (every control shares the answer); null while unknown or unanswered.
+ */
+let configuredAnswer: { at: number; value: Promise<boolean | null> } | null = null;
+function narrationConfigured(): Promise<boolean | null> {
+  if (configuredAnswer && Date.now() - configuredAnswer.at < NARRATION_STATUS_TTL_MS) return configuredAnswer.value;
+  const value = fetch(NARRATION_STATUS_URL, { credentials: "same-origin" })
+    .then((response) => (response.ok ? response.json() as Promise<{ configured?: unknown }> : null))
+    .then((body) => (typeof body?.configured === "boolean" ? body.configured : null))
+    .catch(() => null);
+  const answer = { at: Date.now(), value };
+  configuredAnswer = answer;
+  // An unanswered question is asked again by the next control rather than remembered.
+  void value.then((known) => { if (known === null && configuredAnswer === answer) configuredAnswer = null; });
+  return value;
+}
+/** A "not configured" reply to a Listen is the newest answer. */
+function rememberNotConfigured() {
+  configuredAnswer = { at: Date.now(), value: Promise.resolve(false) };
+}
+
 class NarrationError extends Error {
   constructor(readonly messageText: Message) { super(messageText.en); }
 }
@@ -42,11 +69,26 @@ function NarrationControl({ source, text, language, label, disabled = false, aud
   const { unavailable, playbackFailed } = messages[audience];
   const [phase, setPhase] = useState<"idle" | "preparing" | "playing">("idle");
   const [error, setError] = useState<Message | null>(null);
+  /** The calm note when neither saved audio nor a device voice can read the text: a status, not an error. */
+  const [note, setNote] = useState<string | null>(null);
+  const [played, setPlayed] = useState<PlayedVoice>(null);
+  const [configured, setConfigured] = useState<boolean | null>(null);
   const owner = useRef(Symbol("content-narration"));
   const generation = useRef(0);
   const request = useRef<AbortController | null>(null);
   const audio = useRef<HTMLAudioElement | null>(null);
   const objectUrl = useRef<string | null>(null);
+  /** True while this control has the device voice speaking, so Stop cancels only its own speech. */
+  const speaking = useRef(false);
+  const deviceAudio = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    let live = true;
+    // Asking once makes the browser start loading its voices before the first Listen, as the lessons do.
+    deviceVoices();
+    void narrationConfigured().then((known) => { if (live) setConfigured(known); });
+    return () => { live = false; };
+  }, []);
 
   const releaseAudio = useCallback(() => {
     if (audio.current) {
@@ -66,6 +108,10 @@ function NarrationControl({ source, text, language, label, disabled = false, aud
     request.current?.abort();
     request.current = null;
     releaseAudio();
+    if (speaking.current) {
+      speaking.current = false;
+      if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
+    }
     if (update) setPhase("idle");
   }, [releaseAudio]);
 
@@ -90,6 +136,7 @@ function NarrationControl({ source, text, language, label, disabled = false, aud
     const current = () => token === generation.current && !controller.signal.aborted;
     playbackEvents.dispatchEvent(new CustomEvent(START_PLAYBACK, { detail: owner.current }));
     setError(null);
+    setNote(null);
     setPhase("preparing");
     try {
       const chunks = splitNarration(text);
@@ -108,6 +155,13 @@ function NarrationControl({ source, text, language, label, disabled = false, aud
         });
         if (!response.ok) {
           const payload = await response.json().catch(() => ({})) as { error?: unknown; errorBn?: unknown };
+          if (replyAction(response.status, payload) === "device") {
+            // No saved audio for this part and none can be made: the device reads the rest, or the note says it cannot.
+            rememberNotConfigured();
+            setConfigured(false);
+            await speakOnDevice(chunks.slice(part).join(""), controller.signal, current);
+            return;
+          }
           throw new NarrationError({
             en: typeof payload.error === "string" ? payload.error : unavailable.en,
             bn: typeof payload.errorBn === "string" ? payload.errorBn : unavailable.bn,
@@ -135,7 +189,7 @@ function NarrationControl({ source, text, language, label, disabled = false, aud
           player.addEventListener("error", failed, { once: true });
           controller.signal.addEventListener("abort", done, { once: true });
           void player.play().then(() => {
-            if (!finished && current()) setPhase("playing");
+            if (!finished && current()) { setPhase("playing"); setPlayed("server"); }
           }).catch(failed);
         });
         if (!current()) return;
@@ -146,14 +200,43 @@ function NarrationControl({ source, text, language, label, disabled = false, aud
     } finally {
       if (current()) {
         request.current = null;
+        speaking.current = false;
         releaseAudio();
         setPhase("idle");
       }
     }
   }
 
+  /** Reads `remaining` with a device voice for its language, part by part, until done or stopped. */
+  async function speakOnDevice(remaining: string, signal: AbortSignal, current: () => boolean) {
+    const voices = await loadDeviceVoices();
+    if (!current()) return;
+    const choice = deviceFallback(voices, source.language);
+    if (choice.kind === "unavailable") {
+      setNote(unavailableNote(audience, language));
+      return;
+    }
+    for (const piece of speechParts(remaining)) {
+      if (!current()) return;
+      speaking.current = true;
+      await new Promise<void>((resolve, reject) => {
+        const stopped = () => resolve();
+        signal.addEventListener("abort", stopped, { once: true });
+        const settle = () => signal.removeEventListener("abort", stopped);
+        runPlayback([{ source: "device", voice: choice.voice }], { text: piece, lang: choice.lang, rate: deviceRate(source.language) }, deviceAudio, {
+          isCurrent: current,
+          onStart: () => { setPhase("playing"); setPlayed("device"); },
+          onEnd: () => { settle(); resolve(); },
+          onFail: () => { settle(); reject(new NarrationError(playbackFailed)); },
+        });
+      });
+    }
+    speaking.current = false;
+  }
+
   const idleLabel = label ?? s("Listen", adult ? "শুনুন" : "শুনি");
   const active = phase !== "idle";
+  const providerLine = voiceLine(played, configured, language);
   const buttonText = active ? s("Stop", adult ? "থামান" : "থামাও") : error ? s("Try again", adult ? "আবার চেষ্টা করুন" : "আবার চেষ্টা") : idleLabel;
   return <div className={styles.control} data-narration-kind={source.kind} data-narration-slot={source.slot}>
     <div className={styles.actions}>
@@ -161,10 +244,10 @@ function NarrationControl({ source, text, language, label, disabled = false, aud
         <span aria-hidden="true">{active ? "■" : "♪"}</span> {buttonText}
       </button>
       <span role="status" aria-live="polite" className={styles.status}>
-        {phase === "preparing" ? s("Preparing voice…", "কণ্ঠ প্রস্তুত হচ্ছে…") : phase === "playing" ? s("Playing", "চলছে") : ""}
+        {phase === "preparing" ? s("Preparing voice…", "কণ্ঠ প্রস্তুত হচ্ছে…") : phase === "playing" ? s("Playing", "চলছে") : note ?? ""}
       </span>
     </div>
-    <small className={styles.provider}>{s("Neural computer voice (ElevenLabs, elevenlabs.io)", "নিউরাল কম্পিউটার কণ্ঠ (ElevenLabs, elevenlabs.io)")}</small>
+    {providerLine && <small className={styles.provider}>{providerLine}</small>}
     {error && <p role="alert" className={styles.error}>{error[language]}</p>}
   </div>;
 }

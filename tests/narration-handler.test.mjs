@@ -188,3 +188,74 @@ test("staff hear an activity that is not approved and open only from saved audio
   db.update(classActivities).set({ approvalStatus: "approved", status: "closed" }).where(eq(classActivities.id, item.ids.activity)).run();
   assert.equal((await resolveNarration(item.actor("teacher"), item.source)).savedOnly, true);
 });
+
+test("without a key, text with no saved audio is refused 503 with a stable code and both languages; the access checks still run first", async () => {
+  const { createGeneratedNarration } = await import("../lib/generated-narration.ts");
+  const { resolveNarration } = await import("../lib/narration-source.ts");
+  const item = fixture();
+  let provider = 0;
+  const generator = createGeneratedNarration({ env: () => ({ MEDIA_ROOT: path.join(directory, "no-key"), ELEVENLABS_API_KEY: "" }), transport: async () => { provider += 1; throw new Error("must not call"); } });
+  const handlerFor = (role) => createNarrationHandler({
+    getActor: async () => item.actor(role), resolveSource: resolveNarration, generate: generator,
+    rateLimit: () => ({ allowed: true, retryAfterSeconds: 0, resetAt: 0 }),
+  });
+  const response = await handlerFor("student")(item.request());
+  assert.equal(response.status, 503);
+  assert.match(response.headers.get("cache-control"), /private.*no-store/);
+  assert.deepEqual(await response.json(), {
+    error: "New narration is not configured. Saved audio is still available.",
+    errorBn: "নতুন কণ্ঠ তৈরি চালু করা হয়নি। সংরক্ষিত অডিও এখনো শোনা যাবে।",
+    code: "narration-not-configured",
+  });
+  assert.equal(provider, 0);
+  // A reader without access is refused as before, and told nothing about configuration.
+  item.reject();
+  const refused = await handlerFor("student")(item.request());
+  assert.equal((await refused.clone().json()).code, undefined);
+  await assertPrivateRefusal(refused);
+});
+
+test("other narration failures carry no code, so the player shows them as errors", async () => {
+  const { NarrationError } = await import("../lib/generated-narration.ts");
+  const item = fixture();
+  const handler = createNarrationHandler({
+    getActor: async () => item.actor("student"), resolveSource: resolveNarrationSource,
+    generate: async () => { throw new NarrationError(503, "Narration is busy. Please try again shortly."); },
+    rateLimit: () => ({ allowed: true, retryAfterSeconds: 0, resetAt: 0 }),
+  });
+  const response = await handler(item.request());
+  assert.equal(response.status, 503);
+  assert.deepEqual(await response.json(), { error: "Narration is busy. Please try again shortly." });
+});
+
+test("the narration status answers a signed-in reader with only a boolean, cached briefly, and refuses everyone else", async () => {
+  const { createNarrationStatusHandler, NARRATION_STATUS_MAX_AGE_SECONDS } = await import("../lib/narration-handler.ts");
+  const item = fixture();
+  const limits = [];
+  const statusFor = (getActor, configured, allowed = true) => createNarrationStatusHandler({
+    getActor, configured,
+    rateLimit: (key, limit, windowMs) => { limits.push([key, limit, windowMs]); return { allowed, retryAfterSeconds: 7, resetAt: 0 }; },
+  });
+  for (const value of [true, false]) {
+    const response = await statusFor(async () => item.actor("student"), () => value)();
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get("cache-control"), `private, max-age=${NARRATION_STATUS_MAX_AGE_SECONDS}`);
+    assert.ok(NARRATION_STATUS_MAX_AGE_SECONDS > 0 && NARRATION_STATUS_MAX_AGE_SECONDS <= 300);
+    assert.deepEqual(await response.json(), { configured: value });
+  }
+  assert.deepEqual(limits.at(-1), [`narration-status:${item.actor("student").key}`, 60, 60_000]);
+  // Anything but `true` is reported as false: the answer is only ever a boolean.
+  assert.deepEqual(await (await statusFor(async () => item.actor("parent"), () => "secret-key-value")()).json(), { configured: false });
+  const signedOut = await statusFor(async () => { throw new NarrationSourceError(401, "Sign in to listen to this content."); }, () => true)();
+  assert.equal(signedOut.status, 401);
+  assert.deepEqual(await signedOut.json(), { error: "Sign in to listen to this content." });
+  assert.match(signedOut.headers.get("cache-control"), /no-store/);
+  const passwordChange = await statusFor(async () => { throw new NarrationSourceError(403, "Choose your own password before you continue."); }, () => true)();
+  assert.equal(passwordChange.status, 403);
+  const limited = await statusFor(async () => item.actor("student"), () => true, false)();
+  assert.equal(limited.status, 429);
+  assert.equal(limited.headers.get("retry-after"), "7");
+  const broken = await statusFor(async () => { throw new Error("database path /secret"); }, () => true)();
+  assert.equal(broken.status, 503);
+  assert.doesNotMatch(await broken.text(), /secret/);
+});

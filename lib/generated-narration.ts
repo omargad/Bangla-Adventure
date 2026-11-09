@@ -14,10 +14,25 @@ const TIMEOUT_MS = 60_000;
 const settingsFor = (modelId: string) => ({ stability: modelId === "eleven_v3" ? 0.5 : 0.7, similarityBoost: 0.75 });
 
 export class NarrationError extends Error {
-  constructor(public readonly status: number, message: string, public readonly messageBn?: string) {
+  constructor(public readonly status: number, message: string, public readonly messageBn?: string, public readonly code?: NarrationErrorCode) {
     super(message);
     this.name = "NarrationError";
   }
+}
+
+/** Machine-readable reasons a player may act on; every other refusal is shown as it is. */
+export type NarrationErrorCode = "narration-not-configured";
+export const NARRATION_NOT_CONFIGURED: NarrationErrorCode = "narration-not-configured";
+
+/** The provider key, or "" when new narration cannot be made with it. The key itself never leaves the server. */
+function usableKey(configuration: Environment, voiceId: string): string {
+  const key = configuration.ELEVENLABS_API_KEY?.trim() || "";
+  return key && /^[\x21-\x7e]+$/.test(key) && key !== voiceId ? key : "";
+}
+
+/** Whether new narration can be made: true only with a usable key. Reveals nothing about the key. */
+export function newNarrationConfigured(configuration: Environment): boolean {
+  return Boolean(usableKey(configuration, configuration.ELEVENLABS_VOICE_ID?.trim() || DEFAULT_VOICE));
 }
 
 /** How much of the site's daily allowance one account may use, a quarter of it unless ELEVENLABS_ACCOUNT_DAILY_CHARACTER_LIMIT says otherwise. */
@@ -187,8 +202,10 @@ export function createGeneratedNarration({ env, now = Date.now, transport = prov
       const existing = await readAudio(file);
       if (existing) return { audio: existing, cached: true };
       if ((failed.get(identity) ?? 0) > now()) throw new NarrationError(503, "Narration is temporarily unavailable. Please try again shortly.");
-      const key = configuration.ELEVENLABS_API_KEY?.trim() || "";
-      if (!key || !/^[\x21-\x7e]+$/.test(key) || key === voiceId) throw new NarrationError(503, "New narration is not configured. Saved audio is still available.");
+      const key = usableKey(configuration, voiceId);
+      if (!key) {
+        throw new NarrationError(503, "New narration is not configured. Saved audio is still available.", "নতুন কণ্ঠ তৈরি চালু করা হয়নি। সংরক্ষিত অডিও এখনো শোনা যাবে।", NARRATION_NOT_CONFIGURED);
+      }
       const rawLimit = configuration.ELEVENLABS_DAILY_CHARACTER_LIMIT?.trim() || "20000";
       const limit = Number(rawLimit);
       if (!/^\d+$/.test(rawLimit) || !Number.isSafeInteger(limit)) throw new NarrationError(503, "Narration settings are unavailable.");

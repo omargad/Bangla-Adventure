@@ -3,6 +3,7 @@ import { NarrationError } from "./generated-narration";
 import { splitNarration, type NarrationLanguage } from "./narration-model";
 import { NarrationSourceError, type NarrationActor, type NarrationSourceRequest, type ResolvedNarration } from "./narration-source";
 import type { RateLimitResult } from "./rate-limit";
+import { NARRATION_STATUS_MAX_AGE_SECONDS } from "./learning-policy";
 
 type NarrationDependencies = {
   getActor: () => Promise<NarrationActor>;
@@ -17,8 +18,8 @@ const MAX_BODY_BYTES = 2048;
 const privateHeaders = { "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" };
 type NarrationRequest = NarrationSourceRequest & { hash: string; part: number };
 
-function failure(status: number, error: string, headers?: Record<string, string>, errorBn?: string) {
-  return Response.json(errorBn ? { error, errorBn } : { error }, { status, headers: { ...privateHeaders, ...headers } });
+function failure(status: number, error: string, headers?: Record<string, string>, errorBn?: string, code?: string) {
+  return Response.json({ error, ...(errorBn ? { errorBn } : {}), ...(code ? { code } : {}) }, { status, headers: { ...privateHeaders, ...headers } });
 }
 
 /** Read no more than 2 KB even when Content-Length is missing or incorrect. */
@@ -95,7 +96,34 @@ export function createNarrationHandler({ getActor, resolveSource, generate, rate
         ...privateHeaders, "Content-Type": "audio/ogg", "X-Narration-Provider": "ElevenLabs", "X-Narration-Cache": generated.cached ? "hit" : "miss",
       } });
     } catch (error) {
-      if (error instanceof NarrationError) return failure(error.status, error.message, undefined, error.messageBn);
+      if (error instanceof NarrationError) return failure(error.status, error.message, undefined, error.messageBn, error.code);
+      if (error instanceof NarrationSourceError) return failure(error.status, error.message);
+      return failure(503, "Narration is temporarily unavailable. Please try again.");
+    }
+  };
+}
+
+export { NARRATION_STATUS_MAX_AGE_SECONDS };
+
+/**
+ * Tells a signed-in reader whether new narration can be made, so a Listen control can label its
+ * voice truthfully before anything plays. Answers only `{ configured: boolean }`: never the key,
+ * provider settings or usage. Needs the same sign-in as POST; no content is resolved.
+ */
+export function createNarrationStatusHandler({ getActor, configured, rateLimit }: {
+  getActor: () => Promise<NarrationActor>;
+  configured: () => boolean;
+  rateLimit: (key: string, limit: number, windowMs: number) => RateLimitResult;
+}) {
+  return async function handleNarrationStatus() {
+    try {
+      const actor = await getActor();
+      const limit = rateLimit(`narration-status:${actor.key}`, 60, 60_000);
+      if (!limit.allowed) return failure(429, "Too many narration requests. Please wait a moment.", { "Retry-After": String(limit.retryAfterSeconds) });
+      return Response.json({ configured: configured() === true }, { headers: {
+        "Cache-Control": `private, max-age=${NARRATION_STATUS_MAX_AGE_SECONDS}`, "X-Content-Type-Options": "nosniff", Vary: "Cookie",
+      } });
+    } catch (error) {
       if (error instanceof NarrationSourceError) return failure(error.status, error.message);
       return failure(503, "Narration is temporarily unavailable. Please try again.");
     }

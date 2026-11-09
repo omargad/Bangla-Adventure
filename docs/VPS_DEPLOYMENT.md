@@ -159,7 +159,8 @@ below).
 
 Until the key is added, the site works normally with its existing recorded
 audio: bundled clips, approved recordings and narration already saved still
-play, and only newly generated narration reports that it is not configured.
+play, and other text is read by the reader's own device voice instead (or a
+calm note says the device has no voice for it).
 
 Each deploy writes the key into the server `.env` under the deployment lock, so
 nobody pastes it on the server, and a key added or changed in GitHub takes effect

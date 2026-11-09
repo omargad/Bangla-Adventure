@@ -31,13 +31,17 @@ export function isBundledLessonClip(pathname: string): boolean {
  */
 const SIGNED_IN_IMAGES = new Set(["/river-story.webp", "/postcard-collage.webp"]);
 
+/** How long a signed-in browser may reuse GET /api/narration's answer ("can new narration be made?"). */
+export const NARRATION_STATUS_MAX_AGE_SECONDS = 60;
+
 /**
  * Cache-Control for a response the proxy lets through. Hashed build files keep for a year, in shared caches
  * only when anyone may load them; public files in public/ keep for a day, and the pictures only signed-in
  * pages show for a day in that browser; the service worker is checked on every load; pages, API data and
- * other gated files are never stored.
+ * other gated files are never stored, except the signed-in reader's own "is new narration configured?" answer
+ * (a boolean), which keeps for a minute.
  */
-export function cacheControl(pathname: string, access: "public" | "signed-in"): string {
+export function cacheControl(pathname: string, access: "public" | "signed-in", method = "GET"): string {
   if (pathname.startsWith("/_next/")) {
     // Development builds reuse the same file names, so only production build files are kept.
     if (!pathname.startsWith("/_next/static/") || process.env.NODE_ENV !== "production") return "private, no-store";
@@ -46,6 +50,7 @@ export function cacheControl(pathname: string, access: "public" | "signed-in"): 
   if (access === "public" && pathname === "/sw.js") return "no-cache";
   if (access === "public" && /\.[a-z0-9]+$/i.test(pathname)) return "public, max-age=86400";
   if (access === "signed-in" && SIGNED_IN_IMAGES.has(pathname)) return "private, max-age=86400";
+  if (access === "signed-in" && method === "GET" && pathname.replace(/\/$/, "") === "/api/narration") return `private, max-age=${NARRATION_STATUS_MAX_AGE_SECONDS}`;
   return "private, no-store";
 }
 

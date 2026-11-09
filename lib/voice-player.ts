@@ -22,6 +22,27 @@ export function deviceVoices(): SpeechSynthesisVoice[] {
   }
 }
 
+/**
+ * The device voices, waiting (up to `timeoutMs`) for the browser to load them
+ * when it has none yet: Chrome reports no voices until its first
+ * "voiceschanged". Resolves to none without speech synthesis.
+ */
+export function loadDeviceVoices(timeoutMs = 1500): Promise<SpeechSynthesisVoice[]> {
+  const now = deviceVoices();
+  if (now.length || typeof window === "undefined" || !("speechSynthesis" in window)) return Promise.resolve(now);
+  return new Promise((resolve) => {
+    const speech = window.speechSynthesis;
+    const finish = () => {
+      window.clearTimeout(timer);
+      speech.removeEventListener("voiceschanged", changed);
+      resolve(deviceVoices());
+    };
+    const changed = () => { if (deviceVoices().length) finish(); };
+    const timer = window.setTimeout(finish, timeoutMs);
+    speech.addEventListener("voiceschanged", changed);
+  });
+}
+
 /** Stops whatever this player started: a recording or the device voice. */
 export function stopPlayback(audioRef: { current: HTMLAudioElement | null }) {
   audioRef.current?.pause();

@@ -821,9 +821,12 @@ computer voice. This narration is optional.
   ElevenLabs plan (or gets nonprofit credits) and passes the key privately to whoever runs
   the server. See [Narration key](../VPS_DEPLOYMENT.md#narration-key).
 - Never paste a key into a page, an email or a chat. It belongs only on the server.
-- Until a key is added, the site works normally with its existing recorded audio. Only new
-  narration is missing: the button shows *"New narration is not configured. Saved audio is
-  still available."* and **Try again**.
+- Until a key is added, the site works normally with its existing recorded audio and
+  narration already saved. For other text, each reader's own device reads it aloud with its
+  own voice for that language (a Bangla voice for Bangla, never an English one), and the note
+  under the button says *"This device's voice"*. A device with no such voice shows a calm note,
+  *"Audio isn't available for this text on this device yet. Read it on the screen
+  instead."*, not an error. Once the key is added, every Listen uses the ElevenLabs voice again.
 
 ## Recent changes (the record of actions)
 
@@ -934,7 +937,7 @@ Your actions on the **Users** page show *"The action has been recorded."* and ap
 | The approve button is greyed out | Approval buttons stay greyed out until you have done the check. Sending something back or withdrawing it needs a note first. | Tick the review box for a topic or class item, open all 7 parts of a lesson, or play a recording to the end and then tick the box. To send back or withdraw, type the note. |
 | A family upload says *"Nothing was created. Fix the rows listed and upload the file again."* | Nothing was created. | Correct each line listed (for example an email address without "@") and upload the whole file again. |
 | You lost a sign-in sheet before printing it | The passwords cannot be shown again. | Select **Reset password** for each person to make a new temporary password. |
-| *"New narration is not configured. Saved audio is still available."* | No ElevenLabs key has been added on the server. | See [Optional narration](#optional-narration-computer-voice). |
+| A Listen button says *"Audio isn't available for this text on this device yet."*, or reads with *"This device's voice"* | No ElevenLabs key has been added on the server, so the reader's device reads the text itself, when it has a voice for that language. | Nothing is broken. To use the ElevenLabs voice, see [Optional narration](#optional-narration-computer-voice). |
 | Students cannot see a topic, lesson, video or activity | It is probably still waiting for approval, or it was withdrawn. | Check its status in **Topics**, **Lessons** (including **Video check**) or the class's **Activities & quizzes**. |
 
 ## Getting help
