@@ -13,6 +13,11 @@ type Message = { en: string; bn: string };
 
 /** The `code` /api/narration sends when new narration is not configured on the server. */
 export const NARRATION_NOT_CONFIGURED_CODE = "narration-not-configured";
+/**
+ * The `code` /api/narration sends to staff previewing an activity that is not yet approved (or not
+ * open) when no audio was saved for it: the server makes none for such text, with or without a key.
+ */
+export const NARRATION_SAVED_ONLY_CODE = "narration-saved-only";
 /** Where the Listen controls ask whether new narration is configured. */
 export const NARRATION_STATUS_URL = "/api/narration";
 /** How long a page reuses that answer, matching the server's Cache-Control. */
@@ -25,14 +30,25 @@ export function isNotConfiguredReply(status: number, payload: unknown): boolean 
 }
 
 /**
+ * True only for the server's "only saved audio plays for this preview" reply (a staff preview of an
+ * activity awaiting approval with nothing saved). The text is already on that reader's screen, so
+ * the device may read it; the server still makes no audio for it.
+ */
+export function isSavedOnlyReply(status: number, payload: unknown): boolean {
+  return status === 409 && Boolean(payload) && typeof payload === "object"
+    && (payload as { code?: unknown }).code === NARRATION_SAVED_ONLY_CODE;
+}
+
+/**
  * What a Listen control does with the server's reply to one part: play the
  * audio it sent (saved, or newly made with a key), hand the text to the device
- * voice (no saved audio and no key), or show the server's message as an error
- * (network, permission, withdrawn content, busy, allowance used...).
+ * voice (no saved audio, and the server will not make any: no key, or a staff
+ * preview of an activity not yet approved), or show the server's message as an
+ * error (network, permission, withdrawn content, busy, allowance used...).
  */
 export function replyAction(status: number, payload: unknown): "play" | "device" | "error" {
   if (status >= 200 && status < 300) return "play";
-  return isNotConfiguredReply(status, payload) ? "device" : "error";
+  return isNotConfiguredReply(status, payload) || isSavedOnlyReply(status, payload) ? "device" : "error";
 }
 
 /** The locale the device voice is asked for: the one the lesson pages use for each language. */
@@ -124,3 +140,32 @@ const unavailableNotes: Record<NarrationAudience, Message> = {
 export function unavailableNote(audience: NarrationAudience, language: NarrationLanguage): string {
   return unavailableNotes[audience][language];
 }
+
+const deviceFailedNotes: Record<NarrationAudience, Message> = {
+  learner: {
+    en: "This device could not read the text aloud. Read it on the screen instead.",
+    bn: "এই ডিভাইস লেখাটি পড়ে শোনাতে পারেনি। লেখাটি স্ক্রিনে পড়ে নাও।",
+  },
+  adult: {
+    en: "This device could not read the text aloud. Read it on the screen instead.",
+    bn: "এই ডিভাইস লেখাটি পড়ে শোনাতে পারেনি। লেখাটি স্ক্রিনে পড়ে নিন।",
+  },
+};
+
+/**
+ * Speech errors meaning the device has no way to read this text (its voice or language is not
+ * installed, or it has no speech engine): the same calm note as having no voice at all.
+ */
+const DEVICE_UNAVAILABLE_ERRORS = new Set(["language-unavailable", "voice-unavailable", "synthesis-unavailable"]);
+
+/**
+ * The calm note (a status, not an alert with Try again: nothing recorded was playing, and asking the
+ * same speech engine again rarely helps) when the device's own voice failed or never started.
+ * `error` is the speech error's code, or undefined when speech never started.
+ */
+export function deviceFailureNote(error: string | undefined, audience: NarrationAudience, language: NarrationLanguage): string {
+  return error && DEVICE_UNAVAILABLE_ERRORS.has(error) ? unavailableNote(audience, language) : deviceFailedNotes[audience][language];
+}
+
+/** How long the device voice may take to start before the control gives up and says so. */
+export const DEVICE_START_TIMEOUT_MS = 4000;

@@ -813,9 +813,11 @@ is off, and keeps your review note under it until you approve it or send it back
 
 ## Optional narration (computer voice)
 
-Each class activity has a **Listen to instructions** button, credited
-"Neural computer voice (ElevenLabs, elevenlabs.io)". It reads the instructions aloud in a
-computer voice. This narration is optional.
+Each class activity has a **Listen to instructions** button. It reads the instructions aloud
+in a computer voice. This narration is optional. The line under the button names the voice:
+"Neural computer voice (ElevenLabs, elevenlabs.io)" when a key is set or after ElevenLabs audio
+has played; otherwise *"This device's voice"* once the reader's device has read the text, and
+no line before that.
 
 - New narration needs the **school's own ElevenLabs account and key**. The client buys an
   ElevenLabs plan (or gets nonprofit credits) and passes the key privately to whoever runs
@@ -827,6 +829,9 @@ computer voice. This narration is optional.
   under the button says *"This device's voice"*. A device with no such voice shows a calm note,
   *"Audio isn't available for this text on this device yet. Read it on the screen
   instead."*, not an error. Once the key is added, every Listen uses the ElevenLabs voice again.
+- Your preview of an activity that is waiting for approval, or was sent back, is never sent to
+  ElevenLabs, with or without a key. With no audio saved for it, **Listen to instructions**
+  reads it with your device's own voice, or shows the same calm note.
 
 ## Recent changes (the record of actions)
 

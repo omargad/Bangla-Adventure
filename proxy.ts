@@ -9,8 +9,9 @@ import { learningSession } from "./lib/learning-session";
 import { isPublicFile, isPublicScript } from "./lib/public-assets";
 import { chosenLanguage, LANGUAGE_COOKIE, LANGUAGE_COOKIE_MAX_AGE } from "./lib/language-choice";
 
-function headed(response: NextResponse, cache = "private, no-store") {
-  response.headers.set("Cache-Control", cache);
+/** With `cache` null the route sets its own Cache-Control (see cacheControl); otherwise the proxy sets it. */
+function headed(response: NextResponse, cache: string | null = "private, no-store") {
+  if (cache !== null) response.headers.set("Cache-Control", cache);
   response.headers.set("X-Content-Type-Options", "nosniff");
   return response;
 }
@@ -49,7 +50,7 @@ async function jsonBodyProblem(request: NextRequest): Promise<"too-large" | "inv
 
 export async function proxy(request: NextRequest) {
   const origin = configuredOrigin ?? `${request.nextUrl.protocol}//${request.headers.get("host") ?? request.nextUrl.host}`;
-  const withHeaders = (response: NextResponse, cache?: string) => renewLanguage(request, headed(response, cache), origin);
+  const withHeaders = (response: NextResponse, cache?: string | null) => renewLanguage(request, headed(response, cache), origin);
   const error = validateMutation(request, configuredOrigin ?? requestOrigins(request, request.nextUrl));
   if (error) return withHeaders(NextResponse.json({ error, errorBn: MUTATION_ERRORS_BN[error] }, { status: 403 }));
   const pathname = request.nextUrl.pathname;

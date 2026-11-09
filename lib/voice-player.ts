@@ -9,7 +9,8 @@ export type PlaybackHandlers = {
   isCurrent: () => boolean;
   onStart: (source: VoiceSource) => void;
   onEnd: () => void;
-  onFail: () => void;
+  /** Every step failed; `error` is the device voice's speech error code when that was the last step to fail. */
+  onFail: (error?: string) => void;
 };
 
 /** The device voices available now, or none when the browser has no speech synthesis. */
@@ -23,24 +24,56 @@ export function deviceVoices(): SpeechSynthesisVoice[] {
 }
 
 /**
+ * True once a wait for voices ended with none, until the browser next reports
+ * a change: a device with no voices then answers at once instead of making
+ * every later Listen wait again.
+ */
+let voicesStayedEmpty = false;
+
+/**
  * The device voices, waiting (up to `timeoutMs`) for the browser to load them
  * when it has none yet: Chrome reports no voices until its first
- * "voiceschanged". Resolves to none without speech synthesis.
+ * "voiceschanged". Resolves to none without speech synthesis. After one wait
+ * ends with none, later calls do not wait again until "voiceschanged" fires.
  */
 export function loadDeviceVoices(timeoutMs = 1500): Promise<SpeechSynthesisVoice[]> {
   const now = deviceVoices();
-  if (now.length || typeof window === "undefined" || !("speechSynthesis" in window)) return Promise.resolve(now);
+  if (now.length) voicesStayedEmpty = false;
+  if (now.length || voicesStayedEmpty || typeof window === "undefined" || !("speechSynthesis" in window)) return Promise.resolve(now);
   return new Promise((resolve) => {
     const speech = window.speechSynthesis;
     const finish = () => {
       window.clearTimeout(timer);
       speech.removeEventListener("voiceschanged", changed);
-      resolve(deviceVoices());
+      const voices = deviceVoices();
+      if (!voices.length && !voicesStayedEmpty) {
+        voicesStayedEmpty = true;
+        speech.addEventListener("voiceschanged", () => { voicesStayedEmpty = false; }, { once: true });
+      }
+      resolve(voices);
     };
     const changed = () => { if (deviceVoices().length) finish(); };
     const timer = window.setTimeout(finish, timeoutMs);
     speech.addEventListener("voiceschanged", changed);
   });
+}
+
+/**
+ * Speaks nothing, silently, at once. Called directly in a tap's handler before
+ * anything is awaited: iPhone and iPad browsers (all WebKit) drop speech that
+ * does not start from a user gesture, and speech started from one lets later
+ * speech on the page play, such as a device voice that begins only after the
+ * server has answered.
+ */
+export function unlockSpeech() {
+  if (typeof window === "undefined" || !("speechSynthesis" in window) || typeof window.SpeechSynthesisUtterance !== "function") return;
+  try {
+    const silence = new window.SpeechSynthesisUtterance("");
+    silence.volume = 0;
+    window.speechSynthesis.speak(silence);
+  } catch {
+    // Nothing to unlock on a browser that refuses even this.
+  }
 }
 
 /** Stops whatever this player started: a recording or the device voice. */
@@ -56,13 +89,15 @@ export function runPlayback(
   audioRef: { current: HTMLAudioElement | null },
   handlers: PlaybackHandlers,
 ) {
+  let lastSpeechError: string | undefined;
   const attempt = (index: number) => {
     if (!handlers.isCurrent()) return;
     const step = steps[index];
     if (!step) {
-      handlers.onFail();
+      handlers.onFail(lastSpeechError);
       return;
     }
+    lastSpeechError = undefined;
     let settled = false;
     const next = () => {
       if (settled || !handlers.isCurrent()) return;
@@ -83,6 +118,7 @@ export function runPlayback(
         utterance.onend = () => { if (handlers.isCurrent() && !settled) handlers.onEnd(); };
         utterance.onerror = (event) => {
           if (event.error === "canceled" || event.error === "interrupted") return;
+          if (!settled) lastSpeechError = typeof event.error === "string" ? event.error : undefined;
           next();
         };
         window.speechSynthesis.speak(utterance);

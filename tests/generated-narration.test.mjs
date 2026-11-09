@@ -47,7 +47,10 @@ test("a saved-only request plays saved audio and never calls the provider", asyn
   const env = fixture("saved-only");
   let calls = 0;
   const generate = createGeneratedNarration({ env: () => env, now: () => now, transport: async () => { calls += 1; return stream(); } });
-  await assert.rejects(generate("Draft activity", "en", "teacher", { savedOnly: true }), (error) => errorStatus(409)(error) && /approved, open activities/.test(error.message) && /কার্যক্রম/.test(error.messageBn));
+  await assert.rejects(generate("Draft activity", "en", "teacher", { savedOnly: true }), (error) => errorStatus(409)(error) && /approved, open activities/.test(error.message) && /কার্যক্রম/.test(error.messageBn) && error.code === "narration-saved-only");
+  // The same refusal, with its code, whether or not a key is set.
+  const keyless = createGeneratedNarration({ env: () => ({ ...env, ELEVENLABS_API_KEY: "" }), now: () => now, transport: async () => { calls += 1; return stream(); } });
+  await assert.rejects(keyless("Draft activity", "en", "teacher", { savedOnly: true }), (error) => errorStatus(409)(error) && error.code === "narration-saved-only");
   assert.equal(calls, 0);
   assert.deepEqual(await generate("Draft activity", "en", "learner"), { audio, cached: false });
   assert.deepEqual(await generate("Draft activity", "en", "teacher", { savedOnly: true }), { audio, cached: true });
@@ -264,6 +267,15 @@ test("without a usable key, new narration is refused with the not-configured cod
   assert.equal(calls, 1);
   assert.equal(newNarrationConfigured({ ELEVENLABS_API_KEY: fakeKey }), true);
   assert.equal(newNarrationConfigured({ ELEVENLABS_API_KEY: "SameAsVoice123", ELEVENLABS_VOICE_ID: "SameAsVoice123" }), false);
+  // A key with a voice or model this site cannot use is not "configured" either: a Listen would be refused
+  // ("Narration settings are unavailable."), so the page must not claim the ElevenLabs voice before playing.
+  for (const settings of [{ ELEVENLABS_VOICE_ID: "bad voice!" }, { ELEVENLABS_VOICE_ID: "short" }, { ELEVENLABS_MODEL_ID: "eleven_v1" }]) {
+    const misconfigured = { ...env, ELEVENLABS_API_KEY: fakeKey, ...settings };
+    assert.equal(newNarrationConfigured(misconfigured), false, JSON.stringify(settings));
+    await assert.rejects(createGeneratedNarration({ env: () => misconfigured, now: () => now, transport })("Unsaved words", "en", "actor"),
+      (error) => error.status === 503 && error.message === "Narration settings are unavailable.", JSON.stringify(settings));
+  }
+  assert.equal(newNarrationConfigured({ ELEVENLABS_API_KEY: fakeKey, ELEVENLABS_VOICE_ID: "AbCdEf123456", ELEVENLABS_MODEL_ID: "eleven_v3" }), true);
   // Other refusals carry no code, so the player keeps showing them as errors.
   await assert.rejects(createGeneratedNarration({ env: () => fixture("bad-limit", { ELEVENLABS_DAILY_CHARACTER_LIMIT: "x" }), transport })("hello", "en", "actor"), (error) => error.status === 503 && error.code === undefined);
 });

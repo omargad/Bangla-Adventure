@@ -3,10 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { splitNarration } from "@/lib/narration-model";
 import {
-  deviceFallback, deviceRate, NARRATION_STATUS_TTL_MS, NARRATION_STATUS_URL, replyAction,
-  speechParts, unavailableNote, voiceLine, type PlayedVoice,
+  DEVICE_START_TIMEOUT_MS, deviceFailureNote, deviceFallback, deviceRate, isNotConfiguredReply, NARRATION_STATUS_TTL_MS,
+  NARRATION_STATUS_URL, replyAction, speechParts, unavailableNote, voiceLine, type PlayedVoice,
 } from "@/lib/narration-fallback";
-import { deviceVoices, loadDeviceVoices, runPlayback } from "@/lib/voice-player";
+import { deviceVoices, loadDeviceVoices, runPlayback, unlockSpeech } from "@/lib/voice-player";
 import styles from "./ContentNarration.module.css";
 
 type Language = "en" | "bn";
@@ -35,16 +35,21 @@ const messages: Record<Audience, { unavailable: Message; playbackFailed: Message
  * page (every control shares the answer); null while unknown or unanswered.
  */
 let configuredAnswer: { at: number; value: Promise<boolean | null> } | null = null;
+/** After an unanswered question the next one skips the browser's copy, so a kept refusal is never reused. */
+let askAfresh = false;
 function narrationConfigured(): Promise<boolean | null> {
   if (configuredAnswer && Date.now() - configuredAnswer.at < NARRATION_STATUS_TTL_MS) return configuredAnswer.value;
-  const value = fetch(NARRATION_STATUS_URL, { credentials: "same-origin" })
+  const value = fetch(NARRATION_STATUS_URL, { credentials: "same-origin", ...(askAfresh ? { cache: "reload" as const } : {}) })
     .then((response) => (response.ok ? response.json() as Promise<{ configured?: unknown }> : null))
     .then((body) => (typeof body?.configured === "boolean" ? body.configured : null))
     .catch(() => null);
   const answer = { at: Date.now(), value };
   configuredAnswer = answer;
   // An unanswered question is asked again by the next control rather than remembered.
-  void value.then((known) => { if (known === null && configuredAnswer === answer) configuredAnswer = null; });
+  void value.then((known) => {
+    askAfresh = known === null;
+    if (known === null && configuredAnswer === answer) configuredAnswer = null;
+  });
   return value;
 }
 /** A "not configured" reply to a Listen is the newest answer. */
@@ -54,6 +59,10 @@ function rememberNotConfigured() {
 
 class NarrationError extends Error {
   constructor(readonly messageText: Message) { super(messageText.en); }
+}
+/** The device's own voice failed (`error` is its speech error code) or never started (no code). */
+class DeviceSpeechFailure extends Error {
+  constructor(readonly error: string | undefined) { super(error ?? "device speech did not start"); }
 }
 
 /** A changed source, text or permission unmounts and stops the old recording. */
@@ -126,10 +135,15 @@ function NarrationControl({ source, text, language, label, disabled = false, aud
     };
   }, [stop]);
 
+  /** A note or an error says nothing played this time, so no voice line may claim one did. */
+  const showNote = (text: string) => { setPlayed(null); setNote(text); };
+
   async function listen() {
     if (request.current) { stop(); return; }
     if (disabled || !text.trim()) return;
     stop(false);
+    // Inside the tap, before anything is awaited, so a device voice may start later on iPhone and iPad.
+    unlockSpeech();
     const controller = new AbortController();
     request.current = controller;
     const token = generation.current;
@@ -156,9 +170,12 @@ function NarrationControl({ source, text, language, label, disabled = false, aud
         if (!response.ok) {
           const payload = await response.json().catch(() => ({})) as { error?: unknown; errorBn?: unknown };
           if (replyAction(response.status, payload) === "device") {
-            // No saved audio for this part and none can be made: the device reads the rest, or the note says it cannot.
-            rememberNotConfigured();
-            setConfigured(false);
+            // No saved audio for this part and the server will make none (no key, or a preview awaiting
+            // approval): the device reads the rest, or the note says it cannot.
+            if (isNotConfiguredReply(response.status, payload)) {
+              rememberNotConfigured();
+              setConfigured(false);
+            }
             await speakOnDevice(chunks.slice(part).join(""), controller.signal, current);
             return;
           }
@@ -196,38 +213,61 @@ function NarrationControl({ source, text, language, label, disabled = false, aud
         releaseAudio();
       }
     } catch (failure) {
-      if (current()) setError(failure instanceof NarrationError ? failure.messageText : unavailable);
+      if (current()) {
+        if (failure instanceof DeviceSpeechFailure) {
+          showNote(deviceFailureNote(failure.error, audience, language));
+        } else {
+          setPlayed(null);
+          setError(failure instanceof NarrationError ? failure.messageText : unavailable);
+        }
+      }
     } finally {
       if (current()) {
         request.current = null;
-        speaking.current = false;
+        if (speaking.current) {
+          speaking.current = false;
+          if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+        }
         releaseAudio();
         setPhase("idle");
       }
     }
   }
 
-  /** Reads `remaining` with a device voice for its language, part by part, until done or stopped. */
+  /**
+   * Reads `remaining` with a device voice for its language, part by part, until done or stopped.
+   * A part that fails, or that has not started within DEVICE_START_TIMEOUT_MS (a browser that
+   * silently dropped the speech), ends the reading with a DeviceSpeechFailure.
+   */
   async function speakOnDevice(remaining: string, signal: AbortSignal, current: () => boolean) {
     const voices = await loadDeviceVoices();
     if (!current()) return;
     const choice = deviceFallback(voices, source.language);
     if (choice.kind === "unavailable") {
-      setNote(unavailableNote(audience, language));
+      showNote(unavailableNote(audience, language));
       return;
     }
     for (const piece of speechParts(remaining)) {
       if (!current()) return;
       speaking.current = true;
       await new Promise<void>((resolve, reject) => {
-        const stopped = () => resolve();
+        let started = false;
+        let over = false;
+        const finish = (failure?: DeviceSpeechFailure) => {
+          if (over) return;
+          over = true;
+          window.clearTimeout(watchdog);
+          signal.removeEventListener("abort", stopped);
+          if (failure) reject(failure); else resolve();
+        };
+        const stopped = () => finish();
         signal.addEventListener("abort", stopped, { once: true });
-        const settle = () => signal.removeEventListener("abort", stopped);
+        const watchdog = window.setTimeout(() => { if (!started) finish(new DeviceSpeechFailure(undefined)); }, DEVICE_START_TIMEOUT_MS);
         runPlayback([{ source: "device", voice: choice.voice }], { text: piece, lang: choice.lang, rate: deviceRate(source.language) }, deviceAudio, {
-          isCurrent: current,
-          onStart: () => { setPhase("playing"); setPlayed("device"); },
-          onEnd: () => { settle(); resolve(); },
-          onFail: () => { settle(); reject(new NarrationError(playbackFailed)); },
+          isCurrent: () => current() && !over,
+          onStart: () => { started = true; setPhase("playing"); setPlayed("device"); },
+          onEnd: () => finish(),
+          onFail: (speechError) => finish(new DeviceSpeechFailure(speechError)),
         });
       });
     }

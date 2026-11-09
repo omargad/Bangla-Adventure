@@ -23,18 +23,19 @@ async function api(page: Page, method: string, url: string, body: unknown) {
 
 async function observeAudio(page: Page) {
   await page.addInitScript(() => {
-    const state = { created: [] as string[], played: [] as string[], revoked: [] as string[], deviceSpeech: 0 };
+    const state = { created: [] as string[], played: [] as string[], revoked: [] as string[], deviceSpeech: 0, unlocks: 0 };
     (window as unknown as { __narrationAudio: typeof state }).__narrationAudio = state;
     const create = URL.createObjectURL.bind(URL), revoke = URL.revokeObjectURL.bind(URL);
     URL.createObjectURL = (blob) => { const url = create(blob); state.created.push(url); return url; };
     URL.revokeObjectURL = (url) => { state.revoked.push(url); revoke(url); };
     const play = HTMLMediaElement.prototype.play;
     HTMLMediaElement.prototype.play = function () { if (this.src.startsWith("blob:")) state.played.push(this.src); return play.call(this); };
-    window.speechSynthesis.speak = () => { state.deviceSpeech += 1; };
+    // Each Listen first speaks one silent, empty utterance inside the tap (see unlockSpeech); only real text is device speech.
+    window.speechSynthesis.speak = (utterance) => { if (utterance.text === "") state.unlocks += 1; else state.deviceSpeech += 1; };
   });
 }
 
-const audioState = (page: Page) => page.evaluate(() => (window as unknown as { __narrationAudio: { created: string[]; played: string[]; revoked: string[]; deviceSpeech: number } }).__narrationAudio);
+const audioState = (page: Page) => page.evaluate(() => (window as unknown as { __narrationAudio: { created: string[]; played: string[]; revoked: string[]; deviceSpeech: number; unlocks: number } }).__narrationAudio);
 
 test("published text narration prepares, cancels, retries and plays; activity requests include only the canonical prompt identity", async ({ page, browser, baseURL }, testInfo) => {
   test.setTimeout(120000);

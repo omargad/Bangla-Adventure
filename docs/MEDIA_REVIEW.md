@@ -286,19 +286,36 @@ The control does not show that as an error. Instead:
 - When the device has no voice for that language, a calm note (a status, not an
   alert) says *"Audio isn't available for this text on this device yet. Read it
   on the screen instead."* in English or Bangla (informal for learners, polite
-  for grown-ups). The button stays as it was, with no **Try again**.
+  for grown-ups). The button stays as it was, with no **Try again**. A device
+  with no voices at all waits for them once per page (about 1.5 seconds), then
+  answers at once until the browser reports new voices.
+- When the device's voice fails, or has not started within 4 seconds (iPhone and
+  iPad browsers can drop speech silently), a calm note says *"This device could
+  not read the text aloud. Read it on the screen instead."* (or, when the
+  device reports that the voice or language is not available, the note above).
+  Each Listen first speaks a silent, empty utterance inside the tap itself, so
+  that iPhone and iPad allow the device voice that starts after the server has
+  answered.
+
+The same applies to a teacher's or administrator's preview of a class activity
+that is waiting for approval, sent back or closed, with or without a key: the
+server makes no new audio for it and answers 409 with
+`"code": "narration-saved-only"` when nothing was saved, and the control reads
+the text (already on that reader's screen) with the device's voice instead of
+showing an error.
 
 The line under the button names the voice truthfully: *"Neural computer voice
 (ElevenLabs, elevenlabs.io)"* only when the audio came from the server, *"This
-device's voice"* when the device read it. Before anything has played it names
-ElevenLabs only when the server says new narration is configured; without a key
-there is no line until something plays. A page learns that from
+device's voice"* when the device read it, and nothing once a note or an error
+says nothing played. Before anything has played it names ElevenLabs only when
+the server says new narration is configured (a usable key, voice and model);
+without a key there is no line until something plays. A page learns that from
 `GET /api/narration`, which needs the same sign-in as the pages, answers only
-`{ "configured": true | false }` (never the key or any setting) and may be
-cached privately for a minute. Real errors (no connection, signed out, content
-withdrawn, daily allowance used, playback failure) still show their message as
-an alert with **Try again**. With a key nothing changes: every Listen plays the
-ElevenLabs voice as before.
+`{ "configured": true | false }` (never the key or any setting); that answer may
+be cached privately for a minute, a refusal (401, 429, 503) never. Real errors
+(no connection, signed out, content withdrawn, daily allowance used, a recording
+that cannot play) still show their message as an alert with **Try again**. With
+a key nothing changes: every Listen plays the ElevenLabs voice as before.
 
 The default generation budget is 20,000 new Unicode characters per UTC day,
 configured with `ELEVENLABS_DAILY_CHARACTER_LIMIT`. Each account may use at most its own

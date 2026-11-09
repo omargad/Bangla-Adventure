@@ -819,7 +819,7 @@ export default function TeacherDashboard({ teacherName, userId, isAdmin = false 
                       <ContentApproval key={`${activity.id}:${activity.revision}:${activity.approvalStatus}`} language={language} status={activity.approvalStatus} reviewNote={activity.reviewNote} reviewedBy={activity.reviewedBy} isAdmin={isAdmin}
                         onDecision={(status, note) => reviewActivity(activity, status, note)} />
                       {activity.approvalStatus === "rejected" && <button type="button" className="text-button" onClick={() => reviseActivity(activity)}>{s("Revise as a new activity", "সংশোধন করে নতুন কার্যক্রম তৈরি করুন")}</button>}
-                      {section === "activities" && activity.status === "open" && <ContentNarration source={{ kind: "activity", id: activity.id, slot: "instructions", language: detectNarrationLanguage(narration) }} text={narration} language={language} label={s("Listen to instructions", "নির্দেশনা শুনি")} />}
+                      {section === "activities" && activity.status === "open" && <ContentNarration source={{ kind: "activity", id: activity.id, slot: "instructions", language: detectNarrationLanguage(narration) }} text={narration} language={language} audience="adult" label={s("Listen to instructions", "নির্দেশনা শুনুন")} />}
                     </article>
                     );
                   })}

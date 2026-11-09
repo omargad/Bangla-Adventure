@@ -182,8 +182,16 @@ test("staff hear an activity that is not approved and open only from saved audio
   const generator = createGeneratedNarration({ env: () => ({ MEDIA_ROOT: path.join(directory, "saved-only"), ELEVENLABS_API_KEY: "offline-narration-key" }), transport: async () => { provider += 1; throw new Error("must not call"); } });
   const refused = await handlerFor("teacher", generator)(item.request());
   assert.equal(refused.status, 409);
-  assert.deepEqual(await refused.json(), { error: "New narration is made only for approved, open activities. Saved audio still plays.", errorBn: "নতুন কণ্ঠ শুধু অনুমোদিত ও খোলা কার্যক্রমের জন্য তৈরি হয়। সংরক্ষিত অডিও এখনো শোনা যাবে।" });
+  // A stable code lets the preview read the text with the device's voice instead of a Try again that cannot succeed.
+  assert.deepEqual(await refused.json(), { error: "New narration is made only for approved, open activities. Saved audio still plays.", errorBn: "নতুন কণ্ঠ শুধু অনুমোদিত ও খোলা কার্যক্রমের জন্য তৈরি হয়। সংরক্ষিত অডিও এখনো শোনা যাবে।", code: "narration-saved-only" });
+  assert.match(refused.headers.get("cache-control"), /private.*no-store/);
   assert.equal(provider, 0);
+  // The code is only for staff who may preview it: a learner, parent or other teacher is still refused as before, with no code.
+  for (const role of ["student", "parent", "otherTeacher"]) {
+    const other = await handlerFor(role, generator)(item.request());
+    assert.ok(other.status >= 400 && other.status !== 409, `${role} gets ${other.status}`);
+    assert.equal((await other.json()).code, undefined, role);
+  }
   // A closed activity is treated the same way.
   db.update(classActivities).set({ approvalStatus: "approved", status: "closed" }).where(eq(classActivities.id, item.ids.activity)).run();
   assert.equal((await resolveNarration(item.actor("teacher"), item.source)).savedOnly, true);
@@ -255,6 +263,9 @@ test("the narration status answers a signed-in reader with only a boolean, cache
   const limited = await statusFor(async () => item.actor("student"), () => true, false)();
   assert.equal(limited.status, 429);
   assert.equal(limited.headers.get("retry-after"), "7");
+  // Only the boolean answer may be kept: a refusal is never reused from the browser's cache.
+  assert.match(limited.headers.get("cache-control"), /private.*no-store/);
+  assert.match(passwordChange.headers.get("cache-control"), /no-store/);
   const broken = await statusFor(async () => { throw new Error("database path /secret"); }, () => true)();
   assert.equal(broken.status, 503);
   assert.doesNotMatch(await broken.text(), /secret/);

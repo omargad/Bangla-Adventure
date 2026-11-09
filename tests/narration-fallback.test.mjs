@@ -2,9 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 const {
-  replyAction, isNotConfiguredReply, deviceFallback, deviceLocale, speechParts, voiceLine, unavailableNote,
-  NARRATION_NOT_CONFIGURED_CODE, NARRATION_STATUS_TTL_MS,
+  replyAction, isNotConfiguredReply, isSavedOnlyReply, deviceFallback, deviceLocale, speechParts, voiceLine, unavailableNote,
+  deviceFailureNote, DEVICE_START_TIMEOUT_MS, NARRATION_NOT_CONFIGURED_CODE, NARRATION_SAVED_ONLY_CODE, NARRATION_STATUS_TTL_MS,
 } = await import("../lib/narration-fallback.ts");
+const generated = await import("../lib/generated-narration.ts");
 const { NARRATION_STATUS_MAX_AGE_SECONDS } = await import("../lib/narration-handler.ts");
 const { splitNarration } = await import("../lib/narration-model.ts");
 
@@ -34,6 +35,42 @@ test("only the server's not-configured reply hands the text to the device voice"
   for (const [status, error] of [[401, "Sign in to listen to this content."], [403, "Choose your own password before you continue."], [404, "This content is no longer available."], [409, "This content has changed. Refresh it before listening."], [429, "Today's narration allowance has been used. Saved audio is still available."]]) {
     assert.equal(replyAction(status, { error }), "error", `${status} stays an error`);
   }
+});
+
+test("a staff preview awaiting approval with nothing saved is read by the device voice, not shown as an error", () => {
+  const savedOnly = { error: "New narration is made only for approved, open activities. Saved audio still plays.", errorBn: "নতুন কণ্ঠ শুধু অনুমোদিত ও খোলা কার্যক্রমের জন্য তৈরি হয়। সংরক্ষিত অডিও এখনো শোনা যাবে।", code: "narration-saved-only" };
+  // The page and the server agree on both codes.
+  assert.equal(NARRATION_SAVED_ONLY_CODE, generated.NARRATION_SAVED_ONLY);
+  assert.equal(NARRATION_NOT_CONFIGURED_CODE, generated.NARRATION_NOT_CONFIGURED);
+  assert.equal(replyAction(409, savedOnly), "device");
+  assert.equal(isSavedOnlyReply(409, savedOnly), true);
+  // It is not a "not configured" answer: the server may still have a key for approved text.
+  assert.equal(isNotConfiguredReply(409, savedOnly), false);
+  // Only that code on a 409: "content has changed" and the same code on another status stay errors.
+  assert.equal(replyAction(409, { error: "This content has changed. Refresh it before listening." }), "error");
+  assert.equal(replyAction(503, savedOnly), "error");
+  assert.equal(replyAction(409, { ...savedOnly, code: undefined }), "error");
+});
+
+test("a device voice that fails or never starts gives a calm note that never mentions a recording", () => {
+  for (const audience of ["learner", "adult"]) {
+    for (const language of ["en", "bn"]) {
+      // A voice or language the device cannot use: the same note as having no voice at all.
+      for (const code of ["language-unavailable", "voice-unavailable", "synthesis-unavailable"]) {
+        assert.equal(deviceFailureNote(code, audience, language), unavailableNote(audience, language), code);
+      }
+      // Anything else, or speech that never started: the device could not read it aloud.
+      for (const code of ["synthesis-failed", "network", "not-allowed", "audio-busy", undefined]) {
+        const note = deviceFailureNote(code, audience, language);
+        assert.notEqual(note, unavailableNote(audience, language));
+        assert.doesNotMatch(note, /recording|রেকর্ডিং|try again|আবার চেষ্টা/i, String(code));
+      }
+    }
+  }
+  assert.equal(deviceFailureNote("synthesis-failed", "learner", "en"), "This device could not read the text aloud. Read it on the screen instead.");
+  assert.match(deviceFailureNote(undefined, "learner", "bn"), /পড়ে নাও।$/);
+  assert.match(deviceFailureNote(undefined, "adult", "bn"), /পড়ে নিন।$/);
+  assert.ok(DEVICE_START_TIMEOUT_MS >= 2000 && DEVICE_START_TIMEOUT_MS <= 5000);
 });
 
 test("English text with no saved audio and no key is read by an English device voice", () => {

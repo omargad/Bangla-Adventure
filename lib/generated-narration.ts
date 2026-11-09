@@ -20,9 +20,15 @@ export class NarrationError extends Error {
   }
 }
 
-/** Machine-readable reasons a player may act on; every other refusal is shown as it is. */
-export type NarrationErrorCode = "narration-not-configured";
+/**
+ * Machine-readable reasons a player may act on; every other refusal is shown as it is.
+ * "narration-not-configured": no usable key, so no new audio can be made for anyone.
+ * "narration-saved-only": a staff preview of an activity not yet approved (or not open), for which
+ * only audio saved earlier plays and none is made, whatever the key.
+ */
+export type NarrationErrorCode = "narration-not-configured" | "narration-saved-only";
 export const NARRATION_NOT_CONFIGURED: NarrationErrorCode = "narration-not-configured";
+export const NARRATION_SAVED_ONLY: NarrationErrorCode = "narration-saved-only";
 
 /** The provider key, or "" when new narration cannot be made with it. The key itself never leaves the server. */
 function usableKey(configuration: Environment, voiceId: string): string {
@@ -30,9 +36,20 @@ function usableKey(configuration: Environment, voiceId: string): string {
   return key && /^[\x21-\x7e]+$/.test(key) && key !== voiceId ? key : "";
 }
 
-/** Whether new narration can be made: true only with a usable key. Reveals nothing about the key. */
+/** The voice and model narration is made with, or null when either setting is not one this site can use. */
+function narrationSettings(configuration: Environment): { voiceId: string; modelId: string } | null {
+  const voiceId = configuration.ELEVENLABS_VOICE_ID?.trim() || DEFAULT_VOICE;
+  const modelId = configuration.ELEVENLABS_MODEL_ID?.trim() || DEFAULT_MODEL;
+  return /^[A-Za-z0-9]{10,40}$/.test(voiceId) && ["eleven_v4", "eleven_v3"].includes(modelId) ? { voiceId, modelId } : null;
+}
+
+/**
+ * Whether new narration can be made: true only with a usable key and a usable voice and model, the
+ * same checks a Listen request makes before calling the provider. Reveals nothing about the key.
+ */
 export function newNarrationConfigured(configuration: Environment): boolean {
-  return Boolean(usableKey(configuration, configuration.ELEVENLABS_VOICE_ID?.trim() || DEFAULT_VOICE));
+  const settings = narrationSettings(configuration);
+  return Boolean(settings && usableKey(configuration, settings.voiceId));
 }
 
 /** How much of the site's daily allowance one account may use, a quarter of it unless ELEVENLABS_ACCOUNT_DAILY_CHARACTER_LIMIT says otherwise. */
@@ -183,9 +200,9 @@ export function createGeneratedNarration({ env, now = Date.now, transport = prov
     if (typeof window !== "undefined") throw new NarrationError(503, "Narration is only available on the server.");
     if (typeof text !== "string" || !text.trim() || [...text].length > 1500 || !["bn", "en"].includes(language) || typeof actorKey !== "string" || !actorKey.trim() || actorKey.length > 512) throw new NarrationError(400, "This narration request is invalid.");
     const configuration = env();
-    const voiceId = configuration.ELEVENLABS_VOICE_ID?.trim() || DEFAULT_VOICE;
-    const modelId = configuration.ELEVENLABS_MODEL_ID?.trim() || DEFAULT_MODEL;
-    if (!/^[A-Za-z0-9]{10,40}$/.test(voiceId) || !["eleven_v4", "eleven_v3"].includes(modelId)) throw new NarrationError(503, "Narration settings are unavailable.");
+    const settings = narrationSettings(configuration);
+    if (!settings) throw new NarrationError(503, "Narration settings are unavailable.");
+    const { voiceId, modelId } = settings;
     const root = path.join(path.resolve(configuration.MEDIA_ROOT || path.join(process.cwd(), ".data", "media")), "generated-narration", "v1");
     const hash = narrationCacheKey(text, language, voiceId, modelId);
     const file = path.join(root, `${hash}.ogg`);
@@ -193,7 +210,7 @@ export function createGeneratedNarration({ env, now = Date.now, transport = prov
     if (options?.savedOnly) {
       const saved = await readAudio(file);
       if (saved) return { audio: saved, cached: true };
-      throw new NarrationError(409, "New narration is made only for approved, open activities. Saved audio still plays.", "নতুন কণ্ঠ শুধু অনুমোদিত ও খোলা কার্যক্রমের জন্য তৈরি হয়। সংরক্ষিত অডিও এখনো শোনা যাবে।");
+      throw new NarrationError(409, "New narration is made only for approved, open activities. Saved audio still plays.", "নতুন কণ্ঠ শুধু অনুমোদিত ও খোলা কার্যক্রমের জন্য তৈরি হয়। সংরক্ষিত অডিও এখনো শোনা যাবে।", NARRATION_SAVED_ONLY);
     }
     const pending = inFlight.get(identity);
     if (pending) return pending;

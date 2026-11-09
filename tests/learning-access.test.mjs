@@ -22,9 +22,10 @@ test("hashed build files and public images are cached, pages, data and gated fil
     for (const path of ["/", "/learn", "/api/curriculum", "/audio/hello-bn.ogg", "/river-story.png", "/_next/image"]) assert.equal(cacheControl(path, "signed-in"), "private, no-store", path);
     // The adventure page's pictures keep for a day, only in the signed-in browser.
     for (const path of ["/river-story.webp", "/postcard-collage.webp"]) assert.equal(cacheControl(path, "signed-in"), "private, max-age=86400", path);
-    // Only a signed-in reader's "is new narration configured?" answer keeps, for a minute; narration audio never does.
-    assert.equal(cacheControl("/api/narration", "signed-in", "GET"), "private, max-age=60");
-    assert.equal(cacheControl("/api/narration/", "signed-in"), "private, max-age=60");
+    // A signed-in reader's "is new narration configured?" answer (GET) leaves Cache-Control to the route, which keeps
+    // only its 200 answer for a minute and never a refusal; narration audio (POST) is never kept.
+    assert.equal(cacheControl("/api/narration", "signed-in", "GET"), null);
+    assert.equal(cacheControl("/api/narration/", "signed-in"), null);
     assert.equal(cacheControl("/api/narration", "signed-in", "POST"), "private, no-store");
     assert.equal(cacheControl("/api/narration", "public", "GET"), "private, no-store");
     process.env.NODE_ENV = "development";
